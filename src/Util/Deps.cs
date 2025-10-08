@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 #if GAME
 using ColossalFramework.Plugins;
+using PluginInfo = ColossalFramework.Plugins.PluginManager.PluginInfo;
 #endif
 
 namespace CSM.TmpeSync.Util
