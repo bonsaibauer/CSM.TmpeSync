@@ -10,8 +10,8 @@ namespace CSM.TmpeSync.Util
         private const string RoleClient = "Client";
         private const string RoleServer = "Server";
 
-        private static readonly Lazy<PropertyInfo?> CurrentRoleProperty =
-            new Lazy<PropertyInfo?>(ResolveCurrentRoleProperty, isThreadSafe: true);
+        private static PropertyInfo _currentRoleProperty;
+        private static bool _currentRolePropertyResolved;
 
         private static string _lastKnownRole = RoleNone;
         private static bool _loggedRoleReadError;
@@ -57,20 +57,31 @@ namespace CSM.TmpeSync.Util
 
         private static string GetCurrentRole()
         {
-            var property = CurrentRoleProperty.Value;
+            var property = GetOrResolveCurrentRoleProperty();
             if (property == null)
                 throw new InvalidOperationException("CSM.API.Command.CurrentRole property is unavailable.");
 
-            object? value = property.GetValue(null);
+            object value = property.GetValue(null, null);
             return NormalizeRoleName(value);
         }
 
-        private static PropertyInfo? ResolveCurrentRoleProperty()
+        private static PropertyInfo GetOrResolveCurrentRoleProperty()
+        {
+            if (!_currentRolePropertyResolved)
+            {
+                _currentRoleProperty = ResolveCurrentRoleProperty();
+                _currentRolePropertyResolved = true;
+            }
+
+            return _currentRoleProperty;
+        }
+
+        private static PropertyInfo ResolveCurrentRoleProperty()
         {
             const string commandTypeName = "CSM.API.Command";
 
             // Try without an assembly name first so the lookup works with the local stub types.
-            Type? type = Type.GetType(commandTypeName);
+            Type type = Type.GetType(commandTypeName);
 
             if (type == null)
             {
@@ -82,7 +93,7 @@ namespace CSM.TmpeSync.Util
             return type?.GetProperty("CurrentRole", BindingFlags.Static | BindingFlags.Public);
         }
 
-        private static string NormalizeRoleName(object? role)
+        private static string NormalizeRoleName(object role)
         {
             if (role == null)
                 return RoleNone;
