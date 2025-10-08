@@ -2,8 +2,8 @@
   <PropertyGroup>
     <TargetFramework>net35</TargetFramework>
     <OutputType>Library</OutputType>
-    <RootNamespace>CS1FileSyncMod</RootNamespace>
-    <AssemblyName>CS1.FileSync</AssemblyName>
+    <RootNamespace>CSM.TmpeSync</RootNamespace>
+    <AssemblyName>CSM.TmpeSync</AssemblyName>
 
     <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
     <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
