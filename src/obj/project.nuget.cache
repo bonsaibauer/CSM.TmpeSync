@@ -1,0 +1,11 @@
+{
+  "version": 2,
+  "dgSpecHash": "P3n0XBFI1XU=",
+  "success": true,
+  "projectFilePath": "A:\\17 Cloud\\OneDrive\\Documents\\GitHub\\CSM.TmpeSync\\src\\CSM.TmpeSync.csproj",
+  "expectedPackageFiles": [
+    "C:\\Users\\mail\\.nuget\\packages\\microsoft.netframework.referenceassemblies\\1.0.3\\microsoft.netframework.referenceassemblies.1.0.3.nupkg.sha512",
+    "C:\\Users\\mail\\.nuget\\packages\\microsoft.netframework.referenceassemblies.net35\\1.0.3\\microsoft.netframework.referenceassemblies.net35.1.0.3.nupkg.sha512"
+  ],
+  "logs": []
+}
