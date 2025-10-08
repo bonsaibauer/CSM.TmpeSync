@@ -83,6 +83,10 @@ Der Multiplayer-Fluss sieht vereinfacht wie folgt aus:
   und nutzt Stubs, während das offizielle TM:PE-Repo weiterhin alle
   Verkehrslogik enthält. Damit bleiben die Verantwortlichkeiten klar getrennt
   und Upstream-Updates lassen sich leichter übernehmen.【F:src/Tmpe/TmpeAdapter.cs†L51-L60】
+- **Editor-/Stub-Builds** loggen nun, welche Befehle gesendet würden, falls
+  keine echten CSM-Clients verbunden sind. Die neue Stub-API protokolliert alle
+  Kommandos mit dem Präfix `[CSM.API Stub]`, sodass sich TM:PE-Aktionen ohne
+  Multiplayer-Verbindung nachvollziehen lassen.【F:src/Stubs/CsmApiStubs.cs†L9-L372】
 
 Diese Übersicht sollte helfen, die Unterschiede zwischen den Repositories und die
 benötigten Schnittstellen zu verstehen sowie aktuelle Hook-Probleme gezielt zu
