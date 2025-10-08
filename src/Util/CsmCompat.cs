@@ -20,8 +20,8 @@ namespace CSM.TmpeSync.Util
         private static readonly Type IgnoreHelperType = Type.GetType("CSM.API.IgnoreHelper, CSM.API") ??
                                                          Type.GetType("CSM.API.Helpers.IgnoreHelper, CSM.API");
         private static readonly object IgnoreHelperInstance = IgnoreHelperType?.GetProperty("Instance", BindingFlags.Public | BindingFlags.Static)?.GetValue(null, null);
-        private static readonly MethodInfo IgnoreStartMethod = IgnoreHelperType?.GetMethod("StartIgnore", BindingFlags.Public | BindingFlags.Instance | BindingFlags.Static);
-        private static readonly MethodInfo IgnoreEndMethod = IgnoreHelperType?.GetMethod("EndIgnore", BindingFlags.Public | BindingFlags.Instance | BindingFlags.Static);
+        private static readonly MethodInfo IgnoreStartMethod = ResolveIgnoreMethod("StartIgnore");
+        private static readonly MethodInfo IgnoreEndMethod = ResolveIgnoreMethod("EndIgnore");
 
         private static readonly MethodInfo SendToClientMethod;
         private static readonly MethodInfo SendToAllMethod;
@@ -331,6 +331,19 @@ namespace CSM.TmpeSync.Util
 
             value = null;
             return false;
+        }
+
+        private static MethodInfo ResolveIgnoreMethod(string name)
+        {
+            if (IgnoreHelperType == null)
+                return null;
+
+            return IgnoreHelperType
+                .GetMethods(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Static)
+                .Where(m => m.Name == name)
+                .Where(m => m.GetParameters().Length == 0)
+                .OrderByDescending(m => m.IsStatic)
+                .FirstOrDefault();
         }
 
         private static MethodInfo ResolveSendToClient()
