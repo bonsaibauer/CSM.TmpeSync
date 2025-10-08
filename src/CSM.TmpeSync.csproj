@@ -48,6 +48,16 @@
     <DefineConstants>TRACE;RELEASE</DefineConstants>
   </PropertyGroup>
 
+  <!-- Default to GameBuild=true for Release builds so the resulting DLL uses the real ICities interfaces. -->
+  <PropertyGroup Condition="'$(Configuration)'=='Release' and '$(GameBuild)'==''">
+    <GameBuild>true</GameBuild>
+  </PropertyGroup>
+
+  <!-- Allow Debug builds to continue using the stub interfaces unless explicitly overridden. -->
+  <PropertyGroup Condition="'$(Configuration)'!='Release' and '$(GameBuild)'==''">
+    <GameBuild>false</GameBuild>
+  </PropertyGroup>
+
   <PropertyGroup Condition="'$(GameBuild)'=='true'">
     <DefineConstants>$(DefineConstants);GAME</DefineConstants>
   </PropertyGroup>

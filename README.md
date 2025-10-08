@@ -41,22 +41,23 @@ Die folgenden Schritte zeigen dir, wie du das Projekt lokal baust und das result
 
    Speichere die Datei im Repository-Stamm. Beim Build werden die Pfade automatisch übernommen.
 
-4. Führe den Build aus. Für schnelle Entwicklung ohne Spiel-Abhängigkeiten reicht der Standard-Build:
+4. Führe den Build aus. Der Release-Build nutzt jetzt automatisch die echten Spiel-DLLs (sofern `GameBuild` nicht manuell überschrieben wurde):
 
    ```bash
    dotnet build src/CSM.TmpeSync.csproj -c Release
    ```
 
-   Dieser Build nutzt automatisch die Stubs und benötigt daher keine Spiel-DLLs.
+   Dadurch implementiert die ausgelieferte DLL garantiert das echte `ICities.IUserMod`
+   und wird vom Spiel korrekt erkannt. Die Datei wird – nach erfolgreichem Build – wie gewohnt
+   nach `%LOCALAPPDATA%\Colossal Order\Cities_Skylines\Addons\Mods\CSM.TmpeSync` kopiert.
 
-5. Wenn du ein Paket fürs Spiel erzeugen willst, aktiviere den Game-Build explizit (per `Directory.Build.props` oder direkt über den MSBuild-Schalter):
+5. Für schnelle Entwicklungs-Builds ohne Spiel-Abhängigkeiten kannst du weiterhin den Debug-Build nutzen (oder `GameBuild=false` setzen):
 
    ```bash
-   dotnet build src/CSM.TmpeSync.csproj -c Release /p:GameBuild=true
+   dotnet build src/CSM.TmpeSync.csproj -c Debug
    ```
 
-   Jetzt prüft der Build alle Pfade und kopiert die erzeugte `CSM.FileSync.dll`
-   automatisch nach `%LOCALAPPDATA%\Colossal Order\Cities_Skylines\Addons\Mods\CSM.TmpeSync`.
+   In diesem Modus kommen die Stub-Implementierungen zum Einsatz, sodass keine externen DLLs benötigt werden.
 
 ## Add-on im Spiel verwenden
 
