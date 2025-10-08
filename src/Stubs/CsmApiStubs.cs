@@ -9,6 +9,57 @@ using System.Reflection;
 using System.Text;
 using CSM.TmpeSync.Util;
 
+#if NET35
+namespace System.Collections.Generic
+{
+    using System;
+    using System.Collections;
+
+    internal sealed class ReadOnlyCollectionWrapper<T> : IReadOnlyList<T>
+    {
+        private readonly IList<T> _items;
+
+        public ReadOnlyCollectionWrapper(IList<T> items)
+        {
+            if (items == null)
+                throw new ArgumentNullException("items");
+
+            _items = items;
+        }
+
+        public int Count
+        {
+            get { return _items.Count; }
+        }
+
+        public T this[int index]
+        {
+            get { return _items[index]; }
+        }
+
+        public IEnumerator<T> GetEnumerator()
+        {
+            return _items.GetEnumerator();
+        }
+
+        IEnumerator IEnumerable.GetEnumerator()
+        {
+            return GetEnumerator();
+        }
+    }
+
+    public interface IReadOnlyCollection<out T> : IEnumerable<T>
+    {
+        int Count { get; }
+    }
+
+    public interface IReadOnlyList<out T> : IReadOnlyCollection<T>
+    {
+        T this[int index] { get; }
+    }
+}
+#endif
+
 namespace CSM.API
 {
     public enum MultiplayerRole
@@ -275,7 +326,11 @@ namespace CSM.API
         {
             lock (Sync)
             {
+#if NET35
+                return new ReadOnlyCollectionWrapper<int>(Clients.ToArray());
+#else
                 return Clients.ToArray();
+#endif
             }
         }
 
@@ -283,7 +338,12 @@ namespace CSM.API
         {
             lock (Sync)
             {
+#if NET35
+                return new ReadOnlyCollectionWrapper<SimulatedCommandLogEntry>(
+                    CommandLog.Select(entry => entry.Clone()).ToArray());
+#else
                 return CommandLog.Select(entry => entry.Clone()).ToArray();
+#endif
             }
         }
 
