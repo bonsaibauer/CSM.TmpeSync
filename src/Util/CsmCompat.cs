@@ -1,4 +1,5 @@
 using System;
+using System.ComponentModel;
 using System.Globalization;
 using System.Linq;
 using System.Reflection;
@@ -250,9 +251,9 @@ namespace CSM.TmpeSync.Util
                 {
                     args[i] = converted;
                 }
-                else if (parameter.HasDefaultValue)
+                else if (TryGetDefaultValue(parameter, out var defaultValue))
                 {
-                    args[i] = parameter.DefaultValue;
+                    args[i] = defaultValue;
                 }
                 else if (parameter.ParameterType.IsValueType)
                 {
@@ -306,6 +307,29 @@ namespace CSM.TmpeSync.Util
             }
 
             converted = null;
+            return false;
+        }
+
+        private static bool TryGetDefaultValue(ParameterInfo parameter, out object value)
+        {
+            if ((parameter.Attributes & ParameterAttributes.HasDefault) == ParameterAttributes.HasDefault)
+            {
+                value = parameter.DefaultValue;
+                return true;
+            }
+
+            var defaultValueAttribute = parameter
+                .GetCustomAttributes(typeof(DefaultValueAttribute), false)
+                .OfType<DefaultValueAttribute>()
+                .FirstOrDefault();
+
+            if (defaultValueAttribute != null)
+            {
+                value = defaultValueAttribute.Value;
+                return true;
+            }
+
+            value = null;
             return false;
         }
 
