@@ -3,6 +3,7 @@ using CSM.API;
 using CSM.API.Commands;
 using CSM.TmpeSync.Net.Contracts.Locks;
 using CSM.TmpeSync.Util;
+using Log = CSM.TmpeSync.Util.Log;
 
 namespace CSM.TmpeSync.Net.Handlers.Locks
 {
