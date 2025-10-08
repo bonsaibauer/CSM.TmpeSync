@@ -1,4 +1,0 @@
-A:\17 Cloud\OneDrive\Documents\GitHub\CSM.TmpeSync\src\obj\Release\net35\CSM.TmpeSync.csproj.AssemblyReference.cache
-A:\17 Cloud\OneDrive\Documents\GitHub\CSM.TmpeSync\src\obj\Release\net35\CSM.TmpeSync.GeneratedMSBuildEditorConfig.editorconfig
-A:\17 Cloud\OneDrive\Documents\GitHub\CSM.TmpeSync\src\obj\Release\net35\CSM.TmpeSync.csproj.CoreCompileInputs.cache
-A:\17 Cloud\OneDrive\Documents\GitHub\CSM.TmpeSync\src\obj\Release\net35\CSM.TmpeSync.sourcelink.json
