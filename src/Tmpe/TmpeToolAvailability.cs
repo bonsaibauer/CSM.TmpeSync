@@ -14,6 +14,8 @@ namespace CSM.TmpeSync.Tmpe
     internal static class TmpeToolAvailability
     {
         private const string RestrictionMessage = "(CSM Multiplayer) Noch nicht synchronisierte TM:PE-Funktion – deaktiviert.";
+        private const string SupportedToolsTooltip = "Verfügbar: Tempolimits, Spurpfeile, Spurverbindungen, Fahrzeug-/Kreuzungsbeschränkungen, Vorfahrtsschilder, Parkverbote, Zeitgesteuerte Ampeln.";
+        private const string SupportedToolsLogList = "Speed Limits, Lane Arrows, Lane Connector, Vehicle Restrictions, Junction Restrictions, Priority Signs, Parking Restrictions, Timed Traffic Lights";
 
         private static bool _restrictionActive;
         private static bool _loggedMissingMenu;
@@ -31,9 +33,12 @@ namespace CSM.TmpeSync.Tmpe
             {
                 if (!_restrictionActive)
                 {
-                    Log.Info("Activating TM:PE menu restriction: enabling speed limits only.");
+                    Log.Info(
+                        "Activating TM:PE menu restriction: keeping supported tools available ({0}).",
+                        SupportedToolsLogList);
                     _restrictionActive = true;
                     ButtonSnapshots.Clear();
+                    _lastMenuSummary = null;
                 }
 
                 if (!ApplyRestriction())
@@ -52,14 +57,20 @@ namespace CSM.TmpeSync.Tmpe
             else if (_restrictionActive)
             {
                 RestoreAll();
-                Log.Info("Deactivating TM:PE menu restriction: all tools available again.");
+                Log.Info("Deactivating TM:PE menu restriction: all TM:PE tools available again.");
                 _restrictionActive = false;
+                _lastMenuSummary = null;
             }
 #else
             if (_restrictionActive != restrict)
             {
                 _restrictionActive = restrict;
-                Log.Info("TM:PE tool restriction (editor build) switched to {0}.", restrict ? "ENABLED" : "DISABLED");
+                if (restrict)
+                    Log.Info(
+                        "TM:PE tool restriction (editor build) ENABLED – supported tools remain available ({0}).",
+                        SupportedToolsLogList);
+                else
+                    Log.Info("TM:PE tool restriction (editor build) DISABLED – all tools available again.");
             }
 #endif
         }
@@ -72,6 +83,7 @@ namespace CSM.TmpeSync.Tmpe
             _cachedMenuInstance = null;
             _cachedMenuType = null;
             _loggedMissingMenu = false;
+            _lastMenuSummary = null;
 #else
             _restrictionActive = false;
             _loggedMissingMenu = false;
@@ -79,11 +91,29 @@ namespace CSM.TmpeSync.Tmpe
         }
 
 #if GAME
+        private static readonly SupportedToolDescriptor[] SupportedTools =
+        {
+            new SupportedToolDescriptor("Speed Limits", new[] { "speed" }),
+            new SupportedToolDescriptor("Lane Arrows", new[] { "lane", "arrow" }, new[] { "lanearrow" }, new[] { "lane", "turn" }),
+            new SupportedToolDescriptor("Lane Connector", new[] { "lane", "connector" }, new[] { "lane", "connection" }, new[] { "laneconnector" }),
+            new SupportedToolDescriptor("Vehicle Restrictions", new[] { "vehicle", "restriction" }, new[] { "vehicle", "ban" }, new[] { "vehiclerestriction" }),
+            new SupportedToolDescriptor("Junction Restrictions", new[] { "junction", "restriction" }, new[] { "junction", "control" }, new[] { "junctionrestriction" }),
+            new SupportedToolDescriptor("Priority Signs", new[] { "priority", "sign" }, new[] { "prioritysign" }, new[] { "give", "way" }, new[] { "yield", "sign" }),
+            new SupportedToolDescriptor("Parking Restrictions", new[] { "parking", "restriction" }, new[] { "parking", "ban" }, new[] { "parkingrestriction" }),
+            new SupportedToolDescriptor("Timed Traffic Lights", new[] { "timed", "traffic" }, new[] { "timed", "light" }, new[] { "timedtraffic" }, new[] { "timedtrafficlight" })
+        };
+
+        private static string _lastMenuSummary;
+
         private static bool ApplyRestriction()
         {
             var menu = GetMainMenuInstance();
             if (menu == null)
                 return false;
+
+            var enabledTools = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var disabledSamples = new List<string>();
+            var disabledCount = 0;
 
             foreach (var entry in EnumerateMenuButtons(menu))
             {
@@ -91,16 +121,26 @@ namespace CSM.TmpeSync.Tmpe
                 if (component == null)
                     continue;
 
-                if (entry.IsSpeedLimit)
+                if (TryMatchSupportedTool(entry, out var toolName))
                 {
                     RestoreComponent(component);
+                    if (!string.IsNullOrEmpty(toolName))
+                        enabledTools.Add(toolName);
                     continue;
                 }
 
                 DisableComponent(component);
+                disabledCount++;
+                if (disabledSamples.Count < 3)
+                {
+                    var description = DescribeMenuEntry(entry);
+                    if (!string.IsNullOrWhiteSpace(description))
+                        disabledSamples.Add(description);
+                }
             }
 
             CleanupSnapshots();
+            LogMenuSummary(enabledTools, disabledCount, disabledSamples);
             return true;
         }
 
@@ -169,13 +209,133 @@ namespace CSM.TmpeSync.Tmpe
 
         private static string MergeTooltip(string original)
         {
-            if (string.IsNullOrEmpty(original))
-                return RestrictionMessage;
+            var result = EnsureTooltipLine(original, RestrictionMessage);
+            result = EnsureTooltipLine(result, SupportedToolsTooltip);
+            return result;
+        }
 
-            if (original.IndexOf(RestrictionMessage, StringComparison.OrdinalIgnoreCase) >= 0)
+        private static string EnsureTooltipLine(string original, string addition)
+        {
+            if (string.IsNullOrEmpty(addition))
+                return original ?? string.Empty;
+
+            if (string.IsNullOrEmpty(original))
+                return addition;
+
+            if (original.IndexOf(addition, StringComparison.OrdinalIgnoreCase) >= 0)
                 return original;
 
-            return original + "\n\n" + RestrictionMessage;
+            return original + "\n\n" + addition;
+        }
+
+        private static bool TryMatchSupportedTool(MenuButtonInfo entry, out string toolName)
+        {
+            var keyText = entry.Key?.ToString();
+            var component = entry.Component;
+            var componentName = component?.name;
+            var tooltip = component?.tooltip;
+
+            foreach (var tool in SupportedTools)
+            {
+                if (Matches(tool, keyText) || Matches(tool, componentName) || Matches(tool, tooltip))
+                {
+                    toolName = tool.DisplayName;
+                    return true;
+                }
+            }
+
+            toolName = null;
+            return false;
+        }
+
+        private static bool Matches(SupportedToolDescriptor tool, string text)
+        {
+            if (string.IsNullOrEmpty(text))
+                return false;
+
+            foreach (var pattern in tool.Patterns)
+            {
+                if (pattern == null || pattern.Length == 0)
+                    continue;
+
+                var allTokensPresent = true;
+                foreach (var token in pattern)
+                {
+                    if (string.IsNullOrEmpty(token))
+                        continue;
+
+                    if (text.IndexOf(token, StringComparison.OrdinalIgnoreCase) < 0)
+                    {
+                        allTokensPresent = false;
+                        break;
+                    }
+                }
+
+                if (allTokensPresent)
+                    return true;
+            }
+
+            return false;
+        }
+
+        private static string DescribeMenuEntry(MenuButtonInfo entry)
+        {
+            if (entry.Key != null)
+            {
+                var keyText = entry.Key.ToString();
+                if (!string.IsNullOrWhiteSpace(keyText))
+                    return keyText;
+            }
+
+            var component = entry.Component;
+            if (component != null)
+            {
+                if (!string.IsNullOrWhiteSpace(component.tooltip))
+                    return component.tooltip;
+
+                if (!string.IsNullOrWhiteSpace(component.name))
+                    return component.name;
+            }
+
+            return null;
+        }
+
+        private static void LogMenuSummary(HashSet<string> enabledTools, int disabledCount, List<string> disabledSamples)
+        {
+            var orderedEnabled = enabledTools.Count == 0
+                ? Array.Empty<string>()
+                : enabledTools.OrderBy(x => x, StringComparer.OrdinalIgnoreCase).ToArray();
+
+            var summaryKey = string.Join("|", orderedEnabled) + "|disabled=" + disabledCount;
+            if (string.Equals(summaryKey, _lastMenuSummary, StringComparison.Ordinal))
+                return;
+
+            _lastMenuSummary = summaryKey;
+
+            var enabledText = orderedEnabled.Length == 0
+                ? SupportedToolsLogList
+                : string.Join(", ", orderedEnabled);
+
+            if (disabledCount <= 0)
+            {
+                Log.Info("TM:PE menu restriction applied. Enabled tools: {0}.", enabledText);
+                return;
+            }
+
+            if (disabledSamples.Count > 0)
+            {
+                Log.Info(
+                    "TM:PE menu restriction applied. Enabled tools: {0}. Disabled entries: {1} (examples: {2}).",
+                    enabledText,
+                    disabledCount,
+                    string.Join(", ", disabledSamples));
+                return;
+            }
+
+            Log.Info(
+                "TM:PE menu restriction applied. Enabled tools: {0}. Disabled entries: {1}.",
+                enabledText,
+                disabledCount);
         }
 
         private static object GetMainMenuInstance()
@@ -394,8 +554,7 @@ namespace CSM.TmpeSync.Tmpe
                 return false;
             }
 
-            var isSpeed = IsSpeedLimitEntry(key, component);
-            info = new MenuButtonInfo(component, key, isSpeed);
+            info = new MenuButtonInfo(component, key);
             return true;
         }
 
@@ -445,36 +604,16 @@ namespace CSM.TmpeSync.Tmpe
             return null;
         }
 
-        private static bool IsSpeedLimitEntry(object key, UIComponent component)
-        {
-            if (key != null)
-            {
-                var keyName = key.ToString();
-                if (!string.IsNullOrEmpty(keyName) && keyName.IndexOf("speed", StringComparison.OrdinalIgnoreCase) >= 0)
-                    return true;
-            }
-
-            if (!string.IsNullOrEmpty(component?.name) && component.name.IndexOf("speed", StringComparison.OrdinalIgnoreCase) >= 0)
-                return true;
-
-            if (!string.IsNullOrEmpty(component?.tooltip) && component.tooltip.IndexOf("speed", StringComparison.OrdinalIgnoreCase) >= 0)
-                return true;
-
-            return false;
-        }
-
         private readonly struct MenuButtonInfo
         {
-            internal MenuButtonInfo(UIComponent component, object key, bool isSpeedLimit)
+            internal MenuButtonInfo(UIComponent component, object key)
             {
                 Component = component;
                 Key = key;
-                IsSpeedLimit = isSpeedLimit;
             }
 
             internal UIComponent Component { get; }
             internal object Key { get; }
-            internal bool IsSpeedLimit { get; }
         }
 
         private sealed class ButtonSnapshot
@@ -482,6 +621,18 @@ namespace CSM.TmpeSync.Tmpe
             internal bool Enabled { get; set; }
             internal float Opacity { get; set; }
             internal string Tooltip { get; set; }
+        }
+
+        private readonly struct SupportedToolDescriptor
+        {
+            internal SupportedToolDescriptor(string displayName, params string[][] patterns)
+            {
+                DisplayName = displayName;
+                Patterns = patterns ?? Array.Empty<string[]>();
+            }
+
+            internal string DisplayName { get; }
+            internal string[][] Patterns { get; }
         }
 #endif
     }
