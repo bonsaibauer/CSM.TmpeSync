@@ -163,7 +163,7 @@ namespace CSM.TmpeSync.Tmpe
                 if (disabledSamples.Count < 3)
                 {
                     var description = DescribeMenuEntry(entry);
-                    if (!string.IsNullOrWhiteSpace(description))
+                    if (!IsNullOrWhiteSpace(description))
                         disabledSamples.Add(description);
                 }
             }
@@ -325,17 +325,17 @@ namespace CSM.TmpeSync.Tmpe
             if (entry.Key != null)
             {
                 var keyText = entry.Key.ToString();
-                if (!string.IsNullOrWhiteSpace(keyText))
+                if (!IsNullOrWhiteSpace(keyText))
                     return keyText;
             }
 
             var component = entry.Component;
             if (component != null)
             {
-                if (!string.IsNullOrWhiteSpace(component.tooltip))
+                if (!IsNullOrWhiteSpace(component.tooltip))
                     return component.tooltip;
 
-                if (!string.IsNullOrWhiteSpace(component.name))
+                if (!IsNullOrWhiteSpace(component.name))
                     return component.name;
             }
 
@@ -378,7 +378,7 @@ namespace CSM.TmpeSync.Tmpe
         private static void LogMenuSummary(HashSet<string> enabledTools, int disabledCount, List<string> disabledSamples)
         {
             var orderedEnabled = enabledTools.Count == 0
-                ? Array.Empty<string>()
+                ? new string[0]
                 : enabledTools.OrderBy(x => x, StringComparer.OrdinalIgnoreCase).ToArray();
 
             var summaryKey = string.Join("|", orderedEnabled) + "|disabled=" + disabledCount;
@@ -403,7 +403,7 @@ namespace CSM.TmpeSync.Tmpe
                     "TM:PE menu restriction applied. Enabled tools: {0}. Disabled entries: {1} (examples: {2}).",
                     enabledText,
                     disabledCount,
-                    string.Join(", ", disabledSamples));
+                    string.Join(", ", disabledSamples.ToArray()));
                 return;
             }
 
@@ -703,12 +703,26 @@ namespace CSM.TmpeSync.Tmpe
             internal SupportedToolDescriptor(string displayName, params string[][] patterns)
             {
                 DisplayName = displayName;
-                Patterns = patterns ?? Array.Empty<string[]>();
+                Patterns = patterns ?? new string[0][];
             }
 
             internal string DisplayName { get; }
             internal string[][] Patterns { get; }
         }
 #endif
+
+        private static bool IsNullOrWhiteSpace(string value)
+        {
+            if (value == null)
+                return true;
+
+            for (int i = 0; i < value.Length; i++)
+            {
+                if (!char.IsWhiteSpace(value[i]))
+                    return false;
+            }
+
+            return true;
+        }
     }
 }
