@@ -14,9 +14,20 @@ namespace CSM.TmpeSync.Net.Handlers.Locks
     public class BeginEditRequestHandler : CommandHandler<BeginEditRequest>
     {
         protected override void Handle(BeginEditRequest cmd){
-            if (Command.CurrentRole!=MultiplayerRole.Server) return;
+            var sender=CsmCompat.GetSenderId(cmd);
+            Log.Info("Received BeginEditRequest kind={0} id={1} from client={2}", cmd.TargetKind, cmd.TargetId, sender);
+            if (Command.CurrentRole!=MultiplayerRole.Server){
+                Log.Debug("Ignoring BeginEditRequest on non-server instance.");
+                return;
+            }
             var key=HostLocks.Key(cmd.TargetKind,cmd.TargetId);
-            if (!HostLocks.Owner.ContainsKey(key)) HostLocks.Owner[key]=CsmCompat.GetSenderId(cmd);
+            if (!HostLocks.Owner.ContainsKey(key)){
+                HostLocks.Owner[key]=sender;
+                Log.Debug("Assigned new edit lock owner client={0} for key={1}", sender, key);
+            }
+            else{
+                Log.Debug("Refreshing edit lock for key={0}; owner remains client={1}", key, HostLocks.Owner[key]);
+            }
             CsmCompat.SendToAll(new EditLockApplied{ TargetKind=cmd.TargetKind, TargetId=cmd.TargetId, OwnerClientId=HostLocks.Owner[key], TtlFrames=180 });
         }
     }
@@ -24,8 +35,17 @@ namespace CSM.TmpeSync.Net.Handlers.Locks
     public class EndEditRequestHandler : CommandHandler<EndEditRequest>
     {
         protected override void Handle(EndEditRequest cmd){
-            if (Command.CurrentRole!=MultiplayerRole.Server) return;
-            HostLocks.Owner.Remove(HostLocks.Key(cmd.TargetKind,cmd.TargetId));
+            var sender=CsmCompat.GetSenderId(cmd);
+            Log.Info("Received EndEditRequest kind={0} id={1} from client={2}", cmd.TargetKind, cmd.TargetId, sender);
+            if (Command.CurrentRole!=MultiplayerRole.Server){
+                Log.Debug("Ignoring EndEditRequest on non-server instance.");
+                return;
+            }
+            var key=HostLocks.Key(cmd.TargetKind,cmd.TargetId);
+            if(HostLocks.Owner.Remove(key))
+                Log.Debug("Cleared edit lock key={0} previously owned by client={1}", key, sender);
+            else
+                Log.Warn("EndEditRequest for key={0} had no existing lock", key);
             CsmCompat.SendToAll(new EditLockCleared{ TargetKind=cmd.TargetKind, TargetId=cmd.TargetId });
         }
     }
