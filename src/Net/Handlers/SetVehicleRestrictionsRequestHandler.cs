@@ -1,4 +1,3 @@
-using CSM.API;
 using CSM.API.Commands;
 using CSM.TmpeSync.Net.Contracts.Applied;
 using CSM.TmpeSync.Net.Contracts.Requests;
@@ -15,7 +14,7 @@ namespace CSM.TmpeSync.Net.Handlers
             var senderId = CsmCompat.GetSenderId(cmd);
             Log.Info("Received SetVehicleRestrictionsRequest lane={0} restrictions={1} from client={2} role={3}", cmd.LaneId, cmd.Restrictions, senderId, Command.CurrentRole);
 
-            if (Command.CurrentRole != MultiplayerRole.Server)
+            if (Command.CurrentRole != CSM.API.MultiplayerRole.Server)
             {
                 Log.Debug("Ignoring SetVehicleRestrictionsRequest on non-server instance.");
                 return;

@@ -21,7 +21,7 @@ namespace CSM.TmpeSync.Net.Handlers
             if (!NetUtil.LaneExists(_cmd.SourceLaneId))
                 return false;
 
-            return (_cmd.TargetLaneIds ?? Array.Empty<uint>()).All(NetUtil.LaneExists);
+            return (_cmd.TargetLaneIds ?? new uint[0]).All(NetUtil.LaneExists);
         }
 
         public bool TryApply()
@@ -36,7 +36,7 @@ namespace CSM.TmpeSync.Net.Handlers
 
                 using (CsmCompat.StartIgnore())
                 {
-                    return Tmpe.TmpeAdapter.ApplyLaneConnections(_cmd.SourceLaneId, _cmd.TargetLaneIds ?? Array.Empty<uint>());
+                    return Tmpe.TmpeAdapter.ApplyLaneConnections(_cmd.SourceLaneId, _cmd.TargetLaneIds ?? new uint[0]);
                 }
             }
         }

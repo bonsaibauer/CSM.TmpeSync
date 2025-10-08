@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using CSM.TmpeSync.Net.Contracts.States;
 using CSM.TmpeSync.Util;
@@ -207,15 +208,15 @@ namespace CSM.TmpeSync.Tmpe
         {
             try
             {
-                var sanitizedTargets = (targetLaneIds ?? Array.Empty<uint>())
+                var sanitizedTargets = (targetLaneIds ?? new uint[0])
                     .Where(id => id != 0)
                     .Distinct()
                     .ToArray();
 
                 if (HasRealTmpe)
-                    Log.Debug("[TMPE] Request lane connections lane={0} -> [{1}]", sourceLaneId, string.Join(",", sanitizedTargets));
+                    Log.Debug("[TMPE] Request lane connections lane={0} -> [{1}]", sourceLaneId, JoinLaneIds(sanitizedTargets));
                 else
-                    Log.Info("[TMPE] Lane connections lane={0} -> [{1}] (stub)", sourceLaneId, string.Join(",", sanitizedTargets));
+                    Log.Info("[TMPE] Lane connections lane={0} -> [{1}] (stub)", sourceLaneId, JoinLaneIds(sanitizedTargets));
 
                 lock (StateLock)
                 {
@@ -242,7 +243,7 @@ namespace CSM.TmpeSync.Tmpe
                 {
                     if (!LaneConnections.TryGetValue(sourceLaneId, out var stored))
                     {
-                        targetLaneIds = Array.Empty<uint>();
+                        targetLaneIds = new uint[0];
                     }
                     else
                     {
@@ -255,9 +256,21 @@ namespace CSM.TmpeSync.Tmpe
             catch (Exception ex)
             {
                 Log.Error("TMPE TryGetLaneConnections failed: " + ex);
-                targetLaneIds = Array.Empty<uint>();
+                targetLaneIds = new uint[0];
                 return false;
             }
+        }
+
+        private static string JoinLaneIds(IEnumerable<uint> laneIds)
+        {
+            if (laneIds == null)
+                return string.Empty;
+
+            var stringIds = laneIds
+                .Select(id => id.ToString(CultureInfo.InvariantCulture))
+                .ToArray();
+
+            return stringIds.Length == 0 ? string.Empty : string.Join(",", stringIds);
         }
 
         internal static bool ApplyJunctionRestrictions(ushort nodeId, JunctionRestrictionsState state)

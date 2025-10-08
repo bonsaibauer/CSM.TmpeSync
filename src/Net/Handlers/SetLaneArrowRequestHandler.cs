@@ -1,4 +1,3 @@
-using CSM.API;
 using CSM.API.Commands;
 using CSM.TmpeSync.Net.Contracts.Applied;
 using CSM.TmpeSync.Net.Contracts.Requests;
@@ -16,7 +15,7 @@ namespace CSM.TmpeSync.Net.Handlers
             var senderId = CsmCompat.GetSenderId(cmd);
             Log.Info("Received SetLaneArrowRequest lane={0} arrows={1} from client={2} role={3}", cmd.LaneId, cmd.Arrows, senderId, Command.CurrentRole);
 
-            if (Command.CurrentRole != MultiplayerRole.Server)
+            if (Command.CurrentRole != CSM.API.MultiplayerRole.Server)
             {
                 Log.Debug("Ignoring SetLaneArrowRequest on non-server instance.");
                 return;

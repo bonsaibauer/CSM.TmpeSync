@@ -1,6 +1,6 @@
 using System;
+using System.Globalization;
 using System.Linq;
-using CSM.API;
 using CSM.API.Commands;
 using CSM.TmpeSync.Net.Contracts.Applied;
 using CSM.TmpeSync.Net.Contracts.Requests;
@@ -15,11 +15,11 @@ namespace CSM.TmpeSync.Net.Handlers
         protected override void Handle(SetLaneConnectionsRequest cmd)
         {
             var senderId = CsmCompat.GetSenderId(cmd);
-            var targets = (cmd.TargetLaneIds ?? Array.Empty<uint>()).Where(id => id != 0).Distinct().ToArray();
+            var targets = (cmd.TargetLaneIds ?? new uint[0]).Where(id => id != 0).Distinct().ToArray();
 
-            Log.Info("Received SetLaneConnectionsRequest lane={0} targets=[{1}] from client={2} role={3}", cmd.SourceLaneId, string.Join(",", targets), senderId, Command.CurrentRole);
+            Log.Info("Received SetLaneConnectionsRequest lane={0} targets=[{1}] from client={2} role={3}", cmd.SourceLaneId, FormatLaneIds(targets), senderId, Command.CurrentRole);
 
-            if (Command.CurrentRole != MultiplayerRole.Server)
+            if (Command.CurrentRole != CSM.API.MultiplayerRole.Server)
             {
                 Log.Debug("Ignoring SetLaneConnectionsRequest on non-server instance.");
                 return;
@@ -58,7 +58,7 @@ namespace CSM.TmpeSync.Net.Handlers
 
                     if (TmpeAdapter.ApplyLaneConnections(cmd.SourceLaneId, targets))
                     {
-                        Log.Info("Applied lane connections lane={0} -> [{1}]; broadcasting update.", cmd.SourceLaneId, string.Join(",", targets));
+                        Log.Info("Applied lane connections lane={0} -> [{1}]; broadcasting update.", cmd.SourceLaneId, FormatLaneIds(targets));
                         CsmCompat.SendToAll(new LaneConnectionsApplied { SourceLaneId = cmd.SourceLaneId, TargetLaneIds = targets });
                     }
                     else
@@ -68,6 +68,14 @@ namespace CSM.TmpeSync.Net.Handlers
                     }
                 }
             });
+        }
+
+        private static string FormatLaneIds(uint[] laneIds)
+        {
+            if (laneIds == null || laneIds.Length == 0)
+                return string.Empty;
+
+            return string.Join(",", laneIds.Select(id => id.ToString(CultureInfo.InvariantCulture)).ToArray());
         }
     }
 }

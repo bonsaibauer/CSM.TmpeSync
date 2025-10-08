@@ -1,4 +1,3 @@
-using CSM.API;
 using CSM.API.Commands;
 using CSM.TmpeSync.Net.Contracts.Requests;
 using CSM.TmpeSync.Net.Contracts.Applied;
@@ -16,7 +15,7 @@ namespace CSM.TmpeSync.Net.Handlers
             var senderId=CsmCompat.GetSenderId(cmd);
             Log.Info("Received SetSpeedLimitRequest lane={0} speed={1}km/h from client={2} role={3}", cmd.LaneId, cmd.SpeedKmh, senderId, Command.CurrentRole);
 
-            if (Command.CurrentRole != MultiplayerRole.Server)
+            if (Command.CurrentRole != CSM.API.MultiplayerRole.Server)
             {
                 Log.Debug("Ignoring SetSpeedLimitRequest on non-server instance.");
                 return;

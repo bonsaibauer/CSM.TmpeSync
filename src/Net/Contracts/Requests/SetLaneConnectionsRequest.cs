@@ -9,6 +9,6 @@ namespace CSM.TmpeSync.Net.Contracts.Requests
     {
         [ProtoMember(1)] public uint SourceLaneId { get; set; }
 
-        [ProtoMember(2)] public uint[] TargetLaneIds { get; set; } = Array.Empty<uint>();
+        [ProtoMember(2)] public uint[] TargetLaneIds { get; set; } = new uint[0];
     }
 }
