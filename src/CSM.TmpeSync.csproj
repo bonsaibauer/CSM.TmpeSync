@@ -108,6 +108,7 @@
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Mod\MyUserMod.cs" />
     <Compile Include="Mod\TmpeSyncConnection.cs" />
+    <Compile Include="Mod\MultiplayerThreadingExtension.cs" />
 
     <Compile Include="Util\Log.cs" />
     <Compile Include="Util\Deps.cs" />
@@ -116,11 +117,14 @@
     <Compile Include="Util\DeferredApply.cs" />
     <Compile Include="Util\CsmCompat.cs" />
     <Compile Include="Util\LockRegistry.cs" />
+    <Compile Include="Util\MultiplayerStateObserver.cs" />
 
     <Compile Include="Tmpe\TmpeAdapter.cs" />
+    <Compile Include="Tmpe\TmpeToolAvailability.cs" />
 
     <Compile Include="Stubs\CsmApiStubs.cs" />
     <Compile Include="Stubs\UnityEngineStubs.cs" />
+    <Compile Include="Stubs\ThreadingExtensionStub.cs" />
   
     <Compile Include="Net\Contracts\Requests\SetSpeedLimitRequest.cs" />
     <Compile Include="Net\Contracts\Applied\SpeedLimitApplied.cs" />
