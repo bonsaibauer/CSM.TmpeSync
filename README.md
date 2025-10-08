@@ -65,6 +65,26 @@ Die folgenden Schritte zeigen dir, wie du das Projekt lokal baust und das result
 2. Stelle sicher, dass sowohl der CSM-Server als auch alle Clients TM:PE installiert und aktiviert haben.
 3. Sobald die Multiplayer-Sitzung läuft, synchronisiert das Add-on Geschwindigkeitsänderungen aus TM:PE (Speed-Limit aktivieren/deaktivieren) zwischen allen Spielern.
 
+## Multiplayer-Funktion testen
+
+Um zu prüfen, ob die Synchronisation im Multiplayer wirklich funktioniert, kannst du folgendermaßen vorgehen:
+
+1. **Server mit aktiviertem Add-on starten:**
+   * Baue das Projekt wie oben beschrieben und kopiere die DLL in den Mods-Ordner des Rechners, auf dem der CSM-Server läuft.
+   * Aktiviere das Add-on im Content-Manager und starte anschließend das Spiel samt CSM-Server (z. B. über `CSM.exe` oder den integrierten Host-Button).
+2. **Mindestens einen Client verbinden:**
+   * Stelle sicher, dass auf dem Client-Rechner dieselben Mods aktiv sind (CSM, Harmony, TM:PE und CSM.TmpeSync).
+   * Verbinde dich über die CSM-Oberfläche mit dem Server und lade ein gemeinsames Savegame.
+3. **TM:PE-Speed-Limits vergleichen:**
+   * Wähle auf dem Server eine Straße aus und ändere das Tempolimit in TM:PE.
+   * Beobachte beim Client, ob die Änderung automatisch erscheint.
+   * Wiederhole den Test in die andere Richtung (Client ändert, Server beobachtet), um sicherzugehen, dass die Synchronisation bidirektional funktioniert.
+4. **Log-Dateien prüfen (optional):**
+   * In `%LOCALAPPDATA%\Colossal Order\Cities_Skylines\CSM\Logs` findest du die CSM-Logs. Dort sollte beim Setzen eines Tempolimits eine Meldung mit Bezug auf `SpeedLimitSync` auftauchen.
+   * Falls die Änderungen nicht ankommen, vergleiche die Logs von Server und Client – meist sind fehlende oder deaktivierte Mods die Ursache.
+
+Auf diese Weise kannst du zuverlässig nachvollziehen, ob das Add-on die TM:PE-Geschwindigkeitsbegrenzungen für alle verbundenen Spieler synchron hält.
+
 ## Fehlerbehebung
 
 * **`ICities.dll nicht gefunden`** – Setze die MSBuild-Eigenschaft `CitiesSkylinesDir` auf den korrekten Installationspfad.
