@@ -85,7 +85,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="protobuf-net" Version="3.2.31" />
+    <PackageReference Include="protobuf-net" Version="2.4.6" />
   </ItemGroup>
 
   <!-- ==== Dateien (da EnableDefaultCompileItems=false) ==== -->
