@@ -59,6 +59,12 @@ namespace CSM.TmpeSync.Util
                 if (RegisterConnectionMethod != null && UnregisterConnectionMethod != null)
                     break;
             }
+
+            Log.Debug("CSM compat initialised. SendToClient={0}; SendToAll={1}; Register={2}; Unregister={3}",
+                DescribeMethod(SendToClientMethod),
+                DescribeMethod(SendToAllMethod),
+                DescribeMethod(RegisterConnectionMethod),
+                DescribeMethod(UnregisterConnectionMethod));
         }
 
         internal static int GetSenderId(CommandBase command)
@@ -120,6 +126,7 @@ namespace CSM.TmpeSync.Util
             if (command == null)
                 throw new ArgumentNullException(nameof(command));
 
+            Log.Debug("CSM send to client {0}: {1}", clientId, command.GetType().FullName);
             try
             {
                 if (SendToClientMethod != null)
@@ -152,6 +159,7 @@ namespace CSM.TmpeSync.Util
             if (command == null)
                 throw new ArgumentNullException(nameof(command));
 
+            Log.Debug("CSM broadcast: {0}", command.GetType().FullName);
             try
             {
                 if (SendToAllMethod != null)
@@ -182,10 +190,12 @@ namespace CSM.TmpeSync.Util
                 return;
             }
 
+            Log.Debug("Registering connection '{0}' via {1}", SafeName(connection), DescribeMethod(RegisterConnectionMethod));
             try
             {
                 var target = RegisterConnectionMethod.IsStatic ? null : ConnectionRegistrarInstance;
                 RegisterConnectionMethod.Invoke(target, new object[] { connection });
+                Log.Info("Registered connection '{0}' with CSM", SafeName(connection));
             }
             catch (Exception ex)
             {
@@ -208,11 +218,34 @@ namespace CSM.TmpeSync.Util
             {
                 var target = UnregisterConnectionMethod.IsStatic ? null : ConnectionRegistrarInstance;
                 UnregisterConnectionMethod.Invoke(target, new object[] { connection });
+                Log.Info("Unregistered connection '{0}' from CSM", SafeName(connection));
             }
             catch (Exception ex)
             {
                 Log.Warn("Failed to unregister connection: {0}", ex);
             }
+        }
+
+        private static string SafeName(Connection connection)
+        {
+            if (connection == null)
+                return "<null>";
+
+            if (!string.IsNullOrEmpty(connection.Name))
+                return connection.Name;
+
+            return connection.GetType().FullName ?? connection.GetType().Name;
+        }
+
+        private static string DescribeMethod(MethodInfo method)
+        {
+            if (method == null)
+                return "<missing method>";
+
+            var declaring = method.DeclaringType?.FullName ?? method.DeclaringType?.Name ?? "<unknown type>";
+            var parameters = method.GetParameters();
+            var parameterTypes = string.Join(", ", parameters.Select(p => p.ParameterType.Name));
+            return declaring + "." + method.Name + "(" + parameterTypes + ")";
         }
 
         internal static IDisposable StartIgnore()
