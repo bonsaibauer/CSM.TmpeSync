@@ -49,12 +49,12 @@
   </PropertyGroup>
 
   <!-- Default to GameBuild=true for Release builds so the resulting DLL uses the real ICities interfaces. -->
-  <PropertyGroup Condition="'$(Configuration)'=='Release' and '$(GameBuild)'==''">
+  <PropertyGroup Condition="'$(Configuration)'=='Release' and '$(GameBuild)'=='' and '$(CitiesSkylinesDir)'!='' and Exists('$(ManagedDir)\\ICities.dll') and '$(HarmonyDllDir)'!='' and Exists('$(HarmonyDllDir)\\CitiesHarmony.Harmony.dll') and '$(CsmApiDllPath)'!='' and Exists('$(CsmApiDllPath)')">
     <GameBuild>true</GameBuild>
   </PropertyGroup>
 
   <!-- Allow Debug builds to continue using the stub interfaces unless explicitly overridden. -->
-  <PropertyGroup Condition="'$(Configuration)'!='Release' and '$(GameBuild)'==''">
+  <PropertyGroup Condition="'$(GameBuild)'==''">
     <GameBuild>false</GameBuild>
   </PropertyGroup>
 
