@@ -57,7 +57,7 @@ namespace CSM.API
         {
             if (clientIds == null)
             {
-                Helper.SendToClients(Array.Empty<int>(), command);
+                Helper.SendToClients(new int[0], command);
                 return;
             }
 
@@ -66,7 +66,7 @@ namespace CSM.API
 
         public static void SendToClients(int[] clientIds, Commands.CommandBase command)
         {
-            Helper.SendToClients(clientIds ?? Array.Empty<int>(), command);
+            Helper.SendToClients(clientIds ?? new int[0], command);
         }
 
         public static void SendToAll(Commands.CommandBase command)
@@ -202,7 +202,7 @@ namespace CSM.API
             if (command == null)
                 throw new ArgumentNullException(nameof(command));
 
-            var targets = clientIds?.ToArray() ?? Array.Empty<int>();
+            var targets = clientIds?.ToArray() ?? new int[0];
             if (targets.Length == 0)
             {
                 SendToAll(command);
