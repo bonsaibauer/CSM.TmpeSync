@@ -752,7 +752,7 @@ namespace CSM.TmpeSync.Util
             return ResolveSendMethod(
                 SendToAllMethodNames,
                 new[] { "send", "broadcast" },
-                Array.Empty<string>());
+                new string[0]);
         }
 
         private static bool AcceptsCommandParameter(MethodInfo method)
@@ -909,7 +909,7 @@ namespace CSM.TmpeSync.Util
             IEnumerable<string> mandatoryKeywords,
             IEnumerable<string> optionalKeywords)
         {
-            var candidates = new HashSet<string>(methodNames ?? Array.Empty<string>(), StringComparer.OrdinalIgnoreCase);
+            var candidates = new HashSet<string>(methodNames ?? new string[0], StringComparer.OrdinalIgnoreCase);
             var methods = CommandType.Assembly
                 .GetTypes()
                 .SelectMany(t => t.GetMethods(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static | BindingFlags.Instance))
@@ -925,11 +925,11 @@ namespace CSM.TmpeSync.Util
             if (match != null)
                 return match;
 
-            var mandatory = (mandatoryKeywords ?? Array.Empty<string>())
+            var mandatory = (mandatoryKeywords ?? new string[0])
                 .Select(k => k?.Trim())
                 .Where(k => !string.IsNullOrEmpty(k))
                 .ToArray();
-            var optional = (optionalKeywords ?? Array.Empty<string>())
+            var optional = (optionalKeywords ?? new string[0])
                 .Select(k => k?.Trim())
                 .Where(k => !string.IsNullOrEmpty(k))
                 .ToArray();
@@ -975,7 +975,7 @@ namespace CSM.TmpeSync.Util
                 if (parameter.ParameterType == typeof(string))
                 {
                     var name = connection.Name;
-                    if (string.IsNullOrWhiteSpace(name))
+                    if (string.IsNullOrEmpty(name) || name.Trim().Length == 0)
                         name = connection.GetType().FullName ?? connection.GetType().Name;
                     value = name;
                     return true;
