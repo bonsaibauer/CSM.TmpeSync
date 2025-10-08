@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 #if GAME
+using System.Reflection;
 using ColossalFramework.Plugins;
 using PluginInfo = ColossalFramework.Plugins.PluginManager.PluginInfo;
 #endif
@@ -59,7 +60,18 @@ namespace CSM.TmpeSync.Util
                         Log.Warn("Disabling plugin '{0}' due to missing dependencies.", SafeName(p));
                         var pluginName = p.name;
                         if (!string.IsNullOrEmpty(pluginName)){
-                            PluginManager.instance.SetPluginEnabled(pluginName, false);
+                            var manager = PluginManager.instance;
+                            var setMethod = manager.GetType().GetMethod("SetPluginEnabled", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic, null, new[]{ typeof(string), typeof(bool) }, null)
+                                            ?? manager.GetMethods(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)
+                                                .FirstOrDefault(m => m.Name.StartsWith("SetPlugin", StringComparison.OrdinalIgnoreCase)
+                                                                 && m.GetParameters().Length == 2
+                                                                 && m.GetParameters()[0].ParameterType == typeof(string)
+                                                                 && m.GetParameters()[1].ParameterType == typeof(bool));
+
+                            if (setMethod != null)
+                                setMethod.Invoke(manager, new object[]{ pluginName, false });
+                            else
+                                p.isEnabled = false;
                         }else{
                             p.isEnabled = false;
                         }

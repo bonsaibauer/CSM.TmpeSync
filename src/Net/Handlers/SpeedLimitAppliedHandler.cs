@@ -9,9 +9,10 @@ namespace CSM.TmpeSync.Net.Handlers
         protected override void Handle(SpeedLimitApplied cmd)
         {
             if (NetUtil.LaneExists(cmd.LaneId)){
-                CSM.API.IgnoreHelper.Instance.StartIgnore();
-                try{ Tmpe.TmpeAdapter.ApplySpeedLimit(cmd.LaneId, cmd.SpeedKmh); }
-                finally{ CSM.API.IgnoreHelper.Instance.EndIgnore(); }
+                using (CsmCompat.StartIgnore())
+                {
+                    Tmpe.TmpeAdapter.ApplySpeedLimit(cmd.LaneId, cmd.SpeedKmh);
+                }
             } else {
                 DeferredApply.Enqueue(new SpeedLimitDeferredOp(cmd));
             }

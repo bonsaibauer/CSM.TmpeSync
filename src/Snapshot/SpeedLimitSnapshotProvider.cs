@@ -11,7 +11,7 @@ namespace CSM.TmpeSync.Snapshot
             NetUtil.ForEachLane(laneId=>{
                 float kmh;
                 if (Tmpe.TmpeAdapter.TryGetSpeedKmh(laneId, out kmh))
-                    Command.SendToAll(new SpeedLimitApplied{ LaneId=laneId, SpeedKmh=kmh });
+                    CsmCompat.SendToAll(new SpeedLimitApplied{ LaneId=laneId, SpeedKmh=kmh });
             });
         }
         public void Import(){ }

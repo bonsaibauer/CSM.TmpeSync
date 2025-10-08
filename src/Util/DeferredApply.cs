@@ -28,8 +28,10 @@ namespace CSM.TmpeSync.Util
                     bool done=false, drop=false;
                     try{
                         if(e.Op.Exists()){
-                            CSM.API.IgnoreHelper.Instance.StartIgnore();
-                            try{ done=e.Op.TryApply(); } finally{ CSM.API.IgnoreHelper.Instance.EndIgnore(); }
+                            using (CsmCompat.StartIgnore())
+                            {
+                                done=e.Op.TryApply();
+                            }
                         }else{
                             e.Retries++; if(e.Retries>=MAX_RETRIES) drop=true;
                         }
