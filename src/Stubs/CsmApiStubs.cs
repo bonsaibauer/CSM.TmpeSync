@@ -374,7 +374,7 @@ namespace CSM.API
             if (connection == null)
                 return "<null>";
 
-            if (!string.IsNullOrWhiteSpace(connection.Name))
+            if (!IsNullOrWhiteSpace(connection.Name))
                 return connection.Name;
 
             return connection.GetType().FullName ?? connection.ToString();
@@ -435,12 +435,45 @@ namespace CSM.API
                 case string s:
                     return '"' + s + '"';
                 case IEnumerable enumerable when !(value is string):
-                    return "[" + string.Join(", ", enumerable.Cast<object>().Select(FormatValue)) + "]";
+                    return FormatEnumerable(enumerable);
                 case IFormattable formattable:
                     return formattable.ToString(null, CultureInfo.InvariantCulture);
                 default:
                     return value.ToString();
             }
+        }
+
+        private static string FormatEnumerable(IEnumerable enumerable)
+        {
+            var builder = new StringBuilder();
+            builder.Append('[');
+
+            var first = true;
+            foreach (var item in enumerable)
+            {
+                if (!first)
+                    builder.Append(", ");
+
+                builder.Append(FormatValue(item));
+                first = false;
+            }
+
+            builder.Append(']');
+            return builder.ToString();
+        }
+
+        private static bool IsNullOrWhiteSpace(string value)
+        {
+            if (value == null)
+                return true;
+
+            for (var i = 0; i < value.Length; i++)
+            {
+                if (!char.IsWhiteSpace(value[i]))
+                    return false;
+            }
+
+            return true;
         }
 
         private sealed class PendingCommand

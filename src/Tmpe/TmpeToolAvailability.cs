@@ -18,7 +18,9 @@ namespace CSM.TmpeSync.Tmpe
         private const string SupportedToolsLogList = "Speed Limits, Lane Arrows, Lane Connector, Vehicle Restrictions, Junction Restrictions, Priority Signs, Parking Restrictions, Timed Traffic Lights";
 
         private static bool _restrictionActive;
+#pragma warning disable 414
         private static bool _loggedMissingMenu;
+#pragma warning restore 414
         private static bool? _restrictionOverride;
 
 #if GAME
