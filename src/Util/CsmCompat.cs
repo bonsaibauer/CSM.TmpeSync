@@ -244,7 +244,7 @@ namespace CSM.TmpeSync.Util
 
             var declaring = method.DeclaringType?.FullName ?? method.DeclaringType?.Name ?? "<unknown type>";
             var parameters = method.GetParameters();
-            var parameterTypes = string.Join(", ", parameters.Select(p => p.ParameterType.Name));
+            var parameterTypes = string.Join(", ", parameters.Select(p => p.ParameterType.Name).ToArray());
             return declaring + "." + method.Name + "(" + parameterTypes + ")";
         }
 
