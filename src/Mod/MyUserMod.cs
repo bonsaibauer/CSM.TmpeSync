@@ -19,13 +19,19 @@ namespace CSM.TmpeSync.Mod
                 Deps.DisableSelf(this);
                 return;
             }
+            Log.Info("Dependencies available. Registering TM:PE sync connection with CSM.");
             _conn = new TmpeSyncConnection();
             CsmCompat.RegisterConnection(_conn);
-            Log.Info("Deps OK -> active");
+            Log.Info("CSM connection ready – TM:PE synchronisation active.");
         }
         public void OnDisabled(){
             Log.Info("Disable...");
-            if (_conn!=null){ CsmCompat.UnregisterConnection(_conn); _conn=null; }
+            if (_conn!=null){
+                Log.Info("Unregistering TM:PE sync connection from CSM.");
+                CsmCompat.UnregisterConnection(_conn);
+                _conn=null;
+            }
+            Log.Debug("Mod disabled – awaiting next enable cycle.");
         }
     }
 }

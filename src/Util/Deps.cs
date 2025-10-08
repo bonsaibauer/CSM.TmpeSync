@@ -49,8 +49,11 @@ namespace CSM.TmpeSync.Util
         }
         internal static string[] GetMissingDependencies(){
             var missing = new List<string>();
-            if (!IsCsmEnabled()) missing.Add("CSM");
-            if (!IsHarmonyAvailable()) missing.Add("Harmony");
+            var csmEnabled = IsCsmEnabled();
+            var harmonyAvailable = IsHarmonyAvailable();
+            Log.Debug("Dependency check -> CSM: {0}, Harmony: {1}", csmEnabled, harmonyAvailable);
+            if (!csmEnabled) missing.Add("CSM");
+            if (!harmonyAvailable) missing.Add("Harmony");
             return missing.ToArray();
         }
         internal static void DisableSelf(object modInstance){
