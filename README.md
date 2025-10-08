@@ -80,6 +80,29 @@ Die folgenden Schritte zeigen dir, wie du das Projekt lokal baust und das result
 * Die Datei `CSM.TmpeSync.log` kannst du in einem Editor (z. B. Notepad) öffnen, um detaillierte Informationen zum Ablauf und möglichen Fehlern zu sehen.
 * Zusätzlich landen die Meldungen im Ingame-Debug-Panel (`Esc` → Zahnrad → **Debug-Log**) sowie – falls `-logfile` gesetzt ist – in der Unity-Player-Logdatei.
 
+## Offline testen (ohne CSM-Client)
+
+Im Debug-Build (oder wann immer `GAME` **nicht** gesetzt ist) stellt dieses Repository eine simulierte CSM-API bereit. Damit lässt sich nachvollziehen, welche TM:PE-Befehle verschickt würden, ohne einen echten Multiplayer-Client zu verbinden:
+
+1. Baue den Debug-Build (`dotnet build -c Debug`). Die Stub-API wird automatisch eingebunden.
+2. Aktiviere den Mod im Spiel oder starte deine Editor-Laufumgebung. Beim Aktivieren erscheinen u. a. folgende Zeilen im Log:
+
+   ```
+   [INFO]  [CSM.TmpeSync] [CSM.API Stub] Registered connection 'TM:PE Extended Sync'. Commands will be logged locally until a client connects.
+   ```
+
+3. Führe eine Aktion in TM:PE aus (z. B. Tempolimit ändern). Ohne verbundenen Client taucht im Log eine Meldung wie diese auf:
+
+   ```
+   [INFO]  [CSM.TmpeSync] [CSM.API Stub] Queued broadcast (no simulated clients): SpeedLimitApplied {LaneId=42, SegmentId=1089, SpeedLimit=100}
+   ```
+
+   Dadurch ist sofort ersichtlich, dass der Befehl korrekt erstellt wurde und lediglich auf eine Client-Verbindung wartet.
+4. Über `CSM.API.Command.DumpSimulatedCommandLog()` lässt sich das aufgezeichnete Kommando-Log als Liste abrufen (z. B. in Tests oder per Ingame-ModTools).
+5. Um einen Client zu simulieren, rufe `CSM.API.Command.SimulateClientConnected(1);` auf. Alle wartenden Befehle werden erneut geloggt – diesmal als „Replaying queued command“ – und gelten als zugestellt. Mit `CSM.API.Command.SimulateClientDisconnected(1);` trennst du die simulierte Verbindung wieder.
+
+Auf diese Weise kannst du sämtliche Synchronisationsrouten prüfen (Speed Limits, Lane Connections, Kreuzungsregeln usw.), ohne einen zweiten Cities-Skylines-Prozess starten zu müssen.
+
 ### Unity-Player-Logdatei umleiten (`-logfile`)
 
 * **Steam (empfohlen):**

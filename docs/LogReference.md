@@ -60,3 +60,14 @@ Once the hooks are available the warnings disappear and the log ends with:
 ```
 
 At that point the log output matches the expected plan.
+
+## Stub simulation (no live clients)
+
+When running the project outside the real game (`GAME` flag unset), the bundled CSM API stub now simulates the communication hooks. In this mode the log includes additional entries prefixed with `[CSM.API Stub]`:
+
+```
+[INFO] [CSM.TmpeSync] [CSM.API Stub] Registered connection 'TM:PE Extended Sync'. Commands will be logged locally until a client connects.
+[INFO] [CSM.TmpeSync] [CSM.API Stub] Queued broadcast (no simulated clients): SpeedLimitApplied {LaneId=42, SegmentId=1089, SpeedLimit=100}
+```
+
+These lines confirm that TM:PE commands are created correctly even though no actual clients are attached. Use `CSM.API.Command.SimulateClientConnected(1)` to replay queued commands locally and `CSM.API.Command.DumpSimulatedCommandLog()` to inspect the captured payloads.
