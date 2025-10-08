@@ -620,6 +620,10 @@ namespace CSM.TmpeSync.Util
                 {
                     args[i] = converted;
                 }
+                else if (TryInferArgument(parameter, recipient, out var inferred))
+                {
+                    args[i] = inferred;
+                }
                 else if (TryGetDefaultValue(parameter, out var defaultValue))
                 {
                     args[i] = defaultValue;
@@ -729,17 +733,26 @@ namespace CSM.TmpeSync.Util
 
         private static MethodInfo ResolveSendToClient()
         {
-            return ResolveSendMethod(SendToClientMethodNames);
+            return ResolveSendMethod(
+                SendToClientMethodNames,
+                new[] { "send" },
+                new[] { "client", "peer", "target" });
         }
 
         private static MethodInfo ResolveSendToClients()
         {
-            return ResolveSendMethod(SendToClientsMethodNames);
+            return ResolveSendMethod(
+                SendToClientsMethodNames,
+                new[] { "send" },
+                new[] { "clients", "peers", "targets" });
         }
 
         private static MethodInfo ResolveSendToAll()
         {
-            return ResolveSendMethod(SendToAllMethodNames);
+            return ResolveSendMethod(
+                SendToAllMethodNames,
+                new[] { "send", "broadcast" },
+                Array.Empty<string>());
         }
 
         private static bool AcceptsCommandParameter(MethodInfo method)
@@ -891,16 +904,86 @@ namespace CSM.TmpeSync.Util
             return true;
         }
 
-        private static MethodInfo ResolveSendMethod(IEnumerable<string> methodNames)
+        private static MethodInfo ResolveSendMethod(
+            IEnumerable<string> methodNames,
+            IEnumerable<string> mandatoryKeywords,
+            IEnumerable<string> optionalKeywords)
         {
-            var candidates = new HashSet<string>(methodNames ?? new string[0], StringComparer.OrdinalIgnoreCase);
-            return CommandType.Assembly
+            var candidates = new HashSet<string>(methodNames ?? Array.Empty<string>(), StringComparer.OrdinalIgnoreCase);
+            var methods = CommandType.Assembly
                 .GetTypes()
                 .SelectMany(t => t.GetMethods(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static | BindingFlags.Instance))
+                .Where(AcceptsCommandParameter)
+                .ToList();
+
+            var match = methods
                 .Where(m => MatchesCandidateName(m, candidates))
                 .OrderByDescending(m => m.IsStatic)
                 .ThenByDescending(m => m.GetParameters().Length)
-                .FirstOrDefault(AcceptsCommandParameter);
+                .FirstOrDefault();
+
+            if (match != null)
+                return match;
+
+            var mandatory = (mandatoryKeywords ?? Array.Empty<string>())
+                .Select(k => k?.Trim())
+                .Where(k => !string.IsNullOrEmpty(k))
+                .ToArray();
+            var optional = (optionalKeywords ?? Array.Empty<string>())
+                .Select(k => k?.Trim())
+                .Where(k => !string.IsNullOrEmpty(k))
+                .ToArray();
+
+            IEnumerable<MethodInfo> FilterByKeywords(IEnumerable<MethodInfo> source)
+            {
+                foreach (var method in source)
+                {
+                    if (!ContainsAllKeywords(method, mandatory))
+                        continue;
+
+                    if (optional.Length == 0 || ContainsAnyKeyword(method, optional))
+                        yield return method;
+                }
+            }
+
+            return FilterByKeywords(methods)
+                .OrderByDescending(m => m.IsStatic)
+                .ThenByDescending(m => m.GetParameters().Length)
+                .FirstOrDefault();
+        }
+
+        private static bool ContainsAllKeywords(MethodInfo method, string[] keywords)
+        {
+            if (keywords == null || keywords.Length == 0)
+                return true;
+
+            return keywords.All(keyword => method.Name.IndexOf(keyword, StringComparison.OrdinalIgnoreCase) >= 0);
+        }
+
+        private static bool ContainsAnyKeyword(MethodInfo method, string[] keywords)
+        {
+            if (keywords == null || keywords.Length == 0)
+                return true;
+
+            return keywords.Any(keyword => method.Name.IndexOf(keyword, StringComparison.OrdinalIgnoreCase) >= 0);
+        }
+
+        private static bool TryInferArgument(ParameterInfo parameter, object recipient, out object value)
+        {
+            if (recipient is Connection connection)
+            {
+                if (parameter.ParameterType == typeof(string))
+                {
+                    var name = connection.Name;
+                    if (string.IsNullOrWhiteSpace(name))
+                        name = connection.GetType().FullName ?? connection.GetType().Name;
+                    value = name;
+                    return true;
+                }
+            }
+
+            value = null;
+            return false;
         }
 
         private static bool MatchesCandidateName(MethodInfo method, IEnumerable<string> candidateNames)
@@ -949,7 +1032,7 @@ namespace CSM.TmpeSync.Util
         private static bool MatchesConnectionSignature(MethodInfo method)
         {
             var parameters = method.GetParameters();
-            if (parameters.Length > 0 && IsConnectionType(parameters[0].ParameterType))
+            if (parameters.Length > 0 && parameters.Any(p => IsConnectionType(p.ParameterType)))
                 return true;
 
             if (method.IsGenericMethodDefinition)
