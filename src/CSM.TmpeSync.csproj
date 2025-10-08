@@ -114,6 +114,7 @@
     <Compile Include="Util\NetUtil.cs" />
     <Compile Include="Util\EntityLocks.cs" />
     <Compile Include="Util\DeferredApply.cs" />
+    <Compile Include="Util\CsmCompat.cs" />
     <Compile Include="Util\LockRegistry.cs" />
 
     <Compile Include="Tmpe\TmpeAdapter.cs" />
