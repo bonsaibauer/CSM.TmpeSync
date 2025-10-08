@@ -213,7 +213,10 @@ namespace CSM.TmpeSync.Util
                 if (string.IsNullOrEmpty(localAppData))
                     return null;
 
-                var directory = Path.Combine(localAppData, "Colossal Order", "Cities_Skylines", "CSM", "Logs");
+                var directory = Path.Combine(localAppData, "Colossal Order");
+                directory = Path.Combine(directory, "Cities_Skylines");
+                directory = Path.Combine(directory, "CSM.TmpeSync");
+                directory = Path.Combine(directory, "Logs");
                 Directory.CreateDirectory(directory);
                 return Path.Combine(directory, "CSM.TmpeSync.log");
             }
