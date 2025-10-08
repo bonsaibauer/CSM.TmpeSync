@@ -29,17 +29,24 @@ namespace CSM.TmpeSync.Util
         private static readonly MethodInfo IgnoreEndMethod = ResolveIgnoreMethod("EndIgnore");
 
         private static readonly MethodInfo SendToClientMethod;
+        private static readonly object SendToClientTarget;
         private static readonly MethodInfo SendToAllMethod;
+        private static readonly object SendToAllTarget;
         private static readonly MethodInfo SendToClientsMethod;
+        private static readonly object SendToClientsTarget;
         private static readonly MethodInfo RegisterConnectionMethod;
+        private static readonly object RegisterConnectionTarget;
         private static readonly MethodInfo UnregisterConnectionMethod;
-        private static readonly object ConnectionRegistrarInstance;
+        private static readonly object UnregisterConnectionTarget;
 
         static CsmCompat()
         {
             SendToClientMethod = ResolveSendToClient();
+            SendToClientTarget = ResolveTarget(SendToClientMethod);
             SendToAllMethod = ResolveSendToAll();
+            SendToAllTarget = ResolveTarget(SendToAllMethod);
             SendToClientsMethod = ResolveSendToClients();
+            SendToClientsTarget = ResolveTarget(SendToClientsMethod);
 
             var assembly = CommandType.Assembly;
             foreach (var type in assembly.GetTypes())
@@ -50,14 +57,13 @@ namespace CSM.TmpeSync.Util
                     if (RegisterConnectionMethod == null && method.Name == "RegisterConnection" && MatchesConnectionSignature(method))
                     {
                         RegisterConnectionMethod = method;
-                        ConnectionRegistrarInstance = method.IsStatic ? null : GetSingletonInstance(type);
+                        RegisterConnectionTarget = ResolveTarget(method);
                     }
 
                     if (UnregisterConnectionMethod == null && method.Name == "UnregisterConnection" && MatchesConnectionSignature(method))
                     {
                         UnregisterConnectionMethod = method;
-                        if (!method.IsStatic && ConnectionRegistrarInstance == null)
-                            ConnectionRegistrarInstance = GetSingletonInstance(type);
+                        UnregisterConnectionTarget = ResolveTarget(method) ?? RegisterConnectionTarget;
                     }
                 }
 
@@ -215,7 +221,8 @@ namespace CSM.TmpeSync.Util
                 {
                     var parameters = SendToClientMethod.GetParameters();
                     var args = BuildArguments(parameters, clientId, command);
-                    SendToClientMethod.Invoke(null, args);
+                    var target = SendToClientMethod.IsStatic ? SendToClientTarget : (SendToClientTarget ?? ResolveTarget(SendToClientMethod));
+                    SendToClientMethod.Invoke(target, args);
                     return;
                 }
 
@@ -223,7 +230,8 @@ namespace CSM.TmpeSync.Util
                 {
                     var parameters = SendToClientsMethod.GetParameters();
                     var args = BuildArguments(parameters, new[] { clientId }, command);
-                    SendToClientsMethod.Invoke(null, args);
+                    var target = SendToClientsMethod.IsStatic ? SendToClientsTarget : (SendToClientsTarget ?? ResolveTarget(SendToClientsMethod));
+                    SendToClientsMethod.Invoke(target, args);
                     return;
                 }
             }
@@ -248,7 +256,8 @@ namespace CSM.TmpeSync.Util
                 {
                     var parameters = SendToAllMethod.GetParameters();
                     var args = BuildArguments(parameters, null, command);
-                    SendToAllMethod.Invoke(null, args);
+                    var target = SendToAllMethod.IsStatic ? SendToAllTarget : (SendToAllTarget ?? ResolveTarget(SendToAllMethod));
+                    SendToAllMethod.Invoke(target, args);
                     return;
                 }
             }
@@ -275,8 +284,10 @@ namespace CSM.TmpeSync.Util
             Log.Debug("Registering connection '{0}' via {1}", SafeName(connection), DescribeMethod(RegisterConnectionMethod));
             try
             {
-                var target = RegisterConnectionMethod.IsStatic ? null : ConnectionRegistrarInstance;
-                RegisterConnectionMethod.Invoke(target, new object[] { connection });
+                var parameters = RegisterConnectionMethod.GetParameters();
+                var args = BuildArguments(parameters, connection, null);
+                var target = RegisterConnectionMethod.IsStatic ? RegisterConnectionTarget : (RegisterConnectionTarget ?? ResolveTarget(RegisterConnectionMethod));
+                RegisterConnectionMethod.Invoke(target, args);
                 Log.Info("Registered connection '{0}' with CSM", SafeName(connection));
                 return true;
             }
@@ -300,8 +311,10 @@ namespace CSM.TmpeSync.Util
 
             try
             {
-                var target = UnregisterConnectionMethod.IsStatic ? null : ConnectionRegistrarInstance;
-                UnregisterConnectionMethod.Invoke(target, new object[] { connection });
+                var parameters = UnregisterConnectionMethod.GetParameters();
+                var args = BuildArguments(parameters, connection, null);
+                var target = UnregisterConnectionMethod.IsStatic ? UnregisterConnectionTarget : (UnregisterConnectionTarget ?? ResolveTarget(UnregisterConnectionMethod));
+                UnregisterConnectionMethod.Invoke(target, args);
                 Log.Info("Unregistered connection '{0}' from CSM", SafeName(connection));
                 return true;
             }
@@ -548,32 +561,49 @@ namespace CSM.TmpeSync.Util
 
         private static MethodInfo ResolveSendToClient()
         {
-            return CommandType.GetMethods(BindingFlags.Public | BindingFlags.Static)
-                .Where(m => m.Name == "SendToClient")
-                .OrderByDescending(m => m.GetParameters().Length)
-                .FirstOrDefault(m => m.GetParameters().Any(p => typeof(CommandBase).IsAssignableFrom(p.ParameterType)));
+            return ResolveSendMethod("SendToClient");
         }
 
         private static MethodInfo ResolveSendToClients()
         {
-            return CommandType.GetMethods(BindingFlags.Public | BindingFlags.Static)
-                .Where(m => m.Name == "SendToClients")
-                .OrderByDescending(m => m.GetParameters().Length)
-                .FirstOrDefault(m => m.GetParameters().Any(p => typeof(CommandBase).IsAssignableFrom(p.ParameterType)));
+            return ResolveSendMethod("SendToClients");
         }
 
         private static MethodInfo ResolveSendToAll()
         {
-            return CommandType.GetMethods(BindingFlags.Public | BindingFlags.Static)
-                .Where(m => m.Name == "SendToAll")
-                .OrderByDescending(m => m.GetParameters().Length)
+            return ResolveSendMethod("SendToAll");
+        }
+
+        private static MethodInfo ResolveSendMethod(string methodName)
+        {
+            return CommandType.Assembly
+                .GetTypes()
+                .SelectMany(t => t.GetMethods(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static | BindingFlags.Instance))
+                .Where(m => m.Name == methodName)
+                .Where(m => !m.IsGenericMethodDefinition)
+                .OrderByDescending(m => m.IsStatic)
+                .ThenByDescending(m => m.GetParameters().Length)
                 .FirstOrDefault(m => m.GetParameters().Any(p => typeof(CommandBase).IsAssignableFrom(p.ParameterType)));
         }
 
         private static bool MatchesConnectionSignature(MethodInfo method)
         {
             var parameters = method.GetParameters();
-            return parameters.Length == 1 && typeof(Connection).IsAssignableFrom(parameters[0].ParameterType);
+            if (parameters.Length == 0)
+                return false;
+
+            if (!typeof(Connection).IsAssignableFrom(parameters[0].ParameterType))
+                return false;
+
+            return true;
+        }
+
+        private static object ResolveTarget(MethodInfo method)
+        {
+            if (method == null || method.IsStatic)
+                return null;
+
+            return GetSingletonInstance(method.DeclaringType);
         }
 
         private static object GetSingletonInstance(Type type)

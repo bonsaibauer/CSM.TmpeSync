@@ -1,5 +1,4 @@
 using System;
-using System.Reflection;
 using Log = CSM.TmpeSync.Util.Log;
 
 namespace CSM.TmpeSync.Util
@@ -9,9 +8,6 @@ namespace CSM.TmpeSync.Util
         private const string RoleNone = "None";
         private const string RoleClient = "Client";
         private const string RoleServer = "Server";
-
-        private static PropertyInfo _currentRoleProperty;
-        private static bool _currentRolePropertyResolved;
 
         private static string _lastKnownRole = RoleNone;
         private static bool _loggedRoleReadError;
@@ -57,40 +53,11 @@ namespace CSM.TmpeSync.Util
 
         private static string GetCurrentRole()
         {
-            var property = GetOrResolveCurrentRoleProperty();
-            if (property == null)
+            string description = CsmCompat.DescribeCurrentRole();
+            if (string.IsNullOrWhiteSpace(description))
                 throw new InvalidOperationException("CSM.API.Command.CurrentRole property is unavailable.");
 
-            object value = property.GetValue(null, null);
-            return NormalizeRoleName(value);
-        }
-
-        private static PropertyInfo GetOrResolveCurrentRoleProperty()
-        {
-            if (!_currentRolePropertyResolved)
-            {
-                _currentRoleProperty = ResolveCurrentRoleProperty();
-                _currentRolePropertyResolved = true;
-            }
-
-            return _currentRoleProperty;
-        }
-
-        private static PropertyInfo ResolveCurrentRoleProperty()
-        {
-            const string commandTypeName = "CSM.API.Command";
-
-            // Try without an assembly name first so the lookup works with the local stub types.
-            Type type = Type.GetType(commandTypeName);
-
-            if (type == null)
-            {
-                // Fall back to the most common assembly qualified name used by CSM.API.dll.
-                const string commandQualifiedName = commandTypeName + ", CSM.API";
-                type = Type.GetType(commandQualifiedName, throwOnError: false);
-            }
-
-            return type?.GetProperty("CurrentRole", BindingFlags.Static | BindingFlags.Public);
+            return NormalizeRoleName(description);
         }
 
         private static string NormalizeRoleName(object role)
