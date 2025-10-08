@@ -130,15 +130,8 @@
     <Compile Include="Tool\LockOverlay.cs" />
   </ItemGroup>
 
-  <Target Name="BuildStubReferences" BeforeTargets="ResolveReferences" Condition="'$(GameBuild)'!='true'">
-    <MSBuild Projects="Stubs/ICitiesStub/ICitiesStub.csproj" Targets="Build" Properties="Configuration=$(Configuration)" />
-  </Target>
-
   <ItemGroup Condition="'$(GameBuild)'!='true'">
-    <Reference Include="ICities">
-      <HintPath>$(MSBuildProjectDirectory)\Stubs\ICitiesStub\bin\$(Configuration)\net35\ICities.dll</HintPath>
-      <Private>false</Private>
-    </Reference>
+    <Compile Include="Stubs\ICitiesStub\IUserMod.cs" />
   </ItemGroup>
 
   <!-- ==== Post-Build: Mod-DLL ins Mods-Verzeichnis ==== -->
