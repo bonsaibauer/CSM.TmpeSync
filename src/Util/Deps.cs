@@ -61,8 +61,9 @@ namespace CSM.TmpeSync.Util
                         var pluginName = p.name;
                         if (!string.IsNullOrEmpty(pluginName)){
                             var manager = PluginManager.instance;
-                            var setMethod = manager.GetType().GetMethod("SetPluginEnabled", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic, null, new[]{ typeof(string), typeof(bool) }, null)
-                                            ?? manager.GetMethods(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)
+                            var managerType = manager.GetType();
+                            var setMethod = managerType.GetMethod("SetPluginEnabled", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic, null, new[]{ typeof(string), typeof(bool) }, null)
+                                            ?? managerType.GetMethods(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)
                                                 .FirstOrDefault(m => m.Name.StartsWith("SetPlugin", StringComparison.OrdinalIgnoreCase)
                                                                  && m.GetParameters().Length == 2
                                                                  && m.GetParameters()[0].ParameterType == typeof(string)
