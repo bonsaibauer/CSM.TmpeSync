@@ -14,8 +14,10 @@ namespace CSM.TmpeSync.Net.Handlers
         {
             if (Command.CurrentRole != MultiplayerRole.Server) return;
 
+            var senderId=CsmCompat.GetSenderId(cmd);
+
             if (!NetUtil.LaneExists(cmd.LaneId)){
-                Command.SendToClient(Command.SenderId, new RequestRejected{ Reason="entity_missing", EntityId=cmd.LaneId, EntityType=1 });
+                CsmCompat.SendToClient(senderId, new RequestRejected{ Reason="entity_missing", EntityId=cmd.LaneId, EntityType=1 });
                 return;
             }
 
@@ -28,9 +30,9 @@ namespace CSM.TmpeSync.Net.Handlers
                     if (!NetUtil.LaneExists(cmd.LaneId)) return;
 
                     if (TmpeAdapter.ApplySpeedLimit(cmd.LaneId, cmd.SpeedKmh))
-                        Command.SendToAll(new SpeedLimitApplied { LaneId=cmd.LaneId, SpeedKmh=cmd.SpeedKmh });
+                        CsmCompat.SendToAll(new SpeedLimitApplied { LaneId=cmd.LaneId, SpeedKmh=cmd.SpeedKmh });
                     else
-                        Command.SendToClient(Command.SenderId, new RequestRejected{ Reason="tmpe_apply_failed", EntityId=cmd.LaneId, EntityType=1 });
+                        CsmCompat.SendToClient(senderId, new RequestRejected{ Reason="tmpe_apply_failed", EntityId=cmd.LaneId, EntityType=1 });
                 }
             });
         }

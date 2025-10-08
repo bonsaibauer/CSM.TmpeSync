@@ -1,6 +1,6 @@
 using ICities;
-using CSM.API;
 using CSM.TmpeSync.Util;
+using Log = CSM.TmpeSync.Util.Log;
 
 namespace CSM.TmpeSync.Mod
 {
@@ -20,12 +20,12 @@ namespace CSM.TmpeSync.Mod
                 return;
             }
             _conn = new TmpeSyncConnection();
-            Helper.RegisterConnection(_conn);
+            CsmCompat.RegisterConnection(_conn);
             Log.Info("Deps OK -> active");
         }
         public void OnDisabled(){
             Log.Info("Disable...");
-            if (_conn!=null){ Helper.UnregisterConnection(_conn); _conn=null; }
+            if (_conn!=null){ CsmCompat.UnregisterConnection(_conn); _conn=null; }
         }
     }
 }

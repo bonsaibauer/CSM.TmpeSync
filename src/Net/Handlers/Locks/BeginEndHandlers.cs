@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using CSM.API;
 using CSM.API.Commands;
 using CSM.TmpeSync.Net.Contracts.Locks;
+using CSM.TmpeSync.Util;
 
 namespace CSM.TmpeSync.Net.Handlers.Locks
 {
@@ -15,8 +16,8 @@ namespace CSM.TmpeSync.Net.Handlers.Locks
         protected override void Handle(BeginEditRequest cmd){
             if (Command.CurrentRole!=MultiplayerRole.Server) return;
             var key=HostLocks.Key(cmd.TargetKind,cmd.TargetId);
-            if (!HostLocks.Owner.ContainsKey(key)) HostLocks.Owner[key]=Command.SenderId;
-            Command.SendToAll(new EditLockApplied{ TargetKind=cmd.TargetKind, TargetId=cmd.TargetId, OwnerClientId=HostLocks.Owner[key], TtlFrames=180 });
+            if (!HostLocks.Owner.ContainsKey(key)) HostLocks.Owner[key]=CsmCompat.GetSenderId(cmd);
+            CsmCompat.SendToAll(new EditLockApplied{ TargetKind=cmd.TargetKind, TargetId=cmd.TargetId, OwnerClientId=HostLocks.Owner[key], TtlFrames=180 });
         }
     }
 
@@ -25,7 +26,7 @@ namespace CSM.TmpeSync.Net.Handlers.Locks
         protected override void Handle(EndEditRequest cmd){
             if (Command.CurrentRole!=MultiplayerRole.Server) return;
             HostLocks.Owner.Remove(HostLocks.Key(cmd.TargetKind,cmd.TargetId));
-            Command.SendToAll(new EditLockCleared{ TargetKind=cmd.TargetKind, TargetId=cmd.TargetId });
+            CsmCompat.SendToAll(new EditLockCleared{ TargetKind=cmd.TargetKind, TargetId=cmd.TargetId });
         }
     }
 }
