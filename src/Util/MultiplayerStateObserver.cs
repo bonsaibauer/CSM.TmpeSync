@@ -19,9 +19,10 @@ namespace CSM.TmpeSync.Util
         internal static void Update()
         {
             string currentRole;
+            string rawDescription = null;
             try
             {
-                currentRole = GetCurrentRole();
+                currentRole = GetCurrentRole(out rawDescription);
             }
             catch (Exception ex)
             {
@@ -32,12 +33,13 @@ namespace CSM.TmpeSync.Util
                 }
 
                 currentRole = RoleNone;
+                rawDescription = "<error>";
             }
 
             if (currentRole == _lastKnownRole)
                 return;
 
-            Log.Info("CSM multiplayer role changed: {0} -> {1}", _lastKnownRole, currentRole);
+            Log.Info("CSM multiplayer role changed: {0} -> {1} (raw='{2}')", _lastKnownRole, currentRole, rawDescription ?? "<null>");
             _lastKnownRole = currentRole;
             _loggedRoleReadError = false;
         }
@@ -51,13 +53,13 @@ namespace CSM.TmpeSync.Util
             _loggedRoleReadError = false;
         }
 
-        private static string GetCurrentRole()
+        private static string GetCurrentRole(out string rawDescription)
         {
-            string description = CsmCompat.DescribeCurrentRole();
-            if (IsNullOrWhiteSpace(description))
+            rawDescription = CsmCompat.DescribeCurrentRole();
+            if (IsNullOrWhiteSpace(rawDescription))
                 throw new InvalidOperationException("CSM.API.Command.CurrentRole property is unavailable.");
 
-            return NormalizeRoleName(description);
+            return NormalizeRoleName(rawDescription);
         }
 
         private static bool IsNullOrWhiteSpace(string value)

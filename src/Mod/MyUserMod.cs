@@ -1,4 +1,5 @@
 using ICities;
+using CSM.TmpeSync.Tmpe;
 using CSM.TmpeSync.Util;
 using Log = CSM.TmpeSync.Util.Log;
 
@@ -19,17 +20,22 @@ namespace CSM.TmpeSync.Mod
                 Deps.DisableSelf(this);
                 return;
             }
+
             Log.Info("Dependencies available. Registering TM:PE sync connection with CSM.");
             var connection = new TmpeSyncConnection();
             if (CsmCompat.RegisterConnection(connection))
             {
                 _conn = connection;
                 Log.Info("CSM connection ready – TM:PE synchronisation active.");
+                TmpeToolAvailability.OverrideRestriction(null);
             }
             else
             {
                 Log.Warn("TM:PE sync connection could not be registered with CSM. Synchronisation remains inactive.");
+                TmpeToolAvailability.OverrideRestriction(false);
             }
+
+            CsmCompat.LogDiagnostics("OnEnabled");
         }
         public void OnDisabled(){
             Log.Info("Disable...");
@@ -41,6 +47,8 @@ namespace CSM.TmpeSync.Mod
                 }
                 _conn=null;
             }
+            TmpeToolAvailability.OverrideRestriction(null);
+            CsmCompat.LogDiagnostics("OnDisabled");
             Log.Debug("Mod disabled – awaiting next enable cycle.");
         }
     }
