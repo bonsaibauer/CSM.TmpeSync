@@ -3,6 +3,7 @@
     <TargetFramework>net35</TargetFramework>
     <AssemblyName>ICities</AssemblyName>
     <RootNamespace>ICities</RootNamespace>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
     <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
     <Nullable>disable</Nullable>
   </PropertyGroup>
