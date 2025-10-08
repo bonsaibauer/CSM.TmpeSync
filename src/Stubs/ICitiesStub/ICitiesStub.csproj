@@ -10,5 +10,6 @@
 
   <ItemGroup>
     <Compile Include="IUserMod.cs" />
+    <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies.net35" Version="1.0.3" PrivateAssets="all" />
   </ItemGroup>
 </Project>
