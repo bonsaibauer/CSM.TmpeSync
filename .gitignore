@@ -1,4 +1,3 @@
-/bin/
-/obj/
-/.vscode/
+src/bin/
+src/obj/
 /lib/
