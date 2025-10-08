@@ -822,7 +822,7 @@ namespace CSM.TmpeSync.Util
 
         private static MethodInfo ResolveSendMethod(IEnumerable<string> methodNames)
         {
-            var candidates = new HashSet<string>(methodNames ?? Array.Empty<string>(), StringComparer.OrdinalIgnoreCase);
+            var candidates = new HashSet<string>(methodNames ?? new string[0], StringComparer.OrdinalIgnoreCase);
             return CommandType.Assembly
                 .GetTypes()
                 .SelectMany(t => t.GetMethods(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static | BindingFlags.Instance))
