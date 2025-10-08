@@ -1,11 +1,14 @@
 using System;
 using System.Linq;
+#if GAME
 using ColossalFramework.Plugins;
+#endif
 
 namespace CSM.TmpeSync.Util
 {
     internal static class Deps
     {
+#if GAME
         internal static bool IsCsmEnabled(){
             try{
                 foreach (var p in PluginManager.instance.GetPluginsInfo()){
@@ -42,5 +45,10 @@ namespace CSM.TmpeSync.Util
             return false;
         }
         private static string SafeName(PluginInfo p){ try{ return p.name ?? p.modPath ?? ""; }catch{ return ""; } }
+#else
+        internal static bool IsCsmEnabled(){ return false; }
+        internal static bool IsHarmonyAvailable(){ return false; }
+        private static string SafeName(object _){ return string.Empty; }
+#endif
     }
 }
