@@ -36,6 +36,11 @@ Die nachfolgende Übersicht fasst alle Funktionen aus **Traffic Manager: Preside
 - Snapshot-Export synchronisiert alle gesetzten Verbote.【F:src/Snapshot/ParkingRestrictionSnapshotProvider.cs†L10-L35】
 - Deferred-Operationen decken nachladende Segmente ab.【F:src/Net/Handlers/ParkingRestrictionDeferredOp.cs†L1-L32】
 
+## Hide Crosswalks
+- Pro Knoten/Straßensegment-Kombination wird gespeichert, ob ein Zebrastreifen versteckt ist. Ohne echtes Add-on übernimmt eine Stub-Speicherung die Verwaltung, ansonsten wird die Hide-Crosswalks-API reflektiert.【F:src/HideCrosswalks/HideCrosswalksAdapter.cs†L8-L76】
+- Serverseitige Requests wenden die Änderung an und verteilen das Ergebnis als `CrosswalkHiddenApplied` an alle Clients.【F:src/Net/Handlers/SetCrosswalkHiddenRequestHandler.cs†L10-L67】【F:src/Net/Contracts/Applied/CrosswalkHiddenApplied.cs†L6-L12】
+- Snapshot-Exports übertragen alle versteckten Zebrastreifen an neu beitretende Spieler, Deferred-Operationen puffern fehlende Netzobjekte.【F:src/Snapshot/CrosswalkHiddenSnapshotProvider.cs†L6-L25】【F:src/Net/Handlers/CrosswalkHiddenDeferredOp.cs†L1-L35】
+
 ## Zeitgesteuerte Ampeln
 - Der Zustand umfasst Aktivierung, Phasenanzahl und Zykluslänge. Nicht aktivierte Anlagen werden entfernt, wodurch Vanilla-Ampeln unangetastet bleiben.【F:src/Net/Contracts/States/TmpeStates.cs†L87-L108】【F:src/Tmpe/TmpeAdapter.cs†L421-L468】
 - Snapshot übernimmt vollständige Einstellungen pro Knoten.【F:src/Snapshot/TimedTrafficLightSnapshotProvider.cs†L10-L31】
