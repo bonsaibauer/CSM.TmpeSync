@@ -1,4 +1,3 @@
-using CSM.API;
 using CSM.API.Commands;
 using CSM.TmpeSync.Net.Contracts.Applied;
 using CSM.TmpeSync.Net.Contracts.Requests;
@@ -15,7 +14,7 @@ namespace CSM.TmpeSync.Net.Handlers
             var senderId = CsmCompat.GetSenderId(cmd);
             Log.Info("Received SetPrioritySignRequest node={0} segment={1} sign={2} from client={3} role={4}", cmd.NodeId, cmd.SegmentId, cmd.SignType, senderId, Command.CurrentRole);
 
-            if (Command.CurrentRole != MultiplayerRole.Server)
+            if (Command.CurrentRole != CSM.API.MultiplayerRole.Server)
             {
                 Log.Debug("Ignoring SetPrioritySignRequest on non-server instance.");
                 return;

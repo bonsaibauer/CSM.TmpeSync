@@ -9,7 +9,7 @@ namespace CSM.TmpeSync.Util
 #if GAME
                 if (laneId==0) return false;
                 if (laneId >= NetManager.instance.m_lanes.m_size) return false;
-                return (NetManager.instance.m_lanes.m_buffer[laneId].m_flags & (uint)NetLane.Flags.Created) != 0u;
+                return (NetManager.instance.m_lanes.m_buffer[(int)laneId].m_flags & (uint)NetLane.Flags.Created) != 0u;
 #else
                 return laneId!=0;
 #endif
@@ -34,7 +34,7 @@ namespace CSM.TmpeSync.Util
         internal static void ForEachLane(Action<uint> action){
 #if GAME
             var buf=NetManager.instance.m_lanes.m_buffer; uint size=NetManager.instance.m_lanes.m_size;
-            for(uint i=0;i<size;i++) if((buf[i].m_flags&(uint)NetLane.Flags.Created)!=0) action(i);
+            for(uint i=0;i<size;i++) if((buf[(int)i].m_flags&(uint)NetLane.Flags.Created)!=0) action(i);
 #else
             for(uint i=1;i<=10;i++) action(i);
 #endif

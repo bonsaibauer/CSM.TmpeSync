@@ -1,5 +1,4 @@
 using System.Collections.Generic;
-using CSM.API;
 using CSM.API.Commands;
 using CSM.TmpeSync.Net.Contracts.Locks;
 using CSM.TmpeSync.Util;
@@ -17,7 +16,7 @@ namespace CSM.TmpeSync.Net.Handlers.Locks
         protected override void Handle(BeginEditRequest cmd){
             var sender=CsmCompat.GetSenderId(cmd);
             Log.Info("Received BeginEditRequest kind={0} id={1} from client={2}", cmd.TargetKind, cmd.TargetId, sender);
-            if (Command.CurrentRole!=MultiplayerRole.Server){
+            if (Command.CurrentRole!=CSM.API.MultiplayerRole.Server){
                 Log.Debug("Ignoring BeginEditRequest on non-server instance.");
                 return;
             }
@@ -38,7 +37,7 @@ namespace CSM.TmpeSync.Net.Handlers.Locks
         protected override void Handle(EndEditRequest cmd){
             var sender=CsmCompat.GetSenderId(cmd);
             Log.Info("Received EndEditRequest kind={0} id={1} from client={2}", cmd.TargetKind, cmd.TargetId, sender);
-            if (Command.CurrentRole!=MultiplayerRole.Server){
+            if (Command.CurrentRole!=CSM.API.MultiplayerRole.Server){
                 Log.Debug("Ignoring EndEditRequest on non-server instance.");
                 return;
             }
