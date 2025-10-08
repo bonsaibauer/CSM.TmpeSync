@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.ComponentModel;
 using System.Globalization;
 using System.Linq;
@@ -219,20 +220,28 @@ namespace CSM.TmpeSync.Util
             {
                 if (SendToClientMethod != null)
                 {
-                    var parameters = SendToClientMethod.GetParameters();
-                    var args = BuildArguments(parameters, clientId, command);
-                    var target = SendToClientMethod.IsStatic ? SendToClientTarget : (SendToClientTarget ?? ResolveTarget(SendToClientMethod));
-                    SendToClientMethod.Invoke(target, args);
-                    return;
+                    var method = PrepareMethodForInvoke(SendToClientMethod, clientId, command);
+                    if (method != null)
+                    {
+                        var parameters = method.GetParameters();
+                        var args = BuildArguments(parameters, clientId, command);
+                        var target = method.IsStatic ? SendToClientTarget : (SendToClientTarget ?? ResolveTarget(SendToClientMethod));
+                        method.Invoke(target, args);
+                        return;
+                    }
                 }
 
                 if (SendToClientsMethod != null)
                 {
-                    var parameters = SendToClientsMethod.GetParameters();
-                    var args = BuildArguments(parameters, new[] { clientId }, command);
-                    var target = SendToClientsMethod.IsStatic ? SendToClientsTarget : (SendToClientsTarget ?? ResolveTarget(SendToClientsMethod));
-                    SendToClientsMethod.Invoke(target, args);
-                    return;
+                    var method = PrepareMethodForInvoke(SendToClientsMethod, new[] { clientId }, command);
+                    if (method != null)
+                    {
+                        var parameters = method.GetParameters();
+                        var args = BuildArguments(parameters, new[] { clientId }, command);
+                        var target = method.IsStatic ? SendToClientsTarget : (SendToClientsTarget ?? ResolveTarget(SendToClientsMethod));
+                        method.Invoke(target, args);
+                        return;
+                    }
                 }
             }
             catch (Exception ex)
@@ -254,11 +263,15 @@ namespace CSM.TmpeSync.Util
             {
                 if (SendToAllMethod != null)
                 {
-                    var parameters = SendToAllMethod.GetParameters();
-                    var args = BuildArguments(parameters, null, command);
-                    var target = SendToAllMethod.IsStatic ? SendToAllTarget : (SendToAllTarget ?? ResolveTarget(SendToAllMethod));
-                    SendToAllMethod.Invoke(target, args);
-                    return;
+                    var method = PrepareMethodForInvoke(SendToAllMethod, null, command);
+                    if (method != null)
+                    {
+                        var parameters = method.GetParameters();
+                        var args = BuildArguments(parameters, null, command);
+                        var target = method.IsStatic ? SendToAllTarget : (SendToAllTarget ?? ResolveTarget(SendToAllMethod));
+                        method.Invoke(target, args);
+                        return;
+                    }
                 }
             }
             catch (Exception ex)
@@ -284,10 +297,17 @@ namespace CSM.TmpeSync.Util
             Log.Debug("Registering connection '{0}' via {1}", SafeName(connection), DescribeMethod(RegisterConnectionMethod));
             try
             {
-                var parameters = RegisterConnectionMethod.GetParameters();
+                var method = PrepareMethodForInvoke(RegisterConnectionMethod, connection, null);
+                if (method == null)
+                {
+                    Log.Warn("Failed to prepare register connection method for '{0}'", SafeName(connection));
+                    return false;
+                }
+
+                var parameters = method.GetParameters();
                 var args = BuildArguments(parameters, connection, null);
-                var target = RegisterConnectionMethod.IsStatic ? RegisterConnectionTarget : (RegisterConnectionTarget ?? ResolveTarget(RegisterConnectionMethod));
-                RegisterConnectionMethod.Invoke(target, args);
+                var target = method.IsStatic ? RegisterConnectionTarget : (RegisterConnectionTarget ?? ResolveTarget(RegisterConnectionMethod));
+                method.Invoke(target, args);
                 Log.Info("Registered connection '{0}' with CSM", SafeName(connection));
                 return true;
             }
@@ -311,10 +331,17 @@ namespace CSM.TmpeSync.Util
 
             try
             {
-                var parameters = UnregisterConnectionMethod.GetParameters();
+                var method = PrepareMethodForInvoke(UnregisterConnectionMethod, connection, null);
+                if (method == null)
+                {
+                    Log.Warn("Failed to prepare unregister connection method for '{0}'", SafeName(connection));
+                    return false;
+                }
+
+                var parameters = method.GetParameters();
                 var args = BuildArguments(parameters, connection, null);
-                var target = UnregisterConnectionMethod.IsStatic ? UnregisterConnectionTarget : (UnregisterConnectionTarget ?? ResolveTarget(UnregisterConnectionMethod));
-                UnregisterConnectionMethod.Invoke(target, args);
+                var target = method.IsStatic ? UnregisterConnectionTarget : (UnregisterConnectionTarget ?? ResolveTarget(UnregisterConnectionMethod));
+                method.Invoke(target, args);
                 Log.Info("Unregistered connection '{0}' from CSM", SafeName(connection));
                 return true;
             }
@@ -491,6 +518,18 @@ namespace CSM.TmpeSync.Util
                     return true;
                 }
 
+                if (targetType == typeof(Type))
+                {
+                    if (value is Type typeValue)
+                    {
+                        converted = typeValue;
+                        return true;
+                    }
+
+                    converted = value?.GetType();
+                    return converted != null;
+                }
+
                 if (targetType == typeof(int) || targetType == typeof(long) || targetType == typeof(uint) || targetType == typeof(ushort) || targetType == typeof(byte))
                 {
                     converted = Convert.ChangeType(value, targetType, CultureInfo.InvariantCulture);
@@ -574,28 +613,182 @@ namespace CSM.TmpeSync.Util
             return ResolveSendMethod("SendToAll");
         }
 
+        private static bool AcceptsCommandParameter(MethodInfo method)
+        {
+            var parameters = method.GetParameters();
+            foreach (var parameter in parameters)
+            {
+                if (typeof(CommandBase).IsAssignableFrom(parameter.ParameterType))
+                    return true;
+
+                if (parameter.ParameterType.IsGenericParameter && SatisfiesCommandConstraints(parameter.ParameterType))
+                    return true;
+            }
+
+            foreach (var genericParameter in method.GetGenericArguments())
+            {
+                if (SatisfiesCommandConstraints(genericParameter))
+                    return true;
+            }
+
+            return false;
+        }
+
+        private static bool SatisfiesCommandConstraints(Type genericParameter)
+        {
+            if (!genericParameter.IsGenericParameter)
+                return typeof(CommandBase).IsAssignableFrom(genericParameter);
+
+            var constraints = genericParameter.GetGenericParameterConstraints();
+            if (constraints.Length == 0)
+                return false;
+
+            return constraints.Any(c => typeof(CommandBase).IsAssignableFrom(c));
+        }
+
+        private static bool IsConnectionType(Type type)
+        {
+            if (type == null)
+                return false;
+
+            if (typeof(Connection).IsAssignableFrom(type))
+                return true;
+
+            if (type.IsGenericParameter)
+            {
+                var constraints = type.GetGenericParameterConstraints();
+                if (constraints.Length == 0)
+                    return false;
+
+                return constraints.Any(c => typeof(Connection).IsAssignableFrom(c));
+            }
+
+            return false;
+        }
+
+        private static MethodInfo PrepareMethodForInvoke(MethodInfo method, object recipient, CommandBase command)
+        {
+            if (method == null)
+                return null;
+
+            if (!method.IsGenericMethodDefinition)
+                return method;
+
+            var prepared = TryMakeGenericMethod(method, recipient, command);
+            if (prepared == null)
+                Log.Warn("Unable to resolve generic method for invocation: {0}", DescribeMethod(method));
+
+            return prepared;
+        }
+
+        private static MethodInfo TryMakeGenericMethod(MethodInfo method, object recipient, CommandBase command)
+        {
+            var genericArguments = method.GetGenericArguments();
+            if (genericArguments.Length == 0)
+                return method;
+
+            var candidates = new List<Type>();
+            if (recipient != null)
+            {
+                if (recipient is Type typeRecipient)
+                    candidates.Add(typeRecipient);
+                else
+                    candidates.Add(recipient.GetType());
+            }
+
+            if (command != null)
+                candidates.Add(command.GetType());
+
+            var resolved = new Type[genericArguments.Length];
+            for (var i = 0; i < genericArguments.Length; i++)
+            {
+                var parameter = genericArguments[i];
+                Type match = null;
+
+                foreach (var candidate in candidates)
+                {
+                    if (candidate != null && SatisfiesGenericConstraints(parameter, candidate))
+                    {
+                        match = candidate;
+                        break;
+                    }
+                }
+
+                if (match == null)
+                {
+                    var constraints = parameter.GetGenericParameterConstraints();
+                    match = constraints.FirstOrDefault(c => !c.IsGenericParameter && SatisfiesGenericConstraints(parameter, c));
+                }
+
+                if (match == null)
+                    return null;
+
+                resolved[i] = match;
+            }
+
+            return method.MakeGenericMethod(resolved);
+        }
+
+        private static bool SatisfiesGenericConstraints(Type genericParameter, Type candidate)
+        {
+            if (candidate == null)
+                return false;
+
+            if (!genericParameter.IsGenericParameter)
+                return genericParameter.IsAssignableFrom(candidate);
+
+            var attributes = genericParameter.GenericParameterAttributes;
+            if ((attributes & GenericParameterAttributes.ReferenceTypeConstraint) != 0 && candidate.IsValueType)
+                return false;
+
+            if ((attributes & GenericParameterAttributes.NotNullableValueTypeConstraint) != 0)
+            {
+                if (!candidate.IsValueType || Nullable.GetUnderlyingType(candidate) != null)
+                    return false;
+            }
+
+            if ((attributes & GenericParameterAttributes.DefaultConstructorConstraint) != 0)
+            {
+                if (candidate.IsAbstract || candidate.GetConstructor(Type.EmptyTypes) == null)
+                    return false;
+            }
+
+            foreach (var constraint in genericParameter.GetGenericParameterConstraints())
+            {
+                if (!constraint.IsAssignableFrom(candidate))
+                    return false;
+            }
+
+            return true;
+        }
+
         private static MethodInfo ResolveSendMethod(string methodName)
         {
             return CommandType.Assembly
                 .GetTypes()
                 .SelectMany(t => t.GetMethods(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static | BindingFlags.Instance))
                 .Where(m => m.Name == methodName)
-                .Where(m => !m.IsGenericMethodDefinition)
                 .OrderByDescending(m => m.IsStatic)
                 .ThenByDescending(m => m.GetParameters().Length)
-                .FirstOrDefault(m => m.GetParameters().Any(p => typeof(CommandBase).IsAssignableFrom(p.ParameterType)));
+                .FirstOrDefault(AcceptsCommandParameter);
         }
 
         private static bool MatchesConnectionSignature(MethodInfo method)
         {
             var parameters = method.GetParameters();
-            if (parameters.Length == 0)
-                return false;
+            if (parameters.Length > 0 && IsConnectionType(parameters[0].ParameterType))
+                return true;
 
-            if (!typeof(Connection).IsAssignableFrom(parameters[0].ParameterType))
-                return false;
+            if (method.IsGenericMethodDefinition)
+            {
+                foreach (var genericParameter in method.GetGenericArguments())
+                {
+                    if (IsConnectionType(genericParameter))
+                        return true;
+                }
+            }
 
-            return true;
+            return false;
         }
 
         private static object ResolveTarget(MethodInfo method)
