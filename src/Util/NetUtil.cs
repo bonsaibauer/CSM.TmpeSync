@@ -40,6 +40,24 @@ namespace CSM.TmpeSync.Util
 #endif
         }
 
+        internal static void ForEachSegment(Action<ushort> action){
+#if GAME
+            var buf=NetManager.instance.m_segments.m_buffer; int size=NetManager.instance.m_segments.m_size;
+            for(ushort i=1;i<size;i++) if((buf[i].m_flags & NetSegment.Flags.Created)!=0) action(i);
+#else
+            for(ushort i=1;i<=10;i++) action(i);
+#endif
+        }
+
+        internal static void ForEachNode(Action<ushort> action){
+#if GAME
+            var buf=NetManager.instance.m_nodes.m_buffer; int size=NetManager.instance.m_nodes.m_size;
+            for(ushort i=1;i<size;i++) if((buf[i].m_flags & NetNode.Flags.Created)!=0) action(i);
+#else
+            for(ushort i=1;i<=10;i++) action(i);
+#endif
+        }
+
         internal static void RunOnSimulation(Action act){
 #if GAME
             SimulationManager.instance.AddAction(delegate{ act(); });
