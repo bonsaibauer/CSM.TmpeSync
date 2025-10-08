@@ -20,15 +20,25 @@ namespace CSM.TmpeSync.Mod
                 return;
             }
             Log.Info("Dependencies available. Registering TM:PE sync connection with CSM.");
-            _conn = new TmpeSyncConnection();
-            CsmCompat.RegisterConnection(_conn);
-            Log.Info("CSM connection ready – TM:PE synchronisation active.");
+            var connection = new TmpeSyncConnection();
+            if (CsmCompat.RegisterConnection(connection))
+            {
+                _conn = connection;
+                Log.Info("CSM connection ready – TM:PE synchronisation active.");
+            }
+            else
+            {
+                Log.Warn("TM:PE sync connection could not be registered with CSM. Synchronisation remains inactive.");
+            }
         }
         public void OnDisabled(){
             Log.Info("Disable...");
             if (_conn!=null){
                 Log.Info("Unregistering TM:PE sync connection from CSM.");
-                CsmCompat.UnregisterConnection(_conn);
+                if (!CsmCompat.UnregisterConnection(_conn))
+                {
+                    Log.Warn("TM:PE sync connection could not be cleanly unregistered from CSM.");
+                }
                 _conn=null;
             }
             Log.Debug("Mod disabled – awaiting next enable cycle.");
