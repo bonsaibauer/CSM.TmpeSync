@@ -5,6 +5,13 @@ das die Synchronisation der Einstellungen aus [Traffic Manager: President Editio
 und – optional – der Zebrastreifen aus [Hide Crosswalks](https://github.com/CitiesSkylinesMods/HideCrosswalks) aktiviert.
 Die folgenden Schritte zeigen dir, wie du das Projekt lokal baust und das resultierende Add-on im Spiel verwendest.
 
+## Weiterführende Ressourcen
+
+* [Offizielles TM:PE-Repository](https://github.com/CitiesSkylinesMods/TMPE) – Referenz für die aktuellen Traffic-Manager-Funktionen.
+* [Historischer CSM-TM:PE-Integrationsversuch](https://github.com/MightyWizard/TMPE/tree/CSM-API-Implementation) – ältere Implementierungsideen für eine API-Anbindung.
+* [Integrationsübersicht (dieses Repository)](docs/IntegrationOverview.md) – beschreibt Aufbau, genutzte APIs und bekannte Hook-Anforderungen.
+
+
 ## Voraussetzungen
 
 * .NET SDK 6.0 (oder neuer) – wird für den `dotnet`-Build benötigt.
