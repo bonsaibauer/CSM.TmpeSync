@@ -25,6 +25,8 @@ namespace CSM.TmpeSync.Util
         private static readonly object DebugPanelInfo;
         private static readonly object DebugPanelWarning;
         private static readonly object DebugPanelError;
+        private static readonly int DebugPanelArgumentCount;
+        private static readonly object DebugPanelSource;
 
         static Log()
         {
@@ -39,13 +41,66 @@ namespace CSM.TmpeSync.Util
                     DebugPanelError = ParseEnum(messageType, "Error");
 
                     var panelType = Type.GetType("ColossalFramework.UI.DebugOutputPanel, ColossalManaged");
-                    DebugPanelMethod = panelType?.GetMethod("AddMessage", BindingFlags.Public | BindingFlags.Static, null, new[] { messageType, typeof(string) }, null);
+                    if (panelType != null)
+                    {
+                        foreach (var method in panelType.GetMethods(BindingFlags.Public | BindingFlags.Static))
+                        {
+                            if (!string.Equals(method.Name, "AddMessage", StringComparison.Ordinal))
+                                continue;
+
+                            var parameters = method.GetParameters();
+                            if (parameters.Length == 2 &&
+                                parameters[0].ParameterType == messageType &&
+                                parameters[1].ParameterType == typeof(string))
+                            {
+                                DebugPanelMethod = method;
+                                DebugPanelArgumentCount = 2;
+                                break;
+                            }
+
+                            if (parameters.Length == 3 &&
+                                parameters[0].ParameterType == messageType &&
+                                parameters[1].ParameterType == typeof(string))
+                            {
+                                object source = null;
+                                var thirdParameterType = parameters[2].ParameterType;
+                                if (thirdParameterType == typeof(string))
+                                {
+                                    source = "CSM.TmpeSync";
+                                }
+                                else if (pluginManager != null)
+                                {
+                                    var instanceProperty = pluginManager.GetProperty("instance", BindingFlags.Public | BindingFlags.Static);
+                                    var instance = instanceProperty?.GetValue(null, null);
+                                    if (instance != null)
+                                    {
+                                        var findPluginInfo = pluginManager.GetMethod("FindPluginInfo", BindingFlags.Public | BindingFlags.Instance, null, new[] { typeof(Assembly) }, null);
+                                        source = findPluginInfo?.Invoke(instance, new object[] { Assembly.GetExecutingAssembly() });
+                                        if (source != null && !thirdParameterType.IsInstanceOfType(source))
+                                        {
+                                            source = null;
+                                        }
+                                    }
+                                }
+
+                                if (thirdParameterType == typeof(string) || source != null)
+                                {
+                                    DebugPanelMethod = method;
+                                    DebugPanelArgumentCount = 3;
+                                    DebugPanelSource = source ?? "CSM.TmpeSync";
+                                    break;
+                                }
+                            }
+                        }
+                    }
                 }
             }
             catch
             {
                 DebugPanelMethod = null;
                 DebugPanelInfo = DebugPanelWarning = DebugPanelError = null;
+                DebugPanelArgumentCount = 0;
+                DebugPanelSource = null;
             }
 
         }
@@ -149,7 +204,14 @@ namespace CSM.TmpeSync.Util
             if (messageType == null)
                 return;
 
-            DebugPanelMethod.Invoke(null, new[] { messageType, formatted });
+            if (DebugPanelArgumentCount == 3)
+            {
+                DebugPanelMethod.Invoke(null, new[] { messageType, formatted, DebugPanelSource });
+            }
+            else
+            {
+                DebugPanelMethod.Invoke(null, new[] { messageType, formatted });
+            }
         }
 
         private static void WriteConsole(Level level, string formatted)
