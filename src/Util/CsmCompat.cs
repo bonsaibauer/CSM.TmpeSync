@@ -98,6 +98,12 @@ namespace CSM.TmpeSync.Util
         private static readonly MethodInfo UnregisterConnectionMethod;
         private static readonly object UnregisterConnectionTarget;
 
+        private static readonly HashSet<string> LoggedDiagnosticContexts = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        private static bool _loggedMissingSendToClient;
+        private static bool _loggedMissingBroadcast;
+        private static bool _loggedMissingRegister;
+        private static bool _loggedMissingUnregister;
+
         static CsmCompat()
         {
             SendToClientMethod = ResolveSendToClient();
@@ -309,6 +315,11 @@ namespace CSM.TmpeSync.Util
             }
 
             Log.Warn("No compatible send-to-client method available in CSM.API");
+            if (!_loggedMissingSendToClient)
+            {
+                _loggedMissingSendToClient = true;
+                LogDiagnostics("SendToClient unavailable", true);
+            }
         }
 
         internal static void SendToAll(CommandBase command)
@@ -339,6 +350,11 @@ namespace CSM.TmpeSync.Util
             }
 
             Log.Warn("No compatible broadcast method available in CSM.API");
+            if (!_loggedMissingBroadcast)
+            {
+                _loggedMissingBroadcast = true;
+                LogDiagnostics("Broadcast unavailable", true);
+            }
         }
 
         internal static bool RegisterConnection(Connection connection)
@@ -349,6 +365,11 @@ namespace CSM.TmpeSync.Util
             if (RegisterConnectionMethod == null)
             {
                 Log.Warn("Unable to register connection – CSM.API register hook missing");
+                if (!_loggedMissingRegister)
+                {
+                    _loggedMissingRegister = true;
+                    LogDiagnostics("Register hook missing", true);
+                }
                 return false;
             }
 
@@ -384,6 +405,11 @@ namespace CSM.TmpeSync.Util
             if (UnregisterConnectionMethod == null)
             {
                 Log.Warn("Unable to unregister connection – CSM.API unregister hook missing");
+                if (!_loggedMissingUnregister)
+                {
+                    _loggedMissingUnregister = true;
+                    LogDiagnostics("Unregister hook missing", true);
+                }
                 return false;
             }
 
@@ -430,6 +456,51 @@ namespace CSM.TmpeSync.Util
             var parameters = method.GetParameters();
             var parameterTypes = string.Join(", ", parameters.Select(p => p.ParameterType.Name).ToArray());
             return declaring + "." + method.Name + "(" + parameterTypes + ")";
+        }
+
+        private static string DescribeMember(MemberInfo member)
+        {
+            if (member == null)
+                return "<missing member>";
+
+            var declaring = member.DeclaringType?.FullName ?? member.DeclaringType?.Name ?? "<unknown type>";
+            return declaring + "." + member.Name;
+        }
+
+        internal static void LogDiagnostics(string context = null, bool force = false)
+        {
+            var key = context ?? string.Empty;
+            if (!force && LoggedDiagnosticContexts.Contains(key))
+                return;
+
+            LoggedDiagnosticContexts.Add(key);
+
+            var header = string.IsNullOrEmpty(context)
+                ? "CSM compat diagnostics:"
+                : $"CSM compat diagnostics ({context}):";
+            Log.Info(header);
+            Log.Info("  Command type: {0}", CommandType?.FullName ?? "<missing>");
+            Log.Info("  RegisterConnection method: {0}", DescribeMethod(RegisterConnectionMethod));
+            Log.Info("  UnregisterConnection method: {0}", DescribeMethod(UnregisterConnectionMethod));
+            Log.Info("  SendToClient method: {0}", DescribeMethod(SendToClientMethod));
+            Log.Info("  SendToClients method: {0}", DescribeMethod(SendToClientsMethod));
+            Log.Info("  SendToAll method: {0}", DescribeMethod(SendToAllMethod));
+
+            var ignoreInstance = IgnoreHelperInstance == null
+                ? "<missing>"
+                : IgnoreHelperInstance.GetType().FullName ?? IgnoreHelperInstance.GetType().Name;
+            Log.Info("  Ignore helper instance: {0}", ignoreInstance);
+            Log.Info("  Ignore start method: {0}", DescribeMethod(IgnoreStartMethod));
+            Log.Info("  Ignore end method: {0}", DescribeMethod(IgnoreEndMethod));
+
+            Log.Info("  CurrentRole property: {0}", DescribeMember(CurrentRoleProperty));
+            Log.Info("  RoleName property: {0}", DescribeMember(RoleNameProperty));
+            Log.Info("  IsServer property: {0}", DescribeMember(IsServerProperty));
+            Log.Info("  IsServer field: {0}", DescribeMember(IsServerField));
+            Log.Info("  Role check method: {0}", DescribeMethod(RoleCheckMethod));
+            Log.Info("  SenderId property: {0}", DescribeMember(SenderIdProperty));
+            Log.Info("  SenderId field: {0}", DescribeMember(SenderIdField));
+            Log.Info("  Sender property: {0}", DescribeMember(SenderProperty));
         }
 
         private static bool IsServerRoleValue(object value)

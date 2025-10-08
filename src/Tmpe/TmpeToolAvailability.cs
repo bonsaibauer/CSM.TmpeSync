@@ -19,17 +19,20 @@ namespace CSM.TmpeSync.Tmpe
 
         private static bool _restrictionActive;
         private static bool _loggedMissingMenu;
+        private static bool? _restrictionOverride;
 
 #if GAME
         private static readonly Dictionary<UIComponent, ButtonSnapshot> ButtonSnapshots = new Dictionary<UIComponent, ButtonSnapshot>();
+        private static readonly Dictionary<UIComponent, string> ButtonAuditStates = new Dictionary<UIComponent, string>();
         private static object _cachedMenuInstance;
         private static Type _cachedMenuType;
 #endif
 
         internal static void Tick(bool restrict)
         {
+            var effectiveRestrict = _restrictionOverride ?? restrict;
 #if GAME
-            if (restrict)
+            if (effectiveRestrict)
             {
                 if (!_restrictionActive)
                 {
@@ -41,7 +44,14 @@ namespace CSM.TmpeSync.Tmpe
                     _lastMenuSummary = null;
                 }
 
-                if (!ApplyRestriction())
+                if (_restrictionOverride.HasValue && !_restrictionOverride.Value)
+                {
+                    if (!_loggedMissingMenu)
+                        Log.Info("TM:PE menu restriction override active – leaving all tools enabled.");
+
+                    _loggedMissingMenu = true;
+                }
+                else if (!ApplyRestriction())
                 {
                     if (!_loggedMissingMenu)
                     {
@@ -62,10 +72,10 @@ namespace CSM.TmpeSync.Tmpe
                 _lastMenuSummary = null;
             }
 #else
-            if (_restrictionActive != restrict)
+            if (_restrictionActive != effectiveRestrict)
             {
-                _restrictionActive = restrict;
-                if (restrict)
+                _restrictionActive = effectiveRestrict;
+                if (effectiveRestrict)
                     Log.Info(
                         "TM:PE tool restriction (editor build) ENABLED – supported tools remain available ({0}).",
                         SupportedToolsLogList);
@@ -84,10 +94,27 @@ namespace CSM.TmpeSync.Tmpe
             _cachedMenuType = null;
             _loggedMissingMenu = false;
             _lastMenuSummary = null;
+            ButtonAuditStates.Clear();
 #else
             _restrictionActive = false;
             _loggedMissingMenu = false;
 #endif
+        }
+
+        internal static void OverrideRestriction(bool? restrict)
+        {
+            var previous = _restrictionOverride;
+            _restrictionOverride = restrict;
+
+            if (restrict == null)
+                Log.Info("TM:PE menu restriction override cleared – following multiplayer role state again.");
+            else if (restrict.Value)
+                Log.Info("TM:PE menu restriction override ENABLED – unsupported tools will remain disabled.");
+            else
+                Log.Info("TM:PE menu restriction override DISABLED – keeping all TM:PE tools available for local testing.");
+
+            if (previous != restrict)
+                Reset();
         }
 
 #if GAME
@@ -124,12 +151,14 @@ namespace CSM.TmpeSync.Tmpe
                 if (TryMatchSupportedTool(entry, out var toolName))
                 {
                     RestoreComponent(component);
+                    AuditButtonState(entry, true, toolName);
                     if (!string.IsNullOrEmpty(toolName))
                         enabledTools.Add(toolName);
                     continue;
                 }
 
                 DisableComponent(component);
+                AuditButtonState(entry, false, null);
                 disabledCount++;
                 if (disabledSamples.Count < 3)
                 {
@@ -140,6 +169,9 @@ namespace CSM.TmpeSync.Tmpe
             }
 
             CleanupSnapshots();
+#if GAME
+            CleanupAuditStates();
+#endif
             LogMenuSummary(enabledTools, disabledCount, disabledSamples);
             return true;
         }
@@ -204,6 +236,16 @@ namespace CSM.TmpeSync.Tmpe
             {
                 if (component == null)
                     ButtonSnapshots.Remove(component);
+            }
+        }
+
+#if GAME
+        private static void CleanupAuditStates()
+        {
+            foreach (var component in ButtonAuditStates.Keys.ToArray())
+            {
+                if (component == null)
+                    ButtonAuditStates.Remove(component);
             }
         }
 
@@ -299,6 +341,39 @@ namespace CSM.TmpeSync.Tmpe
 
             return null;
         }
+
+        private static void AuditButtonState(MenuButtonInfo entry, bool supported, string toolName)
+        {
+            var component = entry.Component;
+            if (component == null)
+                return;
+
+            var key = supported
+                ? "supported:" + (toolName ?? string.Empty)
+                : "disabled";
+
+            if (ButtonAuditStates.TryGetValue(component, out var previous) && previous == key)
+                return;
+
+            ButtonAuditStates[component] = key;
+
+            var descriptor = DescribeMenuEntry(entry) ?? "<unnamed>";
+            var tooltip = component.tooltip ?? string.Empty;
+            var componentName = component.name ?? "<no-name>";
+
+            if (supported)
+            {
+                if (!string.IsNullOrEmpty(toolName))
+                    Log.Info("[TM:PE Menu] Keeping supported tool '{0}' enabled (component='{1}', tooltip='{2}').", toolName, componentName, tooltip);
+                else
+                    Log.Info("[TM:PE Menu] Keeping supported tool entry '{0}' enabled (component='{1}', tooltip='{2}').", descriptor, componentName, tooltip);
+            }
+            else
+            {
+                Log.Info("[TM:PE Menu] Disabling unsupported entry '{0}' (component='{1}', tooltip='{2}').", descriptor, componentName, tooltip);
+            }
+        }
+#endif
 
         private static void LogMenuSummary(HashSet<string> enabledTools, int disabledCount, List<string> disabledSamples)
         {
