@@ -54,10 +54,24 @@ namespace CSM.TmpeSync.Util
         private static string GetCurrentRole()
         {
             string description = CsmCompat.DescribeCurrentRole();
-            if (string.IsNullOrWhiteSpace(description))
+            if (IsNullOrWhiteSpace(description))
                 throw new InvalidOperationException("CSM.API.Command.CurrentRole property is unavailable.");
 
             return NormalizeRoleName(description);
+        }
+
+        private static bool IsNullOrWhiteSpace(string value)
+        {
+            if (value == null)
+                return true;
+
+            for (int i = 0; i < value.Length; i++)
+            {
+                if (!char.IsWhiteSpace(value[i]))
+                    return false;
+            }
+
+            return true;
         }
 
         private static string NormalizeRoleName(object role)
