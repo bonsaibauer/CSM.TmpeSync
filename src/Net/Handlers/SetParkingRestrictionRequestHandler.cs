@@ -15,9 +15,9 @@ namespace CSM.TmpeSync.Net.Handlers
             var senderId = CsmCompat.GetSenderId(cmd);
             var state = cmd.State ?? new ParkingRestrictionState();
 
-            Log.Info("Received SetParkingRestrictionRequest segment={0} state={1} from client={2} role={3}", cmd.SegmentId, state, senderId, Command.CurrentRole);
+            Log.Info("Received SetParkingRestrictionRequest segment={0} state={1} from client={2} role={3}", cmd.SegmentId, state, senderId, CsmCompat.DescribeCurrentRole());
 
-            if (Command.CurrentRole != CSM.API.MultiplayerRole.Server)
+            if (!CsmCompat.IsServerInstance())
             {
                 Log.Debug("Ignoring SetParkingRestrictionRequest on non-server instance.");
                 return;

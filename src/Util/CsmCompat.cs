@@ -11,6 +11,11 @@ namespace CSM.TmpeSync.Util
     internal static class CsmCompat
     {
         private static readonly Type CommandType = typeof(Command);
+        private static readonly PropertyInfo CurrentRoleProperty = CommandType.GetProperty("CurrentRole", BindingFlags.Public | BindingFlags.Static);
+        private static readonly PropertyInfo RoleNameProperty = CommandType.GetProperty("Role", BindingFlags.Public | BindingFlags.Static);
+        private static readonly PropertyInfo IsServerProperty = CommandType.GetProperty("IsServer", BindingFlags.Public | BindingFlags.Static);
+        private static readonly FieldInfo IsServerField = CommandType.GetField("IsServer", BindingFlags.Public | BindingFlags.Static);
+        private static readonly MethodInfo RoleCheckMethod = ResolveRoleCheckMethod(CommandType);
         private static readonly PropertyInfo SenderIdProperty = CommandType.GetProperty("SenderId", BindingFlags.Public | BindingFlags.Static) ??
                                                                  CommandType.GetProperty("CurrentSenderId", BindingFlags.Public | BindingFlags.Static);
         private static readonly FieldInfo SenderIdField = CommandType.GetField("SenderId", BindingFlags.Public | BindingFlags.Static);
@@ -65,6 +70,83 @@ namespace CSM.TmpeSync.Util
                 DescribeMethod(SendToAllMethod),
                 DescribeMethod(RegisterConnectionMethod),
                 DescribeMethod(UnregisterConnectionMethod));
+        }
+
+        internal static bool IsServerInstance()
+        {
+            try
+            {
+                if (IsServerProperty != null && IsServerProperty.PropertyType == typeof(bool))
+                {
+                    var value = IsServerProperty.GetValue(null, null);
+                    if (value is bool boolValue)
+                        return boolValue;
+                }
+
+                if (IsServerField != null && IsServerField.FieldType == typeof(bool))
+                {
+                    var value = IsServerField.GetValue(null);
+                    if (value is bool boolValue)
+                        return boolValue;
+                }
+
+                if (RoleCheckMethod != null && RoleCheckMethod.ReturnType == typeof(bool) && RoleCheckMethod.GetParameters().Length == 0)
+                {
+                    var target = RoleCheckMethod.IsStatic ? null : GetSingletonInstance(RoleCheckMethod.DeclaringType);
+                    var result = RoleCheckMethod.Invoke(target, null);
+                    if (result is bool boolResult)
+                        return boolResult;
+                }
+
+                if (CurrentRoleProperty != null)
+                {
+                    var value = CurrentRoleProperty.GetValue(null, null);
+                    if (IsServerRoleValue(value))
+                        return true;
+                }
+
+                if (RoleNameProperty != null)
+                {
+                    var value = RoleNameProperty.GetValue(null, null);
+                    if (IsServerRoleValue(value))
+                        return true;
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Warn("Failed to resolve CSM server role: {0}", ex);
+            }
+
+            return false;
+        }
+
+        internal static string DescribeCurrentRole()
+        {
+            try
+            {
+                if (CurrentRoleProperty != null)
+                {
+                    var value = CurrentRoleProperty.GetValue(null, null);
+                    if (value != null)
+                        return value.ToString();
+                }
+
+                if (RoleNameProperty != null)
+                {
+                    var value = RoleNameProperty.GetValue(null, null);
+                    if (value != null)
+                        return value.ToString();
+                }
+
+                if (IsServerProperty != null || IsServerField != null || RoleCheckMethod != null)
+                    return IsServerInstance() ? "Server" : "Client";
+            }
+            catch (Exception ex)
+            {
+                Log.Warn("Failed to describe current CSM role: {0}", ex);
+            }
+
+            return "unknown";
         }
 
         internal static int GetSenderId(CommandBase command)
@@ -250,6 +332,87 @@ namespace CSM.TmpeSync.Util
             var parameters = method.GetParameters();
             var parameterTypes = string.Join(", ", parameters.Select(p => p.ParameterType.Name).ToArray());
             return declaring + "." + method.Name + "(" + parameterTypes + ")";
+        }
+
+        private static bool IsServerRoleValue(object value)
+        {
+            if (value == null)
+                return false;
+
+            try
+            {
+                if (value is bool boolValue)
+                    return boolValue;
+
+                var type = value.GetType();
+
+                if (type.IsEnum)
+                {
+                    var name = Enum.GetName(type, value);
+                    if (!string.IsNullOrEmpty(name))
+                    {
+                        name = name.ToLowerInvariant();
+                        if (name == "server" || name == "host")
+                            return true;
+                    }
+
+                    try
+                    {
+                        var numeric = Convert.ToInt32(value, CultureInfo.InvariantCulture);
+                        if (numeric == 2)
+                            return true;
+                    }
+                    catch
+                    {
+                        // ignore conversion errors
+                    }
+                }
+
+                if (value is string str)
+                {
+                    str = str.Trim().ToLowerInvariant();
+                    return str == "server" || str == "host";
+                }
+
+                var text = Convert.ToString(value, CultureInfo.InvariantCulture);
+                if (!string.IsNullOrEmpty(text))
+                {
+                    text = text.Trim().ToLowerInvariant();
+                    if (text == "server" || text == "host")
+                        return true;
+                }
+            }
+            catch
+            {
+                // ignore conversion issues – fall back to false
+            }
+
+            return false;
+        }
+
+        private static MethodInfo ResolveRoleCheckMethod(Type type)
+        {
+            if (type == null)
+                return null;
+
+            var candidateNames = new[]
+            {
+                "IsServer",
+                "IsCurrentRoleServer",
+                "IsHost",
+                "IsCurrentRoleHost",
+                "IsServerInstance",
+                "IsHostInstance"
+            };
+
+            foreach (var name in candidateNames)
+            {
+                var method = type.GetMethod(name, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static);
+                if (method != null && method.ReturnType == typeof(bool) && method.GetParameters().Length == 0)
+                    return method;
+            }
+
+            return null;
         }
 
         internal static IDisposable StartIgnore()

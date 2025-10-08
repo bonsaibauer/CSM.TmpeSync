@@ -13,9 +13,9 @@ namespace CSM.TmpeSync.Net.Handlers
         protected override void Handle(SetSpeedLimitRequest cmd)
         {
             var senderId=CsmCompat.GetSenderId(cmd);
-            Log.Info("Received SetSpeedLimitRequest lane={0} speed={1}km/h from client={2} role={3}", cmd.LaneId, cmd.SpeedKmh, senderId, Command.CurrentRole);
+            Log.Info("Received SetSpeedLimitRequest lane={0} speed={1}km/h from client={2} role={3}", cmd.LaneId, cmd.SpeedKmh, senderId, CsmCompat.DescribeCurrentRole());
 
-            if (Command.CurrentRole != CSM.API.MultiplayerRole.Server)
+            if (!CsmCompat.IsServerInstance())
             {
                 Log.Debug("Ignoring SetSpeedLimitRequest on non-server instance.");
                 return;

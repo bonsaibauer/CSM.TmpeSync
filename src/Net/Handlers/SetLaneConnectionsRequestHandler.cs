@@ -17,9 +17,9 @@ namespace CSM.TmpeSync.Net.Handlers
             var senderId = CsmCompat.GetSenderId(cmd);
             var targets = (cmd.TargetLaneIds ?? new uint[0]).Where(id => id != 0).Distinct().ToArray();
 
-            Log.Info("Received SetLaneConnectionsRequest lane={0} targets=[{1}] from client={2} role={3}", cmd.SourceLaneId, FormatLaneIds(targets), senderId, Command.CurrentRole);
+            Log.Info("Received SetLaneConnectionsRequest lane={0} targets=[{1}] from client={2} role={3}", cmd.SourceLaneId, FormatLaneIds(targets), senderId, CsmCompat.DescribeCurrentRole());
 
-            if (Command.CurrentRole != CSM.API.MultiplayerRole.Server)
+            if (!CsmCompat.IsServerInstance())
             {
                 Log.Debug("Ignoring SetLaneConnectionsRequest on non-server instance.");
                 return;
