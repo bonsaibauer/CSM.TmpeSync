@@ -13,9 +13,9 @@ namespace CSM.TmpeSync.Net.Handlers
         protected override void Handle(SetLaneArrowRequest cmd)
         {
             var senderId = CsmCompat.GetSenderId(cmd);
-            Log.Info("Received SetLaneArrowRequest lane={0} arrows={1} from client={2} role={3}", cmd.LaneId, cmd.Arrows, senderId, Command.CurrentRole);
+            Log.Info("Received SetLaneArrowRequest lane={0} arrows={1} from client={2} role={3}", cmd.LaneId, cmd.Arrows, senderId, CsmCompat.DescribeCurrentRole());
 
-            if (Command.CurrentRole != CSM.API.MultiplayerRole.Server)
+            if (!CsmCompat.IsServerInstance())
             {
                 Log.Debug("Ignoring SetLaneArrowRequest on non-server instance.");
                 return;

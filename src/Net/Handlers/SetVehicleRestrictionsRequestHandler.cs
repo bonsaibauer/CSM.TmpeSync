@@ -12,9 +12,9 @@ namespace CSM.TmpeSync.Net.Handlers
         protected override void Handle(SetVehicleRestrictionsRequest cmd)
         {
             var senderId = CsmCompat.GetSenderId(cmd);
-            Log.Info("Received SetVehicleRestrictionsRequest lane={0} restrictions={1} from client={2} role={3}", cmd.LaneId, cmd.Restrictions, senderId, Command.CurrentRole);
+            Log.Info("Received SetVehicleRestrictionsRequest lane={0} restrictions={1} from client={2} role={3}", cmd.LaneId, cmd.Restrictions, senderId, CsmCompat.DescribeCurrentRole());
 
-            if (Command.CurrentRole != CSM.API.MultiplayerRole.Server)
+            if (!CsmCompat.IsServerInstance())
             {
                 Log.Debug("Ignoring SetVehicleRestrictionsRequest on non-server instance.");
                 return;

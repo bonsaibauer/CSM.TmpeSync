@@ -33,7 +33,7 @@ namespace CSM.TmpeSync.Util
 
         internal static void ForEachLane(Action<uint> action){
 #if GAME
-            var buf=NetManager.instance.m_lanes.m_buffer; int size=NetManager.instance.m_lanes.m_size;
+            var buf=NetManager.instance.m_lanes.m_buffer; int size=(int)NetManager.instance.m_lanes.m_size;
             for(int i=0;i<size;i++) if((buf[i].m_flags&(uint)NetLane.Flags.Created)!=0) action((uint)i);
 #else
             for(uint i=1;i<=10;i++) action(i);
@@ -42,7 +42,7 @@ namespace CSM.TmpeSync.Util
 
         internal static void ForEachSegment(Action<ushort> action){
 #if GAME
-            var buf=NetManager.instance.m_segments.m_buffer; int size=NetManager.instance.m_segments.m_size;
+            var buf=NetManager.instance.m_segments.m_buffer; int size=(int)NetManager.instance.m_segments.m_size;
             for(ushort i=1;i<size;i++) if((buf[i].m_flags & NetSegment.Flags.Created)!=0) action(i);
 #else
             for(ushort i=1;i<=10;i++) action(i);
@@ -51,7 +51,7 @@ namespace CSM.TmpeSync.Util
 
         internal static void ForEachNode(Action<ushort> action){
 #if GAME
-            var buf=NetManager.instance.m_nodes.m_buffer; int size=NetManager.instance.m_nodes.m_size;
+            var buf=NetManager.instance.m_nodes.m_buffer; int size=(int)NetManager.instance.m_nodes.m_size;
             for(ushort i=1;i<size;i++) if((buf[i].m_flags & NetNode.Flags.Created)!=0) action(i);
 #else
             for(ushort i=1;i<=10;i++) action(i);

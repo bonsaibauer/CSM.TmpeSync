@@ -15,9 +15,9 @@ namespace CSM.TmpeSync.Net.Handlers
             var senderId = CsmCompat.GetSenderId(cmd);
             var state = cmd.State ?? new JunctionRestrictionsState();
 
-            Log.Info("Received SetJunctionRestrictionsRequest node={0} state={1} from client={2} role={3}", cmd.NodeId, state, senderId, Command.CurrentRole);
+            Log.Info("Received SetJunctionRestrictionsRequest node={0} state={1} from client={2} role={3}", cmd.NodeId, state, senderId, CsmCompat.DescribeCurrentRole());
 
-            if (Command.CurrentRole != CSM.API.MultiplayerRole.Server)
+            if (!CsmCompat.IsServerInstance())
             {
                 Log.Debug("Ignoring SetJunctionRestrictionsRequest on non-server instance.");
                 return;

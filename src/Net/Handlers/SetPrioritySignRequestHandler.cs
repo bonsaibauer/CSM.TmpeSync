@@ -12,9 +12,9 @@ namespace CSM.TmpeSync.Net.Handlers
         protected override void Handle(SetPrioritySignRequest cmd)
         {
             var senderId = CsmCompat.GetSenderId(cmd);
-            Log.Info("Received SetPrioritySignRequest node={0} segment={1} sign={2} from client={3} role={4}", cmd.NodeId, cmd.SegmentId, cmd.SignType, senderId, Command.CurrentRole);
+            Log.Info("Received SetPrioritySignRequest node={0} segment={1} sign={2} from client={3} role={4}", cmd.NodeId, cmd.SegmentId, cmd.SignType, senderId, CsmCompat.DescribeCurrentRole());
 
-            if (Command.CurrentRole != CSM.API.MultiplayerRole.Server)
+            if (!CsmCompat.IsServerInstance())
             {
                 Log.Debug("Ignoring SetPrioritySignRequest on non-server instance.");
                 return;
