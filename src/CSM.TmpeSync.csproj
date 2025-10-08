@@ -126,8 +126,23 @@
     <Compile Include="Stubs\UnityEngineStubs.cs" />
     <Compile Include="Stubs\ThreadingExtensionStub.cs" />
   
+    <Compile Include="Net\Contracts\States\TmpeStates.cs" />
     <Compile Include="Net\Contracts\Requests\SetSpeedLimitRequest.cs" />
+    <Compile Include="Net\Contracts\Requests\SetLaneArrowRequest.cs" />
+    <Compile Include="Net\Contracts\Requests\SetVehicleRestrictionsRequest.cs" />
+    <Compile Include="Net\Contracts\Requests\SetLaneConnectionsRequest.cs" />
+    <Compile Include="Net\Contracts\Requests\SetJunctionRestrictionsRequest.cs" />
+    <Compile Include="Net\Contracts\Requests\SetPrioritySignRequest.cs" />
+    <Compile Include="Net\Contracts\Requests\SetParkingRestrictionRequest.cs" />
+    <Compile Include="Net\Contracts\Requests\SetTimedTrafficLightRequest.cs" />
     <Compile Include="Net\Contracts\Applied\SpeedLimitApplied.cs" />
+    <Compile Include="Net\Contracts\Applied\LaneArrowApplied.cs" />
+    <Compile Include="Net\Contracts\Applied\VehicleRestrictionsApplied.cs" />
+    <Compile Include="Net\Contracts\Applied\LaneConnectionsApplied.cs" />
+    <Compile Include="Net\Contracts\Applied\JunctionRestrictionsApplied.cs" />
+    <Compile Include="Net\Contracts\Applied\PrioritySignApplied.cs" />
+    <Compile Include="Net\Contracts\Applied\ParkingRestrictionApplied.cs" />
+    <Compile Include="Net\Contracts\Applied\TimedTrafficLightApplied.cs" />
     <Compile Include="Net\Contracts\System\RequestRejected.cs" />
     <Compile Include="Net\Contracts\Locks\BeginEnd.cs" />
 
@@ -135,12 +150,40 @@
     <Compile Include="Net\Handlers\SpeedLimitAppliedHandler.cs" />
     <Compile Include="Net\Handlers\RequestRejectedHandler.cs" />
     <Compile Include="Net\Handlers\SpeedLimitDeferredOp.cs" />
+    <Compile Include="Net\Handlers\SetLaneArrowRequestHandler.cs" />
+    <Compile Include="Net\Handlers\LaneArrowAppliedHandler.cs" />
+    <Compile Include="Net\Handlers\LaneArrowDeferredOp.cs" />
+    <Compile Include="Net\Handlers\SetVehicleRestrictionsRequestHandler.cs" />
+    <Compile Include="Net\Handlers\VehicleRestrictionsAppliedHandler.cs" />
+    <Compile Include="Net\Handlers\VehicleRestrictionsDeferredOp.cs" />
+    <Compile Include="Net\Handlers\SetLaneConnectionsRequestHandler.cs" />
+    <Compile Include="Net\Handlers\LaneConnectionsAppliedHandler.cs" />
+    <Compile Include="Net\Handlers\LaneConnectionsDeferredOp.cs" />
+    <Compile Include="Net\Handlers\SetJunctionRestrictionsRequestHandler.cs" />
+    <Compile Include="Net\Handlers\JunctionRestrictionsAppliedHandler.cs" />
+    <Compile Include="Net\Handlers\JunctionRestrictionsDeferredOp.cs" />
+    <Compile Include="Net\Handlers\SetPrioritySignRequestHandler.cs" />
+    <Compile Include="Net\Handlers\PrioritySignAppliedHandler.cs" />
+    <Compile Include="Net\Handlers\PrioritySignDeferredOp.cs" />
+    <Compile Include="Net\Handlers\SetParkingRestrictionRequestHandler.cs" />
+    <Compile Include="Net\Handlers\ParkingRestrictionAppliedHandler.cs" />
+    <Compile Include="Net\Handlers\ParkingRestrictionDeferredOp.cs" />
+    <Compile Include="Net\Handlers\SetTimedTrafficLightRequestHandler.cs" />
+    <Compile Include="Net\Handlers\TimedTrafficLightAppliedHandler.cs" />
+    <Compile Include="Net\Handlers\TimedTrafficLightDeferredOp.cs" />
     <Compile Include="Net\Handlers\Locks\BeginEndHandlers.cs" />
     <Compile Include="Net\Handlers\Locks\EditLockAppliedHandler.cs" />
     <Compile Include="Net\Handlers\Locks\EditLockClearedHandler.cs" />
 
     <Compile Include="Snapshot\ISnapshotProvider.cs" />
     <Compile Include="Snapshot\SpeedLimitSnapshotProvider.cs" />
+    <Compile Include="Snapshot\LaneArrowSnapshotProvider.cs" />
+    <Compile Include="Snapshot\VehicleRestrictionsSnapshotProvider.cs" />
+    <Compile Include="Snapshot\LaneConnectionsSnapshotProvider.cs" />
+    <Compile Include="Snapshot\JunctionRestrictionsSnapshotProvider.cs" />
+    <Compile Include="Snapshot\PrioritySignSnapshotProvider.cs" />
+    <Compile Include="Snapshot\ParkingRestrictionSnapshotProvider.cs" />
+    <Compile Include="Snapshot\TimedTrafficLightSnapshotProvider.cs" />
 
     <Compile Include="Tool\LockOverlay.cs" />
   </ItemGroup>
