@@ -36,7 +36,7 @@ namespace CSM.TmpeSync.Util
                     }catch(Exception ex){ Log.Error("DeferredApply err {0}: {1}", e.Op.Key, ex); drop=true; }
 
                     if(done||drop){
-                        lock(_queue){ for(int i=0;i<_queue.Count;i++) if(object.ReferenceEquals(_queue[i].Op,e.Op)){ _queue.RemoveAt(i); break; } }
+                        lock(_queue){ for(int j=0;j<_queue.Count;j++) if(object.ReferenceEquals(_queue[j].Op,e.Op)){ _queue.RemoveAt(j); break; } }
                         if(done) Log.Info("DeferredApply applied {0} after {1} retries", e.Op.Key, e.Retries);
                         else Log.Warn("DeferredApply dropped {0} after {1} retries", e.Op.Key, e.Retries);
                     }
