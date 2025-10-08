@@ -1,7 +1,8 @@
 # CSM.TmpeSync Add-on
 
 Dieses Repository enthält ein Add-on für [Cities: Skylines Multiplayer (CSM)](https://github.com/CitiesSkylinesMultiplayer/CSM),
-das die Synchronisation der Geschwindigkeitsbegrenzungen aus [Traffic Manager: President Edition (TM:PE)](https://github.com/CitiesSkylinesMods/TMPE) aktiviert.
+das die Synchronisation der Einstellungen aus [Traffic Manager: President Edition (TM:PE)](https://github.com/CitiesSkylinesMods/TMPE)
+und – optional – der Zebrastreifen aus [Hide Crosswalks](https://github.com/CitiesSkylinesMods/HideCrosswalks) aktiviert.
 Die folgenden Schritte zeigen dir, wie du das Projekt lokal baust und das resultierende Add-on im Spiel verwendest.
 
 ## Voraussetzungen

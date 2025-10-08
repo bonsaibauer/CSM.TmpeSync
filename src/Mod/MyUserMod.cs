@@ -7,7 +7,7 @@ namespace CSM.TmpeSync.Mod
     public class MyUserMod : IUserMod
     {
         public string Name => "CSM TM:PE Sync (Host-Authoritative)";
-        public string Description => "Synchronisiert TM:PE-Geschwindigkeitslimits (Ein/Aus) – benötigt CSM & Harmony.";
+        public string Description => "Synchronisiert TM:PE-Einstellungen & Hide Crosswalks (Zebrastreifen) – benötigt CSM & Harmony.";
 
         private static TmpeSyncConnection _conn;
 
