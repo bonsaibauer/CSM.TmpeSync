@@ -48,12 +48,12 @@ namespace System.Collections.Generic
         }
     }
 
-    public interface IReadOnlyCollection<out T> : IEnumerable<T>
+    public interface IReadOnlyCollection<T> : IEnumerable<T>
     {
         int Count { get; }
     }
 
-    public interface IReadOnlyList<out T> : IReadOnlyCollection<T>
+    public interface IReadOnlyList<T> : IReadOnlyCollection<T>
     {
         T this[int index] { get; }
     }
