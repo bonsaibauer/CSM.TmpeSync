@@ -7,14 +7,18 @@ namespace CSM.TmpeSync.Mod
     public class MyUserMod : IUserMod
     {
         public string Name => "CSM TM:PE Sync (Host-Authoritative)";
-        public string Description => "Aktiviert nur mit CSM & Harmony. Host setzt via TM:PE; Broadcast an Clients.";
+        public string Description => "Synchronisiert TM:PE-Geschwindigkeitslimits (Ein/Aus) – benötigt CSM & Harmony.";
 
         private static TmpeSyncConnection _conn;
 
         public void OnEnabled(){
             Log.Info("Enable... checking deps");
-            if (!Deps.IsCsmEnabled()){ Log.Error("Missing dependency: CSM not enabled."); return; }
-            if (!Deps.IsHarmonyAvailable()){ Log.Error("Missing dependency: Harmony not available."); return; }
+            var missing = Deps.GetMissingDependencies();
+            if (missing.Length > 0){
+                Log.Error("Missing dependency: {0}. Disabling mod.", string.Join(", ", missing));
+                Deps.DisableSelf(this);
+                return;
+            }
             _conn = new TmpeSyncConnection();
             Helper.RegisterConnection(_conn);
             Log.Info("Deps OK -> active");

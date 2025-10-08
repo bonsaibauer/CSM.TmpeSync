@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 #if GAME
 using ColossalFramework.Plugins;
@@ -44,10 +45,34 @@ namespace CSM.TmpeSync.Util
             }catch(Exception ex){ Log.Warn("Harmony dep check: {0}", ex); }
             return false;
         }
+        internal static string[] GetMissingDependencies(){
+            var missing = new List<string>();
+            if (!IsCsmEnabled()) missing.Add("CSM");
+            if (!IsHarmonyAvailable()) missing.Add("Harmony");
+            return missing.ToArray();
+        }
+        internal static void DisableSelf(object modInstance){
+            try{
+                foreach (var p in PluginManager.instance.GetPluginsInfo()){
+                    if (p.userModInstance == modInstance){
+                        Log.Warn("Disabling plugin '{0}' due to missing dependencies.", SafeName(p));
+                        var pluginName = p.name;
+                        if (!string.IsNullOrEmpty(pluginName)){
+                            PluginManager.instance.SetPluginEnabled(pluginName, false);
+                        }else{
+                            p.isEnabled = false;
+                        }
+                        break;
+                    }
+                }
+            }catch(Exception ex){ Log.Warn("Failed to disable plugin: {0}", ex); }
+        }
         private static string SafeName(PluginInfo p){ try{ return p.name ?? p.modPath ?? ""; }catch{ return ""; } }
 #else
         internal static bool IsCsmEnabled(){ return false; }
         internal static bool IsHarmonyAvailable(){ return false; }
+        internal static string[] GetMissingDependencies(){ return new[]{"CSM","Harmony"}; }
+        internal static void DisableSelf(object _){ }
         private static string SafeName(object _){ return string.Empty; }
 #endif
     }
