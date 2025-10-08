@@ -41,11 +41,15 @@
     <ModsOutDir>$(LOCALAPPDATA)\Colossal Order\Cities_Skylines\Addons\Mods\CSM.TmpeSync</ModsOutDir>
 
     <!-- In-Game Compile-Define -->
-    <DefineConstants>TRACE;RELEASE;GAME</DefineConstants>
+    <DefineConstants>TRACE;RELEASE</DefineConstants>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(GameBuild)'=='true'">
+    <DefineConstants>$(DefineConstants);GAME</DefineConstants>
   </PropertyGroup>
 
   <!-- ==== Safety-Checks ==== -->
-  <Target Name="CheckRefs" BeforeTargets="ResolveReferences">
+  <Target Name="CheckRefs" BeforeTargets="ResolveReferences" Condition="'$(GameBuild)'=='true'">
     <Error Condition=" '$(CitiesSkylinesDir)'=='' " Text="ICities.dll nicht gefunden. /p:CitiesSkylinesDir=&quot;PFAD_ZUR_CITIES_INSTALLATION&quot; angeben." />
     <Error Condition=" !Exists('$(ManagedDir)\ICities.dll') " Text="Fehlt: $(ManagedDir)\ICities.dll — prüfe CitiesSkylinesDir." />
     <Error Condition=" !Exists('$(ManagedDir)\ColossalManaged.dll') " Text="Fehlt: $(ManagedDir)\ColossalManaged.dll — prüfe CitiesSkylinesDir." />
@@ -60,7 +64,7 @@
   </Target>
 
   <!-- ==== Referenzen ==== -->
-  <ItemGroup>
+  <ItemGroup Condition="'$(GameBuild)'=='true'">
     <!-- Game -->
     <Reference Include="ICities"><HintPath>$(ManagedDir)\ICities.dll</HintPath><Private>false</Private></Reference>
     <Reference Include="ColossalManaged"><HintPath>$(ManagedDir)\ColossalManaged.dll</HintPath><Private>false</Private></Reference>
@@ -80,6 +84,10 @@
     </Reference>
   </ItemGroup>
 
+  <ItemGroup>
+    <PackageReference Include="protobuf-net" Version="3.2.31" />
+  </ItemGroup>
+
   <!-- ==== Dateien (da EnableDefaultCompileItems=false) ==== -->
   <ItemGroup>
     <Compile Include="Properties\AssemblyInfo.cs" />
@@ -94,6 +102,9 @@
     <Compile Include="Util\LockRegistry.cs" />
 
     <Compile Include="Tmpe\TmpeAdapter.cs" />
+
+    <Compile Include="Stubs\CsmApiStubs.cs" />
+    <Compile Include="Stubs\ICitiesStubs.cs" />
 
     <Compile Include="Net\Contracts\Requests\SetSpeedLimitRequest.cs" />
     <Compile Include="Net\Contracts\Applied\SpeedLimitApplied.cs" />
@@ -115,7 +126,7 @@
   </ItemGroup>
 
   <!-- ==== Post-Build: Mod-DLL ins Mods-Verzeichnis ==== -->
-  <Target Name="AfterBuild">
+  <Target Name="AfterBuild" Condition="'$(GameBuild)'=='true'">
     <MakeDir Directories="$(ModsOutDir)" />
     <Copy SourceFiles="$(TargetPath)" DestinationFolder="$(ModsOutDir)" />
   </Target>

@@ -1,5 +1,7 @@
+#if GAME
 using UnityEngine;
 using ColossalFramework;
+#endif
 
 using CSM.TmpeSync.Util;
 
@@ -8,7 +10,13 @@ namespace CSM.TmpeSync.Tool
     internal static class LockOverlay
     {
         // call pro Frame aus deinem Tool-Kontext:
-        internal static void OnRenderOverlay(RenderManager.CameraInfo cameraInfo)
+        internal static void OnRenderOverlay(
+#if GAME
+            RenderManager.CameraInfo cameraInfo
+#else
+            object cameraInfo
+#endif
+        )
         {
 #if GAME
             // Beispiel: grob alle gelockten Segmente rot umranden (Pseudo: du brauchst die Keys -> parse TargetKind==1)

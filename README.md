@@ -7,12 +7,13 @@ Die folgenden Schritte zeigen dir, wie du das Projekt lokal baust und das result
 ## Voraussetzungen
 
 * .NET SDK 6.0 (oder neuer) – wird für den `dotnet`-Build benötigt.
-* Cities: Skylines ist lokal installiert (Steam oder GOG). Du benötigst die DLLs aus
-  `Cities_Data/Managed`.
-* [CitiesHarmony](https://steamcommunity.com/workshop/filedetails/?id=2040656402) (Workshop 2040656402) ist installiert, damit `CitiesHarmony.Harmony.dll` verfügbar ist.
-* Das CSM-Hauptprojekt muss bereits gebaut sein, damit `CSM.API.dll` vorliegt.
-  * Alternativ kannst du die Datei in einen lokalen `lib/`-Ordner neben dieses Repository kopieren.
-* Optional: TM:PE muss installiert sein, wenn du direkt auf `TrafficManager.dll` verweist.
+* Für reine Entwicklungs-Builds (ohne Spiel) sind **keine** zusätzlichen DLLs mehr nötig – Stub-Implementierungen stellen die benötigten Typen bereit.
+* Für echte In-Game-Builds (mit `/p:GameBuild=true`) gelten weiterhin die bekannten Abhängigkeiten:
+  * Cities: Skylines ist lokal installiert (Steam oder GOG). Du benötigst die DLLs aus `Cities_Data/Managed`.
+  * [CitiesHarmony](https://steamcommunity.com/workshop/filedetails/?id=2040656402) (Workshop 2040656402) ist installiert, damit `CitiesHarmony.Harmony.dll` verfügbar ist.
+  * Das CSM-Hauptprojekt muss bereits gebaut sein, damit `CSM.API.dll` vorliegt.
+    * Alternativ kannst du die Datei in einen lokalen `lib/`-Ordner neben dieses Repository kopieren.
+  * Optional: TM:PE muss installiert sein, wenn du direkt auf `TrafficManager.dll` verweist.
 
 > 💡 Lege die benötigten DLLs nicht ins Repository, sondern verweise beim Build auf die bereits vorhandenen Installationen.
 
@@ -20,7 +21,7 @@ Die folgenden Schritte zeigen dir, wie du das Projekt lokal baust und das result
 
 1. Öffne den Ordner des Repositories in VS Code.
 2. Installiere die Erweiterung **C# Dev Kit** oder **C#** (für IntelliSense und Build-Aufgaben).
-3. Erstelle eine `Directory.Build.props` (oder setze Umgebungsvariablen), damit die Build-Pfade bekannt sind:
+3. Erstelle eine `Directory.Build.props` (oder setze Umgebungsvariablen), damit die Build-Pfade bekannt sind. Wenn du das Add-on direkt fürs Spiel bauen möchtest, kannst du hier auch `GameBuild` aktivieren:
 
    ```xml
    <?xml version="1.0" encoding="utf-8"?>
@@ -32,21 +33,29 @@ Die folgenden Schritte zeigen dir, wie du das Projekt lokal baust und das result
        <CsmApiDllPath>D:\Repos\CSM\API\bin\Release\CSM.API.dll</CsmApiDllPath>
        <!-- Optional, nur wenn benötigt: -->
        <TmpeDir>C:\Program Files (x86)\Steam\steamapps\workshop\content\255710\1637663252</TmpeDir>
+        <!-- Setze auf true, wenn du mit echten Spiel-DLLs bauen willst -->
+        <GameBuild>true</GameBuild>
      </PropertyGroup>
    </Project>
    ```
 
    Speichere die Datei im Repository-Stamm. Beim Build werden die Pfade automatisch übernommen.
 
-4. Führe den Build aus:
+4. Führe den Build aus. Für schnelle Entwicklung ohne Spiel-Abhängigkeiten reicht der Standard-Build:
 
    ```bash
    dotnet build src/CSM.TmpeSync.csproj -c Release
    ```
 
-   Der Build schlägt fehl, falls eine der DLLs nicht gefunden wird. In diesem Fall passe die Pfade an.
+   Dieser Build nutzt automatisch die Stubs und benötigt daher keine Spiel-DLLs.
 
-5. Nach erfolgreichem Build kopiert das `AfterBuild`-Target die erzeugte `CSM.FileSync.dll`
+5. Wenn du ein Paket fürs Spiel erzeugen willst, aktiviere den Game-Build explizit (per `Directory.Build.props` oder direkt über den MSBuild-Schalter):
+
+   ```bash
+   dotnet build src/CSM.TmpeSync.csproj -c Release /p:GameBuild=true
+   ```
+
+   Jetzt prüft der Build alle Pfade und kopiert die erzeugte `CSM.FileSync.dll`
    automatisch nach `%LOCALAPPDATA%\Colossal Order\Cities_Skylines\Addons\Mods\CSM.TmpeSync`.
 
 ## Add-on im Spiel verwenden
