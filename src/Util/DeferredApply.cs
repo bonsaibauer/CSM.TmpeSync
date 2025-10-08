@@ -23,7 +23,8 @@ namespace CSM.TmpeSync.Util
                 if(wait>0){ wait--; yield return 0; continue; }
                 Entry[] work; lock(_queue) work=_queue.ToArray();
                 if(work.Length==0){ _running=false; yield break; }
-                foreach(var e in work){
+                for(int i=0;i<work.Length;i++){
+                    var e=work[i];
                     bool done=false, drop=false;
                     try{
                         if(e.Op.Exists()){
@@ -38,6 +39,11 @@ namespace CSM.TmpeSync.Util
                         lock(_queue){ for(int i=0;i<_queue.Count;i++) if(object.ReferenceEquals(_queue[i].Op,e.Op)){ _queue.RemoveAt(i); break; } }
                         if(done) Log.Info("DeferredApply applied {0} after {1} retries", e.Op.Key, e.Retries);
                         else Log.Warn("DeferredApply dropped {0} after {1} retries", e.Op.Key, e.Retries);
+                    }
+                    else if(!done){
+                        lock(_queue){
+                            for(int j=0;j<_queue.Count;j++) if(object.ReferenceEquals(_queue[j].Op,e.Op)){ var entry=_queue[j]; entry.Retries=e.Retries; _queue[j]=entry; break; }
+                        }
                     }
                 }
                 wait=DELAY_FRAMES; yield return 0;

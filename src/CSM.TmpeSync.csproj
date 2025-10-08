@@ -105,6 +105,7 @@
 
     <Compile Include="Stubs\CsmApiStubs.cs" />
     <Compile Include="Stubs\ICitiesStubs.cs" />
+    <Compile Include="Stubs\UnityEngineStubs.cs" />
 
     <Compile Include="Net\Contracts\Requests\SetSpeedLimitRequest.cs" />
     <Compile Include="Net\Contracts\Applied\SpeedLimitApplied.cs" />
