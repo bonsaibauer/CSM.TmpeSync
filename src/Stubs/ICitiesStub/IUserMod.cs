@@ -1,4 +1,3 @@
-#if !GAME
 namespace ICities
 {
     public interface IUserMod
@@ -9,4 +8,3 @@ namespace ICities
         void OnDisabled();
     }
 }
-#endif
