@@ -26,6 +26,11 @@ namespace CSM.TmpeSync.Util
         private static readonly object DebugPanelWarning;
         private static readonly object DebugPanelError;
 
+        private static readonly Delegate UnityLogForwarder;
+
+        [ThreadStatic]
+        private static bool _suppressUnityForwarder;
+
         static Log()
         {
             try
@@ -47,6 +52,12 @@ namespace CSM.TmpeSync.Util
                 DebugPanelMethod = null;
                 DebugPanelInfo = DebugPanelWarning = DebugPanelError = null;
             }
+
+            UnityLogForwarder = TryAttachUnityLogForwarder();
+            if (UnityLogForwarder != null)
+            {
+                // Keep reference alive; no further action required.
+            }
         }
 
         internal static void Debug(string message, params object[] args) => Write(Level.Debug, message, args);
@@ -61,7 +72,7 @@ namespace CSM.TmpeSync.Util
         {
             var formatted = FormatMessage(message, args);
 
-            TryWrite(() => WriteUnity(level, formatted));
+            TryWrite(() => WithUnityForwarderSuppressed(() => WriteUnity(level, formatted)));
             TryWrite(() => WriteDebugPanel(level, formatted));
 #if !GAME
             TryWrite(() => WriteConsole(level, formatted));
@@ -175,11 +186,16 @@ namespace CSM.TmpeSync.Util
 
         private static void WriteFile(Level level, string formatted)
         {
+            WriteFileRaw(level, formatted);
+        }
+
+        private static void WriteFileRaw(Level level, string message)
+        {
             var path = EnsureLogFilePath();
             if (string.IsNullOrEmpty(path))
                 return;
 
-            var line = string.Format(CultureInfo.InvariantCulture, "{0:yyyy-MM-dd HH:mm:ss.fff} [{1}] {2}", DateTime.Now, LevelName(level), formatted);
+            var line = string.Format(CultureInfo.InvariantCulture, "{0:yyyy-MM-dd HH:mm:ss.fff} [{1}] {2}", DateTime.Now, LevelName(level), message ?? string.Empty);
             lock (Sync)
             {
                 using (var writer = new StreamWriter(path, true, Encoding.UTF8))
@@ -253,6 +269,95 @@ namespace CSM.TmpeSync.Util
             catch
             {
                 return null;
+            }
+        }
+
+        private static Delegate TryAttachUnityLogForwarder()
+        {
+            try
+            {
+                var applicationType = Type.GetType("UnityEngine.Application, UnityEngine")
+                    ?? Type.GetType("UnityEngine.Application");
+                if (applicationType == null)
+                    return null;
+
+                var eventInfo = applicationType.GetEvent("logMessageReceivedThreaded", BindingFlags.Public | BindingFlags.Static)
+                                ?? applicationType.GetEvent("logMessageReceived", BindingFlags.Public | BindingFlags.Static);
+                if (eventInfo == null)
+                    return null;
+
+                var handler = Delegate.CreateDelegate(eventInfo.EventHandlerType, typeof(Log), nameof(HandleUnityLogMessage));
+                eventInfo.AddEventHandler(null, handler);
+                return handler;
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        private static void HandleUnityLogMessage(object condition, object stackTrace, object logType)
+        {
+            if (_suppressUnityForwarder)
+                return;
+
+            var message = condition?.ToString();
+            var trace = stackTrace?.ToString();
+            var level = ConvertUnityLogType(logType);
+
+            if (string.IsNullOrEmpty(message) && string.IsNullOrEmpty(trace))
+                return;
+
+            var builder = new StringBuilder();
+            builder.Append("Unity/");
+            builder.Append(logType?.ToString() ?? "Log");
+            builder.Append(':');
+            builder.Append(' ');
+            builder.Append(message ?? string.Empty);
+
+            if (!string.IsNullOrWhiteSpace(trace))
+            {
+                builder.AppendLine();
+                builder.Append(trace.Trim());
+            }
+
+            WriteFileRaw(level, builder.ToString());
+        }
+
+        private static void WithUnityForwarderSuppressed(Action action)
+        {
+            if (action == null)
+                return;
+
+            var previous = _suppressUnityForwarder;
+            _suppressUnityForwarder = true;
+            try
+            {
+                action();
+            }
+            finally
+            {
+                _suppressUnityForwarder = previous;
+            }
+        }
+
+        private static Level ConvertUnityLogType(object logType)
+        {
+            var name = logType?.ToString();
+            if (string.IsNullOrEmpty(name))
+                return Level.Info;
+
+            switch (name)
+            {
+                case "Error":
+                case "Exception":
+                case "Assert":
+                    return Level.Error;
+                case "Warning":
+                    return Level.Warn;
+                case "Log":
+                default:
+                    return Level.Info;
             }
         }
     }
