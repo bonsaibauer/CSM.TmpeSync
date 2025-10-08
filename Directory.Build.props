@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project>
+  <PropertyGroup>
+    <!-- Passe die Pfade an deine Installation an -->
+    <CitiesSkylinesDir>C:\Program Files (x86)\Steam\steamapps\common\Cities_Skylines</CitiesSkylinesDir>
+    <HarmonyDllDir>C:\Program Files (x86)\Steam\steamapps\workshop\content\255710\2040656402</HarmonyDllDir>
+    <CsmApiDllPath>D:\Repos\CSM\API\bin\Release\CSM.API.dll</CsmApiDllPath>
+    <!-- Optional, nur wenn benötigt: -->
+    <TmpeDir>C:\Program Files (x86)\Steam\steamapps\workshop\content\255710\1637663252</TmpeDir>
+  </PropertyGroup>
+</Project>
