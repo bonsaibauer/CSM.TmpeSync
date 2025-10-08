@@ -1,9 +1,11 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Globalization;
 using System.Linq;
 using System.Reflection;
+using System.Text;
 using CSM.API;
 using CSM.API.Commands;
 
@@ -279,7 +281,7 @@ namespace CSM.TmpeSync.Util
             if (command == null)
                 throw new ArgumentNullException(nameof(command));
 
-            Log.Debug("CSM send to client {0}: {1}", clientId, command.GetType().FullName);
+            Log.Info("CSM send to client {0}: {1}", clientId, DescribeCommand(command));
             try
             {
                 if (SendToClientMethod != null)
@@ -327,7 +329,7 @@ namespace CSM.TmpeSync.Util
             if (command == null)
                 throw new ArgumentNullException(nameof(command));
 
-            Log.Debug("CSM broadcast: {0}", command.GetType().FullName);
+            Log.Info("CSM broadcast: {0}", DescribeCommand(command));
             try
             {
                 if (SendToAllMethod != null)
@@ -355,6 +357,91 @@ namespace CSM.TmpeSync.Util
                 _loggedMissingBroadcast = true;
                 LogDiagnostics("Broadcast unavailable", true);
             }
+        }
+
+        private static string DescribeCommand(CommandBase command)
+        {
+            if (command == null)
+                return "<null>";
+
+            var type = command.GetType();
+            var builder = new StringBuilder();
+            builder.Append(type.Name);
+
+            var properties = type.GetProperties(BindingFlags.Instance | BindingFlags.Public)
+                .Where(p => p.CanRead && p.GetIndexParameters().Length == 0)
+                .OrderBy(p => p.Name, StringComparer.Ordinal);
+
+            var first = true;
+            foreach (var property in properties)
+            {
+                if (first)
+                {
+                    builder.Append(" {");
+                    first = false;
+                }
+                else
+                {
+                    builder.Append(", ");
+                }
+
+                object value;
+                try
+                {
+                    value = property.GetValue(command, null);
+                }
+                catch
+                {
+                    value = "<error>";
+                }
+
+                builder.Append(property.Name);
+                builder.Append("=");
+                builder.Append(FormatValue(value));
+            }
+
+            if (!first)
+                builder.Append('}');
+
+            return builder.ToString();
+        }
+
+        private static string FormatValue(object value)
+        {
+            switch (value)
+            {
+                case null:
+                    return "<null>";
+                case string s:
+                    return '"' + s + '"';
+                default:
+                    if (value is IEnumerable enumerable && !(value is string))
+                        return FormatEnumerable(enumerable);
+
+                    if (value is IFormattable formattable)
+                        return formattable.ToString(null, CultureInfo.InvariantCulture);
+
+                    return value?.ToString() ?? string.Empty;
+            }
+        }
+
+        private static string FormatEnumerable(IEnumerable enumerable)
+        {
+            var builder = new StringBuilder();
+            builder.Append('[');
+
+            var first = true;
+            foreach (var item in enumerable)
+            {
+                if (!first)
+                    builder.Append(", ");
+
+                builder.Append(FormatValue(item));
+                first = false;
+            }
+
+            builder.Append(']');
+            return builder.ToString();
         }
 
         internal static bool RegisterConnection(Connection connection)
