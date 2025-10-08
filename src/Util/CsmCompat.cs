@@ -179,7 +179,7 @@ namespace CSM.TmpeSync.Util
             Log.Warn("No compatible broadcast method available in CSM.API");
         }
 
-        internal static void RegisterConnection(Connection connection)
+        internal static bool RegisterConnection(Connection connection)
         {
             if (connection == null)
                 throw new ArgumentNullException(nameof(connection));
@@ -187,7 +187,7 @@ namespace CSM.TmpeSync.Util
             if (RegisterConnectionMethod == null)
             {
                 Log.Warn("Unable to register connection – CSM.API register hook missing");
-                return;
+                return false;
             }
 
             Log.Debug("Registering connection '{0}' via {1}", SafeName(connection), DescribeMethod(RegisterConnectionMethod));
@@ -196,22 +196,24 @@ namespace CSM.TmpeSync.Util
                 var target = RegisterConnectionMethod.IsStatic ? null : ConnectionRegistrarInstance;
                 RegisterConnectionMethod.Invoke(target, new object[] { connection });
                 Log.Info("Registered connection '{0}' with CSM", SafeName(connection));
+                return true;
             }
             catch (Exception ex)
             {
                 Log.Warn("Failed to register connection: {0}", ex);
+                return false;
             }
         }
 
-        internal static void UnregisterConnection(Connection connection)
+        internal static bool UnregisterConnection(Connection connection)
         {
             if (connection == null)
-                return;
+                return false;
 
             if (UnregisterConnectionMethod == null)
             {
                 Log.Warn("Unable to unregister connection – CSM.API unregister hook missing");
-                return;
+                return false;
             }
 
             try
@@ -219,10 +221,12 @@ namespace CSM.TmpeSync.Util
                 var target = UnregisterConnectionMethod.IsStatic ? null : ConnectionRegistrarInstance;
                 UnregisterConnectionMethod.Invoke(target, new object[] { connection });
                 Log.Info("Unregistered connection '{0}' from CSM", SafeName(connection));
+                return true;
             }
             catch (Exception ex)
             {
                 Log.Warn("Failed to unregister connection: {0}", ex);
+                return false;
             }
         }
 
