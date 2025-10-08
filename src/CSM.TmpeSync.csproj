@@ -40,6 +40,10 @@
     <!-- ===== Mod-Ausgabeordner ===== -->
     <ModsOutDir>$(LOCALAPPDATA)\Colossal Order\Cities_Skylines\Addons\Mods\CSM.TmpeSync</ModsOutDir>
 
+    <!-- ===== Steam-Installation (optional) ===== -->
+    <SteamModsDir Condition="'$(SteamModsDir)'!=''">$(SteamModsDir)</SteamModsDir>
+    <SteamModsDir Condition="'$(SteamModsDir)'=='' and Exists('C:\\Program Files (x86)\\Steam\\steamapps\\common\\Cities_Skylines\\Files\\Mods')">C:\\Program Files (x86)\\Steam\\steamapps\\common\\Cities_Skylines\\Files\\Mods\\CSM.TmpeSync</SteamModsDir>
+  
     <!-- In-Game Compile-Define -->
     <DefineConstants>TRACE;RELEASE</DefineConstants>
   </PropertyGroup>
@@ -130,5 +134,10 @@
   <Target Name="AfterBuild" Condition="'$(GameBuild)'=='true'">
     <MakeDir Directories="$(ModsOutDir)" />
     <Copy SourceFiles="$(TargetPath)" DestinationFolder="$(ModsOutDir)" />
+  </Target>
+
+  <Target Name="CopyToSteamMods" AfterTargets="Build" Condition="'$(SteamModsDir)'!=''">
+    <MakeDir Directories="$(SteamModsDir)" />
+    <Copy SourceFiles="$(TargetPath)" DestinationFiles="$(SteamModsDir)\$(TargetFileName)" SkipUnchangedFiles="true" />
   </Target>
 </Project>
