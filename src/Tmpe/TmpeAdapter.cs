@@ -16,7 +16,34 @@ namespace CSM.TmpeSync.Tmpe
         private static readonly Dictionary<uint, VehicleRestrictionFlags> VehicleRestrictions = new Dictionary<uint, VehicleRestrictionFlags>();
         private static readonly Dictionary<uint, uint[]> LaneConnections = new Dictionary<uint, uint[]>();
         private static readonly Dictionary<ushort, JunctionRestrictionsState> JunctionRestrictions = new Dictionary<ushort, JunctionRestrictionsState>();
-        private static readonly Dictionary<(ushort node, ushort segment), PrioritySignType> PrioritySigns = new Dictionary<(ushort node, ushort segment), PrioritySignType>();
+        private struct NodeSegmentKey : IEquatable<NodeSegmentKey>
+        {
+            public readonly ushort Node;
+            public readonly ushort Segment;
+
+            public NodeSegmentKey(ushort node, ushort segment)
+            {
+                Node = node;
+                Segment = segment;
+            }
+
+            public bool Equals(NodeSegmentKey other)
+            {
+                return Node == other.Node && Segment == other.Segment;
+            }
+
+            public override bool Equals(object obj)
+            {
+                return obj is NodeSegmentKey other && Equals(other);
+            }
+
+            public override int GetHashCode()
+            {
+                return (Node << 16) ^ Segment;
+            }
+        }
+
+        private static readonly Dictionary<NodeSegmentKey, PrioritySignType> PrioritySigns = new Dictionary<NodeSegmentKey, PrioritySignType>();
         private static readonly Dictionary<ushort, ParkingRestrictionState> ParkingRestrictions = new Dictionary<ushort, ParkingRestrictionState>();
         private static readonly Dictionary<ushort, TimedTrafficLightState> TimedTrafficLights = new Dictionary<ushort, TimedTrafficLightState>();
 
@@ -293,7 +320,7 @@ namespace CSM.TmpeSync.Tmpe
 
                 lock (StateLock)
                 {
-                    var key = (nodeId, segmentId);
+                    var key = new NodeSegmentKey(nodeId, segmentId);
                     if (signType == PrioritySignType.None)
                         PrioritySigns.Remove(key);
                     else
@@ -315,7 +342,7 @@ namespace CSM.TmpeSync.Tmpe
             {
                 lock (StateLock)
                 {
-                    if (!PrioritySigns.TryGetValue((nodeId, segmentId), out signType))
+                    if (!PrioritySigns.TryGetValue(new NodeSegmentKey(nodeId, segmentId), out signType))
                         signType = PrioritySignType.None;
                 }
 
