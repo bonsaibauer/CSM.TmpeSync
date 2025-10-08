@@ -29,6 +29,64 @@ namespace CSM.TmpeSync.Util
         private static readonly MethodInfo IgnoreStartMethod = ResolveIgnoreMethod("StartIgnore");
         private static readonly MethodInfo IgnoreEndMethod = ResolveIgnoreMethod("EndIgnore");
 
+        private static readonly HashSet<string> RegisterConnectionNames = new HashSet<string>(new[]
+        {
+            "RegisterConnection",
+            "Register",
+            "AddConnection",
+            "Add",
+            "AttachConnection",
+            "Attach",
+            "SubscribeConnection",
+            "Subscribe"
+        }, StringComparer.OrdinalIgnoreCase);
+
+        private static readonly HashSet<string> UnregisterConnectionNames = new HashSet<string>(new[]
+        {
+            "UnregisterConnection",
+            "Unregister",
+            "RemoveConnection",
+            "Remove",
+            "DetachConnection",
+            "Detach",
+            "DeregisterConnection",
+            "Deregister",
+            "UnsubscribeConnection",
+            "Unsubscribe"
+        }, StringComparer.OrdinalIgnoreCase);
+
+        private static readonly string[] SendToClientMethodNames =
+        {
+            "SendToClient",
+            "SendToPeer",
+            "SendToPlayer",
+            "SendToTarget",
+            "SendTo",
+            "SendCommandToClient",
+            "SendCommandToPeer"
+        };
+
+        private static readonly string[] SendToClientsMethodNames =
+        {
+            "SendToClients",
+            "SendToPeers",
+            "SendToPlayers",
+            "SendToTargets",
+            "SendToMany",
+            "SendCommandToClients",
+            "SendCommandToPeers"
+        };
+
+        private static readonly string[] SendToAllMethodNames =
+        {
+            "SendToAll",
+            "SendToEveryone",
+            "SendToAllClients",
+            "Broadcast",
+            "BroadcastToAll",
+            "BroadcastCommand"
+        };
+
         private static readonly MethodInfo SendToClientMethod;
         private static readonly object SendToClientTarget;
         private static readonly MethodInfo SendToAllMethod;
@@ -55,13 +113,13 @@ namespace CSM.TmpeSync.Util
                 var methods = type.GetMethods(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static | BindingFlags.Instance);
                 foreach (var method in methods)
                 {
-                    if (RegisterConnectionMethod == null && method.Name == "RegisterConnection" && MatchesConnectionSignature(method))
+                    if (RegisterConnectionMethod == null && MatchesCandidateName(method, RegisterConnectionNames) && MatchesConnectionSignature(method))
                     {
                         RegisterConnectionMethod = method;
                         RegisterConnectionTarget = ResolveTarget(method);
                     }
 
-                    if (UnregisterConnectionMethod == null && method.Name == "UnregisterConnection" && MatchesConnectionSignature(method))
+                    if (UnregisterConnectionMethod == null && MatchesCandidateName(method, UnregisterConnectionNames) && MatchesConnectionSignature(method))
                     {
                         UnregisterConnectionMethod = method;
                         UnregisterConnectionTarget = ResolveTarget(method) ?? RegisterConnectionTarget;
@@ -600,17 +658,17 @@ namespace CSM.TmpeSync.Util
 
         private static MethodInfo ResolveSendToClient()
         {
-            return ResolveSendMethod("SendToClient");
+            return ResolveSendMethod(SendToClientMethodNames);
         }
 
         private static MethodInfo ResolveSendToClients()
         {
-            return ResolveSendMethod("SendToClients");
+            return ResolveSendMethod(SendToClientsMethodNames);
         }
 
         private static MethodInfo ResolveSendToAll()
         {
-            return ResolveSendMethod("SendToAll");
+            return ResolveSendMethod(SendToAllMethodNames);
         }
 
         private static bool AcceptsCommandParameter(MethodInfo method)
@@ -762,15 +820,59 @@ namespace CSM.TmpeSync.Util
             return true;
         }
 
-        private static MethodInfo ResolveSendMethod(string methodName)
+        private static MethodInfo ResolveSendMethod(IEnumerable<string> methodNames)
         {
+            var candidates = new HashSet<string>(methodNames ?? Array.Empty<string>(), StringComparer.OrdinalIgnoreCase);
             return CommandType.Assembly
                 .GetTypes()
                 .SelectMany(t => t.GetMethods(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static | BindingFlags.Instance))
-                .Where(m => m.Name == methodName)
+                .Where(m => MatchesCandidateName(m, candidates))
                 .OrderByDescending(m => m.IsStatic)
                 .ThenByDescending(m => m.GetParameters().Length)
                 .FirstOrDefault(AcceptsCommandParameter);
+        }
+
+        private static bool MatchesCandidateName(MethodInfo method, IEnumerable<string> candidateNames)
+        {
+            if (method == null)
+                return false;
+
+            if (candidateNames == null)
+                return false;
+
+            foreach (var name in candidateNames)
+            {
+                if (string.IsNullOrEmpty(name))
+                    continue;
+
+                if (string.Equals(method.Name, name, StringComparison.OrdinalIgnoreCase))
+                    return true;
+
+                if (method.Name.IndexOf(name, StringComparison.OrdinalIgnoreCase) >= 0)
+                    return true;
+            }
+
+            return false;
+        }
+
+        private static bool MatchesCandidateName(MethodInfo method, HashSet<string> candidateNames)
+        {
+            if (method == null)
+                return false;
+
+            if (candidateNames == null || candidateNames.Count == 0)
+                return false;
+
+            if (candidateNames.Contains(method.Name))
+                return true;
+
+            foreach (var name in candidateNames)
+            {
+                if (method.Name.IndexOf(name, StringComparison.OrdinalIgnoreCase) >= 0)
+                    return true;
+            }
+
+            return false;
         }
 
         private static bool MatchesConnectionSignature(MethodInfo method)
@@ -801,12 +903,21 @@ namespace CSM.TmpeSync.Util
 
         private static object GetSingletonInstance(Type type)
         {
-            return type.GetProperty("Instance", BindingFlags.Public | BindingFlags.Static)?.GetValue(null, null) ??
-                   type.GetProperty("Current", BindingFlags.Public | BindingFlags.Static)?.GetValue(null, null) ??
-                   type.GetProperty("Singleton", BindingFlags.Public | BindingFlags.Static)?.GetValue(null, null) ??
-                   type.GetField("Instance", BindingFlags.Public | BindingFlags.Static)?.GetValue(null) ??
-                   type.GetField("Current", BindingFlags.Public | BindingFlags.Static)?.GetValue(null) ??
-                   type.GetField("Singleton", BindingFlags.Public | BindingFlags.Static)?.GetValue(null);
+            if (type == null)
+                return null;
+
+            var bindingFlags = BindingFlags.Public | BindingFlags.Static | BindingFlags.IgnoreCase;
+
+            return type.GetProperty("Instance", bindingFlags)?.GetValue(null, null) ??
+                   type.GetProperty("Current", bindingFlags)?.GetValue(null, null) ??
+                   type.GetProperty("Singleton", bindingFlags)?.GetValue(null, null) ??
+                   type.GetProperty("Api", bindingFlags)?.GetValue(null, null) ??
+                   type.GetProperty("API", bindingFlags)?.GetValue(null, null) ??
+                   type.GetField("Instance", bindingFlags)?.GetValue(null) ??
+                   type.GetField("Current", bindingFlags)?.GetValue(null) ??
+                   type.GetField("Singleton", bindingFlags)?.GetValue(null) ??
+                   type.GetField("Api", bindingFlags)?.GetValue(null) ??
+                   type.GetField("API", bindingFlags)?.GetValue(null);
         }
 
         private readonly struct DummyScope : IDisposable
