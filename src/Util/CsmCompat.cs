@@ -14,6 +14,7 @@ namespace CSM.TmpeSync.Util
     internal static class CsmCompat
     {
         private static readonly Type CommandType = typeof(Command);
+        private static readonly Assembly[] CandidateAssemblies;
         private static readonly PropertyInfo CurrentRoleProperty = CommandType.GetProperty("CurrentRole", BindingFlags.Public | BindingFlags.Static);
         private static readonly PropertyInfo RoleNameProperty = CommandType.GetProperty("Role", BindingFlags.Public | BindingFlags.Static);
         private static readonly PropertyInfo IsServerProperty = CommandType.GetProperty("IsServer", BindingFlags.Public | BindingFlags.Static);
@@ -114,6 +115,11 @@ namespace CSM.TmpeSync.Util
 
         static CsmCompat()
         {
+            CandidateAssemblies = EnumerateCandidateAssemblies()
+                .Where(a => a != null)
+                .Distinct()
+                .ToArray();
+
             SendToClientMethod = ResolveSendToClient();
             SendToClientTarget = ResolveTarget(SendToClientMethod);
             SendToAllMethod = ResolveSendToAll();
@@ -121,23 +127,28 @@ namespace CSM.TmpeSync.Util
             SendToClientsMethod = ResolveSendToClients();
             SendToClientsTarget = ResolveTarget(SendToClientsMethod);
 
-            var assembly = CommandType.Assembly;
-            foreach (var type in assembly.GetTypes())
+            foreach (var assembly in CandidateAssemblies)
             {
-                var methods = type.GetMethods(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static | BindingFlags.Instance);
-                foreach (var method in methods)
+                foreach (var type in SafeGetTypes(assembly))
                 {
-                    if (RegisterConnectionMethod == null && MatchesCandidateName(method, RegisterConnectionNames) && MatchesConnectionSignature(method))
+                    var methods = type.GetMethods(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static | BindingFlags.Instance);
+                    foreach (var method in methods)
                     {
-                        RegisterConnectionMethod = method;
-                        RegisterConnectionTarget = ResolveTarget(method);
+                        if (RegisterConnectionMethod == null && MatchesCandidateName(method, RegisterConnectionNames) && MatchesConnectionSignature(method))
+                        {
+                            RegisterConnectionMethod = method;
+                            RegisterConnectionTarget = ResolveTarget(method);
+                        }
+
+                        if (UnregisterConnectionMethod == null && MatchesCandidateName(method, UnregisterConnectionNames) && MatchesConnectionSignature(method))
+                        {
+                            UnregisterConnectionMethod = method;
+                            UnregisterConnectionTarget = ResolveTarget(method) ?? RegisterConnectionTarget;
+                        }
                     }
 
-                    if (UnregisterConnectionMethod == null && MatchesCandidateName(method, UnregisterConnectionNames) && MatchesConnectionSignature(method))
-                    {
-                        UnregisterConnectionMethod = method;
-                        UnregisterConnectionTarget = ResolveTarget(method) ?? RegisterConnectionTarget;
-                    }
+                    if (RegisterConnectionMethod != null && UnregisterConnectionMethod != null)
+                        break;
                 }
 
                 if (RegisterConnectionMethod != null && UnregisterConnectionMethod != null)
@@ -149,6 +160,53 @@ namespace CSM.TmpeSync.Util
                 DescribeMethod(SendToAllMethod),
                 DescribeMethod(RegisterConnectionMethod),
                 DescribeMethod(UnregisterConnectionMethod));
+        }
+
+        private static IEnumerable<Assembly> EnumerateCandidateAssemblies()
+        {
+            yield return CommandType.Assembly;
+
+            foreach (var assembly in AppDomain.CurrentDomain.GetAssemblies())
+            {
+                if (assembly == null || assembly == CommandType.Assembly)
+                    continue;
+
+                AssemblyName name;
+                try
+                {
+                    name = assembly.GetName();
+                }
+                catch
+                {
+                    continue;
+                }
+
+                var simpleName = name?.Name;
+                if (string.IsNullOrEmpty(simpleName))
+                    continue;
+
+                if (string.Equals(simpleName, "CSM.API", StringComparison.OrdinalIgnoreCase) ||
+                    simpleName.StartsWith("CSM.API.", StringComparison.OrdinalIgnoreCase))
+                {
+                    yield return assembly;
+                }
+            }
+        }
+
+        private static IEnumerable<Type> SafeGetTypes(Assembly assembly)
+        {
+            try
+            {
+                return assembly.GetTypes();
+            }
+            catch (ReflectionTypeLoadException ex)
+            {
+                return ex.Types.Where(t => t != null);
+            }
+            catch
+            {
+                return Array.Empty<Type>();
+            }
         }
 
         internal static bool IsServerInstance()
@@ -1077,8 +1135,8 @@ namespace CSM.TmpeSync.Util
             IEnumerable<string> optionalKeywords)
         {
             var candidates = new HashSet<string>(methodNames ?? new string[0], StringComparer.OrdinalIgnoreCase);
-            var methods = CommandType.Assembly
-                .GetTypes()
+            var methods = CandidateAssemblies
+                .SelectMany(SafeGetTypes)
                 .SelectMany(t => t.GetMethods(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static | BindingFlags.Instance))
                 .Where(AcceptsCommandParameter)
                 .ToList();
