@@ -985,7 +985,7 @@ namespace CSM.TmpeSync.Util
             var parameters = method.GetParameters();
             foreach (var parameter in parameters)
             {
-                if (typeof(CommandBase).IsAssignableFrom(parameter.ParameterType))
+                if (IsCommandType(parameter.ParameterType))
                     return true;
 
                 if (parameter.ParameterType.IsGenericParameter && SatisfiesCommandConstraints(parameter.ParameterType))
@@ -1004,21 +1004,32 @@ namespace CSM.TmpeSync.Util
         private static bool SatisfiesCommandConstraints(Type genericParameter)
         {
             if (!genericParameter.IsGenericParameter)
-                return typeof(CommandBase).IsAssignableFrom(genericParameter);
+                return IsCommandType(genericParameter);
 
             var constraints = genericParameter.GetGenericParameterConstraints();
             if (constraints.Length == 0)
                 return false;
 
-            return constraints.Any(c => typeof(CommandBase).IsAssignableFrom(c));
+            return constraints.Any(IsCommandType);
         }
 
         private static bool IsConnectionType(Type type)
         {
+            return IsConnectionType(type, new HashSet<Type>());
+        }
+
+        private static bool IsConnectionType(Type type, HashSet<Type> visited)
+        {
             if (type == null)
                 return false;
 
+            if (!visited.Add(type))
+                return false;
+
             if (typeof(Connection).IsAssignableFrom(type))
+                return true;
+
+            if (IsConnectionTypeByName(type))
                 return true;
 
             if (type.IsGenericParameter)
@@ -1027,10 +1038,105 @@ namespace CSM.TmpeSync.Util
                 if (constraints.Length == 0)
                     return false;
 
-                return constraints.Any(c => typeof(Connection).IsAssignableFrom(c));
+                return constraints.Any(c => IsConnectionType(c, visited));
+            }
+
+            var baseType = type.BaseType;
+            if (baseType != null && IsConnectionType(baseType, visited))
+                return true;
+
+            foreach (var iface in type.GetInterfaces())
+            {
+                if (IsConnectionType(iface, visited))
+                    return true;
             }
 
             return false;
+        }
+
+        private static bool IsConnectionTypeByName(Type type)
+        {
+            if (type == null)
+                return false;
+
+            var name = type.Name;
+            if (string.IsNullOrEmpty(name))
+                return false;
+
+            if (type.Namespace == null || type.Namespace.IndexOf("CSM.API", StringComparison.OrdinalIgnoreCase) < 0)
+                return false;
+
+            if (string.Equals(name, "Connection", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(name, "ConnectionBase", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(name, "IConnection", StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+
+            return name.EndsWith("Connection", StringComparison.OrdinalIgnoreCase);
+        }
+
+        private static bool IsCommandType(Type type)
+        {
+            return IsCommandType(type, new HashSet<Type>());
+        }
+
+        private static bool IsCommandType(Type type, HashSet<Type> visited)
+        {
+            if (type == null)
+                return false;
+
+            if (!visited.Add(type))
+                return false;
+
+            if (typeof(CommandBase).IsAssignableFrom(type))
+                return true;
+
+            if (IsCommandTypeByName(type))
+                return true;
+
+            if (type.IsGenericParameter)
+            {
+                var constraints = type.GetGenericParameterConstraints();
+                if (constraints.Length == 0)
+                    return false;
+
+                return constraints.Any(c => IsCommandType(c, visited));
+            }
+
+            var baseType = type.BaseType;
+            if (baseType != null && IsCommandType(baseType, visited))
+                return true;
+
+            foreach (var iface in type.GetInterfaces())
+            {
+                if (IsCommandType(iface, visited))
+                    return true;
+            }
+
+            return false;
+        }
+
+        private static bool IsCommandTypeByName(Type type)
+        {
+            if (type == null)
+                return false;
+
+            var name = type.Name;
+            if (string.IsNullOrEmpty(name))
+                return false;
+
+            if (type.Namespace == null || type.Namespace.IndexOf("CSM.API", StringComparison.OrdinalIgnoreCase) < 0)
+                return false;
+
+            if (string.Equals(name, "Command", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(name, "CommandBase", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(name, "ICommand", StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+
+            return name.EndsWith("Command", StringComparison.OrdinalIgnoreCase);
         }
 
         private static MethodInfo PrepareMethodForInvoke(MethodInfo method, object recipient, CommandBase command)
