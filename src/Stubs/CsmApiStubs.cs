@@ -94,7 +94,17 @@ namespace CSM.API
             Helper.RegisterConnection(connection);
         }
 
+        public static void ConnectToCSM(Connection connection)
+        {
+            Helper.RegisterConnection(connection);
+        }
+
         public static void UnregisterConnection(Connection connection)
+        {
+            Helper.UnregisterConnection(connection);
+        }
+
+        public static void DisconnectFromCSM(Connection connection)
         {
             Helper.UnregisterConnection(connection);
         }
@@ -138,6 +148,11 @@ namespace CSM.API
         public static void BroadcastToAll(Commands.CommandBase command)
         {
             Helper.SendToAll(command);
+        }
+
+        public static void SendToServer(Commands.CommandBase command)
+        {
+            Helper.SendToServer(command);
         }
 
         public static void SimulateClientConnected(int clientId)
@@ -280,6 +295,17 @@ namespace CSM.API
 
                 foreach (var clientId in Clients)
                     LogCommand(true, clientId, command, SimulatedCommandStatus.Delivered, "Broadcast to simulated client {0}: {1}", clientId);
+            }
+        }
+
+        internal static void SendToServer(Commands.CommandBase command)
+        {
+            if (command == null)
+                throw new ArgumentNullException(nameof(command));
+
+            lock (Sync)
+            {
+                LogCommand(false, null, command, SimulatedCommandStatus.Delivered, "Delivering command to simulated server: {0}");
             }
         }
 
