@@ -139,7 +139,8 @@ namespace CSM.TmpeSync.Util
                 if (string.IsNullOrEmpty(localAppData))
                     return null;
 
-                var directory = Path.Combine(localAppData, "Colossal Order", "Cities_Skylines", "CSM.TmpeSync", CompatibilityDirectoryName);
+                var directory = Path.Combine(localAppData, "Colossal Order", "Cities_Skylines");
+                directory = Path.Combine(directory, "CSM.TmpeSync", CompatibilityDirectoryName);
                 Directory.CreateDirectory(directory);
                 return Path.Combine(directory, CompatibilityFileName);
             }
@@ -424,13 +425,31 @@ namespace CSM.TmpeSync.Util
                     var trimmed = entry.Substring(0, entry.Length - 1).TrimEnd();
                     Version baseline;
                     Version current;
-                    if (Version.TryParse(trimmed, out baseline) && Version.TryParse(version, out current))
+                    if (TryParseVersion(trimmed, out baseline) && TryParseVersion(version, out current))
                     {
                         return current >= baseline;
                     }
                 }
 
                 return false;
+            }
+
+            private static bool TryParseVersion(string value, out Version version)
+            {
+                version = null;
+                if (string.IsNullOrEmpty(value))
+                    return false;
+
+                try
+                {
+                    version = new Version(value);
+                    return true;
+                }
+                catch
+                {
+                    version = null;
+                    return false;
+                }
             }
         }
     }
