@@ -116,13 +116,14 @@ namespace CSM.TmpeSync.Util
         private static void Write(Level level, string message, params object[] args)
         {
             var formatted = FormatMessage(message, args);
+            var line = FormatLogLine(level, formatted);
 
-            TryWrite(() => WriteUnity(level, formatted));
-            TryWrite(() => WriteDebugPanel(level, formatted));
+            TryWrite(() => WriteUnity(level, line));
+            TryWrite(() => WriteDebugPanel(level, line));
 #if !GAME
-            TryWrite(() => WriteConsole(level, formatted));
+            TryWrite(() => WriteConsole(line));
 #endif
-            TryWrite(() => WriteFile(level, formatted));
+            TryWrite(() => WriteFile(line));
         }
 
         private static string FormatMessage(string message, object[] args)
@@ -166,23 +167,23 @@ namespace CSM.TmpeSync.Util
             }
         }
 
-        private static void WriteUnity(Level level, string formatted)
+        private static void WriteUnity(Level level, string line)
         {
             switch (level)
             {
                 case Level.Error:
-                    UnityEngine.Debug.LogError(formatted);
+                    UnityEngine.Debug.LogError(line);
                     break;
                 case Level.Warn:
-                    UnityEngine.Debug.LogWarning(formatted);
+                    UnityEngine.Debug.LogWarning(line);
                     break;
                 default:
-                    UnityEngine.Debug.Log(formatted);
+                    UnityEngine.Debug.Log(line);
                     break;
             }
         }
 
-        private static void WriteDebugPanel(Level level, string formatted)
+        private static void WriteDebugPanel(Level level, string line)
         {
             if (DebugPanelMethod == null)
                 return;
@@ -206,43 +207,25 @@ namespace CSM.TmpeSync.Util
 
             if (DebugPanelArgumentCount == 3)
             {
-                DebugPanelMethod.Invoke(null, new[] { messageType, formatted, DebugPanelSource });
+                DebugPanelMethod.Invoke(null, new[] { messageType, line, DebugPanelSource });
             }
             else
             {
-                DebugPanelMethod.Invoke(null, new[] { messageType, formatted });
+                DebugPanelMethod.Invoke(null, new[] { messageType, line });
             }
         }
 
-        private static void WriteConsole(Level level, string formatted)
+        private static void WriteConsole(string line)
         {
-            var prefix = string.Empty;
-            switch (level)
-            {
-                case Level.Error:
-                    prefix = "ERR  ";
-                    break;
-                case Level.Warn:
-                    prefix = "WARN ";
-                    break;
-                case Level.Debug:
-                    prefix = "DBG  ";
-                    break;
-            }
-
-            if (prefix.Length > 0)
-                Console.WriteLine(prefix + formatted);
-            else
-                Console.WriteLine(formatted);
+            Console.WriteLine(line);
         }
 
-        private static void WriteFile(Level level, string message)
+        private static void WriteFile(string line)
         {
             var path = EnsureLogFilePath();
             if (string.IsNullOrEmpty(path))
                 return;
 
-            var line = string.Format(CultureInfo.InvariantCulture, "{0:yyyy-MM-dd HH:mm:ss.fff} [{1}] {2}", DateTime.Now, LevelName(level), message ?? string.Empty);
             lock (Sync)
             {
                 using (var writer = new StreamWriter(path, true, Encoding.UTF8))
@@ -250,6 +233,11 @@ namespace CSM.TmpeSync.Util
                     writer.WriteLine(line);
                 }
             }
+        }
+
+        private static string FormatLogLine(Level level, string message)
+        {
+            return string.Format(CultureInfo.InvariantCulture, "{0:yyyy-MM-dd HH:mm:ss.fff} [{1}] {2}", DateTime.Now, LevelName(level), message ?? string.Empty);
         }
 
         private static string EnsureLogFilePath()
