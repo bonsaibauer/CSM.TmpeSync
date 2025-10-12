@@ -44,7 +44,9 @@ namespace CSM.TmpeSync.Util
             "AttachConnection",
             "Attach",
             "SubscribeConnection",
-            "Subscribe"
+            "Subscribe",
+            "ConnectToCSM",
+            "Connect"
         }, StringComparer.OrdinalIgnoreCase);
 
         private static readonly HashSet<string> UnregisterConnectionNames = new HashSet<string>(new[]
@@ -58,7 +60,9 @@ namespace CSM.TmpeSync.Util
             "DeregisterConnection",
             "Deregister",
             "UnsubscribeConnection",
-            "Unsubscribe"
+            "Unsubscribe",
+            "DisconnectFromCSM",
+            "Disconnect"
         }, StringComparer.OrdinalIgnoreCase);
 
         private static readonly string[] SendToClientMethodNames =
@@ -93,12 +97,22 @@ namespace CSM.TmpeSync.Util
             "BroadcastCommand"
         };
 
+        private static readonly string[] SendToServerMethodNames =
+        {
+            "SendToServer",
+            "SendCommandToServer",
+            "ForwardToServer",
+            "RelayToServer"
+        };
+
         private static readonly MethodInfo SendToClientMethod;
         private static readonly object SendToClientTarget;
         private static readonly MethodInfo SendToAllMethod;
         private static readonly object SendToAllTarget;
         private static readonly MethodInfo SendToClientsMethod;
         private static readonly object SendToClientsTarget;
+        private static readonly MethodInfo SendToServerMethod;
+        private static readonly object SendToServerTarget;
         private static readonly MethodInfo RegisterConnectionMethod;
         private static readonly object RegisterConnectionTarget;
         private static readonly MethodInfo UnregisterConnectionMethod;
@@ -107,6 +121,7 @@ namespace CSM.TmpeSync.Util
         private static readonly HashSet<string> LoggedDiagnosticContexts = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         private static bool _loggedMissingSendToClient;
         private static bool _loggedMissingBroadcast;
+        private static bool _loggedMissingSendToServer;
         private static bool _loggedMissingRegister;
         private static bool _loggedMissingUnregister;
         private static bool _stubSimulationAutostartAttempted;
@@ -126,6 +141,8 @@ namespace CSM.TmpeSync.Util
             SendToAllTarget = ResolveTarget(SendToAllMethod);
             SendToClientsMethod = ResolveSendToClients();
             SendToClientsTarget = ResolveTarget(SendToClientsMethod);
+            SendToServerMethod = ResolveSendToServer();
+            SendToServerTarget = ResolveTarget(SendToServerMethod);
 
             foreach (var assembly in CandidateAssemblies)
             {
@@ -160,6 +177,9 @@ namespace CSM.TmpeSync.Util
                 DescribeMethod(SendToAllMethod),
                 DescribeMethod(RegisterConnectionMethod),
                 DescribeMethod(UnregisterConnectionMethod));
+
+            if (SendToServerMethod != null)
+                Log.Debug("CSM compat detected SendToServer hook: {0}", DescribeMethod(SendToServerMethod));
         }
 
         private static IEnumerable<Assembly> EnumerateCandidateAssemblies()
@@ -360,14 +380,22 @@ namespace CSM.TmpeSync.Util
                         return;
                     }
                 }
+            }
+            catch (Exception ex)
+            {
+                Log.Warn("Failed to invoke direct SendToClient for client {0}: {1}", clientId, ex);
+            }
 
+            try
+            {
                 if (SendToClientsMethod != null)
                 {
-                    var method = PrepareMethodForInvoke(SendToClientsMethod, new[] { clientId }, command);
+                    var single = new[] { clientId };
+                    var method = PrepareMethodForInvoke(SendToClientsMethod, single, command);
                     if (method != null)
                     {
                         var parameters = method.GetParameters();
-                        var args = BuildArguments(parameters, new[] { clientId }, command);
+                        var args = BuildArguments(parameters, single, command);
                         var target = method.IsStatic ? SendToClientsTarget : (SendToClientsTarget ?? ResolveTarget(SendToClientsMethod));
                         method.Invoke(target, args);
                         return;
@@ -376,8 +404,7 @@ namespace CSM.TmpeSync.Util
             }
             catch (Exception ex)
             {
-                Log.Warn("Failed to send command to client {0}: {1}", clientId, ex);
-                return;
+                Log.Warn("Failed to invoke SendToClients fallback for client {0}: {1}", clientId, ex);
             }
 
             Log.Warn("No compatible send-to-client method available in CSM.API");
@@ -421,6 +448,43 @@ namespace CSM.TmpeSync.Util
                 _loggedMissingBroadcast = true;
                 LogDiagnostics("Broadcast unavailable", true);
             }
+        }
+
+        internal static void SendToServer(CommandBase command)
+        {
+            if (command == null)
+                throw new ArgumentNullException(nameof(command));
+
+            Log.Info("CSM send to server: {0}", DescribeCommand(command));
+
+            if (SendToServerMethod != null)
+            {
+                try
+                {
+                    var method = PrepareMethodForInvoke(SendToServerMethod, null, command);
+                    if (method != null)
+                    {
+                        var parameters = method.GetParameters();
+                        var args = BuildArguments(parameters, null, command);
+                        var target = method.IsStatic ? SendToServerTarget : (SendToServerTarget ?? ResolveTarget(SendToServerMethod));
+                        method.Invoke(target, args);
+                        return;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Log.Warn("Failed to invoke SendToServer: {0}", ex);
+                }
+            }
+
+            if (!_loggedMissingSendToServer)
+            {
+                _loggedMissingSendToServer = true;
+                Log.Warn("Unable to send TM:PE request to server – CSM.API server hook missing");
+                LogDiagnostics("SendToServer missing", true);
+            }
+
+            SendToAll(command);
         }
 
         private static string DescribeCommand(CommandBase command)
@@ -636,6 +700,7 @@ namespace CSM.TmpeSync.Util
             Log.Info("  SendToClient method: {0}", DescribeMethod(SendToClientMethod));
             Log.Info("  SendToClients method: {0}", DescribeMethod(SendToClientsMethod));
             Log.Info("  SendToAll method: {0}", DescribeMethod(SendToAllMethod));
+            Log.Info("  SendToServer method: {0}", DescribeMethod(SendToServerMethod));
             Log.Info("  SimulateClientConnected method: {0}", DescribeMethod(SimulateClientConnectedMethod));
             Log.Info("  GetSimulatedClients method: {0}", DescribeMethod(GetSimulatedClientsMethod));
 
@@ -888,6 +953,18 @@ namespace CSM.TmpeSync.Util
                     return converted != null;
                 }
 
+                if (targetType == typeof(Assembly))
+                {
+                    if (value is Assembly assembly)
+                    {
+                        converted = assembly;
+                        return true;
+                    }
+
+                    converted = value?.GetType()?.Assembly;
+                    return converted != null;
+                }
+
                 if (targetType == typeof(int) || targetType == typeof(long) || targetType == typeof(uint) || targetType == typeof(ushort) || targetType == typeof(byte))
                 {
                     converted = Convert.ChangeType(value, targetType, CultureInfo.InvariantCulture);
@@ -899,14 +976,44 @@ namespace CSM.TmpeSync.Util
                     var elementType = targetType.GetElementType();
                     if (value is System.Collections.IEnumerable enumerable && elementType != null)
                     {
-                        var list = enumerable.Cast<object>().Select(item => Convert.ChangeType(item, elementType, CultureInfo.InvariantCulture)).ToArray();
-                        var array = Array.CreateInstance(elementType, list.Length);
-                        for (var i = 0; i < list.Length; i++)
+                        var list = new List<object>();
+                        foreach (var item in enumerable)
                         {
-                            array.SetValue(list[i], i);
+                            if (item == null)
+                            {
+                                list.Add(null);
+                                continue;
+                            }
+
+                            if (elementType.IsInstanceOfType(item))
+                            {
+                                list.Add(item);
+                                continue;
+                            }
+
+                            list.Add(Convert.ChangeType(item, elementType, CultureInfo.InvariantCulture));
                         }
 
+                        var array = Array.CreateInstance(elementType, list.Count);
+                        for (var i = 0; i < list.Count; i++)
+                            array.SetValue(list[i], i);
+
                         converted = array;
+                        return true;
+                    }
+                }
+
+                if (value is Connection connection)
+                {
+                    if (targetType.IsInstanceOfType(connection.CommandAssemblies))
+                    {
+                        converted = connection.CommandAssemblies;
+                        return true;
+                    }
+
+                    if (typeof(IEnumerable<Assembly>).IsAssignableFrom(targetType))
+                    {
+                        converted = connection.CommandAssemblies;
                         return true;
                     }
                 }
@@ -978,6 +1085,14 @@ namespace CSM.TmpeSync.Util
                 SendToAllMethodNames,
                 new[] { "send", "broadcast" },
                 new string[0]);
+        }
+
+        private static MethodInfo ResolveSendToServer()
+        {
+            return ResolveSendMethod(
+                SendToServerMethodNames,
+                new[] { "send" },
+                new[] { "server", "host" });
         }
 
         private static bool AcceptsCommandParameter(MethodInfo method)
@@ -1126,17 +1241,29 @@ namespace CSM.TmpeSync.Util
             if (string.IsNullOrEmpty(name))
                 return false;
 
-            if (type.Namespace == null || type.Namespace.IndexOf("CSM.API", StringComparison.OrdinalIgnoreCase) < 0)
-                return false;
+            var namespaceName = type.Namespace ?? string.Empty;
 
-            if (string.Equals(name, "Command", StringComparison.OrdinalIgnoreCase) ||
-                string.Equals(name, "CommandBase", StringComparison.OrdinalIgnoreCase) ||
-                string.Equals(name, "ICommand", StringComparison.OrdinalIgnoreCase))
+            if (namespaceName.IndexOf("CSM.API", StringComparison.OrdinalIgnoreCase) >= 0)
             {
-                return true;
+                if (string.Equals(name, "Command", StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(name, "CommandBase", StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(name, "ICommand", StringComparison.OrdinalIgnoreCase) ||
+                    name.EndsWith("Command", StringComparison.OrdinalIgnoreCase))
+                {
+                    return true;
+                }
             }
 
-            return name.EndsWith("Command", StringComparison.OrdinalIgnoreCase);
+            if (namespaceName.IndexOf("ProtoBuf", StringComparison.OrdinalIgnoreCase) >= 0)
+            {
+                if (string.Equals(name, "IExtensible", StringComparison.OrdinalIgnoreCase) ||
+                    name.IndexOf("Command", StringComparison.OrdinalIgnoreCase) >= 0)
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         private static MethodInfo PrepareMethodForInvoke(MethodInfo method, object recipient, CommandBase command)
@@ -1363,14 +1490,79 @@ namespace CSM.TmpeSync.Util
         private static bool MatchesConnectionSignature(MethodInfo method)
         {
             var parameters = method.GetParameters();
-            if (parameters.Length > 0 && parameters.Any(p => IsConnectionType(p.ParameterType)))
-                return true;
+            if (parameters.Length == 0)
+                return false;
+
+            foreach (var parameter in parameters)
+            {
+                if (IsConnectionType(parameter.ParameterType))
+                    return true;
+
+                if (parameter.ParameterType.IsGenericParameter && SatisfiesConnectionConstraints(parameter.ParameterType))
+                    return true;
+
+                if (AcceptsConnectionMetadata(parameter.ParameterType))
+                    return true;
+            }
 
             if (method.IsGenericMethodDefinition)
             {
                 foreach (var genericParameter in method.GetGenericArguments())
                 {
-                    if (IsConnectionType(genericParameter))
+                    if (SatisfiesConnectionConstraints(genericParameter))
+                        return true;
+                }
+            }
+
+            return false;
+        }
+
+        private static bool SatisfiesConnectionConstraints(Type type)
+        {
+            if (!type.IsGenericParameter)
+                return IsConnectionType(type) || AcceptsConnectionMetadata(type);
+
+            var constraints = type.GetGenericParameterConstraints();
+            if (constraints.Length == 0)
+                return false;
+
+            return constraints.Any(t => IsConnectionType(t) || AcceptsConnectionMetadata(t));
+        }
+
+        private static bool AcceptsConnectionMetadata(Type parameterType)
+        {
+            if (parameterType == null)
+                return false;
+
+            if (parameterType == typeof(Type) || parameterType == typeof(string) || parameterType == typeof(Assembly))
+                return true;
+
+            if (parameterType.IsGenericParameter)
+                return false;
+
+            if (typeof(IEnumerable<Assembly>).IsAssignableFrom(parameterType))
+                return true;
+
+            if (parameterType.IsArray)
+            {
+                var elementType = parameterType.GetElementType();
+                if (elementType != null && AcceptsConnectionMetadata(elementType))
+                    return true;
+            }
+
+            if (parameterType.IsGenericType)
+            {
+                var definition = parameterType.GetGenericTypeDefinition();
+                var fullName = definition.FullName;
+                if (string.Equals(fullName, "System.Collections.Generic.IEnumerable`1", StringComparison.Ordinal) ||
+                    string.Equals(fullName, "System.Collections.Generic.ICollection`1", StringComparison.Ordinal) ||
+                    string.Equals(fullName, "System.Collections.Generic.IList`1", StringComparison.Ordinal) ||
+                    string.Equals(fullName, "System.Collections.Generic.List`1", StringComparison.Ordinal) ||
+                    string.Equals(fullName, "System.Collections.Generic.IReadOnlyCollection`1", StringComparison.Ordinal) ||
+                    string.Equals(fullName, "System.Collections.Generic.IReadOnlyList`1", StringComparison.Ordinal))
+                {
+                    var elementType = parameterType.GetGenericArguments()[0];
+                    if (AcceptsConnectionMetadata(elementType))
                         return true;
                 }
             }
