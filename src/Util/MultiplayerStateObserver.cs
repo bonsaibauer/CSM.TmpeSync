@@ -42,6 +42,9 @@ namespace CSM.TmpeSync.Util
             Log.Info("CSM multiplayer role changed: {0} -> {1} (raw='{2}')", _lastKnownRole, currentRole, rawDescription ?? "<null>");
             _lastKnownRole = currentRole;
             _loggedRoleReadError = false;
+
+            if (string.Equals(currentRole, RoleServer, StringComparison.OrdinalIgnoreCase))
+                CsmCompat.EnsureStubSimulationActive();
         }
 
         internal static void Reset()
@@ -51,6 +54,7 @@ namespace CSM.TmpeSync.Util
 
             _lastKnownRole = RoleNone;
             _loggedRoleReadError = false;
+            CsmCompat.ResetStubSimulationState();
         }
 
         private static string GetCurrentRole(out string rawDescription)

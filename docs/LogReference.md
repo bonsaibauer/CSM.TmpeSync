@@ -71,3 +71,11 @@ When running the project outside the real game (`GAME` flag unset), the bundled 
 ```
 
 These lines confirm that TM:PE commands are created correctly even though no actual clients are attached. Use `CSM.API.Command.SimulateClientConnected(1)` to replay queued commands locally and `CSM.API.Command.DumpSimulatedCommandLog()` to inspect the captured payloads.
+
+When CSM reports that the current role switched to `Server` but only the stub API is present, the mod now starts a simulated client automatically. The log shows:
+
+```
+[INFO] [CSM.TmpeSync] Stub CSM simulation started automatically (clientId=1).
+```
+
+This guarantees that TM:PE updates are replayed immediately without having to run the debug console command manually. If you want to inspect the data in-game, enable the CSM debug overlay in *Options → Mods → Cities: Skylines Multiplayer → Debug tools* and press **F7**. The overlay mirrors the new auto-started simulation client and displays the queued TM:PE commands.

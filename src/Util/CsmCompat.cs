@@ -31,6 +31,9 @@ namespace CSM.TmpeSync.Util
         private static readonly MethodInfo IgnoreStartMethod = ResolveIgnoreMethod("StartIgnore");
         private static readonly MethodInfo IgnoreEndMethod = ResolveIgnoreMethod("EndIgnore");
 
+        private static readonly MethodInfo SimulateClientConnectedMethod = CommandType.GetMethod("SimulateClientConnected", BindingFlags.Public | BindingFlags.Static);
+        private static readonly MethodInfo GetSimulatedClientsMethod = CommandType.GetMethod("GetSimulatedClients", BindingFlags.Public | BindingFlags.Static);
+
         private static readonly HashSet<string> RegisterConnectionNames = new HashSet<string>(new[]
         {
             "RegisterConnection",
@@ -105,6 +108,9 @@ namespace CSM.TmpeSync.Util
         private static bool _loggedMissingBroadcast;
         private static bool _loggedMissingRegister;
         private static bool _loggedMissingUnregister;
+        private static bool _stubSimulationAutostartAttempted;
+
+        private const int DefaultStubClientId = 1;
 
         static CsmCompat()
         {
@@ -572,6 +578,8 @@ namespace CSM.TmpeSync.Util
             Log.Info("  SendToClient method: {0}", DescribeMethod(SendToClientMethod));
             Log.Info("  SendToClients method: {0}", DescribeMethod(SendToClientsMethod));
             Log.Info("  SendToAll method: {0}", DescribeMethod(SendToAllMethod));
+            Log.Info("  SimulateClientConnected method: {0}", DescribeMethod(SimulateClientConnectedMethod));
+            Log.Info("  GetSimulatedClients method: {0}", DescribeMethod(GetSimulatedClientsMethod));
 
             var ignoreInstance = IgnoreHelperInstance == null
                 ? "<missing>"
@@ -588,6 +596,78 @@ namespace CSM.TmpeSync.Util
             Log.Info("  SenderId property: {0}", DescribeMember(SenderIdProperty));
             Log.Info("  SenderId field: {0}", DescribeMember(SenderIdField));
             Log.Info("  Sender property: {0}", DescribeMember(SenderProperty));
+        }
+
+        internal static void EnsureStubSimulationActive()
+        {
+            if (_stubSimulationAutostartAttempted)
+                return;
+
+            _stubSimulationAutostartAttempted = true;
+
+            if (SimulateClientConnectedMethod == null || GetSimulatedClientsMethod == null)
+            {
+                Log.Debug("Stub simulation hooks unavailable – skipping autostart.");
+                return;
+            }
+
+            try
+            {
+                if (HasSimulatedClients())
+                {
+                    Log.Debug("Stub simulation already has connected clients – skipping autostart.");
+                    return;
+                }
+
+                var parameters = SimulateClientConnectedMethod.GetParameters();
+                if (parameters.Length != 1)
+                {
+                    Log.Warn("SimulateClientConnected signature unexpected – skipping stub autostart: {0}", DescribeMethod(SimulateClientConnectedMethod));
+                    return;
+                }
+
+                object clientArgument;
+                try
+                {
+                    clientArgument = Convert.ChangeType(DefaultStubClientId, parameters[0].ParameterType, CultureInfo.InvariantCulture);
+                }
+                catch (Exception ex)
+                {
+                    Log.Warn("Unable to convert stub client id to '{0}': {1}", parameters[0].ParameterType, ex.Message);
+                    return;
+                }
+
+                SimulateClientConnectedMethod.Invoke(null, new[] { clientArgument });
+                Log.Info("Stub CSM simulation started automatically (clientId={0}).", clientArgument);
+            }
+            catch (Exception ex)
+            {
+                Log.Warn("Failed to autostart stub simulation: {0}", ex);
+            }
+        }
+
+        internal static void ResetStubSimulationState()
+        {
+            _stubSimulationAutostartAttempted = false;
+        }
+
+        private static bool HasSimulatedClients()
+        {
+            try
+            {
+                var result = GetSimulatedClientsMethod.Invoke(null, null);
+                if (result is IEnumerable enumerable)
+                {
+                    foreach (var _ in enumerable)
+                        return true;
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Debug("Unable to inspect simulated clients: {0}", ex.Message);
+            }
+
+            return false;
         }
 
         private static bool IsServerRoleValue(object value)
