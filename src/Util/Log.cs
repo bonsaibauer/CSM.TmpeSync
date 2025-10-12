@@ -19,7 +19,7 @@ namespace CSM.TmpeSync.Util
         private const string Prefix = "[CSM.TmpeSync] ";
         private static readonly object Sync = new object();
         private static string _logFilePath;
-        private static bool _logFileResolved;
+        private static DateTime? _logFileDate;
 
         private static readonly MethodInfo DebugPanelMethod;
         private static readonly object DebugPanelInfo;
@@ -115,15 +115,16 @@ namespace CSM.TmpeSync.Util
 
         private static void Write(Level level, string message, params object[] args)
         {
+            var timestamp = DateTime.Now;
             var formatted = FormatMessage(message, args);
-            var line = FormatLogLine(level, formatted);
+            var line = FormatLogLine(timestamp, level, formatted);
 
             TryWrite(() => WriteUnity(level, line));
             TryWrite(() => WriteDebugPanel(level, line));
 #if !GAME
             TryWrite(() => WriteConsole(line));
 #endif
-            TryWrite(() => WriteFile(line));
+            TryWrite(() => WriteFile(timestamp, line));
         }
 
         private static string FormatMessage(string message, object[] args)
@@ -220,9 +221,9 @@ namespace CSM.TmpeSync.Util
             Console.WriteLine(line);
         }
 
-        private static void WriteFile(string line)
+        private static void WriteFile(DateTime timestamp, string line)
         {
-            var path = EnsureLogFilePath();
+            var path = EnsureLogFilePath(timestamp);
             if (string.IsNullOrEmpty(path))
                 return;
 
@@ -235,28 +236,29 @@ namespace CSM.TmpeSync.Util
             }
         }
 
-        private static string FormatLogLine(Level level, string message)
+        private static string FormatLogLine(DateTime timestamp, Level level, string message)
         {
-            return string.Format(CultureInfo.InvariantCulture, "{0:yyyy-MM-dd HH:mm:ss.fff} [{1}] {2}", DateTime.Now, LevelName(level), message ?? string.Empty);
+            return string.Format(CultureInfo.InvariantCulture, "{0:yyyy-MM-dd HH:mm:ss.fff} [{1}] {2}", timestamp, LevelName(level), message ?? string.Empty);
         }
 
-        private static string EnsureLogFilePath()
+        private static string EnsureLogFilePath(DateTime timestamp)
         {
-            if (_logFileResolved)
+            var date = timestamp.Date;
+            if (_logFileDate.HasValue && _logFileDate.Value == date && !string.IsNullOrEmpty(_logFilePath))
                 return _logFilePath;
 
             lock (Sync)
             {
-                if (_logFileResolved)
+                if (_logFileDate.HasValue && _logFileDate.Value == date && !string.IsNullOrEmpty(_logFilePath))
                     return _logFilePath;
 
-                _logFilePath = ResolveLogFilePath();
-                _logFileResolved = true;
+                _logFilePath = ResolveLogFilePath(date);
+                _logFileDate = date;
                 return _logFilePath;
             }
         }
 
-        private static string ResolveLogFilePath()
+        private static string ResolveLogFilePath(DateTime date)
         {
             try
             {
@@ -269,7 +271,8 @@ namespace CSM.TmpeSync.Util
                 directory = Path.Combine(directory, "CSM.TmpeSync");
                 directory = Path.Combine(directory, "Logs");
                 Directory.CreateDirectory(directory);
-                return Path.Combine(directory, "CSM.TmpeSync.log");
+                var fileName = string.Format(CultureInfo.InvariantCulture, "CSM.TmpeSync_{0:yyyy-MM-dd}.log", date);
+                return Path.Combine(directory, fileName);
             }
             catch
             {
