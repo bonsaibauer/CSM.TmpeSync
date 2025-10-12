@@ -953,6 +953,18 @@ namespace CSM.TmpeSync.Util
                     return converted != null;
                 }
 
+                if (targetType == typeof(Assembly))
+                {
+                    if (value is Assembly assembly)
+                    {
+                        converted = assembly;
+                        return true;
+                    }
+
+                    converted = value?.GetType()?.Assembly;
+                    return converted != null;
+                }
+
                 if (targetType == typeof(int) || targetType == typeof(long) || targetType == typeof(uint) || targetType == typeof(ushort) || targetType == typeof(byte))
                 {
                     converted = Convert.ChangeType(value, targetType, CultureInfo.InvariantCulture);
@@ -964,14 +976,44 @@ namespace CSM.TmpeSync.Util
                     var elementType = targetType.GetElementType();
                     if (value is System.Collections.IEnumerable enumerable && elementType != null)
                     {
-                        var list = enumerable.Cast<object>().Select(item => Convert.ChangeType(item, elementType, CultureInfo.InvariantCulture)).ToArray();
-                        var array = Array.CreateInstance(elementType, list.Length);
-                        for (var i = 0; i < list.Length; i++)
+                        var list = new List<object>();
+                        foreach (var item in enumerable)
                         {
-                            array.SetValue(list[i], i);
+                            if (item == null)
+                            {
+                                list.Add(null);
+                                continue;
+                            }
+
+                            if (elementType.IsInstanceOfType(item))
+                            {
+                                list.Add(item);
+                                continue;
+                            }
+
+                            list.Add(Convert.ChangeType(item, elementType, CultureInfo.InvariantCulture));
                         }
 
+                        var array = Array.CreateInstance(elementType, list.Count);
+                        for (var i = 0; i < list.Count; i++)
+                            array.SetValue(list[i], i);
+
                         converted = array;
+                        return true;
+                    }
+                }
+
+                if (value is Connection connection)
+                {
+                    if (targetType.IsInstanceOfType(connection.CommandAssemblies))
+                    {
+                        converted = connection.CommandAssemblies;
+                        return true;
+                    }
+
+                    if (typeof(IEnumerable<Assembly>).IsAssignableFrom(targetType))
+                    {
+                        converted = connection.CommandAssemblies;
                         return true;
                     }
                 }
@@ -1199,17 +1241,29 @@ namespace CSM.TmpeSync.Util
             if (string.IsNullOrEmpty(name))
                 return false;
 
-            if (type.Namespace == null || type.Namespace.IndexOf("CSM.API", StringComparison.OrdinalIgnoreCase) < 0)
-                return false;
+            var namespaceName = type.Namespace ?? string.Empty;
 
-            if (string.Equals(name, "Command", StringComparison.OrdinalIgnoreCase) ||
-                string.Equals(name, "CommandBase", StringComparison.OrdinalIgnoreCase) ||
-                string.Equals(name, "ICommand", StringComparison.OrdinalIgnoreCase))
+            if (namespaceName.IndexOf("CSM.API", StringComparison.OrdinalIgnoreCase) >= 0)
             {
-                return true;
+                if (string.Equals(name, "Command", StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(name, "CommandBase", StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(name, "ICommand", StringComparison.OrdinalIgnoreCase) ||
+                    name.EndsWith("Command", StringComparison.OrdinalIgnoreCase))
+                {
+                    return true;
+                }
             }
 
-            return name.EndsWith("Command", StringComparison.OrdinalIgnoreCase);
+            if (namespaceName.IndexOf("ProtoBuf", StringComparison.OrdinalIgnoreCase) >= 0)
+            {
+                if (string.Equals(name, "IExtensible", StringComparison.OrdinalIgnoreCase) ||
+                    name.IndexOf("Command", StringComparison.OrdinalIgnoreCase) >= 0)
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         private static MethodInfo PrepareMethodForInvoke(MethodInfo method, object recipient, CommandBase command)
@@ -1436,14 +1490,79 @@ namespace CSM.TmpeSync.Util
         private static bool MatchesConnectionSignature(MethodInfo method)
         {
             var parameters = method.GetParameters();
-            if (parameters.Length > 0 && parameters.Any(p => IsConnectionType(p.ParameterType)))
-                return true;
+            if (parameters.Length == 0)
+                return false;
+
+            foreach (var parameter in parameters)
+            {
+                if (IsConnectionType(parameter.ParameterType))
+                    return true;
+
+                if (parameter.ParameterType.IsGenericParameter && SatisfiesConnectionConstraints(parameter.ParameterType))
+                    return true;
+
+                if (AcceptsConnectionMetadata(parameter.ParameterType))
+                    return true;
+            }
 
             if (method.IsGenericMethodDefinition)
             {
                 foreach (var genericParameter in method.GetGenericArguments())
                 {
-                    if (IsConnectionType(genericParameter))
+                    if (SatisfiesConnectionConstraints(genericParameter))
+                        return true;
+                }
+            }
+
+            return false;
+        }
+
+        private static bool SatisfiesConnectionConstraints(Type type)
+        {
+            if (!type.IsGenericParameter)
+                return IsConnectionType(type) || AcceptsConnectionMetadata(type);
+
+            var constraints = type.GetGenericParameterConstraints();
+            if (constraints.Length == 0)
+                return false;
+
+            return constraints.Any(t => IsConnectionType(t) || AcceptsConnectionMetadata(t));
+        }
+
+        private static bool AcceptsConnectionMetadata(Type parameterType)
+        {
+            if (parameterType == null)
+                return false;
+
+            if (parameterType == typeof(Type) || parameterType == typeof(string) || parameterType == typeof(Assembly))
+                return true;
+
+            if (parameterType.IsGenericParameter)
+                return false;
+
+            if (typeof(IEnumerable<Assembly>).IsAssignableFrom(parameterType))
+                return true;
+
+            if (parameterType.IsArray)
+            {
+                var elementType = parameterType.GetElementType();
+                if (elementType != null && AcceptsConnectionMetadata(elementType))
+                    return true;
+            }
+
+            if (parameterType.IsGenericType)
+            {
+                var definition = parameterType.GetGenericTypeDefinition();
+                var fullName = definition.FullName;
+                if (string.Equals(fullName, "System.Collections.Generic.IEnumerable`1", StringComparison.Ordinal) ||
+                    string.Equals(fullName, "System.Collections.Generic.ICollection`1", StringComparison.Ordinal) ||
+                    string.Equals(fullName, "System.Collections.Generic.IList`1", StringComparison.Ordinal) ||
+                    string.Equals(fullName, "System.Collections.Generic.List`1", StringComparison.Ordinal) ||
+                    string.Equals(fullName, "System.Collections.Generic.IReadOnlyCollection`1", StringComparison.Ordinal) ||
+                    string.Equals(fullName, "System.Collections.Generic.IReadOnlyList`1", StringComparison.Ordinal))
+                {
+                    var elementType = parameterType.GetGenericArguments()[0];
+                    if (AcceptsConnectionMetadata(elementType))
                         return true;
                 }
             }
