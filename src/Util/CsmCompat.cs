@@ -205,7 +205,7 @@ namespace CSM.TmpeSync.Util
             }
             catch
             {
-                return Array.Empty<Type>();
+                return new Type[0];
             }
         }
 
