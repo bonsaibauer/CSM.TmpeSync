@@ -21,6 +21,9 @@ namespace CSM.TmpeSync.Mod
                 return;
             }
 
+            Log.Info("Dependencies available. Checking CSM version compatibility.");
+            CsmVersionChecker.CheckCompatibility();
+
             Log.Info("Dependencies available. Registering TM:PE sync connection with CSM.");
             var connection = new TmpeSyncConnection();
             if (CsmCompat.RegisterConnection(connection))

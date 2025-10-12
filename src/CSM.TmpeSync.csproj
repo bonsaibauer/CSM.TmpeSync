@@ -112,6 +112,7 @@
 
     <Compile Include="Util\Log.cs" />
     <Compile Include="Util\Deps.cs" />
+    <Compile Include="Util\CsmVersionChecker.cs" />
     <Compile Include="Util\NetUtil.cs" />
     <Compile Include="Util\EntityLocks.cs" />
     <Compile Include="Util\DeferredApply.cs" />
