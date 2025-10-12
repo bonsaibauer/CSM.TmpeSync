@@ -21,6 +21,9 @@ Die folgenden Schritte zeigen dir, wie du das Projekt lokal baust und das result
   * [CitiesHarmony](https://steamcommunity.com/workshop/filedetails/?id=2040656402) (Workshop 2040656402) ist installiert, damit `CitiesHarmony.Harmony.dll` verfügbar ist.
   * Das CSM-Hauptprojekt muss bereits gebaut sein, damit `CSM.API.dll` vorliegt.
     * Alternativ kannst du die Datei in einen lokalen `lib/`-Ordner neben dieses Repository kopieren.
+    * Nutzt du die Workshop-Version von CSM (ID **1558438291**), findest du die API unter
+      `C:\Program Files (x86)\Steam\steamapps\workshop\content\255710\1558438291\CSM.API.dll`.
+      Kopiere diese Datei unverändert nach `lib/CSM.API.dll`, damit der Hook im Spiel greift.
   * Optional: TM:PE muss installiert sein, wenn du direkt auf `TrafficManager.dll` verweist.
 
 > 💡 Lege die benötigten DLLs nicht ins Repository, sondern verweise beim Build auf die bereits vorhandenen Installationen.
@@ -38,7 +41,7 @@ Die folgenden Schritte zeigen dir, wie du das Projekt lokal baust und das result
        <!-- Passe die Pfade an deine Installation an -->
        <CitiesSkylinesDir>C:\Program Files (x86)\Steam\steamapps\common\Cities_Skylines</CitiesSkylinesDir>
        <HarmonyDllDir>C:\Program Files (x86)\Steam\steamapps\workshop\content\255710\2040656402</HarmonyDllDir>
-       <CsmApiDllPath>D:\Repos\CSM\API\bin\Release\CSM.API.dll</CsmApiDllPath>
+       <CsmApiDllPath>C:\Program Files (x86)\Steam\steamapps\workshop\content\255710\1558438291\CSM.API.dll</CsmApiDllPath>
        <!-- Optional, nur wenn benötigt: -->
        <TmpeDir>C:\Program Files (x86)\Steam\steamapps\workshop\content\255710\1637663252</TmpeDir>
         <!-- Setze auf true, wenn du mit echten Spiel-DLLs bauen willst -->

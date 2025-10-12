@@ -33,7 +33,7 @@ If you instead see `<missing method>` in the debug line, or follow-up warnings s
 [WARN] [CSM.TmpeSync] TM:PE sync connection could not be registered with CSM. Synchronisation remains inactive.
 ```
 
-it means the current CSM installation does not expose the expected `SendToClient`/`SendToAll` methods on `CSM.API.Command` or the `RegisterConnection` hook in the API. Without those hooks, the sync channel cannot be registered and no TM:PE data will be exchanged. Update to a CSM build that includes these APIs (or ensure the real game libraries are loaded instead of the local stubs) before continuing tests.
+it means the current CSM installation does not expose the expected `SendToClient`/`SendToAll` methods on `CSM.API.Command` or the `RegisterConnection` hook in the API. Without those hooks, the sync channel cannot be registered and no TM:PE data will be exchanged. Update to a CSM build that includes these APIs (or ensure the real game libraries are loaded instead of the local stubs) before continuing tests. When using the Steam Workshop release you can verify the file directly at `C:\Program Files (x86)\Steam\steamapps\workshop\content\255710\1558438291\CSM.API.dll`; copy it next to the mod (e.g. `lib/CSM.API.dll`) if your build environment cannot resolve it automatically.
 
 ## Multiplayer role detection
 
