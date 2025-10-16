@@ -5,11 +5,13 @@ namespace CSM.API.Commands
     public static class Command
     {
         public static Action<CommandBase> SendToAll, SendToServer, SendToClients;
-        public static Func<Type, CommandHandler> GetCommandHandler;
+        public delegate CommandHandler CommandHandlerResolver(Type commandType);
+
+        public static CommandHandlerResolver GetCommandHandler;
         
         public static MultiplayerRole CurrentRole { get; set; }
 
-        public static void ConnectToCSM(Action<CommandBase> sendToAll, Action<CommandBase> sendToServer, Action<CommandBase> sendToClients, Func<Type, CommandHandler> getCommandHandler)
+        public static void ConnectToCSM(Action<CommandBase> sendToAll, Action<CommandBase> sendToServer, Action<CommandBase> sendToClients, CommandHandlerResolver getCommandHandler)
         {
             SendToAll = sendToAll;
             SendToServer = sendToServer;

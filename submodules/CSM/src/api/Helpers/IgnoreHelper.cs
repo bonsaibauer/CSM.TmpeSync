@@ -99,9 +99,11 @@ namespace CSM.API.Helpers
             [ThreadStatic]
             private static bool _hasValue;
 
-            private readonly Func<T> _valueFactory;
+            private delegate T ValueFactory();
 
-            public ThreadStaticInstance(Func<T> valueFactory)
+            private readonly ValueFactory _valueFactory;
+
+            public ThreadStaticInstance(ValueFactory valueFactory)
             {
                 if (valueFactory == null)
                 {
