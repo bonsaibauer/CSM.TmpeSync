@@ -26,8 +26,10 @@ $HostIsMacOS = [System.Runtime.InteropServices.RuntimeInformation]::IsOSPlatform
 
 $ScriptDir = Split-Path -Parent $PSCommandPath
 $RepoRoot = Split-Path -Parent $ScriptDir
-$CsmScriptsDir = Join-Path $RepoRoot "submodules\CSM\scripts"
-$CsmBuildScript = Join-Path $CsmScriptsDir "build.ps1"
+$CsmRepoDir = Join-Path $RepoRoot "submodules\CSM"
+$CsmScriptsDir = Join-Path $CsmRepoDir "scripts"
+$CsmSolutionPath = Join-Path $CsmRepoDir "CSM.sln"
+$CsmAssembliesDir = Join-Path $CsmRepoDir "assemblies"
 $ProjectPath = Join-Path $RepoRoot "src\CSM.TmpeSync\CSM.TmpeSync.csproj"
 $OutputDir = Join-Path $RepoRoot ("src\CSM.TmpeSync\bin\{0}\net35" -f $Configuration)
 $LibRoot = Join-Path $RepoRoot "lib"
@@ -70,6 +72,11 @@ function Save-BuildConfig {
 }
 
 Load-BuildConfig
+
+if ($script:BuildConfig.ContainsKey("GameDirectory") -and -not $script:BuildConfig.ContainsKey("CitiesSkylinesDir")) {
+    $script:BuildConfig["CitiesSkylinesDir"] = [string]$script:BuildConfig["GameDirectory"]
+    $script:ConfigUpdated = $true
+}
 
 if (-not (Test-Path $ProjectPath)) {
     throw "CSM.TmpeSync project not found under $ProjectPath."
@@ -181,7 +188,7 @@ function Sync-CitiesSkylinesAssemblies {
     Ensure-DirectoryExists -Path $managedSource -Description "Cities: Skylines managed"
 
     $destination = Ensure-LibDirectory -RelativePath "CitiesSkylines/Cities_Data/Managed"
-    foreach ($file in @("ICities.dll", "ColossalManaged.dll", "UnityEngine.dll", "Assembly-CSharp.dll")) {
+    foreach ($file in @("ICities.dll", "ColossalManaged.dll", "UnityEngine.dll", "UnityEngine.UI.dll", "Assembly-CSharp.dll")) {
         $sourcePath = Join-Path $managedSource $file
         if (-not (Test-Path $sourcePath)) {
             throw "Missing required Cities: Skylines assembly: $sourcePath"
@@ -245,6 +252,104 @@ function Sync-CsmAssemblies {
     return ""
 }
 
+function Sync-CsmSubmoduleAssemblies {
+    param([string]$LibraryRoot)
+
+    if ([string]::IsNullOrWhiteSpace($LibraryRoot)) {
+        return
+    }
+
+    $managedSource = Join-Path $LibraryRoot "Cities_Data\Managed"
+    Ensure-DirectoryExists -Path $managedSource -Description "CSM dependency source"
+
+    if (-not (Test-Path $CsmAssembliesDir)) {
+        New-Item -ItemType Directory -Path $CsmAssembliesDir -Force | Out-Null
+    }
+
+    foreach ($file in @("Assembly-CSharp.dll", "ColossalManaged.dll", "ICities.dll", "UnityEngine.dll", "UnityEngine.UI.dll")) {
+        $sourcePath = Join-Path $managedSource $file
+        if (-not (Test-Path $sourcePath)) {
+            throw "Missing required Cities: Skylines assembly for CSM: $sourcePath"
+        }
+
+        Copy-Item -LiteralPath $sourcePath -Destination (Join-Path $CsmAssembliesDir $file) -Force
+    }
+
+    Write-Host "[CSM.TmpeSync] CSM assemblies synced to $CsmAssembliesDir." -ForegroundColor DarkCyan
+}
+
+$script:DotnetCliPath = $null
+function Resolve-DotnetCli {
+    if ($script:DotnetCliPath) {
+        return $script:DotnetCliPath
+    }
+
+    $dotnet = Get-Command "dotnet" -ErrorAction SilentlyContinue
+    if (-not $dotnet) {
+        throw "dotnet CLI not found. Install the .NET SDK to build the mods."
+    }
+
+    $script:DotnetCliPath = $dotnet.Source
+    return $script:DotnetCliPath
+}
+
+function Invoke-Dotnet {
+    param(
+        [string[]]$Arguments,
+        [string]$ErrorContext = "dotnet command"
+    )
+
+    $dotnetCli = Resolve-DotnetCli
+    & $dotnetCli @Arguments
+
+    if ($LASTEXITCODE -ne 0) {
+        throw "$ErrorContext failed with exit code $LASTEXITCODE."
+    }
+}
+
+function Build-CsmSolution {
+    param([string]$Configuration)
+
+    if (-not (Test-Path $CsmSolutionPath)) {
+        throw "CSM solution not found under $CsmSolutionPath."
+    }
+
+    Write-Host "[CSM.TmpeSync] Building CSM mod (Configuration=$Configuration)." -ForegroundColor Cyan
+    Invoke-Dotnet -Arguments @("build", $CsmSolutionPath, "-c", $Configuration, "/restore", "--nologo") -ErrorContext "dotnet build for CSM"
+}
+
+function Install-CsmMod {
+    param(
+        [string]$Configuration,
+        [string]$ModDirectory
+    )
+
+    $sourceDir = Join-Path $CsmRepoDir ("src\csm\bin\{0}" -f $Configuration)
+    if (-not (Test-Path $sourceDir)) {
+        throw "CSM build output not found at $sourceDir. Run with -Build first."
+    }
+
+    $assemblies = Get-ChildItem -Path $sourceDir -Filter "*.dll" -ErrorAction SilentlyContinue
+    if (-not $assemblies) {
+        throw "No CSM assemblies were produced under $sourceDir."
+    }
+
+    Write-Host "[CSM.TmpeSync] Installing CSM mod to $ModDirectory." -ForegroundColor Cyan
+    Remove-Item -Path $ModDirectory -Recurse -ErrorAction Ignore
+    New-Item -ItemType Directory -Path $ModDirectory -Force | Out-Null
+
+    foreach ($assembly in $assemblies) {
+        Copy-Item -Path $assembly.FullName -Destination $ModDirectory -Force
+    }
+
+    $pdbFiles = Get-ChildItem -Path $sourceDir -Filter "*.pdb" -ErrorAction SilentlyContinue
+    foreach ($pdb in $pdbFiles) {
+        Copy-Item -Path $pdb.FullName -Destination $ModDirectory -Force
+    }
+
+    Write-Host "[CSM.TmpeSync] CSM install completed." -ForegroundColor Green
+}
+
 function Get-DefaultModDirectory {
     param([string]$ModName)
 
@@ -257,43 +362,6 @@ function Get-DefaultModDirectory {
     }
 
     return "$env:LOCALAPPDATA\Colossal Order\Cities_Skylines\Addons\Mods\$ModName"
-}
-
-$script:PwshPath = $null
-function Resolve-PwshPath {
-    if ($script:PwshPath) {
-        return $script:PwshPath
-    }
-
-    $candidate = Get-Command "pwsh" -ErrorAction SilentlyContinue
-    if (-not $candidate -and $HostIsWindows) {
-        $candidate = Get-Command "pwsh.exe" -ErrorAction SilentlyContinue
-    }
-
-    if (-not $candidate) {
-        throw "Unable to locate pwsh executable required for invoking the CSM build script."
-    }
-
-    $script:PwshPath = $candidate.Source
-    return $script:PwshPath
-}
-
-function Invoke-CsmScript {
-    param([string[]]$Arguments)
-
-    if (-not (Test-Path $CsmBuildScript)) {
-        throw "CSM build script is missing at $CsmBuildScript. Make sure the submodule is initialised."
-    }
-
-    $pwshExecutable = Resolve-PwshPath
-    $pwshArguments = @("-NoLogo", "-NoProfile", "-WorkingDirectory", $CsmScriptsDir, "-File", $CsmBuildScript) + $Arguments
-
-    Write-Host "[CSM.TmpeSync] -> CSM build.ps1 $($Arguments -join ' ')" -ForegroundColor DarkCyan
-    & $pwshExecutable @($pwshArguments)
-
-    if ($LASTEXITCODE -ne 0) {
-        throw "CSM build script failed with exit code $LASTEXITCODE."
-    }
 }
 
 function Configure-Interactive {
@@ -402,14 +470,6 @@ if ($Install) {
     }
 }
 
-if ($Update) {
-    $gameDirectoryFromConfig = Get-ConfigValue -Key "GameDirectory" -ParameterValue $GameDirectory
-    if (-not [string]::IsNullOrWhiteSpace($gameDirectoryFromConfig)) {
-        $GameDirectory = $gameDirectoryFromConfig
-    }
-}
-
-
 function Build-PropertyArgument {
     param(
         [string]$Name,
@@ -429,12 +489,21 @@ if ($Update) {
         Write-Host "[CSM.TmpeSync] Skipping CSM update step (SkipCsmUpdate)." -ForegroundColor DarkYellow
     }
     else {
-        $arguments = @("-Update")
-        if (-not [string]::IsNullOrWhiteSpace($GameDirectory)) {
-            $arguments += @("-GameDirectory", $GameDirectory)
+        $initialCitiesDir = if (-not [string]::IsNullOrWhiteSpace($CitiesSkylinesDir)) { $CitiesSkylinesDir } elseif (-not [string]::IsNullOrWhiteSpace($GameDirectory)) { $GameDirectory } else { "" }
+        $configuredCitiesForUpdate = Resolve-Setting -Key "CitiesSkylinesDir" -ParameterValue $initialCitiesDir -Prompt "Enter the Cities: Skylines installation directory for dependencies"
+
+        if ([string]::IsNullOrWhiteSpace($configuredCitiesForUpdate)) {
+            throw "Cities: Skylines directory is not configured. Provide -CitiesSkylinesDir or run with -Configure."
         }
 
-        Invoke-CsmScript -Arguments $arguments
+        Ensure-DirectoryExists -Path $configuredCitiesForUpdate -Description "Cities: Skylines"
+        $script:BuildConfig["GameDirectory"] = $configuredCitiesForUpdate
+        $script:ConfigUpdated = $true
+
+        $libCitiesDir = Sync-CitiesSkylinesAssemblies -SourceDir $configuredCitiesForUpdate
+        Sync-CsmSubmoduleAssemblies -LibraryRoot $libCitiesDir
+
+        Write-Host "[CSM.TmpeSync] CSM dependencies refreshed from $configuredCitiesForUpdate." -ForegroundColor DarkCyan
     }
 }
 
@@ -479,16 +548,16 @@ if ($Build) {
     $script:BuildConfig["HarmonyDllDir"] = $ConfiguredHarmonyDir
     $script:ConfigUpdated = $true
 
+    $csmManagedLib = Sync-CitiesSkylinesAssemblies -SourceDir $ConfiguredCitiesSkylinesDir
+    Sync-CsmSubmoduleAssemblies -LibraryRoot $csmManagedLib
+
     if ($SkipCsmBuild) {
         Write-Host "[CSM.TmpeSync] Skipping CSM build step (SkipCsmBuild)." -ForegroundColor DarkYellow
     }
     else {
-        $csmOutputDir = "..\src\csm\bin\$Configuration"
-        $arguments = @("-Build", "-OutputDirectory", $csmOutputDir)
-        Invoke-CsmScript -Arguments $arguments
+        Build-CsmSolution -Configuration $Configuration
     }
 
-    $csmManagedLib = Sync-CitiesSkylinesAssemblies -SourceDir $ConfiguredCitiesSkylinesDir
     $harmonyLib = Sync-HarmonyAssembly -SourceDir $ConfiguredHarmonyDir
     $tmpeLib = Sync-TmpeAssemblies -SourceDir $ConfiguredTmpeDir
 
@@ -514,10 +583,6 @@ if ($Build) {
 
     Write-Host "[CSM.TmpeSync] Dependency library refreshed under $LibRoot." -ForegroundColor DarkCyan
 
-    if (-not (Get-Command "dotnet" -ErrorAction SilentlyContinue)) {
-        throw "dotnet CLI not found. Install the .NET SDK to build CSM.TmpeSync."
-    }
-
     $dotnetArguments = @("build", $ProjectPath, "-c", $Configuration, "/restore", "--nologo")
 
     foreach ($property in @(
@@ -535,11 +600,7 @@ if ($Build) {
     }
 
     Write-Host "[CSM.TmpeSync] Building add-on (Configuration=$Configuration)." -ForegroundColor Cyan
-    & dotnet @($dotnetArguments)
-
-    if ($LASTEXITCODE -ne 0) {
-        throw "dotnet build failed with exit code $LASTEXITCODE."
-    }
+    Invoke-Dotnet -Arguments $dotnetArguments -ErrorContext "dotnet build for CSM.TmpeSync"
 
     Write-Host "[CSM.TmpeSync] Dependency library refreshed under $LibRoot." -ForegroundColor DarkCyan
 }
@@ -549,8 +610,7 @@ if ($Install) {
         Write-Host "[CSM.TmpeSync] Skipping CSM install step (SkipCsmInstall)." -ForegroundColor DarkYellow
     }
     else {
-        $arguments = @("-Install", "-ModDirectory", $CsmModDirectory)
-        Invoke-CsmScript -Arguments $arguments
+        Install-CsmMod -Configuration $Configuration -ModDirectory $CsmModDirectory
     }
 
     if (-not (Test-Path $OutputDir)) {
