@@ -4,17 +4,15 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using CSM.TmpeSync.Util;
-#if GAME
 using ColossalFramework.UI;
 using UnityEngine;
-#endif
 
 namespace CSM.TmpeSync.Tmpe
 {
     internal static class TmpeToolAvailability
     {
-        private const string RestrictionMessage = "(CSM Multiplayer) Noch nicht synchronisierte TM:PE-Funktion – deaktiviert.";
-        private const string SupportedToolsTooltip = "Verfügbar: Tempolimits, Spurpfeile, Spurverbindungen, Fahrzeug-/Kreuzungsbeschränkungen, Vorfahrtsschilder, Parkverbote, Zeitgesteuerte Ampeln.";
+        private const string RestrictionMessage = "(CSM Multiplayer) TM:PE feature not yet synchronised – disabled.";
+        private const string SupportedToolsTooltip = "Available: Speed limits, lane arrows, lane connections, vehicle/junction restrictions, priority signs, parking restrictions, timed traffic lights.";
         private const string SupportedToolsLogList = "Speed Limits, Lane Arrows, Lane Connector, Vehicle Restrictions, Junction Restrictions, Priority Signs, Parking Restrictions, Timed Traffic Lights";
 
         private static bool _restrictionActive;
@@ -23,17 +21,14 @@ namespace CSM.TmpeSync.Tmpe
 #pragma warning restore 414
         private static bool? _restrictionOverride;
 
-#if GAME
         private static readonly Dictionary<UIComponent, ButtonSnapshot> ButtonSnapshots = new Dictionary<UIComponent, ButtonSnapshot>();
         private static readonly Dictionary<UIComponent, string> ButtonAuditStates = new Dictionary<UIComponent, string>();
         private static object _cachedMenuInstance;
         private static Type _cachedMenuType;
-#endif
 
         internal static void Tick(bool restrict)
         {
             var effectiveRestrict = _restrictionOverride ?? restrict;
-#if GAME
             if (effectiveRestrict)
             {
                 if (!_restrictionActive)
@@ -73,23 +68,10 @@ namespace CSM.TmpeSync.Tmpe
                 _restrictionActive = false;
                 _lastMenuSummary = null;
             }
-#else
-            if (_restrictionActive != effectiveRestrict)
-            {
-                _restrictionActive = effectiveRestrict;
-                if (effectiveRestrict)
-                    Log.Info(
-                        "TM:PE tool restriction (editor build) ENABLED – supported tools remain available ({0}).",
-                        SupportedToolsLogList);
-                else
-                    Log.Info("TM:PE tool restriction (editor build) DISABLED – all tools available again.");
-            }
-#endif
         }
 
         internal static void Reset()
         {
-#if GAME
             RestoreAll();
             _restrictionActive = false;
             _cachedMenuInstance = null;
@@ -97,10 +79,6 @@ namespace CSM.TmpeSync.Tmpe
             _loggedMissingMenu = false;
             _lastMenuSummary = null;
             ButtonAuditStates.Clear();
-#else
-            _restrictionActive = false;
-            _loggedMissingMenu = false;
-#endif
         }
 
         internal static void OverrideRestriction(bool? restrict)
@@ -119,7 +97,6 @@ namespace CSM.TmpeSync.Tmpe
                 Reset();
         }
 
-#if GAME
         private static readonly SupportedToolDescriptor[] SupportedTools =
         {
             new SupportedToolDescriptor("Speed Limits", new[] { "speed" }),
@@ -171,9 +148,7 @@ namespace CSM.TmpeSync.Tmpe
             }
 
             CleanupSnapshots();
-#if GAME
             CleanupAuditStates();
-#endif
             LogMenuSummary(enabledTools, disabledCount, disabledSamples);
             return true;
         }
@@ -241,7 +216,6 @@ namespace CSM.TmpeSync.Tmpe
             }
         }
 
-#if GAME
         private static void CleanupAuditStates()
         {
             foreach (var component in ButtonAuditStates.Keys.ToArray())
@@ -375,7 +349,6 @@ namespace CSM.TmpeSync.Tmpe
                 Log.Info("[TM:PE Menu] Disabling unsupported entry '{0}' (component='{1}', tooltip='{2}').", descriptor, componentName, tooltip);
             }
         }
-#endif
 
         private static void LogMenuSummary(HashSet<string> enabledTools, int disabledCount, List<string> disabledSamples)
         {

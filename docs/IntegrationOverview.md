@@ -1,93 +1,77 @@
-# Integrationsübersicht: CSM.TmpeSync vs. TM:PE & CSM
+# Integration overview: CSM.TmpeSync vs. TM:PE & CSM
 
-Diese Notiz fasst zusammen, wie das Add-on **CSM.TmpeSync** aufgebaut ist, welche
-Schnittstellen es aus den Projekten [Traffic Manager: President Edition (TM:PE)]
-und [Cities: Skylines Multiplayer (CSM)] verwendet und wie sich die aktuelle
-Architektur von älteren Integrationsversuchen unterscheidet.
+This note summarises how the **CSM.TmpeSync** add-on is structured, which
+interfaces it uses from [Traffic Manager: President Edition (TM:PE)] and
+[Cities: Skylines Multiplayer (CSM)], and how the current architecture differs
+from earlier integration attempts.
 
-## Projektaufbau in CSM.TmpeSync
+## Project layout inside CSM.TmpeSync
 
-Das Add-on ist als eigenständige .NET-3.5-Bibliothek organisiert. Die
-Projektdatei `src/CSM.TmpeSync.csproj` schaltet explizit auf Release-Builds mit
-den echten Cities-Skylines-DLLs, Harmony, `CSM.API.dll` und – bei Bedarf –
-`TrafficManager.dll` um und fällt im Debug-Build auf Stub-Implementierungen
-zurück.【F:src/CSM.TmpeSync.csproj†L3-L120】 Dadurch lässt sich das Projekt ohne
-Spielinstallation entwickeln, während produktive Builds dieselben Assemblys wie
-das Spiel laden.
+The add-on is organised as a standalone .NET 3.5 class library. The project file
+`src/CSM.TmpeSync/CSM.TmpeSync.csproj` targets the real Cities: Skylines
+assemblies, Harmony, `CSM.API.dll` and – if available – `TrafficManager.dll` and
+expects those DLLs to be present during every build.【F:src/CSM.TmpeSync/CSM.TmpeSync.csproj†L1-L198】
 
-Die Quellordner sind nach Verantwortlichkeiten getrennt:
+Source folders are grouped by responsibility:
 
-- `Mod/` beinhaltet den CSM-Mod-Entry-Point sowie die Verbindung zum
-  Multiplayer-Dienst.【F:src/CSM.TmpeSync.csproj†L122-L129】
-- `Net/` kapselt sämtliche Netzwerkverträge (Requests, Applied-Events,
-  Sperren) und deren Handler für serverautoritatives Anwenden sowie
-  Deferred-Operationen.【F:src/CSM.TmpeSync.csproj†L147-L204】
-- `Snapshot/` exportiert den aktuellen TM:PE-Zustand bei Verbindungsaufbau, um
-  neue Spieler zu synchronisieren.【F:src/CSM.TmpeSync.csproj†L206-L215】
-- `Tmpe/` und `HideCrosswalks/` stellen Adapter bereit, die entweder die echte
-  Mod-API ansprechen oder stubbasierte Zustände verwalten, falls die Mods nicht
-  geladen sind.【F:src/CSM.TmpeSync.csproj†L131-L145】【F:src/Tmpe/TmpeAdapter.cs†L9-L57】
-- `Util/` bündelt Infrastruktur wie Logging, Sperrverwaltung und – besonders
-  wichtig – die Kompatibilitätsschicht zur CSM-API.【F:src/CSM.TmpeSync.csproj†L131-L143】【F:src/Util/CsmCompat.cs†L1-L105】
+- `Mod/` contains the CSM mod entry point and the connection to the multiplayer
+  service.【F:src/CSM.TmpeSync/CSM.TmpeSync.csproj†L118-L135】
+- `Net/` encapsulates all network contracts (requests, applied events, locks) and
+  their handlers for host-authoritative execution and deferred operations.【F:src/CSM.TmpeSync/CSM.TmpeSync.csproj†L143-L180】
+- `Snapshot/` exports the current TM:PE state when a player connects to
+  synchronise newcomers.【F:src/CSM.TmpeSync/CSM.TmpeSync.csproj†L182-L190】
+- `Tmpe/` and `HideCrosswalks/` provide adapters that either call the actual mod
+  APIs or gracefully skip behaviour when the mods are missing.【F:src/CSM.TmpeSync/CSM.TmpeSync.csproj†L136-L141】【F:src/Tmpe/TmpeAdapter.cs†L9-L468】
+- `Util/` bundles infrastructure such as logging, entity locks and, most
+  importantly, the compatibility layer for the CSM API.【F:src/CSM.TmpeSync/CSM.TmpeSync.csproj†L136-L149】【F:src/Util/CsmCompat.cs†L1-L409】
 
-## TM:PE-Integration
+## TM:PE integration
 
-`TmpeAdapter` entdeckt zur Laufzeit, ob die echte TM:PE-Assembly geladen ist, und
-protokolliert andernfalls einen Stub-Betrieb. Jeder Synchronisationsbefehl
-(Spurgeschwindigkeit, Pfeile, Fahrzeugrestriktionen, Lane-Connector usw.) wird
-im Adapter entgegengenommen, intern gespeichert und – sofern TM:PE verfügbar ist
-– an die entsprechenden Manager weiterzureichen vorbereitet.【F:src/Tmpe/TmpeAdapter.cs†L9-L235】
-Der Snapshot-Export nutzt dieselben Adapterzustände, sodass Stub- und Echtbetrieb
-identisch funktionieren.【F:docs/TmpeFeatureSyncChecklist.md†L9-L94】 Damit ist
-keine separate „TM:PE-API“ im Projekt nötig; stattdessen wird auf die existierende
-Assembly reflektiert, sobald sie vorhanden ist.
+`TmpeAdapter` discovers at runtime whether the real TM:PE assembly is loaded and
+logs a warning otherwise. Every synchronisation command (speed limits, lane
+arrows, vehicle restrictions, lane connector etc.) is received by the adapter,
+stored internally and – if TM:PE is present – passed through to the respective
+managers.【F:src/Tmpe/TmpeAdapter.cs†L9-L468】 The snapshot export uses the same
+adapter state so the behaviour is identical between single- and multiplayer
+sessions.【F:docs/TmpeFeatureSyncChecklist.md†L9-L186】 No separate "TM:PE API" is
+required; reflection is used to access the existing assembly.
 
-Im Gegensatz zum historischen `CSM-API-Implementation`-Branch in TM:PE (der
-versuchte, Multiplayer-Funktionen direkt im TM:PE-Hauptprojekt einzubetten)
-lagert CSM.TmpeSync sämtliche Multiplayer-spezifischen Klassen in dieses Add-on
-aus. Dadurch bleiben Upstream-TM:PE-Updates unabhängig, während das Add-on nur
-über klar definierte Adapterpunkte andockt.【F:src/Tmpe/TmpeAdapter.cs†L51-L60】
+Unlike the historical `CSM-API-Implementation` branch inside TM:PE (which tried
+embedding multiplayer features into the main mod), CSM.TmpeSync keeps all
+multiplayer-specific classes inside this add-on. Upstream TM:PE updates remain
+independent, while the add-on connects via clearly defined adapter points.【F:src/Tmpe/TmpeAdapter.cs†L51-L60】
 
-## Nutzung der CSM-API
+## Using the CSM API
 
-Das Add-on verlässt sich auf statische Methoden in `CSM.API.Command`, um Daten
-an Clients (`SendToClient`, `SendToClients`, `SendToAll`) zu verschicken, und auf
-Registrierungs-Hooks, um einen dedizierten Nachrichtentyp einzuhängen. Die Klasse
-`CsmCompat` sucht diese Methoden per Reflection und loggt, welche Signaturen
-erfolgreich aufgelöst wurden.【F:src/Util/CsmCompat.cs†L12-L104】 Fehlen die Hooks,
-meldet das Log beispielsweise „Unable to register connection – CSM.API register
-hook missing“ und keine TM:PE-Daten werden ausgetauscht.【F:src/Util/CsmCompat.cs†L312-L409】
-Das erklärt aktuelle Integrationsprobleme: ohne die passenden Hooks in der
-laufenden CSM-Version schlägt bereits die Registrierung des Sync-Channels fehl.
+The add-on relies on static methods in `CSM.API.Command` to send data to clients
+(`SendToClient`, `SendToClients`, `SendToAll`) and on registration hooks to mount
+a dedicated message type. `CsmCompat` resolves these methods via reflection and
+logs which signatures were found.【F:src/Util/CsmCompat.cs†L12-L104】 If hooks are
+missing the log will contain entries such as "Unable to register connection –
+CSM.API register hook missing" and no TM:PE data is exchanged.【F:src/Util/CsmCompat.cs†L297-L409】
 
-Der Multiplayer-Fluss sieht vereinfacht wie folgt aus:
+The multiplayer flow looks as follows:
 
-1. `TmpeSyncConnection` registriert beim Start einen neuen Kanal bei der
-   CSM-API und bindet Request-/Applied-Handler ein.【F:src/Mod/TmpeSyncConnection.cs†L1-L111】【F:src/Util/CsmCompat.cs†L297-L409】
-2. Clients senden Änderungen über `CSM.API.Command.SendToServer`; der Server
-   validiert sie, führt sie aus und verteilt das bestätigte Ergebnis über
-   `SendToClients/SendToAll` an die restlichen Spieler.【F:src/Net/Handlers/SetSpeedLimitRequestHandler.cs†L14-L66】
-3. Snapshots und Deferred-Operationen sorgen dafür, dass nachladende Spieler die
-   vollständige TM:PE-Konfiguration erhalten.【F:docs/TmpeFeatureSyncChecklist.md†L9-L186】
+1. `TmpeSyncConnection` registers a new channel with the CSM API during startup
+   and wires up request/applied handlers.【F:src/Mod/TmpeSyncConnection.cs†L1-L111】【F:src/Util/CsmCompat.cs†L297-L409】
+2. Clients send changes through `CSM.API.Command.SendToServer`; the server
+   validates them, applies the result in the simulation and broadcasts the
+   confirmed change via `SendToClients/SendToAll`.【F:src/Net/Handlers/SetSpeedLimitRequestHandler.cs†L14-L66】
+3. Snapshots and deferred operations ensure that late joiners receive the full
+   TM:PE configuration.【F:docs/TmpeFeatureSyncChecklist.md†L9-L186】
 
-## Konsequenzen für die Fehlersuche
+## Debugging implications
 
-- **TM:PE muss nicht modifiziert werden**, solange `TrafficManager.dll` die
-  bekannten Manager-Typen bereitstellt – der Adapter kann andernfalls auf den
-  Stub-Zustand zurückfallen.【F:src/Tmpe/TmpeAdapter.cs†L9-L66】
-- **CSM muss die erwarteten API-Hooks exportieren.** Prüfe mit dem Log-Referenz
-  (`docs/LogReference.md`), ob `CsmCompat` die Methoden `SendToClient` und
-  `RegisterConnection` findet. Fehlen sie, ist ein CSM-Build mit vollständiger
-  API erforderlich.【F:docs/LogReference.md†L23-L38】
-- **Repository-Struktur:** CSM.TmpeSync konzentriert sich auf Multiplayer-Glue
-  und nutzt Stubs, während das offizielle TM:PE-Repo weiterhin alle
-  Verkehrslogik enthält. Damit bleiben die Verantwortlichkeiten klar getrennt
-  und Upstream-Updates lassen sich leichter übernehmen.【F:src/Tmpe/TmpeAdapter.cs†L51-L60】
-- **Editor-/Stub-Builds** loggen nun, welche Befehle gesendet würden, falls
-  keine echten CSM-Clients verbunden sind. Die neue Stub-API protokolliert alle
-  Kommandos mit dem Präfix `[CSM.API Stub]`, sodass sich TM:PE-Aktionen ohne
-  Multiplayer-Verbindung nachvollziehen lassen.【F:src/Stubs/CsmApiStubs.cs†L9-L372】
+- **TM:PE does not need to be modified** as long as `TrafficManager.dll` exposes
+  the known manager types – the adapter handles optional functionality itself.【F:src/Tmpe/TmpeAdapter.cs†L9-L66】
+- **CSM must export the expected API hooks.** Consult the log reference
+  (`docs/LogReference.md`) to verify that `CsmCompat` finds `SendToClient` and
+  `RegisterConnection`. If they are missing, rebuild CSM with the full API.【F:docs/LogReference.md†L23-L38】
+- **Repository structure:** CSM.TmpeSync focuses on the multiplayer glue and the
+  adapter layer, whereas the official TM:PE repository retains the full traffic
+  logic. The responsibilities stay cleanly separated and upstream updates are
+  easier to adopt.【F:src/Tmpe/TmpeAdapter.cs†L51-L60】
 
-Diese Übersicht sollte helfen, die Unterschiede zwischen den Repositories und die
-benötigten Schnittstellen zu verstehen sowie aktuelle Hook-Probleme gezielt zu
-analysieren.
+This overview should help you understand the differences between the
+repositories, the required integration hooks and the expected data flow so you
+can diagnose hook issues quickly.

@@ -6,9 +6,7 @@ using System.Linq;
 using System.Reflection;
 using System.Runtime.Serialization;
 using System.Runtime.Serialization.Json;
-#if GAME
 using ColossalFramework.Plugins;
-#endif
 
 namespace CSM.TmpeSync.Util
 {
@@ -155,14 +153,9 @@ namespace CSM.TmpeSync.Util
 
         private static IEnumerable<string> GetInstalledCsmVersions()
         {
-#if GAME
             return GetInstalledVersionsFromPlugins();
-#else
-            return GetInstalledVersionsFromAssemblies();
-#endif
         }
 
-#if GAME
         private static IEnumerable<string> GetInstalledVersionsFromPlugins()
         {
             var versions = new List<string>();
@@ -246,50 +239,6 @@ namespace CSM.TmpeSync.Util
                 return null;
             }
         }
-#else
-        private static IEnumerable<string> GetInstalledVersionsFromAssemblies()
-        {
-            var versions = new List<string>();
-            try
-            {
-                foreach (var assembly in AppDomain.CurrentDomain.GetAssemblies())
-                {
-                    if (assembly == null)
-                        continue;
-
-                    AssemblyName name;
-                    try
-                    {
-                        name = assembly.GetName();
-                    }
-                    catch
-                    {
-                        continue;
-                    }
-
-                    if (name == null)
-                        continue;
-
-                    var simpleName = name.Name ?? string.Empty;
-                    if (!simpleName.StartsWith("CSM", StringComparison.OrdinalIgnoreCase) &&
-                        !simpleName.StartsWith("CitiesSkylinesMultiplayer", StringComparison.OrdinalIgnoreCase))
-                    {
-                        continue;
-                    }
-
-                    var version = GetAssemblyVersion(assembly);
-                    if (!string.IsNullOrEmpty(version))
-                        versions.Add(version);
-                }
-            }
-            catch (Exception ex)
-            {
-                Log.Warn("CSM version check: Failed to inspect loaded assemblies: {0}", ex);
-            }
-
-            return versions;
-        }
-#endif
 
         private static string GetAssemblyVersion(Assembly assembly)
         {
