@@ -117,6 +117,12 @@ namespace CSM.TmpeSync.Util
         private static readonly object RegisterConnectionTarget;
         private static readonly MethodInfo UnregisterConnectionMethod;
         private static readonly object UnregisterConnectionTarget;
+        private static readonly Type ModSupportType;
+        private static readonly PropertyInfo ModSupportInstanceProperty;
+        private static readonly PropertyInfo ConnectedModsProperty;
+        private static readonly Type CommandInternalType;
+        private static readonly FieldInfo CommandInternalInstanceField;
+        private static readonly MethodInfo CommandInternalRefreshMethod;
 
         private static readonly HashSet<string> LoggedDiagnosticContexts = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         private static bool _loggedMissingSendToClient;
@@ -127,6 +133,13 @@ namespace CSM.TmpeSync.Util
         private static bool _stubSimulationAutostartAttempted;
 
         private const int DefaultStubClientId = 1;
+
+        internal enum ConnectionRegistrationResult
+        {
+            Failure,
+            Registered,
+            AlreadyRegistered
+        }
 
         static CsmCompat()
         {
@@ -180,6 +193,42 @@ namespace CSM.TmpeSync.Util
 
             if (SendToServerMethod != null)
                 Log.Debug("CSM compat detected SendToServer hook: {0}", DescribeMethod(SendToServerMethod));
+
+            foreach (var assembly in CandidateAssemblies)
+            {
+                if (assembly == null)
+                    continue;
+
+                try
+                {
+                    foreach (var type in SafeGetTypes(assembly))
+                    {
+                        if (ModSupportType == null && string.Equals(type.FullName, "CSM.Mods.ModSupport", StringComparison.Ordinal))
+                        {
+                            ModSupportType = type;
+                            ModSupportInstanceProperty = type.GetProperty("Instance", BindingFlags.Public | BindingFlags.Static | BindingFlags.NonPublic);
+                            ConnectedModsProperty = type.GetProperty("ConnectedMods", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                        }
+
+                        if (CommandInternalType == null && string.Equals(type.FullName, "CSM.Commands.CommandInternal", StringComparison.Ordinal))
+                        {
+                            CommandInternalType = type;
+                            CommandInternalInstanceField = type.GetField("Instance", BindingFlags.Public | BindingFlags.Static | BindingFlags.NonPublic);
+                            CommandInternalRefreshMethod = type.GetMethod("RefreshModel", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic, null, Type.EmptyTypes, null);
+                        }
+
+                        if (ModSupportType != null && CommandInternalType != null)
+                            break;
+                    }
+                }
+                catch
+                {
+                    // ignored – handled in diagnostics later
+                }
+
+                if (ModSupportType != null && CommandInternalType != null)
+                    break;
+            }
         }
 
         private static IEnumerable<Assembly> EnumerateCandidateAssemblies()
@@ -572,20 +621,24 @@ namespace CSM.TmpeSync.Util
             return builder.ToString();
         }
 
-        internal static bool RegisterConnection(Connection connection)
+        internal static ConnectionRegistrationResult RegisterConnection(Connection connection)
         {
             if (connection == null)
                 throw new ArgumentNullException(nameof(connection));
 
             if (RegisterConnectionMethod == null)
             {
+                var fallbackResult = RegisterViaModSupport(connection);
+                if (fallbackResult != ConnectionRegistrationResult.Failure)
+                    return fallbackResult;
+
                 Log.Warn("Unable to register connection – CSM.API register hook missing");
                 if (!_loggedMissingRegister)
                 {
                     _loggedMissingRegister = true;
                     LogDiagnostics("Register hook missing", true);
                 }
-                return false;
+                return ConnectionRegistrationResult.Failure;
             }
 
             Log.Debug("Registering connection '{0}' via {1}", SafeName(connection), DescribeMethod(RegisterConnectionMethod));
@@ -595,7 +648,7 @@ namespace CSM.TmpeSync.Util
                 if (method == null)
                 {
                     Log.Warn("Failed to prepare register connection method for '{0}'", SafeName(connection));
-                    return false;
+                    return ConnectionRegistrationResult.Failure;
                 }
 
                 var parameters = method.GetParameters();
@@ -603,12 +656,12 @@ namespace CSM.TmpeSync.Util
                 var target = method.IsStatic ? RegisterConnectionTarget : (RegisterConnectionTarget ?? ResolveTarget(RegisterConnectionMethod));
                 method.Invoke(target, args);
                 Log.Info("Registered connection '{0}' with CSM", SafeName(connection));
-                return true;
+                return ConnectionRegistrationResult.Registered;
             }
             catch (Exception ex)
             {
                 Log.Warn("Failed to register connection: {0}", ex);
-                return false;
+                return ConnectionRegistrationResult.Failure;
             }
         }
 
@@ -619,6 +672,10 @@ namespace CSM.TmpeSync.Util
 
             if (UnregisterConnectionMethod == null)
             {
+                var fallbackResult = UnregisterViaModSupport(connection);
+                if (fallbackResult)
+                    return true;
+
                 Log.Warn("Unable to unregister connection – CSM.API unregister hook missing");
                 if (!_loggedMissingUnregister)
                 {
@@ -648,6 +705,152 @@ namespace CSM.TmpeSync.Util
             {
                 Log.Warn("Failed to unregister connection: {0}", ex);
                 return false;
+            }
+        }
+
+        private static ConnectionRegistrationResult RegisterViaModSupport(Connection connection)
+        {
+            if (connection == null)
+                return ConnectionRegistrationResult.Failure;
+
+            if (ModSupportType == null || ModSupportInstanceProperty == null || ConnectedModsProperty == null)
+                return ConnectionRegistrationResult.Failure;
+
+            object modSupport;
+            try
+            {
+                modSupport = ModSupportInstanceProperty.GetValue(null, null);
+            }
+            catch (Exception ex)
+            {
+                Log.Warn("Unable to resolve CSM.Mods.ModSupport instance: {0}", ex);
+                return ConnectionRegistrationResult.Failure;
+            }
+
+            if (modSupport == null)
+                return ConnectionRegistrationResult.Failure;
+
+            object listObj;
+            try
+            {
+                listObj = ConnectedModsProperty.GetValue(modSupport, null);
+            }
+            catch (Exception ex)
+            {
+                Log.Warn("Unable to access CSM.Mods.ModSupport.ConnectedMods: {0}", ex);
+                return ConnectionRegistrationResult.Failure;
+            }
+
+            if (!(listObj is IEnumerable enumerable))
+                return ConnectionRegistrationResult.Failure;
+
+            foreach (var item in enumerable)
+            {
+                if (item == null)
+                    continue;
+
+                if (ReferenceEquals(item, connection) || item.GetType() == connection.GetType())
+                {
+                    Log.Info("Connection '{0}' already registered with CSM (detected via ModSupport).", SafeName(connection));
+                    return ConnectionRegistrationResult.AlreadyRegistered;
+                }
+            }
+
+            if (listObj is IList list)
+            {
+                list.Add(connection);
+            }
+            else
+            {
+                var addMethod = listObj.GetType().GetMethod("Add", BindingFlags.Instance | BindingFlags.Public, null, new[] { typeof(object) }, null)
+                                ?? listObj.GetType().GetMethod("Add", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                if (addMethod == null)
+                    return ConnectionRegistrationResult.Failure;
+
+                var parameters = addMethod.GetParameters();
+                if (parameters.Length == 1 && parameters[0].ParameterType.IsAssignableFrom(connection.GetType()))
+                {
+                    addMethod.Invoke(listObj, new object[] { connection });
+                }
+                else if (parameters.Length == 1 && parameters[0].ParameterType.IsAssignableFrom(typeof(Connection)))
+                {
+                    addMethod.Invoke(listObj, new object[] { connection });
+                }
+                else
+                {
+                    return ConnectionRegistrationResult.Failure;
+                }
+            }
+
+            RefreshCommandModel();
+            Log.Info("Registered connection '{0}' with CSM via ModSupport fallback.", SafeName(connection));
+            return ConnectionRegistrationResult.Registered;
+        }
+
+        private static bool UnregisterViaModSupport(Connection connection)
+        {
+            if (connection == null)
+                return false;
+
+            if (ModSupportType == null || ModSupportInstanceProperty == null || ConnectedModsProperty == null)
+                return false;
+
+            object modSupport;
+            try
+            {
+                modSupport = ModSupportInstanceProperty.GetValue(null, null);
+            }
+            catch (Exception ex)
+            {
+                Log.Warn("Unable to resolve CSM.Mods.ModSupport instance for unregister: {0}", ex);
+                return false;
+            }
+
+            if (modSupport == null)
+                return false;
+
+            object listObj;
+            try
+            {
+                listObj = ConnectedModsProperty.GetValue(modSupport, null);
+            }
+            catch (Exception ex)
+            {
+                Log.Warn("Unable to access CSM.Mods.ModSupport.ConnectedMods for unregister: {0}", ex);
+                return false;
+            }
+
+            if (!(listObj is IList list))
+                return false;
+
+            if (!list.Contains(connection))
+            {
+                Log.Debug("Connection '{0}' not present in ModSupport list during unregister – skipping.", SafeName(connection));
+                return true;
+            }
+
+            list.Remove(connection);
+            RefreshCommandModel();
+            Log.Info("Unregistered connection '{0}' from CSM via ModSupport fallback.", SafeName(connection));
+            return true;
+        }
+
+        private static void RefreshCommandModel()
+        {
+            if (CommandInternalInstanceField == null || CommandInternalRefreshMethod == null)
+                return;
+
+            try
+            {
+                var instance = CommandInternalInstanceField.GetValue(null);
+                if (instance != null)
+                {
+                    CommandInternalRefreshMethod.Invoke(instance, null);
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Warn("Failed to refresh CSM command model: {0}", ex);
             }
         }
 
@@ -703,6 +906,12 @@ namespace CSM.TmpeSync.Util
             Log.Info("  SendToServer method: {0}", DescribeMethod(SendToServerMethod));
             Log.Info("  SimulateClientConnected method: {0}", DescribeMethod(SimulateClientConnectedMethod));
             Log.Info("  GetSimulatedClients method: {0}", DescribeMethod(GetSimulatedClientsMethod));
+            Log.Info("  ModSupport type: {0}", ModSupportType?.FullName ?? "<missing>");
+            Log.Info("  ModSupport.Instance property: {0}", DescribeMember(ModSupportInstanceProperty));
+            Log.Info("  ModSupport.ConnectedMods property: {0}", DescribeMember(ConnectedModsProperty));
+            Log.Info("  CommandInternal type: {0}", CommandInternalType?.FullName ?? "<missing>");
+            Log.Info("  CommandInternal.Instance field: {0}", DescribeMember(CommandInternalInstanceField));
+            Log.Info("  CommandInternal.RefreshModel method: {0}", DescribeMethod(CommandInternalRefreshMethod));
 
             var ignoreInstance = IgnoreHelperInstance == null
                 ? "<missing>"
