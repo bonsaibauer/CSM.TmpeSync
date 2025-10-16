@@ -110,10 +110,8 @@ The script clears any existing installation of the mod and copies the DLL (and o
 
 ## Diagnostics and logs
 
-* Runtime logs are written to `%LOCALAPPDATA%\Colossal Order\Cities_Skylines\CSM.TmpeSync\Logs\CSM.TmpeSync.log`.
+* Runtime logs are written to `%LOCALAPPDATA%\Colossal Order\Cities_Skylines\CSM.TmpeSync\Logs\CSM.TmpeSync_<YYYY-MM-DD>.log` (one file per day).
 * The folder can be opened quickly via **Win + R** → paste the path above → press **Enter**.
-* Messages also appear in the in-game debug panel (`Esc` → cog wheel → **Debug Log**) and, when the game is launched with
-  `-logFile`, inside the Unity player log.
 
 For a more detailed explanation of the integration and maintenance workflows consult the documents inside the `docs/` folder –
 for example [IntegrationOverview.md](docs/IntegrationOverview.md) and [CSM-Subtree-Setup.md](docs/CSM-Subtree-Setup.md).
