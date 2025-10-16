@@ -89,6 +89,19 @@ namespace CSM.TmpeSync.Tmpe
         private static int ExtVehicleServiceMask;
         private static int ExtVehicleEmergencyMask;
         private static int ExtVehicleTramMask;
+        private static int ExtVehiclePassengerTrainMask;
+        private static int ExtVehicleCargoTrainMask;
+        private static int ExtVehicleBicycleMask;
+        private static int ExtVehiclePedestrianMask;
+        private static int ExtVehiclePassengerShipMask;
+        private static int ExtVehicleCargoShipMask;
+        private static int ExtVehiclePassengerPlaneMask;
+        private static int ExtVehicleCargoPlaneMask;
+        private static int ExtVehicleHelicopterMask;
+        private static int ExtVehicleCableCarMask;
+        private static int ExtVehiclePassengerFerryMask;
+        private static int ExtVehiclePassengerBlimpMask;
+        private static int ExtVehicleTrolleybusMask;
 
         private static readonly object LaneConnectionManagerInstance;
         private static readonly MethodInfo LaneConnectionAddMethod;
@@ -306,6 +319,19 @@ namespace CSM.TmpeSync.Tmpe
                     ExtVehicleServiceMask = GetExtVehicleMask("Service");
                     ExtVehicleEmergencyMask = GetExtVehicleMask("Emergency");
                     ExtVehicleTramMask = GetExtVehicleMask("Tram");
+                    ExtVehiclePassengerTrainMask = GetExtVehicleMask("PassengerTrain");
+                    ExtVehicleCargoTrainMask = GetExtVehicleMask("CargoTrain");
+                    ExtVehicleBicycleMask = GetExtVehicleMask("Bicycle");
+                    ExtVehiclePedestrianMask = GetExtVehicleMask("Pedestrian");
+                    ExtVehiclePassengerShipMask = GetExtVehicleMask("PassengerShip");
+                    ExtVehicleCargoShipMask = GetExtVehicleMask("CargoShip");
+                    ExtVehiclePassengerPlaneMask = GetExtVehicleMask("PassengerPlane");
+                    ExtVehicleCargoPlaneMask = GetExtVehicleMask("CargoPlane");
+                    ExtVehicleHelicopterMask = GetExtVehicleMask("Helicopter");
+                    ExtVehicleCableCarMask = GetExtVehicleMask("CableCar");
+                    ExtVehiclePassengerFerryMask = GetExtVehicleMask("PassengerFerry");
+                    ExtVehiclePassengerBlimpMask = GetExtVehicleMask("PassengerBlimp");
+                    ExtVehicleTrolleybusMask = GetExtVehicleMask("Trolleybus");
 
                     VehicleRestrictionsSetMethod = managerType.GetMethod(
                         "SetAllowedVehicleTypes",
@@ -1361,6 +1387,32 @@ namespace CSM.TmpeSync.Tmpe
                 mask |= ExtVehicleEmergencyMask;
             if ((restrictions & VehicleRestrictionFlags.Tram) != 0)
                 mask |= ExtVehicleTramMask;
+            if ((restrictions & VehicleRestrictionFlags.PassengerTrain) != 0)
+                mask |= ExtVehiclePassengerTrainMask;
+            if ((restrictions & VehicleRestrictionFlags.CargoTrain) != 0)
+                mask |= ExtVehicleCargoTrainMask;
+            if ((restrictions & VehicleRestrictionFlags.Bicycle) != 0)
+                mask |= ExtVehicleBicycleMask;
+            if ((restrictions & VehicleRestrictionFlags.Pedestrian) != 0)
+                mask |= ExtVehiclePedestrianMask;
+            if ((restrictions & VehicleRestrictionFlags.PassengerShip) != 0)
+                mask |= ExtVehiclePassengerShipMask;
+            if ((restrictions & VehicleRestrictionFlags.CargoShip) != 0)
+                mask |= ExtVehicleCargoShipMask;
+            if ((restrictions & VehicleRestrictionFlags.PassengerPlane) != 0)
+                mask |= ExtVehiclePassengerPlaneMask;
+            if ((restrictions & VehicleRestrictionFlags.CargoPlane) != 0)
+                mask |= ExtVehicleCargoPlaneMask;
+            if ((restrictions & VehicleRestrictionFlags.Helicopter) != 0)
+                mask |= ExtVehicleHelicopterMask;
+            if ((restrictions & VehicleRestrictionFlags.CableCar) != 0)
+                mask |= ExtVehicleCableCarMask;
+            if ((restrictions & VehicleRestrictionFlags.PassengerFerry) != 0)
+                mask |= ExtVehiclePassengerFerryMask;
+            if ((restrictions & VehicleRestrictionFlags.PassengerBlimp) != 0)
+                mask |= ExtVehiclePassengerBlimpMask;
+            if ((restrictions & VehicleRestrictionFlags.Trolleybus) != 0)
+                mask |= ExtVehicleTrolleybusMask;
 
             return Enum.ToObject(ExtVehicleTypeEnumType, mask);
         }
@@ -1384,6 +1436,32 @@ namespace CSM.TmpeSync.Tmpe
                 result |= VehicleRestrictionFlags.Emergency;
             if ((mask & ExtVehicleTramMask) != 0)
                 result |= VehicleRestrictionFlags.Tram;
+            if ((mask & ExtVehiclePassengerTrainMask) != 0)
+                result |= VehicleRestrictionFlags.PassengerTrain;
+            if ((mask & ExtVehicleCargoTrainMask) != 0)
+                result |= VehicleRestrictionFlags.CargoTrain;
+            if ((mask & ExtVehicleBicycleMask) != 0)
+                result |= VehicleRestrictionFlags.Bicycle;
+            if ((mask & ExtVehiclePedestrianMask) != 0)
+                result |= VehicleRestrictionFlags.Pedestrian;
+            if ((mask & ExtVehiclePassengerShipMask) != 0)
+                result |= VehicleRestrictionFlags.PassengerShip;
+            if ((mask & ExtVehicleCargoShipMask) != 0)
+                result |= VehicleRestrictionFlags.CargoShip;
+            if ((mask & ExtVehiclePassengerPlaneMask) != 0)
+                result |= VehicleRestrictionFlags.PassengerPlane;
+            if ((mask & ExtVehicleCargoPlaneMask) != 0)
+                result |= VehicleRestrictionFlags.CargoPlane;
+            if ((mask & ExtVehicleHelicopterMask) != 0)
+                result |= VehicleRestrictionFlags.Helicopter;
+            if ((mask & ExtVehicleCableCarMask) != 0)
+                result |= VehicleRestrictionFlags.CableCar;
+            if ((mask & ExtVehiclePassengerFerryMask) != 0)
+                result |= VehicleRestrictionFlags.PassengerFerry;
+            if ((mask & ExtVehiclePassengerBlimpMask) != 0)
+                result |= VehicleRestrictionFlags.PassengerBlimp;
+            if ((mask & ExtVehicleTrolleybusMask) != 0)
+                result |= VehicleRestrictionFlags.Trolleybus;
 
             return result;
         }
@@ -1527,8 +1605,8 @@ namespace CSM.TmpeSync.Tmpe
                 var startNode = segment.IsStartNode(nodeId);
 
                 SetUturnAllowedMethod.Invoke(JunctionRestrictionsManagerInstance, new object[] { segmentId, startNode, state.AllowUTurns });
-                SetNearTurnOnRedAllowedMethod.Invoke(JunctionRestrictionsManagerInstance, new object[] { segmentId, startNode, state.AllowTurningOnRed });
-                SetFarTurnOnRedAllowedMethod.Invoke(JunctionRestrictionsManagerInstance, new object[] { segmentId, startNode, state.AllowTurningOnRed });
+                SetNearTurnOnRedAllowedMethod.Invoke(JunctionRestrictionsManagerInstance, new object[] { segmentId, startNode, state.AllowNearTurnOnRed });
+                SetFarTurnOnRedAllowedMethod.Invoke(JunctionRestrictionsManagerInstance, new object[] { segmentId, startNode, state.AllowFarTurnOnRed });
                 SetLaneChangingAllowedMethod.Invoke(JunctionRestrictionsManagerInstance, new object[] { segmentId, startNode, state.AllowLaneChangesWhenGoingStraight });
                 SetEnteringBlockedMethod.Invoke(JunctionRestrictionsManagerInstance, new object[] { segmentId, startNode, state.AllowEnterWhenBlocked });
                 SetPedestrianCrossingMethod.Invoke(JunctionRestrictionsManagerInstance, new object[] { segmentId, startNode, state.AllowPedestrianCrossing });
@@ -1595,7 +1673,8 @@ namespace CSM.TmpeSync.Tmpe
             state.AllowLaneChangesWhenGoingStraight = allowLaneChange;
             state.AllowEnterWhenBlocked = allowEnter;
             state.AllowPedestrianCrossing = allowPedestrians;
-            state.AllowTurningOnRed = allowNear && allowFar;
+            state.AllowNearTurnOnRed = allowNear;
+            state.AllowFarTurnOnRed = allowFar;
             return true;
         }
 
