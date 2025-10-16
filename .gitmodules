@@ -1,8 +1,7 @@
-[submodule "submodules/CMS"]
-	path = submodules/CMS
-	url = https://github.com/bonsaibauer/CSM
-	branch = master
 [submodule "submodules/TMPE"]
 	path = submodules/TMPE
 	url = https://github.com/bonsaibauer/TMPE
 	branch = master
+[submodule "submodules/CSM"]
+	path = submodules/CSM
+	url = https://github.com/bonsaibauer/CSM
