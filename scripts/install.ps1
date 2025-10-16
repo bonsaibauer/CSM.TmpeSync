@@ -28,7 +28,7 @@ if (-not $assemblies) {
     throw "No CSM.TmpeSync assemblies were found next to install.ps1."
 }
 
-Write-Host "Installing CSM.TmpeSync to $ModDirectory..."
+Write-Host "[CSM.TmpeSync] Installing release build into $ModDirectory" -ForegroundColor Cyan
 Remove-Item -Path $ModDirectory -Recurse -ErrorAction Ignore
 New-Item -ItemType Directory -Path $ModDirectory -Force | Out-Null
 
@@ -41,4 +41,4 @@ foreach ($pdb in $pdbFiles) {
     Copy-Item -Path $pdb.FullName -Destination $ModDirectory -Force
 }
 
-Write-Host "Installation complete. Enable the mod inside Cities: Skylines."
+Write-Host "[CSM.TmpeSync] Installation complete. Enable the mod inside Cities: Skylines." -ForegroundColor Green

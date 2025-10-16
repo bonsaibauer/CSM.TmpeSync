@@ -17,84 +17,72 @@ The following sections explain how to build the project locally, install the add
 
 Both subtrees stay connected to their official upstream repositories so that updates can be merged regularly while keeping local adjustments in sync.
 
-## Prerequisites
+## Build & install
+
+### Prerequisites
 
 * PowerShell 7 (`pwsh`) – required to run the scripts in `scripts/`.
-* Visual Studio 2022 (or the Visual Studio 2022 Build Tools) – provides `MSBuild.exe` for the CSM build.
+* Visual Studio 2022 (or the Visual Studio 2022 Build Tools) – provides `MSBuild.exe` for the CSM subtree build.
 * .NET SDK 6.0 (or newer) – used to build the add-on via the `dotnet` CLI.
-* To compile against the real game assemblies:
-  * Cities: Skylines must be installed locally (Steam or GOG). The DLLs from `Cities_Data/Managed` are required.
-  * [CitiesHarmony](https://steamcommunity.com/workshop/filedetails/?id=2040656402) (Workshop 2040656402) must be installed so that `CitiesHarmony.Harmony.dll` is available.
-  * The CSM main project is built automatically through the CSM subtree. If you skip the CSM build step, ensure that `CSM.API.dll` is available either from the subtree (`submodules/CSM/`) or inside a local `lib/` folder.
-  * Optional: TM:PE should be installed when you reference `TrafficManager.dll` directly.
+* Cities: Skylines must be installed locally so that the script can copy the game assemblies. The Steam version is supported out of the box; GOG works as long as the `Cities_Data/Managed` folder is available.
+* Install the [CitiesHarmony](https://steamcommunity.com/workshop/filedetails/?id=2040656402) workshop item. Optional but recommended: keep TM:PE installed so that `TrafficManager.dll` can be mirrored as well.
 
-> ⚠️ Do not add proprietary game DLLs to the repository. Reference the files from your local installation instead.
+> ⚠️ Do not add proprietary game DLLs to the repository. The build script collects everything inside `lib/` during the build.
 
-## Build script (`pwsh`)
+### One-time configuration
 
-The repository mirrors the CSM build flow: `scripts/build.ps1` invokes the CSM build script first and then compiles the add-on.
+1. Initialise the configuration once so that the build script knows where Cities: Skylines is installed:
 
-### Preparation
-
-1. Optional: Provide a `Directory.Build.props` file at the repository root so that paths to your game installation can be resolved automatically:
-
-   ```xml
-   <?xml version="1.0" encoding="utf-8"?>
-   <Project>
-     <PropertyGroup>
-       <!-- Adjust the paths to your installation -->
-       <CitiesSkylinesDir>C:\Program Files (x86)\Steam\steamapps\common\Cities_Skylines</CitiesSkylinesDir>
-       <HarmonyDllDir>C:\Program Files (x86)\Steam\steamapps\workshop\content\255710\2040656402</HarmonyDllDir>
-       <CsmApiDllPath>C:\Program Files (x86)\Steam\steamapps\workshop\content\255710\1558438291\CSM.API.dll</CsmApiDllPath>
-       <!-- Optional, only if needed: -->
-       <TmpeDir>C:\Program Files (x86)\Steam\steamapps\workshop\content\255710\1637663252</TmpeDir>
-     </PropertyGroup>
-   </Project>
+   ```powershell
+   pwsh ./scripts/build.ps1 -Configure
    ```
 
-   The build script reads these properties automatically.
+   The prompt only asks for the Cities: Skylines installation directory. Optional questions let you override the destination folders for the CSM and CSM.TmpeSync mods. All answers are stored in `scripts/build-settings.json` and re-used automatically.
 
-If you work with your own fork, keep the embedded CSM sources up to date via the workflow described in [CSM subtree setup & workflow](docs/CSM-Subtree-Setup.md).
+2. (Optional) Keep the embedded CSM sources in `submodules/CSM/` up to date by following the workflow in [CSM subtree setup & workflow](docs/CSM-Subtree-Setup.md).
 
-### Common commands
+### Working with the build script
 
-* Release build including installation (CSM + add-on):
+`scripts/build.ps1` mirrors the upstream CSM pipeline: it can update the CSM subtree, build CSM, refresh dependencies, compile the add-on and install both mods. After the initial configuration only the Cities: Skylines path is required – Harmony, TM:PE and the CSM API DLL are discovered automatically via the Steam workshop structure and mirrored into `lib/` for future builds.
+
+Common examples:
+
+* Release build including installation of both CSM and the add-on:
 
    ```powershell
    pwsh ./scripts/build.ps1 -Build -Install
    ```
 
-* Debug build without rebuilding the CSM subtree:
+* Debug build without rebuilding or reinstalling the CSM subtree:
 
    ```powershell
    pwsh ./scripts/build.ps1 -Build -Configuration Debug -SkipCsmBuild -SkipCsmInstall
    ```
 
-* Install the latest build outputs:
+* Update the cached game assemblies and rebuild in one go:
 
    ```powershell
-   pwsh ./scripts/build.ps1 -Install
+   pwsh ./scripts/build.ps1 -Update -Build
    ```
 
-* Update game assemblies and build immediately afterwards:
+Useful parameters:
 
-   ```powershell
-   pwsh ./scripts/build.ps1 -Update -Build -GameDirectory "C:\Program Files (x86)\Steam\steamapps\common\Cities_Skylines"
-   ```
+* `-ModDirectory` overwrites the installation target for CSM.TmpeSync (default: `%LOCALAPPDATA%\Colossal Order\Cities_Skylines\Addons\Mods\CSM.TmpeSync`).
+* `-CsmModDirectory` sets the CSM installation target when `-Install` is used.
+* `-SteamModsDir` optionally copies the resulting DLL to the Steam `Cities_Skylines/Files/Mods` folder when available.
+* `-SkipCsmBuild`, `-SkipCsmInstall` and `-SkipCsmUpdate` control the individual CSM subtree steps.
 
-### Useful parameters
-
-* `-ModDirectory` controls the installation target for CSM.TmpeSync (default: `%LOCALAPPDATA%\Colossal Order\Cities_Skylines\Addons\Mods\CSM.TmpeSync`).
-* `-CsmModDirectory` configures the installation target for the CSM subtree build output.
-* `-SkipCsmBuild` and `-SkipCsmInstall` skip the respective subtree steps.
+The script keeps a dependency cache under `lib/`. Deleting the folder forces a fresh copy of all referenced assemblies the next time `-Build` runs.
 
 ### Installing a release package
 
-A separate `install.ps1` is available for distributed build artefacts. Run it in the same directory as the `CSM.TmpeSync*.dll` files:
+Distribute the contents of `src/CSM.TmpeSync/bin/<Configuration>/net35/` together with `scripts/install.ps1`. Installation on another machine works as follows:
 
 ```powershell
 pwsh ./scripts/install.ps1
 ```
+
+The script removes any previous installation of CSM.TmpeSync, recreates the mod folder and copies both DLL and PDB files.
 
 ## Using the add-on in game
 
