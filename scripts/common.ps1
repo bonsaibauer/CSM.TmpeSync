@@ -16,13 +16,9 @@ if (-not (Get-Variable -Name CSMTmpeSyncCommonInitialized -Scope Script -ErrorAc
     $script:BuildConfig = @{}
     $script:ConfigUpdated = $false
 
-    $script:CsmRepoDir = $null
-    foreach ($candidate in @("submodules\CSM", "submodules\CMS")) {
-        $candidatePath = Join-Path $script:RepoRoot $candidate
-        if (Test-Path $candidatePath) {
-            $script:CsmRepoDir = $candidatePath
-            break
-        }
+    $script:CsmRepoDir = Join-Path $script:RepoRoot "submodules\CSM"
+    if (-not (Test-Path $script:CsmRepoDir)) {
+        $script:CsmRepoDir = $null
     }
 
     if ($script:CsmRepoDir) {
@@ -333,7 +329,6 @@ if (-not (Get-Variable -Name CSMTmpeSyncCommonInitialized -Scope Script -ErrorAc
             [switch]$Update,
             [switch]$Build,
             [switch]$Install,
-            [string]$Configuration,
             [string]$GameDirectory,
             [string]$OutputDirectory,
             [string]$ModDirectory
@@ -347,41 +342,59 @@ if (-not (Get-Variable -Name CSMTmpeSyncCommonInitialized -Scope Script -ErrorAc
             return $false
         }
 
-        $arguments = @()
-        if ($Update) { $arguments += "-Update" }
-        if ($Build) { $arguments += "-Build" }
-        if ($Install) { $arguments += "-Install" }
+        $shell = Get-Command "pwsh" -ErrorAction SilentlyContinue
+        $shellArgs = @("-NoProfile", "-File", ".\build.ps1")
 
-        if ($Build -or $Install) {
-            $effectiveConfig = Get-CsmScriptConfiguration -RequestedConfiguration $Configuration
-            if (-not [string]::IsNullOrWhiteSpace($effectiveConfig)) {
-                $arguments += "-Configuration"
-                $arguments += $effectiveConfig
+        if (-not $shell) {
+            $shell = Get-Command "powershell" -ErrorAction SilentlyContinue
+            if (-not $shell) {
+                throw "Unable to locate a PowerShell executable for running the CSM build script."
             }
+
+            $shellArgs = @("-NoProfile", "-ExecutionPolicy", "Bypass", "-File", ".\build.ps1")
+        }
+
+        $logTokens = @()
+        if ($Update) {
+            $shellArgs += "-Update"
+            $logTokens += "-Update"
+        }
+        if ($Build) {
+            $shellArgs += "-Build"
+            $logTokens += "-Build"
+        }
+        if ($Install) {
+            $shellArgs += "-Install"
+            $logTokens += "-Install"
         }
 
         if ($Update -and -not [string]::IsNullOrWhiteSpace($GameDirectory)) {
-            $arguments += "-GameDirectory"
-            $arguments += $GameDirectory
+            $shellArgs += "-GameDirectory"
+            $shellArgs += $GameDirectory
+            $logTokens += "-GameDirectory"
+            $logTokens += ("`"{0}`"" -f $GameDirectory)
         }
-        if ($Build -or $Install) {
-            if (-not [string]::IsNullOrWhiteSpace($OutputDirectory)) {
-                $arguments += "-OutputDirectory"
-                $arguments += $OutputDirectory
-            }
+        if (($Build -or $Install) -and -not [string]::IsNullOrWhiteSpace($OutputDirectory)) {
+            $shellArgs += "-OutputDirectory"
+            $shellArgs += $OutputDirectory
+            $logTokens += "-OutputDirectory"
+            $logTokens += ("`"{0}`"" -f $OutputDirectory)
         }
         if ($Install -and -not [string]::IsNullOrWhiteSpace($ModDirectory)) {
-            $arguments += "-ModDirectory"
-            $arguments += $ModDirectory
+            $shellArgs += "-ModDirectory"
+            $shellArgs += $ModDirectory
+            $logTokens += "-ModDirectory"
+            $logTokens += ("`"{0}`"" -f $ModDirectory)
         }
 
+        $shellPath = $shell.Source
         Push-Location -Path $script:CsmScriptsDir
         try {
-            if ($arguments.Count -gt 0) {
-                Write-Host ("[CSM.TmpeSync] Invoking submodule build.ps1 {0}" -f ($arguments -join " ")) -ForegroundColor DarkCyan
+            if ($logTokens.Count -gt 0) {
+                Write-Host ("[CSM.TmpeSync] Invoking submodule build.ps1 {0}" -f ($logTokens -join " ")) -ForegroundColor DarkCyan
             }
 
-            & $script:CsmBuildScriptPath @arguments
+            & $shellPath @shellArgs
             if ($LASTEXITCODE -ne 0) {
                 throw "CSM submodule build.ps1 failed with exit code $LASTEXITCODE."
             }
@@ -429,7 +442,7 @@ if (-not (Get-Variable -Name CSMTmpeSyncCommonInitialized -Scope Script -ErrorAc
             Write-Host "[CSM.TmpeSync] Skipping CSM build (SkipCsmBuild)." -ForegroundColor DarkYellow
         }
         else {
-            if (Invoke-CsmBuildScript -Build -Configuration $effectiveConfiguration -OutputDirectory $csmOutputDir) {
+            if (Invoke-CsmBuildScript -Build -OutputDirectory $csmOutputDir) {
                 return $effectiveConfiguration
             }
 
@@ -463,7 +476,7 @@ if (-not (Get-Variable -Name CSMTmpeSyncCommonInitialized -Scope Script -ErrorAc
             return
         }
 
-        if (Invoke-CsmBuildScript -Install -Configuration $effectiveConfiguration -OutputDirectory $sourceDir -ModDirectory $ModDirectory) {
+        if (Invoke-CsmBuildScript -Install -OutputDirectory $sourceDir -ModDirectory $ModDirectory) {
             return
         }
 
@@ -812,15 +825,18 @@ if (-not (Get-Variable -Name CSMTmpeSyncCommonInitialized -Scope Script -ErrorAc
         Set-ConfigValue -Key "CsmApiDllPath" -Value $effectiveCsmApi
 
         $dotnetArguments = @("build", $script:ProjectPath, "-c", $Configuration, "/restore", "--nologo")
-        foreach ($property in @(
-            Build-PropertyArgument -Name "CitiesSkylinesDir" -Value $effectiveCitiesDir,
-            Build-PropertyArgument -Name "HarmonyDllDir" -Value $effectiveHarmonyDir,
-            Build-PropertyArgument -Name "CsmApiDllPath" -Value $effectiveCsmApi,
-            Build-PropertyArgument -Name "TmpeDir" -Value $effectiveTmpeDir,
-            Build-PropertyArgument -Name "SteamModsDir" -Value $steamModsResolved,
-            Build-PropertyArgument -Name "ModDirectory" -Value $ModDirectory,
-            Build-PropertyArgument -Name "ModsOutDir" -Value $ModDirectory
-        )) {
+        $propertySpecs = @(
+            @{ Name = "CitiesSkylinesDir"; Value = $effectiveCitiesDir },
+            @{ Name = "HarmonyDllDir"; Value = $effectiveHarmonyDir },
+            @{ Name = "CsmApiDllPath"; Value = $effectiveCsmApi },
+            @{ Name = "TmpeDir"; Value = $effectiveTmpeDir },
+            @{ Name = "SteamModsDir"; Value = $steamModsResolved },
+            @{ Name = "ModDirectory"; Value = $ModDirectory },
+            @{ Name = "ModsOutDir"; Value = $ModDirectory }
+        )
+
+        foreach ($spec in $propertySpecs) {
+            $property = Build-PropertyArgument -Name $spec.Name -Value $spec.Value
             if ($property) {
                 $dotnetArguments += $property
             }
