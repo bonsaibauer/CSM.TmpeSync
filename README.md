@@ -7,9 +7,15 @@ The following sections explain how to build the project locally, install the add
 
 ## Additional references
 
+* [Official CSM repository](https://github.com/CitiesSkylinesMultiplayer/CSM) – upstream multiplayer mod this add-on extends.
 * [Official TM:PE repository](https://github.com/CitiesSkylinesMods/TMPE) – reference for current TM:PE functionality.
+* [bonsaibauer/CSM fork](https://github.com/bonsaibauer/CSM) – embedded via git subtree at `submodules/CSM`.
+* [bonsaibauer/TMPE fork](https://github.com/bonsaibauer/TMPE) – embedded via git subtree at `submodules/TMPE`.
 * [Historical CSM/TM:PE integration attempt](https://github.com/MightyWizard/TMPE/tree/CSM-API-Implementation) – older ideas for an API integration.
 * [Integration overview (this repository)](docs/IntegrationOverview.md) – architecture, APIs in use, and required hooks.
+* [CSM subtree setup & workflow](docs/CSM-Subtree-Setup.md) – how CSM is embedded and updated inside this repository.
+
+Both subtrees stay connected to their official upstream repositories so that updates can be merged regularly while keeping local adjustments in sync.
 
 ## Prerequisites
 
@@ -19,7 +25,7 @@ The following sections explain how to build the project locally, install the add
 * To compile against the real game assemblies:
   * Cities: Skylines must be installed locally (Steam or GOG). The DLLs from `Cities_Data/Managed` are required.
   * [CitiesHarmony](https://steamcommunity.com/workshop/filedetails/?id=2040656402) (Workshop 2040656402) must be installed so that `CitiesHarmony.Harmony.dll` is available.
-  * The CSM main project is built automatically through the submodule. If you skip the CSM build step, ensure that `CSM.API.dll` is available either from the submodule (`submodules/CSM/`) or inside a local `lib/` folder.
+  * The CSM main project is built automatically through the CSM subtree. If you skip the CSM build step, ensure that `CSM.API.dll` is available either from the subtree (`submodules/CSM/`) or inside a local `lib/` folder.
   * Optional: TM:PE should be installed when you reference `TrafficManager.dll` directly.
 
 > ⚠️ Do not add proprietary game DLLs to the repository. Reference the files from your local installation instead.
@@ -30,13 +36,7 @@ The repository mirrors the CSM build flow: `scripts/build.ps1` invokes the CSM b
 
 ### Preparation
 
-1. Make sure the submodule is initialised:
-
-   ```powershell
-   git submodule update --init --recursive
-   ```
-
-2. Optional: Provide a `Directory.Build.props` file at the repository root so that paths to your game installation can be resolved automatically:
+1. Optional: Provide a `Directory.Build.props` file at the repository root so that paths to your game installation can be resolved automatically:
 
    ```xml
    <?xml version="1.0" encoding="utf-8"?>
@@ -54,6 +54,8 @@ The repository mirrors the CSM build flow: `scripts/build.ps1` invokes the CSM b
 
    The build script reads these properties automatically.
 
+If you work with your own fork, keep the embedded CSM sources up to date via the workflow described in [CSM subtree setup & workflow](docs/CSM-Subtree-Setup.md).
+
 ### Common commands
 
 * Release build including installation (CSM + add-on):
@@ -62,7 +64,7 @@ The repository mirrors the CSM build flow: `scripts/build.ps1` invokes the CSM b
    pwsh ./scripts/build.ps1 -Build -Install
    ```
 
-* Debug build without rebuilding the CSM submodule:
+* Debug build without rebuilding the CSM subtree:
 
    ```powershell
    pwsh ./scripts/build.ps1 -Build -Configuration Debug -SkipCsmBuild -SkipCsmInstall
@@ -83,9 +85,8 @@ The repository mirrors the CSM build flow: `scripts/build.ps1` invokes the CSM b
 ### Useful parameters
 
 * `-ModDirectory` controls the installation target for CSM.TmpeSync (default: `%LOCALAPPDATA%\Colossal Order\Cities_Skylines\Addons\Mods\CSM.TmpeSync`).
-* `-CsmModDirectory` configures the installation target for the CSM submodule.
-* `-SkipCsmBuild` and `-SkipCsmInstall` skip the respective submodule steps.
-       <HarmonyDllDir>C:\Program Files (x86)\Steam\steamapps\workshop\content\255710\2040656402</HarmonyDllDir>
+* `-CsmModDirectory` configures the installation target for the CSM subtree build output.
+* `-SkipCsmBuild` and `-SkipCsmInstall` skip the respective subtree steps.
 
 ### Installing a release package
 
