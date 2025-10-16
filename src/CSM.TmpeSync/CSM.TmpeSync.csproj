@@ -93,11 +93,6 @@
     <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies.net35" Version="1.0.3" PrivateAssets="all" />
   </ItemGroup>
 
-  <ItemGroup>
-    <Reference Include="System.Runtime.Serialization" />
-    <Reference Include="System.ServiceModel.Web" />
-  </ItemGroup>
-
   <!-- ==== Files (EnableDefaultCompileItems=false) ==== -->
   <ItemGroup>
     <Compile Include="Properties\AssemblyInfo.cs" />
@@ -107,7 +102,6 @@
 
     <Compile Include="Util\Log.cs" />
     <Compile Include="Util\Deps.cs" />
-    <Compile Include="Util\CsmVersionChecker.cs" />
     <Compile Include="Util\NetUtil.cs" />
     <Compile Include="Util\EntityLocks.cs" />
     <Compile Include="Util\DeferredApply.cs" />
