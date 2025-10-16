@@ -12,7 +12,6 @@ param(
     [string]$CsmApiDllPath = "",
     [string]$TmpeDir = "",
     [string]$SteamModsDir = "",
-    [switch]$GameBuild,
     [switch]$SkipCsmUpdate = $false,
     [switch]$SkipCsmBuild = $false,
     [switch]$SkipCsmInstall = $false
@@ -24,11 +23,12 @@ $HostIsWindows = [System.Runtime.InteropServices.RuntimeInformation]::IsOSPlatfo
 $HostIsLinux = [System.Runtime.InteropServices.RuntimeInformation]::IsOSPlatform([System.Runtime.InteropServices.OSPlatform]::Linux)
 $HostIsMacOS = [System.Runtime.InteropServices.RuntimeInformation]::IsOSPlatform([System.Runtime.InteropServices.OSPlatform]::OSX)
 
-$RepoRoot = Split-Path -Parent $PSCommandPath
+$ScriptDir = Split-Path -Parent $PSCommandPath
+$RepoRoot = Split-Path -Parent $ScriptDir
 $CsmScriptsDir = Join-Path $RepoRoot "submodules\CSM\scripts"
 $CsmBuildScript = Join-Path $CsmScriptsDir "build.ps1"
-$ProjectPath = Join-Path $RepoRoot "src\CSM.TmpeSync.csproj"
-$OutputDir = Join-Path $RepoRoot ("src\bin\{0}\net35" -f $Configuration)
+$ProjectPath = Join-Path $RepoRoot "src\CSM.TmpeSync\CSM.TmpeSync.csproj"
+$OutputDir = Join-Path $RepoRoot ("src\CSM.TmpeSync\bin\{0}\net35" -f $Configuration)
 
 if (-not (Test-Path $ProjectPath)) {
     throw "CSM.TmpeSync project not found under $ProjectPath."
@@ -141,10 +141,6 @@ if ($Build) {
     }
 
     $dotnetArguments = @("build", $ProjectPath, "-c", $Configuration, "/restore", "--nologo")
-
-    if ($PSBoundParameters.ContainsKey("GameBuild")) {
-        $dotnetArguments += "-p:GameBuild=$($GameBuild.ToString().ToLower())"
-    }
 
     foreach ($property in @(
         Build-PropertyArgument -Name "CitiesSkylinesDir" -Value $CitiesSkylinesDir

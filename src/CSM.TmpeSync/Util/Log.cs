@@ -119,11 +119,7 @@ namespace CSM.TmpeSync.Util
             var formatted = FormatMessage(message, args);
             var line = FormatLogLine(timestamp, level, formatted);
 
-            TryWrite(() => WriteUnity(level, line));
             TryWrite(() => WriteDebugPanel(level, line));
-#if !GAME
-            TryWrite(() => WriteConsole(line));
-#endif
             TryWrite(() => WriteFile(timestamp, line));
         }
 
@@ -168,22 +164,6 @@ namespace CSM.TmpeSync.Util
             }
         }
 
-        private static void WriteUnity(Level level, string line)
-        {
-            switch (level)
-            {
-                case Level.Error:
-                    UnityEngine.Debug.LogError(line);
-                    break;
-                case Level.Warn:
-                    UnityEngine.Debug.LogWarning(line);
-                    break;
-                default:
-                    UnityEngine.Debug.Log(line);
-                    break;
-            }
-        }
-
         private static void WriteDebugPanel(Level level, string line)
         {
             if (DebugPanelMethod == null)
@@ -214,11 +194,6 @@ namespace CSM.TmpeSync.Util
             {
                 DebugPanelMethod.Invoke(null, new[] { messageType, line });
             }
-        }
-
-        private static void WriteConsole(string line)
-        {
-            Console.WriteLine(line);
         }
 
         private static void WriteFile(DateTime timestamp, string line)

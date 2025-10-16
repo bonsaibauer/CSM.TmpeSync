@@ -10,6 +10,8 @@
     <Nullable>disable</Nullable>
     <LangVersion>7.3</LangVersion>
 
+    <RepoRoot>$([System.IO.Path]::GetFullPath('$(MSBuildProjectDirectory)\..\..'))</RepoRoot>
+
     <!-- ===== Cities: Skylines (Game) ===== -->
     <CitiesSkylinesDir Condition="'$(CitiesSkylinesDir)'!=''">$(CitiesSkylinesDir)</CitiesSkylinesDir>
     <CitiesSkylinesDir Condition="'$(CitiesSkylinesDir)'=='' and Exists('C:\Program Files (x86)\Steam\steamapps\common\Cities_Skylines\Cities_Data\Managed\ICities.dll')">C:\Program Files (x86)\Steam\steamapps\common\Cities_Skylines</CitiesSkylinesDir>
@@ -22,76 +24,61 @@
     <HarmonyDllDir Condition="'$(HarmonyDllDir)'=='' and Exists('D:\SteamLibrary\steamapps\workshop\content\255710\2040656402\CitiesHarmony.Harmony.dll')">D:\SteamLibrary\steamapps\workshop\content\255710\2040656402</HarmonyDllDir>
 
     <!-- ===== CSM.API.dll =====
-         1) explizit via /p:CsmApiDllPath=...
-         2) falls leer: suche im lokalen Projekt lib\CSM.API.dll
-         3) optional: suche im CSM-Repo-Build (wenn du direkt daneben gebaut hast)
+         1) explicit via /p:CsmApiDllPath=...
+         2) otherwise: search in the repository root lib\CSM.API.dll
+         3) optional: search inside the adjacent CSM repository build output
     -->
     <CsmApiDllPath Condition="'$(CsmApiDllPath)'!=''">$(CsmApiDllPath)</CsmApiDllPath>
-    <CsmApiDllPath Condition="'$(CsmApiDllPath)'=='' and Exists('$(MSBuildProjectDirectory)\..\lib\CSM.API.dll')">$(MSBuildProjectDirectory)\..\lib\CSM.API.dll</CsmApiDllPath>
-    <CsmApiDllPath Condition="'$(CsmApiDllPath)'=='' and Exists('$(MSBuildProjectDirectory)\..\..\CSM\API\bin\Release\CSM.API.dll')">$(MSBuildProjectDirectory)\..\..\CSM\API\bin\Release\CSM.API.dll</CsmApiDllPath>
+    <CsmApiDllPath Condition="'$(CsmApiDllPath)'=='' and Exists('$(RepoRoot)\lib\CSM.API.dll')">$(RepoRoot)\lib\CSM.API.dll</CsmApiDllPath>
+    <CsmApiDllPath Condition="'$(CsmApiDllPath)'=='' and Exists('$(RepoRoot)\submodules\CSM\API\bin\Release\CSM.API.dll')">$(RepoRoot)\submodules\CSM\API\bin\Release\CSM.API.dll</CsmApiDllPath>
 
-    <!-- ===== TM:PE (optional – nur nötig, wenn du direkt TM:PE-Typen verwendest) =====
-         1637663252 = Workshop-ID von TM:PE Stable
+    <!-- ===== TM:PE (optional – only needed when using TM:PE types directly) =====
+         1637663252 = Steam Workshop ID for TM:PE Stable
     -->
     <TmpeDir Condition="'$(TmpeDir)'!=''">$(TmpeDir)</TmpeDir>
     <TmpeDir Condition="'$(TmpeDir)'=='' and Exists('C:\Program Files (x86)\Steam\steamapps\workshop\content\255710\1637663252\Cities_Data\Managed\TrafficManager.dll')">C:\Program Files (x86)\Steam\steamapps\workshop\content\255710\1637663252</TmpeDir>
     <TmpeDir Condition="'$(TmpeDir)'=='' and Exists('D:\SteamLibrary\steamapps\workshop\content\255710\1637663252\Cities_Data\Managed\TrafficManager.dll')">D:\SteamLibrary\steamapps\workshop\content\255710\1637663252</TmpeDir>
 
-    <!-- ===== Mod-Ausgabeordner ===== -->
+    <!-- ===== Mod output folder ===== -->
     <ModsOutDir>$(LOCALAPPDATA)\Colossal Order\Cities_Skylines\Addons\Mods\CSM.TmpeSync</ModsOutDir>
 
-    <!-- ===== Steam-Installation (optional) ===== -->
+    <!-- ===== Steam installation (optional) ===== -->
     <SteamModsDir Condition="'$(SteamModsDir)'!=''">$(SteamModsDir)</SteamModsDir>
-    <SteamModsDir Condition="'$(SteamModsDir)'=='' and Exists('C:\\Program Files (x86)\\Steam\\steamapps\\common\\Cities_Skylines\\Files\\Mods')">C:\\Program Files (x86)\\Steam\\steamapps\\common\\Cities_Skylines\\Files\\Mods\\CSM.TmpeSync</SteamModsDir>
-  
-    <!-- In-Game Compile-Define -->
-    <DefineConstants>TRACE;RELEASE</DefineConstants>
+    <SteamModsDir Condition="'$(SteamModsDir)'=='' and Exists('C:\Program Files (x86)\Steam\steamapps\common\Cities_Skylines\Files\Mods')">C:\Program Files (x86)\Steam\steamapps\common\Cities_Skylines\Files\Mods\CSM.TmpeSync</SteamModsDir>
+
+    <!-- Always compile with the GAME symbol enabled because the project now requires the real game assemblies. -->
+    <DefineConstants>TRACE;RELEASE;GAME</DefineConstants>
   </PropertyGroup>
 
-  <!-- Default to GameBuild=true whenever the real game DLLs are available, regardless of the chosen configuration. -->
-  <PropertyGroup Condition="'$(GameBuild)'=='' and '$(CitiesSkylinesDir)'!='' and Exists('$(ManagedDir)\\ICities.dll') and '$(HarmonyDllDir)'!='' and Exists('$(HarmonyDllDir)\\CitiesHarmony.Harmony.dll') and '$(CsmApiDllPath)'!='' and Exists('$(CsmApiDllPath)')">
-    <GameBuild>true</GameBuild>
-  </PropertyGroup>
+  <Target Name="CheckRefs" BeforeTargets="ResolveReferences">
+    <Error Condition=" '$(CitiesSkylinesDir)'=='' " Text="ICities.dll missing. Specify /p:CitiesSkylinesDir=&quot;PATH_TO_CITIES_SKYLINES&quot;." />
+    <Error Condition=" !Exists('$(ManagedDir)\ICities.dll') " Text="Missing: $(ManagedDir)\ICities.dll — verify CitiesSkylinesDir." />
+    <Error Condition=" !Exists('$(ManagedDir)\ColossalManaged.dll') " Text="Missing: $(ManagedDir)\ColossalManaged.dll — verify CitiesSkylinesDir." />
+    <Error Condition=" !Exists('$(ManagedDir)\UnityEngine.dll') " Text="Missing: $(ManagedDir)\UnityEngine.dll — verify CitiesSkylinesDir." />
+    <Error Condition=" !Exists('$(ManagedDir)\Assembly-CSharp.dll') " Text="Missing: $(ManagedDir)\Assembly-CSharp.dll — verify CitiesSkylinesDir." />
 
-  <!-- Fall back to the stub interfaces when no game installation is referenced. -->
-  <PropertyGroup Condition="'$(GameBuild)'==''">
-    <GameBuild>false</GameBuild>
-  </PropertyGroup>
+    <Error Condition=" '$(HarmonyDllDir)'=='' " Text="CitiesHarmony.Harmony.dll missing. Specify /p:HarmonyDllDir=&quot;PATH_TO_WORKSHOP_2040656402&quot;." />
+    <Error Condition=" !Exists('$(HarmonyDllDir)\CitiesHarmony.Harmony.dll') " Text="Missing: $(HarmonyDllDir)\CitiesHarmony.Harmony.dll — verify HarmonyDllDir." />
 
-  <PropertyGroup Condition="'$(GameBuild)'=='true'">
-    <DefineConstants>$(DefineConstants);GAME</DefineConstants>
-  </PropertyGroup>
-
-  <!-- ==== Safety-Checks ==== -->
-  <Target Name="CheckRefs" BeforeTargets="ResolveReferences" Condition="'$(GameBuild)'=='true'">
-    <Error Condition=" '$(CitiesSkylinesDir)'=='' " Text="ICities.dll nicht gefunden. /p:CitiesSkylinesDir=&quot;PFAD_ZUR_CITIES_INSTALLATION&quot; angeben." />
-    <Error Condition=" !Exists('$(ManagedDir)\ICities.dll') " Text="Fehlt: $(ManagedDir)\ICities.dll — prüfe CitiesSkylinesDir." />
-    <Error Condition=" !Exists('$(ManagedDir)\ColossalManaged.dll') " Text="Fehlt: $(ManagedDir)\ColossalManaged.dll — prüfe CitiesSkylinesDir." />
-    <Error Condition=" !Exists('$(ManagedDir)\UnityEngine.dll') " Text="Fehlt: $(ManagedDir)\UnityEngine.dll — prüfe CitiesSkylinesDir." />
-    <Error Condition=" !Exists('$(ManagedDir)\Assembly-CSharp.dll') " Text="Fehlt: $(ManagedDir)\Assembly-CSharp.dll — prüfe CitiesSkylinesDir." />
-
-    <Error Condition=" '$(HarmonyDllDir)'=='' " Text="CitiesHarmony.Harmony.dll nicht gefunden. /p:HarmonyDllDir=&quot;PFAD_ZUM_WORKSHOP_2040656402&quot; angeben." />
-    <Error Condition=" !Exists('$(HarmonyDllDir)\CitiesHarmony.Harmony.dll') " Text="Fehlt: $(HarmonyDllDir)\CitiesHarmony.Harmony.dll — prüfe HarmonyDllDir." />
-
-    <Error Condition=" '$(CsmApiDllPath)'=='' " Text="CSM.API.dll nicht gefunden. /p:CsmApiDllPath=&quot;PFAD_ZUR_CSM.API.dll&quot; angeben oder in ..\lib\ legen." />
-    <Error Condition=" !Exists('$(CsmApiDllPath)') " Text="Fehlt: $(CsmApiDllPath) — prüfe CSM.API-Build/ Pfad." />
+    <Error Condition=" '$(CsmApiDllPath)'=='' " Text="CSM.API.dll missing. Specify /p:CsmApiDllPath=&quot;PATH_TO_CSM.API.dll&quot; or copy it to lib/." />
+    <Error Condition=" !Exists('$(CsmApiDllPath)') " Text="Missing: $(CsmApiDllPath) — verify the CSM.API build path." />
   </Target>
 
-  <!-- ==== Referenzen ==== -->
-  <ItemGroup Condition="'$(GameBuild)'=='true'">
+  <!-- ==== References ==== -->
+  <ItemGroup>
     <!-- Game -->
     <Reference Include="ICities"><HintPath>$(ManagedDir)\ICities.dll</HintPath><Private>false</Private></Reference>
     <Reference Include="ColossalManaged"><HintPath>$(ManagedDir)\ColossalManaged.dll</HintPath><Private>false</Private></Reference>
     <Reference Include="UnityEngine"><HintPath>$(ManagedDir)\UnityEngine.dll</HintPath><Private>false</Private></Reference>
     <Reference Include="Assembly-CSharp"><HintPath>$(ManagedDir)\Assembly-CSharp.dll</HintPath><Private>false</Private></Reference>
 
-    <!-- Harmony (aus CitiesHarmony) -->
+    <!-- Harmony (CitiesHarmony) -->
     <Reference Include="CitiesHarmony.Harmony"><HintPath>$(HarmonyDllDir)\CitiesHarmony.Harmony.dll</HintPath><Private>false</Private></Reference>
 
     <!-- CSM API -->
     <Reference Include="CSM.API"><HintPath>$(CsmApiDllPath)</HintPath><Private>false</Private></Reference>
 
-    <!-- TM:PE (optional) – nur einbinden, wenn wirklich benötigt -->
+    <!-- TM:PE (optional) – only link when available -->
     <Reference Include="TrafficManager" Condition=" '$(TmpeDir)'!='' AND Exists('$(TmpeDir)\Cities_Data\Managed\TrafficManager.dll') ">
       <HintPath>$(TmpeDir)\Cities_Data\Managed\TrafficManager.dll</HintPath>
       <Private>false</Private>
@@ -108,7 +95,7 @@
     <Reference Include="System.ServiceModel.Web" />
   </ItemGroup>
 
-  <!-- ==== Dateien (da EnableDefaultCompileItems=false) ==== -->
+  <!-- ==== Files (EnableDefaultCompileItems=false) ==== -->
   <ItemGroup>
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Mod\MyUserMod.cs" />
@@ -130,10 +117,6 @@
     <Compile Include="Tmpe\TmpeAdapter.cs" />
     <Compile Include="Tmpe\TmpeToolAvailability.cs" />
 
-    <Compile Include="Stubs\CsmApiStubs.cs" />
-    <Compile Include="Stubs\UnityEngineStubs.cs" />
-    <Compile Include="Stubs\ThreadingExtensionStub.cs" />
-  
     <Compile Include="Net\Contracts\States\TmpeStates.cs" />
     <Compile Include="Net\Contracts\Requests\SetSpeedLimitRequest.cs" />
     <Compile Include="Net\Contracts\Requests\SetLaneArrowRequest.cs" />
@@ -202,12 +185,8 @@
     <Compile Include="Tool\LockOverlay.cs" />
   </ItemGroup>
 
-  <ItemGroup Condition="'$(GameBuild)'!='true'">
-    <Compile Include="Stubs\ICitiesStub\IUserMod.cs" />
-  </ItemGroup>
-
-  <!-- ==== Post-Build: Mod-DLL ins Mods-Verzeichnis ==== -->
-  <Target Name="AfterBuild" Condition="'$(GameBuild)'=='true'">
+  <!-- ==== Post-Build: Copy the add-on into the local mod directory ==== -->
+  <Target Name="AfterBuild">
     <MakeDir Directories="$(ModsOutDir)" />
     <Copy SourceFiles="$(TargetPath)" DestinationFolder="$(ModsOutDir)" />
   </Target>

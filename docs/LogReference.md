@@ -33,7 +33,7 @@ If you instead see `<missing method>` in the debug line, or follow-up warnings s
 [WARN] [CSM.TmpeSync] TM:PE sync connection could not be registered with CSM. Synchronisation remains inactive.
 ```
 
-it means the current CSM installation does not expose the expected `SendToClient`/`SendToAll` methods on `CSM.API.Command` or the `RegisterConnection` hook in the API. Without those hooks, the sync channel cannot be registered and no TM:PE data will be exchanged. Update to a CSM build that includes these APIs (or ensure the real game libraries are loaded instead of the local stubs) before continuing tests. When using the Steam Workshop release you can verify the file directly at `C:\Program Files (x86)\Steam\steamapps\workshop\content\255710\1558438291\CSM.API.dll`; copy it next to the mod (e.g. `lib/CSM.API.dll`) if your build environment cannot resolve it automatically.
+it means the current CSM installation does not expose the expected `SendToClient`/`SendToAll` methods on `CSM.API.Command` or the `RegisterConnection` hook in the API. Without those hooks, the sync channel cannot be registered and no TM:PE data will be exchanged. Update to a CSM build that includes these APIs (or ensure the real game libraries are available) before continuing tests. When using the Steam Workshop release you can verify the file directly at `C:\Program Files (x86)\Steam\steamapps\workshop\content\255710\1558438291\CSM.API.dll`; copy it next to the mod (e.g. `lib/CSM.API.dll`) if your build environment cannot resolve it automatically.
 
 ## Multiplayer role detection
 
@@ -50,7 +50,7 @@ This happens when the properties probed in `CsmCompat` (`Command.CurrentRole`, `
 As long as the warnings persist, TM:PE synchronisation stays inactive. Verify that:
 
 - You are running against a CSM version that contains the reflective hooks.
-- The game is started (the stub DLLs used for editor builds intentionally leave those members empty).
+- The game is started so the real CSM API assembly is loaded.
 - Harmony and TM:PE are enabled so the mod can complete the registration path once the hooks are present.
 
 Once the hooks are available the warnings disappear and the log ends with:
@@ -60,22 +60,3 @@ Once the hooks are available the warnings disappear and the log ends with:
 ```
 
 At that point the log output matches the expected plan.
-
-## Stub simulation (no live clients)
-
-When running the project outside the real game (`GAME` flag unset), the bundled CSM API stub now simulates the communication hooks. In this mode the log includes additional entries prefixed with `[CSM.API Stub]`:
-
-```
-[INFO] [CSM.TmpeSync] [CSM.API Stub] Registered connection 'TM:PE Extended Sync'. Commands will be logged locally until a client connects.
-[INFO] [CSM.TmpeSync] [CSM.API Stub] Queued broadcast (no simulated clients): SpeedLimitApplied {LaneId=42, SegmentId=1089, SpeedLimit=100}
-```
-
-These lines confirm that TM:PE commands are created correctly even though no actual clients are attached. Use `CSM.API.Command.SimulateClientConnected(1)` to replay queued commands locally and `CSM.API.Command.DumpSimulatedCommandLog()` to inspect the captured payloads.
-
-When CSM reports that the current role switched to `Server` but only the stub API is present, the mod now starts a simulated client automatically. The log shows:
-
-```
-[INFO] [CSM.TmpeSync] Stub CSM simulation started automatically (clientId=1).
-```
-
-This guarantees that TM:PE updates are replayed immediately without having to run the debug console command manually. If you want to inspect the data in-game, enable the CSM debug overlay in *Options → Mods → Cities: Skylines Multiplayer → Debug tools* and press **F7**. The overlay mirrors the new auto-started simulation client and displays the queued TM:PE commands.

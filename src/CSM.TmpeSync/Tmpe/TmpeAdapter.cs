@@ -68,7 +68,7 @@ namespace CSM.TmpeSync.Tmpe
         {
             try
             {
-                // TODO: echte TM:PE-Manager-Aufrufe einhängen:
+                // TODO: wire up the real TM:PE manager calls:
                 // var mgr = TrafficManager.Manager.Impl.SpeedLimitManager.Instance;
                 // return mgr.SetLaneSpeedLimit(laneId, speedKmh/3.6f);
                 if (HasRealTmpe)
@@ -93,7 +93,7 @@ namespace CSM.TmpeSync.Tmpe
         {
             try
             {
-                // TODO: echte TM:PE-Reads
+                // TODO: load live TM:PE data here.
                 lock (StateLock)
                 {
                     if (!SpeedLimits.TryGetValue(laneId, out kmh))
