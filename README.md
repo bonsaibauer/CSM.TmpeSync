@@ -1,132 +1,119 @@
 # CSM.TmpeSync Add-on
 
-This repository provides an add-on for [Cities: Skylines Multiplayer (CSM)](https://github.com/CitiesSkylinesMultiplayer/CSM)
-that synchronises the configuration of [Traffic Manager: President Edition (TM:PE)](https://github.com/CitiesSkylinesMods/TMPE)
-and – optionally – the hidden crosswalk state from [Hide Crosswalks](https://github.com/CitiesSkylinesMods/HideCrosswalks).
-The following sections explain how to build the project locally, install the add-on, and collect diagnostic information.
+CSM.TmpeSync extends [Cities: Skylines Multiplayer (CSM)](https://github.com/CitiesSkylinesMultiplayer/CSM) with synchronisation
+support for [Traffic Manager: President Edition (TM:PE)](https://github.com/CitiesSkylinesMods/TMPE). While a multiplayer session is
+running, the add-on mirrors changes to TM:PE features such as speed limits, lane arrows, vehicle restrictions and optional
+[Hide Crosswalks](https://github.com/CitiesSkylinesMods/HideCrosswalks) state between every connected player.
 
-## Additional references
+The repository contains everything that is required to build the add-on together with a copy of CSM. Both the multiplayer mod and
+TM:PE live inside the tree under `submodules/` so that the integration hooks can be updated together with upstream changes.
 
-* [Official CSM repository](https://github.com/CitiesSkylinesMultiplayer/CSM) – upstream multiplayer mod this add-on extends.
-* [Official TM:PE repository](https://github.com/CitiesSkylinesMods/TMPE) – reference for current TM:PE functionality.
-* [bonsaibauer/CSM fork](https://github.com/bonsaibauer/CSM) – embedded via git subtree at `submodules/CSM`.
-* [bonsaibauer/TMPE fork](https://github.com/bonsaibauer/TMPE) – embedded via git subtree at `submodules/TMPE`.
-* [Historical CSM/TM:PE integration attempt](https://github.com/MightyWizard/TMPE/tree/CSM-API-Implementation) – older ideas for an API integration.
-* [Integration overview (this repository)](docs/IntegrationOverview.md) – architecture, APIs in use, and required hooks.
-* [CSM subtree setup & workflow](docs/CSM-Subtree-Setup.md) – how CSM is embedded and updated inside this repository.
+## Repository layout
 
-Both subtrees stay connected to their official upstream repositories so that updates can be merged regularly while keeping local adjustments in sync.
+| Path | Description |
+| --- | --- |
+| `src/` | Source code of the CSM.TmpeSync add-on. |
+| `scripts/` | PowerShell helpers used to configure, build and install the add-on (and the bundled CSM copy). |
+| `submodules/CSM` | Git subtree with the current CSM sources including the original build script. |
+| `submodules/TMPE` | Git subtree with a TM:PE fork used for compatibility work. |
+| `docs/` | Additional documentation about the integration and maintenance workflows. |
 
-## Build & install
+## Prerequisites
 
-### Prerequisites
+The build automation is tested on Windows with PowerShell 7. The following components are required:
 
-* PowerShell 7 (`pwsh`) – required to run the scripts in `scripts/`.
-* Visual Studio 2022 (or the Visual Studio 2022 Build Tools) – provides `MSBuild.exe` for the CSM subtree build.
-* .NET SDK 6.0 (or newer) – used to build the add-on via the `dotnet` CLI.
-* Cities: Skylines must be installed locally so that the script can copy the game assemblies. The Steam version is supported out of the box; GOG works as long as the `Cities_Data/Managed` folder is available.
-* Install the [CitiesHarmony](https://steamcommunity.com/workshop/filedetails/?id=2040656402) workshop item. Optional but recommended: keep TM:PE installed so that `TrafficManager.dll` can be mirrored as well.
+* **PowerShell 7 (`pwsh`)** – all helper scripts depend on the cross-platform PowerShell executable.
+* **.NET SDK 6.0 or newer** – supplies the `dotnet` CLI that builds the add-on project.
+* **Visual Studio 2022 / Visual Studio 2022 Build Tools** – required by the bundled CSM build script to provide `MSBuild.exe`.
+* **Cities: Skylines** – the game assemblies are copied during the build to resolve the mod references.
+* **CitiesHarmony** – install the workshop item so that `CitiesHarmony.Harmony.dll` can be mirrored into the local dependency
+  cache.
+* **(Optional) TM:PE** – if it is installed, `TrafficManager.dll` is mirrored as well which enables direct compilation against
+  TM:PE types.
 
-> ⚠️ Do not add proprietary game DLLs to the repository. The build script collects everything inside `lib/` during the build.
+> ℹ️ The repository does **not** contain proprietary game DLLs. They are mirrored into `lib/` on your machine when the build script
+> runs.
 
-### One-time configuration
+## Initial setup
 
-1. Initialise the configuration once so that the build script knows where Cities: Skylines is installed:
+1. Clone the repository:
+
+   ```powershell
+   git clone https://github.com/bonsaibauer/CSM.TmpeSync.git
+   cd CSM.TmpeSync
+   ```
+
+   The copies of CSM and TM:PE are managed through Git subtree merges and are already included in the repository.
+
+2. Run the configuration step once so the build script knows where to find the required assemblies and where to place the output:
 
    ```powershell
    pwsh ./scripts/build.ps1 -Configure
    ```
 
-   The prompt only asks for the Cities: Skylines installation directory. Optional questions let you override the destination folders for the CSM and CSM.TmpeSync mods. All answers are stored in `scripts/build-settings.json` and re-used automatically.
+   You will be prompted for the Cities: Skylines installation path and the CitiesHarmony workshop directory. Optional questions
+   let you override the target folders for the CSM and CSM.TmpeSync mods as well as the Steam `workshop/content/255710` mirror
+   directory. The answers are stored in `scripts/build-settings.json` and re-used automatically.
 
-2. (Optional) Keep the embedded CSM sources in `submodules/CSM/` up to date by following the workflow in [CSM subtree setup & workflow](docs/CSM-Subtree-Setup.md).
+## Building and installing
 
-### Working with the build script
+`scripts/build.ps1` mirrors the workflow from the upstream CSM repository and orchestrates both the CSM build and the
+CSM.TmpeSync compilation. The most common commands are:
 
-`scripts/build.ps1` mirrors the upstream CSM pipeline: it can update the CSM subtree, build CSM, refresh dependencies, compile the add-on and install both mods. After the initial configuration only the Cities: Skylines path is required – Harmony, TM:PE and the CSM API DLL are discovered automatically via the Steam workshop structure and mirrored into `lib/` for future builds.
+* Build everything (including CSM) and install both mods into the configured Cities: Skylines mod folders:
 
-Common examples:
+  ```powershell
+  pwsh ./scripts/build.ps1 -Build -Install
+  ```
 
-* Release build including installation of both CSM and the add-on:
+* Build the add-on without reinstalling CSM (faster iteration while working on CSM.TmpeSync only):
 
-   ```powershell
-   pwsh ./scripts/build.ps1 -Build -Install
-   ```
+  ```powershell
+  pwsh ./scripts/build.ps1 -Build -SkipCsmBuild -SkipCsmInstall
+  ```
 
-* Debug build without rebuilding or reinstalling the CSM subtree:
+* Refresh the dependency cache from the game, Harmony and TM:PE before building:
 
-   ```powershell
-   pwsh ./scripts/build.ps1 -Build -Configuration Debug -SkipCsmBuild -SkipCsmInstall
-   ```
-
-* Update the cached game assemblies and rebuild in one go:
-
-   ```powershell
-   pwsh ./scripts/build.ps1 -Update -Build
-   ```
+  ```powershell
+  pwsh ./scripts/build.ps1 -Update -Build
+  ```
 
 Useful parameters:
 
-* `-ModDirectory` overwrites the installation target for CSM.TmpeSync (default: `%LOCALAPPDATA%\Colossal Order\Cities_Skylines\Addons\Mods\CSM.TmpeSync`).
-* `-CsmModDirectory` sets the CSM installation target when `-Install` is used.
-* `-SteamModsDir` optionally copies the resulting DLL to the Steam `Cities_Skylines/Files/Mods` folder when available.
-* `-SkipCsmBuild`, `-SkipCsmInstall` and `-SkipCsmUpdate` control the individual CSM subtree steps.
+* `-Configuration <Release|Debug>` – switches between build configurations (default: `Release`).
+* `-ModDirectory <path>` – overrides the installation folder for CSM.TmpeSync. When omitted the platform specific default is
+  used (for example `%LOCALAPPDATA%\Colossal Order\Cities_Skylines\Addons\Mods\CSM.TmpeSync` on Windows).
+* `-CsmModDirectory <path>` – overrides the CSM installation folder when `-Install` is present.
+* `-SteamModsDir <path>` – also copies the resulting DLL into the specified Steam `Files/Mods` directory (if desired for testing).
+* `-SkipCsmUpdate`, `-SkipCsmBuild`, `-SkipCsmInstall` – allow skipping the individual steps managed by the CSM build script.
 
-The script keeps a dependency cache under `lib/`. Deleting the folder forces a fresh copy of all referenced assemblies the next time `-Build` runs.
+The script writes all mirrored assemblies to `lib/`. Delete the folder to force a clean refresh during the next `-Build` run.
 
-### Installing a release package
+### Manual installation of a build
 
-Distribute the contents of `src/CSM.TmpeSync/bin/<Configuration>/net35/` together with `scripts/install.ps1`. Installation on another machine works as follows:
+Release packages can be distributed by copying the contents of `src/CSM.TmpeSync/bin/<Configuration>/net35/` together with
+`scripts/install.ps1`. On another machine run:
 
 ```powershell
 pwsh ./scripts/install.ps1
 ```
 
-The script removes any previous installation of CSM.TmpeSync, recreates the mod folder and copies both DLL and PDB files.
+The script clears any existing installation of the mod and copies the DLL (and optional PDB files) into the target directory. Use
+`-ModDirectory` to override the destination when required.
 
 ## Using the add-on in game
 
-1. Start Cities: Skylines and enable both CSM and the add-on "CSM.TmpeSync" in the Content Manager (**Mods**). The add-on only stays active while CSM **and** Harmony are enabled.
-2. Ensure that the CSM host and all clients have TM:PE installed and enabled.
-3. Once the multiplayer session is running, the add-on synchronises TM:PE changes such as speed limits, lane arrows, lane connections, junction restrictions and more between all players.
+1. Install and enable CSM, CitiesHarmony and TM:PE inside the Cities: Skylines Content Manager (**Mods**).
+2. Enable the additional mod entry called **CSM.TmpeSync**.
+3. Start a multiplayer session through CSM. Once the connection is active, TM:PE configuration changes made by any player are
+   propagated to every participant.
 
-## Logs
+## Diagnostics and logs
 
-* During gameplay, all add-on messages are written to `%LOCALAPPDATA%\Colossal Order\Cities_Skylines\CSM.TmpeSync\Logs\CSM.TmpeSync.log`.
-* Open the folder via `Win + R`, enter `%LOCALAPPDATA%\Colossal Order\Cities_Skylines\CSM.TmpeSync\Logs` and press Enter.
-* The file can be opened in any text editor for a detailed run-through of the add-on's actions and potential warnings.
-* Messages are also mirrored to the in-game debug panel (`Esc` → cog wheel → **Debug Log**) and, if `-logfile` is set, to the Unity player log.
+* Runtime logs are written to `%LOCALAPPDATA%\Colossal Order\Cities_Skylines\CSM.TmpeSync\Logs\CSM.TmpeSync.log`.
+* The folder can be opened quickly via **Win + R** → paste the path above → press **Enter**.
+* Messages also appear in the in-game debug panel (`Esc` → cog wheel → **Debug Log**) and, when the game is launched with
+  `-logFile`, inside the Unity player log.
 
-### Redirecting the Unity player log (`-logfile`)
-
-* **Steam (recommended):**
-  1. Open the Steam properties for Cities: Skylines (**Right click** → **Properties**).
-  2. Add launch options similar to the following:
-
-     ```
-     -logFile "%USERPROFILE%\AppData\LocalLow\Colossal Order\Cities Skylines\Player.log"
-     ```
-
-     The directory is created automatically when the game starts.
-* **Launching via shortcut or `Cities.exe`:**
-  * Extend the target with `-logFile "C:\Path\To\CitiesPlayer.log"` or launch via console:
-
-    ```powershell
-    "C:\Program Files (x86)\Steam\steamapps\common\Cities_Skylines\Cities.exe" -logFile "C:\Temp\CitiesPlayer.log"
-    ```
-
-  * The destination must be writable. Point it to a shared folder if multiple players need to exchange logs quickly.
-* Remove the launch option/argument again if you prefer the default `Player.log` location.
-
-## Multiplayer smoke test
-
-To verify that synchronisation works end-to-end:
-
-1. Build the project and copy the DLL to the mods folder of the machine hosting the CSM server.
-2. Enable the add-on in the Content Manager and start the game alongside the CSM server (either via `CSM.exe` or the integrated host button).
-3. Connect to the server through the CSM UI and load a shared save.
-4. Pick a road on the host, change the TM:PE speed limit and confirm that the client updates automatically.
-5. Repeat in the opposite direction (client changes, host observes) to ensure bidirectional synchronisation.
-6. If changes do not show up, review the logs of both server and client – missing or disabled mods are the most common cause.
-
-With these steps you can confirm that the add-on keeps TM:PE data in sync across all connected players.
+For a more detailed explanation of the integration and maintenance workflows consult the documents inside the `docs/` folder –
+for example [IntegrationOverview.md](docs/IntegrationOverview.md) and [CSM-Subtree-Setup.md](docs/CSM-Subtree-Setup.md).
