@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Threading;
 
 namespace CSM.API.Helpers
 {
@@ -13,11 +12,11 @@ namespace CSM.API.Helpers
     {
         public static IgnoreHelper Instance
         {
-            get => _instance.Value;
-            set => _instance.Value = value;
+            get { return _instance.Value; }
+            set { _instance.Value = value; }
         }
 
-        private static readonly ThreadLocal<IgnoreHelper> _instance = new ThreadLocal<IgnoreHelper>(() => new IgnoreHelper());
+        private static readonly ThreadStaticInstance<IgnoreHelper> _instance = new ThreadStaticInstance<IgnoreHelper>(delegate { return new IgnoreHelper(); });
 
         private int _ignoreAll = 0;
         private readonly HashSet<string> _exceptions = new HashSet<string>();
@@ -89,6 +88,47 @@ namespace CSM.API.Helpers
             Log.Debug($"Resetting {_ignoreAll} levels of ignoring: {string.Join(", ", _exceptions.ToArray())}");
             _ignoreAll = 0;
             _exceptions.Clear();
+        }
+
+        private sealed class ThreadStaticInstance<T>
+            where T : class
+        {
+            [ThreadStatic]
+            private static T _threadValue;
+
+            [ThreadStatic]
+            private static bool _hasValue;
+
+            private readonly Func<T> _valueFactory;
+
+            public ThreadStaticInstance(Func<T> valueFactory)
+            {
+                if (valueFactory == null)
+                {
+                    throw new ArgumentNullException("valueFactory");
+                }
+
+                _valueFactory = valueFactory;
+            }
+
+            public T Value
+            {
+                get
+                {
+                    if (!_hasValue)
+                    {
+                        _threadValue = _valueFactory();
+                        _hasValue = true;
+                    }
+
+                    return _threadValue;
+                }
+                set
+                {
+                    _threadValue = value;
+                    _hasValue = true;
+                }
+            }
         }
     }
 }
