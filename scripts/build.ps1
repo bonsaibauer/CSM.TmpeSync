@@ -456,12 +456,12 @@ if ($Build) {
     $dotnetArguments = @("build", $ProjectPath, "-c", $Configuration, "/restore", "--nologo")
 
     foreach ($property in @(
-        Build-PropertyArgument -Name "CitiesSkylinesDir" -Value $CitiesSkylinesDir
-        Build-PropertyArgument -Name "HarmonyDllDir" -Value $HarmonyDllDir
-        Build-PropertyArgument -Name "CsmApiDllPath" -Value $CsmApiDllPath
-        Build-PropertyArgument -Name "TmpeDir" -Value $TmpeDir
-        Build-PropertyArgument -Name "SteamModsDir" -Value $SteamModsDir
-        Build-PropertyArgument -Name "ModDirectory" -Value $ModDirectory
+        Build-PropertyArgument -Name "CitiesSkylinesDir" -Value $CitiesSkylinesDir,
+        Build-PropertyArgument -Name "HarmonyDllDir" -Value $HarmonyDllDir,
+        Build-PropertyArgument -Name "CsmApiDllPath" -Value $CsmApiDllPath,
+        Build-PropertyArgument -Name "TmpeDir" -Value $TmpeDir,
+        Build-PropertyArgument -Name "SteamModsDir" -Value $SteamModsDir,
+        Build-PropertyArgument -Name "ModDirectory" -Value $ModDirectory,
         Build-PropertyArgument -Name "ModsOutDir" -Value $ModDirectory
     )) {
         if ($property) {
@@ -475,6 +475,8 @@ if ($Build) {
     if ($LASTEXITCODE -ne 0) {
         throw "dotnet build failed with exit code $LASTEXITCODE."
     }
+
+    Write-Host "[CSM.TmpeSync] Dependency library refreshed under $LibRoot." -ForegroundColor DarkCyan
 }
 
 if ($Install) {

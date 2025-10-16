@@ -48,7 +48,6 @@
 
     <!-- ===== Steam installation (optional) ===== -->
     <SteamModsDir Condition="'$(SteamModsDir)'!=''">$(SteamModsDir)</SteamModsDir>
-    <SteamModsDir Condition="'$(SteamModsDir)'=='' and Exists('C:\Program Files (x86)\Steam\steamapps\common\Cities_Skylines\Files\Mods')">C:\Program Files (x86)\Steam\steamapps\common\Cities_Skylines\Files\Mods\CSM.TmpeSync</SteamModsDir>
 
     <!-- Always compile with the GAME symbol enabled because the project now requires the real game assemblies. -->
     <DefineConstants>TRACE;RELEASE;GAME</DefineConstants>
