@@ -21,7 +21,7 @@ Source folders are grouped by responsibility:
 - `Snapshot/` exports the current TM:PE state when a player connects to
   synchronise newcomers.【F:src/CSM.TmpeSync/CSM.TmpeSync.csproj†L182-L190】
 - `Tmpe/` and `HideCrosswalks/` provide adapters that either call the actual mod
-  APIs or gracefully skip behaviour when the mods are missing.【F:src/CSM.TmpeSync/CSM.TmpeSync.csproj†L136-L141】【F:src/Tmpe/TmpeAdapter.cs†L9-L468】
+  APIs or gracefully skip behaviour when the mods are missing.【F:src/CSM.TmpeSync/CSM.TmpeSync.csproj†L136-L141】【F:src/Tmpe/TmpeAdapter.cs†L9-L368】
 - `Util/` bundles infrastructure such as logging, entity locks and, most
   importantly, the compatibility layer for the CSM API.【F:src/CSM.TmpeSync/CSM.TmpeSync.csproj†L136-L149】【F:src/Util/CsmCompat.cs†L1-L409】
 
@@ -31,9 +31,12 @@ Source folders are grouped by responsibility:
 logs a warning otherwise. Every synchronisation command (speed limits, lane
 arrows, vehicle restrictions, lane connector etc.) is received by the adapter,
 stored internally and – if TM:PE is present – passed through to the respective
-managers.【F:src/Tmpe/TmpeAdapter.cs†L9-L468】 The snapshot export uses the same
-adapter state so the behaviour is identical between single- and multiplayer
-sessions.【F:docs/TmpeFeatureSyncChecklist.md†L9-L186】 No separate "TM:PE API" is
+managers.【F:src/Tmpe/TmpeAdapter.cs†L9-L368】 The adapter now mirrors the full
+`ExtVehicleType` enumeration (trains, ships, aircraft, pedestrians and more) and
+keeps near-/far-side turn-on-red toggles separate so TM:PE junction restriction
+behaviour is preserved exactly.【F:src/Net/Contracts/States/TmpeStates.cs†L16-L95】【F:src/Tmpe/TmpeAdapter.cs†L1370-L1677】 The
+snapshot export uses the same adapter state so the behaviour is identical
+between single- and multiplayer sessions.【F:docs/TmpeFeatureSyncChecklist.md†L9-L190】 No separate "TM:PE API" is
 required; reflection is used to access the existing assembly.
 
 Unlike the historical `CSM-API-Implementation` branch inside TM:PE (which tried

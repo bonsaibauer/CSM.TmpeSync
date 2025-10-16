@@ -33,16 +33,18 @@ the simulation and broadcasts the confirmed result to all clients.【F:src/Net/H
 - Deferred operations handle connections whose lanes are not loaded yet.【F:src/Net/Handlers/LaneConnectionsDeferredOp.cs†L1-L36】
 
 ## Vehicle restrictions
-- Supported vehicle classes: passenger car, truck, bus, taxi, service, emergency
-  and tram. Every combination is synchronised as a bit mask; the adapter removes
-  `None` entries automatically.【F:src/Net/Contracts/States/TmpeStates.cs†L16-L28】【F:src/Tmpe/TmpeAdapter.cs†L140-L205】
+- Supported vehicle classes: passenger car, truck, bus, taxi, service, emergency,
+  tram, passenger/cargo train, bicycle, pedestrian, passenger/cargo ship,
+  passenger/cargo plane, helicopter, cable car, passenger ferry, passenger blimp
+  and trolleybus. Every combination is synchronised as a bit mask; the adapter
+  removes `None` entries automatically.【F:src/Net/Contracts/States/TmpeStates.cs†L16-L61】【F:src/Tmpe/TmpeAdapter.cs†L303-L368】【F:src/Tmpe/TmpeAdapter.cs†L1370-L1467】
 - Snapshot export only sends restrictions that are actually set.【F:src/Snapshot/VehicleRestrictionsSnapshotProvider.cs†L10-L28】
 - Deferred operations handle missing lanes.【F:src/Net/Handlers/VehicleRestrictionsDeferredOp.cs†L1-L36】
 
 ## Junction restrictions
-- All five toggles (U-turn, lane changing, blocking, pedestrians, turn on red)
-  are stored in `JunctionRestrictionsState`. `IsDefault()` removes the entry once
-  every option is allowed again.【F:src/Net/Contracts/States/TmpeStates.cs†L30-L52】【F:src/Tmpe/TmpeAdapter.cs†L276-L320】
+- All toggles (U-turn, lane changing, blocking, pedestrians, near-side and
+  far-side turn on red) are stored in `JunctionRestrictionsState`. `IsDefault()`
+  removes the entry once every option is allowed again.【F:src/Net/Contracts/States/TmpeStates.cs†L30-L95】【F:src/Tmpe/TmpeAdapter.cs†L1580-L1678】
 - Snapshots transmit the full state per node.【F:src/Snapshot/JunctionRestrictionsSnapshotProvider.cs†L10-L31】
 
 ## Priority signs
