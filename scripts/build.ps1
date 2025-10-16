@@ -174,67 +174,6 @@ function Ensure-LibDirectory {
     return $fullPath
 }
 
-function Normalize-Path {
-    param([string]$Path)
-
-    if ([string]::IsNullOrWhiteSpace($Path)) {
-        return ""
-    }
-
-    try {
-        return (Get-Item -LiteralPath $Path).FullName
-    }
-    catch {
-        return $Path
-    }
-}
-
-function Get-WorkshopContentDir {
-    param([string]$CitiesSkylinesDir)
-
-    $resolved = Normalize-Path -Path $CitiesSkylinesDir
-    if ([string]::IsNullOrWhiteSpace($resolved)) {
-        return ""
-    }
-
-    $current = $resolved
-    while ($true) {
-        $leaf = Split-Path $current -Leaf
-        if ([string]::IsNullOrWhiteSpace($leaf)) {
-            break
-        }
-
-        if ($leaf.Equals("steamapps", [System.StringComparison]::OrdinalIgnoreCase)) {
-            $candidate = Join-Path $current "workshop\content\255710"
-            if (Test-Path $candidate) {
-                return $candidate
-            }
-        }
-
-        $parent = Split-Path $current -Parent
-        if ($parent -eq $current -or [string]::IsNullOrWhiteSpace($parent)) {
-            break
-        }
-        $current = $parent
-    }
-
-    $defaults = @()
-    if (${env:ProgramFiles(x86)}) {
-        $defaults += (Join-Path ${env:ProgramFiles(x86)} "Steam\steamapps\workshop\content\255710")
-    }
-    if ($env:ProgramFiles) {
-        $defaults += (Join-Path $env:ProgramFiles "Steam\steamapps\workshop\content\255710")
-    }
-
-    foreach ($path in $defaults) {
-        if (-not [string]::IsNullOrWhiteSpace($path) -and (Test-Path $path)) {
-            return $path
-        }
-    }
-
-    return ""
-}
-
 function Sync-CitiesSkylinesAssemblies {
     param([string]$SourceDir)
 
@@ -242,7 +181,7 @@ function Sync-CitiesSkylinesAssemblies {
     Ensure-DirectoryExists -Path $managedSource -Description "Cities: Skylines managed"
 
     $destination = Ensure-LibDirectory -RelativePath "CitiesSkylines/Cities_Data/Managed"
-    foreach ($file in @("ICities.dll", "ColossalManaged.dll", "UnityEngine.dll", "UnityEngine.UI.dll", "Assembly-CSharp.dll")) {
+    foreach ($file in @("ICities.dll", "ColossalManaged.dll", "UnityEngine.dll", "Assembly-CSharp.dll")) {
         $sourcePath = Join-Path $managedSource $file
         if (-not (Test-Path $sourcePath)) {
             throw "Missing required Cities: Skylines assembly: $sourcePath"
@@ -255,112 +194,47 @@ function Sync-CitiesSkylinesAssemblies {
 }
 
 function Sync-HarmonyAssembly {
-    param([string[]]$CandidateRoots)
+    param([string]$SourceDir)
+
+    Ensure-DirectoryExists -Path $SourceDir -Description "Harmony directory"
+    $sourcePath = Join-Path $SourceDir "CitiesHarmony.Harmony.dll"
+    if (-not (Test-Path $sourcePath)) {
+        throw "CitiesHarmony.Harmony.dll not found inside $SourceDir"
+    }
 
     $destinationDir = Ensure-LibDirectory -RelativePath "Harmony"
-    foreach ($root in $CandidateRoots) {
-        if ([string]::IsNullOrWhiteSpace($root)) {
-            continue
-        }
-
-        if (-not (Test-Path $root)) {
-            continue
-        }
-
-        $item = Get-Item -LiteralPath $root -ErrorAction SilentlyContinue
-        if ($null -eq $item) {
-            continue
-        }
-
-        if ($item.PSIsContainer) {
-            $sourcePath = Join-Path $item.FullName "CitiesHarmony.Harmony.dll"
-            if (Test-Path $sourcePath) {
-                Copy-Item -LiteralPath $sourcePath -Destination (Join-Path $destinationDir "CitiesHarmony.Harmony.dll") -Force
-                return $destinationDir
-            }
-        }
-        elseif ($item.Extension -eq ".dll" -and $item.Name -eq "CitiesHarmony.Harmony.dll") {
-            Copy-Item -LiteralPath $item.FullName -Destination (Join-Path $destinationDir "CitiesHarmony.Harmony.dll") -Force
-            return $destinationDir
-        }
-    }
-
-    $existing = Join-Path $destinationDir "CitiesHarmony.Harmony.dll"
-    if (Test-Path $existing) {
-        return $destinationDir
-    }
-
-    throw "CitiesHarmony.Harmony.dll not found. Install Harmony or provide -HarmonyDllDir."
+    Copy-Item -LiteralPath $sourcePath -Destination (Join-Path $destinationDir "CitiesHarmony.Harmony.dll") -Force
+    return $destinationDir
 }
 
 function Sync-TmpeAssemblies {
-    param([string[]]$CandidateRoots)
+    param([string]$SourceDir)
+
+    if ([string]::IsNullOrWhiteSpace($SourceDir)) {
+        return ""
+    }
+
+    $managedSource = Join-Path $SourceDir "Cities_Data\Managed"
+    $trafficManagerDll = Join-Path $managedSource "TrafficManager.dll"
+    if (-not (Test-Path $trafficManagerDll)) {
+        return ""
+    }
 
     $destination = Ensure-LibDirectory -RelativePath "TMPE/Cities_Data/Managed"
-    foreach ($root in $CandidateRoots) {
-        if ([string]::IsNullOrWhiteSpace($root)) {
-            continue
-        }
-
-        if (-not (Test-Path $root)) {
-            continue
-        }
-
-        $item = Get-Item -LiteralPath $root -ErrorAction SilentlyContinue
-        if ($null -eq $item) {
-            continue
-        }
-
-        if ($item.PSIsContainer) {
-            $managedDir = Join-Path $item.FullName "Cities_Data\Managed"
-            $sourcePath = Join-Path $managedDir "TrafficManager.dll"
-            if (-not (Test-Path $sourcePath)) {
-                continue
-            }
-
-            Copy-Item -LiteralPath $sourcePath -Destination (Join-Path $destination "TrafficManager.dll") -Force
-            return (Join-Path $LibRoot "TMPE")
-        }
-        elseif ($item.Extension -eq ".dll" -and $item.Name -eq "TrafficManager.dll") {
-            Copy-Item -LiteralPath $item.FullName -Destination (Join-Path $destination "TrafficManager.dll") -Force
-            return (Join-Path $LibRoot "TMPE")
-        }
-    }
-
-    $existing = Join-Path $destination "TrafficManager.dll"
-    if (Test-Path $existing) {
-        return (Join-Path $LibRoot "TMPE")
-    }
-
-    return ""
+    Copy-Item -LiteralPath $trafficManagerDll -Destination (Join-Path $destination "TrafficManager.dll") -Force
+    return (Join-Path $LibRoot "TMPE")
 }
 
 function Sync-CsmAssemblies {
-    param([string[]]$CandidatePaths)
+    param([string]$SourceDir)
+
+    if (-not (Test-Path $SourceDir)) {
+        return ""
+    }
 
     $destination = Ensure-LibDirectory -RelativePath "CSM"
-    foreach ($path in $CandidatePaths) {
-        if ([string]::IsNullOrWhiteSpace($path)) {
-            continue
-        }
-
-        if (-not (Test-Path $path)) {
-            continue
-        }
-
-        $item = Get-Item -LiteralPath $path -ErrorAction SilentlyContinue
-        if ($null -eq $item) {
-            continue
-        }
-
-        if ($item.PSIsContainer) {
-            Get-ChildItem -Path $item.FullName -Filter "*.dll" -File -ErrorAction SilentlyContinue | ForEach-Object {
-                Copy-Item -LiteralPath $_.FullName -Destination (Join-Path $destination $_.Name) -Force
-            }
-        }
-        elseif ($item.Extension -eq ".dll") {
-            Copy-Item -LiteralPath $item.FullName -Destination (Join-Path $destination $item.Name) -Force
-        }
+    Get-ChildItem -Path $SourceDir -Filter "*.dll" -ErrorAction SilentlyContinue | ForEach-Object {
+        Copy-Item -LiteralPath $_.FullName -Destination (Join-Path $destination $_.Name) -Force
     }
 
     $apiPath = Join-Path $destination "CSM.API.dll"
@@ -425,6 +299,11 @@ function Invoke-CsmScript {
 function Configure-Interactive {
     Write-Host "[CSM.TmpeSync] Interactive configuration" -ForegroundColor Cyan
     $script:BuildConfig["CitiesSkylinesDir"] = Prompt-ForValue -Key "CitiesSkylinesDir" -Message "Enter the Cities: Skylines installation directory"
+    $script:BuildConfig["HarmonyDllDir"] = Prompt-ForValue -Key "HarmonyDllDir" -Message "Enter the CitiesHarmony workshop directory"
+    $optionalTmpe = Prompt-ForValue -Key "TmpeDir" -Message "Enter the TM:PE workshop directory (optional, leave blank to skip)" -Optional
+    if (-not [string]::IsNullOrWhiteSpace($optionalTmpe)) {
+        $script:BuildConfig["TmpeDir"] = $optionalTmpe
+    }
 
     $optionalModDir = Prompt-ForValue -Key "ModDirectory" -Message "Enter the target directory for installing CSM.TmpeSync" -Optional
     if (-not [string]::IsNullOrWhiteSpace($optionalModDir)) {
@@ -436,11 +315,10 @@ function Configure-Interactive {
         $script:BuildConfig["CsmModDirectory"] = $optionalCsmModDir
     }
 
-    $optionalSteamMods = Prompt-ForValue -Key "SteamModsDir" -Message "Enter the Cities Skylines Steam mods directory (optional)" -Optional
+    $optionalSteamMods = Prompt-ForValue -Key "SteamModsDir" -Message "Enter the Cities Skylines steam mods directory (optional)" -Optional
     if (-not [string]::IsNullOrWhiteSpace($optionalSteamMods)) {
         $script:BuildConfig["SteamModsDir"] = $optionalSteamMods
     }
-
     $script:ConfigUpdated = $true
     Save-BuildConfig
     Write-Host "[CSM.TmpeSync] Configuration saved." -ForegroundColor Green
@@ -480,10 +358,6 @@ if ($Update) {
     }
 }
 
-$steamModsFromConfig = Get-ConfigValue -Key "SteamModsDir" -ParameterValue $SteamModsDir
-if (-not [string]::IsNullOrWhiteSpace($steamModsFromConfig)) {
-    $SteamModsDir = $steamModsFromConfig
-}
 
 function Build-PropertyArgument {
     param(
@@ -515,10 +389,30 @@ if ($Update) {
 
 if ($Build) {
     $ConfiguredCitiesSkylinesDir = Resolve-Setting -Key "CitiesSkylinesDir" -ParameterValue $CitiesSkylinesDir -Prompt "Enter the Cities: Skylines installation directory"
+    $ConfiguredHarmonyDir = Resolve-Setting -Key "HarmonyDllDir" -ParameterValue $HarmonyDllDir -Prompt "Enter the CitiesHarmony workshop directory"
+    $ConfiguredTmpeDir = Get-ConfigValue -Key "TmpeDir" -ParameterValue $TmpeDir
+    if (-not [string]::IsNullOrWhiteSpace($ConfiguredTmpeDir)) {
+        $TmpeDir = $ConfiguredTmpeDir
+    }
+    else {
+        $ConfiguredTmpeDir = ""
+    }
+
+    $configuredSteamModsDir = Get-ConfigValue -Key "SteamModsDir" -ParameterValue $SteamModsDir
+    if (-not [string]::IsNullOrWhiteSpace($configuredSteamModsDir)) {
+        $SteamModsDir = $configuredSteamModsDir
+    }
+
+    if ([string]::IsNullOrWhiteSpace($ConfiguredCitiesSkylinesDir)) {
+        throw "Cities: Skylines directory is not configured. Run with -Configure or provide -CitiesSkylinesDir."
+    }
+
+    if ([string]::IsNullOrWhiteSpace($ConfiguredHarmonyDir)) {
+        throw "Harmony directory is not configured. Run with -Configure or provide -HarmonyDllDir."
+    }
 
     Ensure-DirectoryExists -Path $ConfiguredCitiesSkylinesDir -Description "Cities: Skylines"
-
-    $workshopContentDir = Get-WorkshopContentDir -CitiesSkylinesDir $ConfiguredCitiesSkylinesDir
+    Ensure-DirectoryExists -Path $ConfiguredHarmonyDir -Description "Harmony"
 
     if ($SkipCsmBuild) {
         Write-Host "[CSM.TmpeSync] Skipping CSM build step (SkipCsmBuild)." -ForegroundColor DarkYellow
@@ -530,40 +424,30 @@ if ($Build) {
     }
 
     $csmManagedLib = Sync-CitiesSkylinesAssemblies -SourceDir $ConfiguredCitiesSkylinesDir
-
-    $harmonyCandidates = @($HarmonyDllDir)
-    if (-not [string]::IsNullOrWhiteSpace($workshopContentDir)) {
-        $harmonyCandidates += (Join-Path $workshopContentDir "2040656402")
-    }
-    $harmonyCandidates += (Join-Path $LibRoot "Harmony")
-    $HarmonyDllDir = Sync-HarmonyAssembly -CandidateRoots $harmonyCandidates
-
-    $tmpeCandidates = @($TmpeDir)
-    if (-not [string]::IsNullOrWhiteSpace($workshopContentDir)) {
-        $tmpeCandidates += (Join-Path $workshopContentDir "1637663252")
-    }
-    $tmpeCandidates += (Join-Path $LibRoot "TMPE")
-    $TmpeDir = Sync-TmpeAssemblies -CandidateRoots $tmpeCandidates
+    $harmonyLib = Sync-HarmonyAssembly -SourceDir $ConfiguredHarmonyDir
+    $tmpeLib = Sync-TmpeAssemblies -SourceDir $ConfiguredTmpeDir
 
     $csmBinDir = Join-Path $RepoRoot "submodules\CSM\src\csm\bin\$Configuration"
     $apiBinDir = Join-Path $RepoRoot "submodules\CSM\src\api\bin\$Configuration"
-
-    $csmCandidates = @()
-    if (-not [string]::IsNullOrWhiteSpace($CsmApiDllPath)) {
-        $csmCandidates += $CsmApiDllPath
-    }
-    $csmCandidates += @($apiBinDir, $csmBinDir)
-    if (-not [string]::IsNullOrWhiteSpace($workshopContentDir)) {
-        $csmCandidates += (Join-Path $workshopContentDir "1558438291")
-    }
-    $csmCandidates += (Join-Path $LibRoot "CSM")
-
-    $CsmApiDllPath = Sync-CsmAssemblies -CandidatePaths $csmCandidates
-    if ([string]::IsNullOrWhiteSpace($CsmApiDllPath)) {
-        throw "CSM.API.dll not found. Build the CSM submodule or provide -CsmApiDllPath."
-    }
+    $csmApiFromCsmBuild = Sync-CsmAssemblies -SourceDir $csmBinDir
+    $csmApiFromApiBuild = Sync-CsmAssemblies -SourceDir $apiBinDir
 
     $CitiesSkylinesDir = $csmManagedLib
+    $HarmonyDllDir = $harmonyLib
+    if (-not [string]::IsNullOrWhiteSpace($tmpeLib)) {
+        $TmpeDir = $tmpeLib
+    }
+
+    if ([string]::IsNullOrWhiteSpace($CsmApiDllPath)) {
+        if (-not [string]::IsNullOrWhiteSpace($csmApiFromApiBuild)) {
+            $CsmApiDllPath = $csmApiFromApiBuild
+        }
+        elseif (-not [string]::IsNullOrWhiteSpace($csmApiFromCsmBuild)) {
+            $CsmApiDllPath = $csmApiFromCsmBuild
+        }
+    }
+
+    Write-Host "[CSM.TmpeSync] Dependency library refreshed under $LibRoot." -ForegroundColor DarkCyan
 
     if (-not (Get-Command "dotnet" -ErrorAction SilentlyContinue)) {
         throw "dotnet CLI not found. Install the .NET SDK to build CSM.TmpeSync."
