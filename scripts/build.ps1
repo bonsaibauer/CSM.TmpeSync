@@ -299,7 +299,6 @@ function Invoke-CsmScript {
 function Configure-Interactive {
     Write-Host "[CSM.TmpeSync] Interactive configuration" -ForegroundColor Cyan
     $script:BuildConfig["CitiesSkylinesDir"] = Prompt-ForValue -Key "CitiesSkylinesDir" -Message "Enter the Cities: Skylines installation directory"
-    $script:BuildConfig["HarmonyDllDir"] = Prompt-ForValue -Key "HarmonyDllDir" -Message "Enter the CitiesHarmony workshop directory"
     $optionalTmpe = Prompt-ForValue -Key "TmpeDir" -Message "Enter the TM:PE workshop directory (optional, leave blank to skip)" -Optional
     if (-not [string]::IsNullOrWhiteSpace($optionalTmpe)) {
         $script:BuildConfig["TmpeDir"] = $optionalTmpe
@@ -322,6 +321,58 @@ function Configure-Interactive {
     $script:ConfigUpdated = $true
     Save-BuildConfig
     Write-Host "[CSM.TmpeSync] Configuration saved." -ForegroundColor Green
+}
+
+function Get-SteamWorkshopBaseFromCitiesDir {
+    param([string]$CitiesDir)
+
+    if ([string]::IsNullOrWhiteSpace($CitiesDir)) {
+        return ""
+    }
+
+    $parent = Split-Path -Parent $CitiesDir
+    if ([string]::IsNullOrWhiteSpace($parent)) {
+        return ""
+    }
+
+    $steamAppsDir = Split-Path -Parent $parent
+    if ([string]::IsNullOrWhiteSpace($steamAppsDir)) {
+        return ""
+    }
+
+    return Join-Path $steamAppsDir "workshop\content\255710"
+}
+
+function Resolve-HarmonyDirectory {
+    param(
+        [string]$ExplicitPath,
+        [string]$SteamModsDir,
+        [string]$CitiesDir
+    )
+
+    if (-not [string]::IsNullOrWhiteSpace($ExplicitPath)) {
+        return $ExplicitPath
+    }
+
+    $candidates = @()
+
+    if (-not [string]::IsNullOrWhiteSpace($SteamModsDir)) {
+        $candidates += (Join-Path $SteamModsDir "2040656402")
+    }
+
+    $workshopFromCities = Get-SteamWorkshopBaseFromCitiesDir -CitiesDir $CitiesDir
+    if (-not [string]::IsNullOrWhiteSpace($workshopFromCities)) {
+        $candidates += (Join-Path $workshopFromCities "2040656402")
+    }
+
+    foreach ($candidate in $candidates | Select-Object -Unique) {
+        $dllPath = Join-Path $candidate "CitiesHarmony.Harmony.dll"
+        if (Test-Path $dllPath) {
+            return $candidate
+        }
+    }
+
+    return ""
 }
 
 if ($Configure) {
@@ -389,7 +440,6 @@ if ($Update) {
 
 if ($Build) {
     $ConfiguredCitiesSkylinesDir = Resolve-Setting -Key "CitiesSkylinesDir" -ParameterValue $CitiesSkylinesDir -Prompt "Enter the Cities: Skylines installation directory"
-    $ConfiguredHarmonyDir = Resolve-Setting -Key "HarmonyDllDir" -ParameterValue $HarmonyDllDir -Prompt "Enter the CitiesHarmony workshop directory"
     $ConfiguredTmpeDir = Get-ConfigValue -Key "TmpeDir" -ParameterValue $TmpeDir
     if (-not [string]::IsNullOrWhiteSpace($ConfiguredTmpeDir)) {
         $TmpeDir = $ConfiguredTmpeDir
@@ -407,12 +457,27 @@ if ($Build) {
         throw "Cities: Skylines directory is not configured. Run with -Configure or provide -CitiesSkylinesDir."
     }
 
-    if ([string]::IsNullOrWhiteSpace($ConfiguredHarmonyDir)) {
-        throw "Harmony directory is not configured. Run with -Configure or provide -HarmonyDllDir."
+    Ensure-DirectoryExists -Path $ConfiguredCitiesSkylinesDir -Description "Cities: Skylines"
+
+    if ([string]::IsNullOrWhiteSpace($SteamModsDir)) {
+        $derivedSteamModsDir = Get-SteamWorkshopBaseFromCitiesDir -CitiesDir $ConfiguredCitiesSkylinesDir
+        if (-not [string]::IsNullOrWhiteSpace($derivedSteamModsDir) -and (Test-Path $derivedSteamModsDir)) {
+            $SteamModsDir = $derivedSteamModsDir
+            $script:BuildConfig["SteamModsDir"] = $SteamModsDir
+            $script:ConfigUpdated = $true
+        }
     }
 
-    Ensure-DirectoryExists -Path $ConfiguredCitiesSkylinesDir -Description "Cities: Skylines"
+    $explicitHarmonyDir = Get-ConfigValue -Key "HarmonyDllDir" -ParameterValue $HarmonyDllDir
+    $ConfiguredHarmonyDir = Resolve-HarmonyDirectory -ExplicitPath $explicitHarmonyDir -SteamModsDir $SteamModsDir -CitiesDir $ConfiguredCitiesSkylinesDir
+
+    if ([string]::IsNullOrWhiteSpace($ConfiguredHarmonyDir)) {
+        throw "Harmony directory could not be resolved automatically. Provide -HarmonyDllDir or configure it in build-settings.json."
+    }
+
     Ensure-DirectoryExists -Path $ConfiguredHarmonyDir -Description "Harmony"
+    $script:BuildConfig["HarmonyDllDir"] = $ConfiguredHarmonyDir
+    $script:ConfigUpdated = $true
 
     if ($SkipCsmBuild) {
         Write-Host "[CSM.TmpeSync] Skipping CSM build step (SkipCsmBuild)." -ForegroundColor DarkYellow
