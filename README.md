@@ -14,25 +14,30 @@ Die folgenden Schritte zeigen dir, wie du das Projekt lokal baust und das result
 
 ## Voraussetzungen
 
-* .NET SDK 6.0 (oder neuer) – wird für den `dotnet`-Build benötigt.
-* Für reine Entwicklungs-Builds (ohne Spiel) sind **keine** zusätzlichen DLLs mehr nötig – Stub-Implementierungen stellen die benötigten Typen bereit.
-* Für echte In-Game-Builds (mit `/p:GameBuild=true`) gelten weiterhin die bekannten Abhängigkeiten:
-  * Cities: Skylines ist lokal installiert (Steam oder GOG). Du benötigst die DLLs aus `Cities_Data/Managed`.
-  * [CitiesHarmony](https://steamcommunity.com/workshop/filedetails/?id=2040656402) (Workshop 2040656402) ist installiert, damit `CitiesHarmony.Harmony.dll` verfügbar ist.
-  * Das CSM-Hauptprojekt muss bereits gebaut sein, damit `CSM.API.dll` vorliegt.
-    * Alternativ kannst du die Datei in einen lokalen `lib/`-Ordner neben dieses Repository kopieren.
-    * Nutzt du die Workshop-Version von CSM (ID **1558438291**), findest du die API unter
-      `C:\Program Files (x86)\Steam\steamapps\workshop\content\255710\1558438291\CSM.API.dll`.
-      Kopiere diese Datei unverändert nach `lib/CSM.API.dll`, damit der Hook im Spiel greift.
+* PowerShell 7 (`pwsh`) - wird fuer die Skripte `build.ps1` und `install.ps1` benoetigt.
+* Visual Studio 2022 (oder die Visual Studio 2022 Build Tools) stellt `MSBuild.exe` fuer den CSM-Build bereit.
+* .NET SDK 6.0 (oder neuer) - das Add-on nutzt weiterhin die `dotnet` CLI.
+* Fuer echte In-Game-Builds (mit aktivem `GameBuild`) gelten weiterhin:
+  * Cities: Skylines ist lokal installiert (Steam oder GOG). Du benoetigst die DLLs aus `Cities_Data/Managed`.
+  * [CitiesHarmony](https://steamcommunity.com/workshop/filedetails/?id=2040656402) (Workshop 2040656402) ist installiert, damit `CitiesHarmony.Harmony.dll` verfuegbar ist.
+  * Das CSM-Hauptprojekt wird ueber das Submodul automatisch mitgebaut. Falls du bewusst `-SkipCsmBuild` setzt, stelle sicher, dass `CSM.API.dll` entweder im Submodul (`submodules/CSM/`) oder im lokalen `lib/` Ordner liegt.
   * Optional: TM:PE muss installiert sein, wenn du direkt auf `TrafficManager.dll` verweist.
 
-> 💡 Lege die benötigten DLLs nicht ins Repository, sondern verweise beim Build auf die bereits vorhandenen Installationen.
+> ?? Lege die benoetigten DLLs nicht ins Repository, sondern verweise beim Build auf vorhandene Installationen.
 
-## Build in Visual Studio Code
+## Build-Skript (pwsh)
 
-1. Öffne den Ordner des Repositories in VS Code.
-2. Installiere die Erweiterung **C# Dev Kit** oder **C#** (für IntelliSense und Build-Aufgaben).
-3. Erstelle eine `Directory.Build.props` (oder setze Umgebungsvariablen), damit die Build-Pfade bekannt sind. Wenn du das Add-on direkt fürs Spiel bauen möchtest, kannst du hier auch `GameBuild` aktivieren:
+Das Repository nutzt nun denselben Build-Flow wie der CSM-Mod: `build.ps1` ruft zuerst das CSM-Skript auf und baut anschliessend das Add-on.
+
+### Vorbereitung
+
+1. Stelle sicher, dass das Submodul initialisiert ist:
+
+   ```powershell
+   git submodule update --init --recursive
+   ```
+
+2. Optional: Lege eine `Directory.Build.props` im Repository-Stamm an, damit Pfade zu deiner Spielinstallation automatisch gefunden werden:
 
    ```xml
    <?xml version="1.0" encoding="utf-8"?>
@@ -42,34 +47,56 @@ Die folgenden Schritte zeigen dir, wie du das Projekt lokal baust und das result
        <CitiesSkylinesDir>C:\Program Files (x86)\Steam\steamapps\common\Cities_Skylines</CitiesSkylinesDir>
        <HarmonyDllDir>C:\Program Files (x86)\Steam\steamapps\workshop\content\255710\2040656402</HarmonyDllDir>
        <CsmApiDllPath>C:\Program Files (x86)\Steam\steamapps\workshop\content\255710\1558438291\CSM.API.dll</CsmApiDllPath>
-       <!-- Optional, nur wenn benötigt: -->
+       <!-- Optional, nur wenn benoetigt: -->
        <TmpeDir>C:\Program Files (x86)\Steam\steamapps\workshop\content\255710\1637663252</TmpeDir>
-        <!-- Setze auf true, wenn du mit echten Spiel-DLLs bauen willst -->
-        <GameBuild>true</GameBuild>
+       <!-- Setze auf true, wenn du mit echten Spiel-DLLs bauen willst -->
+       <GameBuild>true</GameBuild>
      </PropertyGroup>
    </Project>
    ```
 
-   Speichere die Datei im Repository-Stamm. Beim Build werden die Pfade automatisch übernommen.
+   `build.ps1` uebernimmt diese Properties automatisch.
 
-4. Führe den Build aus. Sobald die Pfade gesetzt sind, nutzen Builds automatisch die echten Spiel-DLLs (sofern `GameBuild` nicht manuell überschrieben wurde):
+### Haeufige Befehle
 
-   ```bash
-   dotnet build src/CSM.TmpeSync.csproj -c Release
+* Release-Build inklusive Installation (CSM + Add-on):
+
+   ```powershell
+   pwsh ./build.ps1 -Build -Install
    ```
 
-   Dadurch implementiert die ausgelieferte DLL garantiert das echte `ICities.IUserMod`
-   und wird vom Spiel korrekt erkannt. Die Datei wird – nach erfolgreichem Build – wie gewohnt
-   nach `%LOCALAPPDATA%\Colossal Order\Cities_Skylines\Addons\Mods\CSM.TmpeSync` kopiert.
+* Debug-Build ohne das CSM-Submodul erneut zu kompilieren:
 
-5. Für schnelle Entwicklungs-Builds ohne Spiel-Abhängigkeiten kannst du weiterhin den Debug-Build nutzen (oder `GameBuild=false` setzen). Ohne gesetzte Spiel-Pfade bleibt `GameBuild` automatisch deaktiviert:
-
-   ```bash
-   dotnet build src/CSM.TmpeSync.csproj -c Debug
+   ```powershell
+   pwsh ./build.ps1 -Build -Configuration Debug -SkipCsmBuild -SkipCsmInstall
    ```
 
-   In diesem Modus kommen die Stub-Implementierungen zum Einsatz, sodass keine externen DLLs benötigt werden.
+* Nur Installation fuer bereits vorhandene Artefakte:
 
+   ```powershell
+   pwsh ./build.ps1 -Install
+   ```
+
+* Assemblies aus der Spielinstallation aktualisieren und direkt bauen:
+
+   ```powershell
+   pwsh ./build.ps1 -Update -Build -GameDirectory "C:\Program Files (x86)\Steam\steamapps\common\Cities_Skylines"
+   ```
+
+### Nuetzliche Parameter
+
+* `-ModDirectory` legt das Ziel fuer CSM.TmpeSync fest (Standard: `%LOCALAPPDATA%\Colossal Order\Cities_Skylines\Addons\Mods\CSM.TmpeSync`).
+* `-CsmModDirectory` steuert das Installationsziel des CSM-Submoduls.
+* `-SkipCsmBuild` und `-SkipCsmInstall` ueberspringen gezielt die Schritte fuer das Submodul.
+* `-GameBuild`, `-CitiesSkylinesDir`, `-HarmonyDllDir`, `-CsmApiDllPath`, `-TmpeDir` und `-SteamModsDir` werden als Properties an den Add-on-Build weitergereicht.
+
+### Release-Paket installieren
+
+Fuer verteilte Build-Artefakte liegt ein separates `install.ps1` bei. Fuehre es aus demselben Ordner wie die `CSM.TmpeSync*.dll` aus:
+
+```powershell
+pwsh ./install.ps1
+```
 ## Add-on im Spiel verwenden
 
 1. Starte Cities: Skylines und aktiviere im Content-Manager unter **Mods** sowohl CSM als auch das neue Add-on "CSM.TmpeSync" (das Add-on bleibt nur aktiv, wenn CSM **und** Harmony eingeschaltet sind).
@@ -87,7 +114,7 @@ Die folgenden Schritte zeigen dir, wie du das Projekt lokal baust und das result
 
 Im Debug-Build (oder wann immer `GAME` **nicht** gesetzt ist) stellt dieses Repository eine simulierte CSM-API bereit. Damit lässt sich nachvollziehen, welche TM:PE-Befehle verschickt würden, ohne einen echten Multiplayer-Client zu verbinden:
 
-1. Baue den Debug-Build (`dotnet build -c Debug`). Die Stub-API wird automatisch eingebunden.
+1. Baue den Debug-Build (`pwsh ./build.ps1 -Build -Configuration Debug -SkipCsmBuild -SkipCsmInstall`). Die Stub-API wird automatisch eingebunden.
 2. Aktiviere den Mod im Spiel oder starte deine Editor-Laufumgebung. Beim Aktivieren erscheinen u. a. folgende Zeilen im Log:
 
    ```
@@ -151,9 +178,9 @@ Auf diese Weise kannst du zuverlässig nachvollziehen, ob das Add-on die TM:PE-G
 
 * **`ICities.dll nicht gefunden`** – Setze die MSBuild-Eigenschaft `CitiesSkylinesDir` auf den korrekten Installationspfad.
 * **`CitiesHarmony.Harmony.dll nicht gefunden`** – Installiere CitiesHarmony im Steam Workshop oder gib `HarmonyDllDir` explizit an.
-* **`CSM.API.dll nicht gefunden`** – Baue zuerst das CSM-Projekt (`dotnet build` im CSM-Repo) und verweise auf die erzeugte DLL
-  via `CsmApiDllPath` oder lege sie in `lib/CSM.API.dll`.
+* **`CSM.API.dll nicht gefunden`** - F�hre das Skript ohne `-SkipCsmBuild` aus (z.?B. `pwsh ./build.ps1 -Build`). Alternativ kannst du das Submodul manuell im Ordner `submodules/CSM` bauen und die erzeugte DLL via `CsmApiDllPath` referenzieren oder in `lib/CSM.API.dll` ablegen.
 * **Die DLL landet nicht im Mods-Ordner** – Prüfe, ob `%LOCALAPPDATA%` korrekt gesetzt ist. Alternativ kannst du die Ausgabe
   im Projekt-Ordner `src/bin/Release/net35/` manuell in den Mods-Ordner kopieren.
 
 Viel Erfolg beim Ausprobieren!
+
