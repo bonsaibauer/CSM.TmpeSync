@@ -683,7 +683,6 @@ namespace CSM.TmpeSync.Tmpe
             internal string DisplayName { get; }
             internal string[][] Patterns { get; }
         }
-#endif
 
         private static bool IsNullOrWhiteSpace(string value)
         {

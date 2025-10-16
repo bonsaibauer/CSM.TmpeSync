@@ -54,34 +54,64 @@ namespace CSM.TmpeSync.Tmpe
             }
         }
 
+        private readonly struct LaneConnectionKey : IEquatable<LaneConnectionKey>
+        {
+            internal LaneConnectionKey(ushort nodeId, bool sourceStartNode)
+            {
+                NodeId = nodeId;
+                SourceStartNode = sourceStartNode;
+            }
+
+            internal ushort NodeId { get; }
+            internal bool SourceStartNode { get; }
+
+            public bool Equals(LaneConnectionKey other)
+            {
+                return NodeId == other.NodeId && SourceStartNode == other.SourceStartNode;
+            }
+
+            public override bool Equals(object obj)
+            {
+                return obj is LaneConnectionKey other && Equals(other);
+            }
+
+            public override int GetHashCode()
+            {
+                unchecked
+                {
+                    return (NodeId.GetHashCode() * 397) ^ SourceStartNode.GetHashCode();
+                }
+            }
+        }
+
         private static readonly Dictionary<NodeSegmentKey, PrioritySignType> PrioritySigns = new Dictionary<NodeSegmentKey, PrioritySignType>();
         private static readonly Dictionary<ushort, ParkingRestrictionState> ParkingRestrictions = new Dictionary<ushort, ParkingRestrictionState>();
         private static readonly Dictionary<ushort, TimedTrafficLightState> TimedTrafficLights = new Dictionary<ushort, TimedTrafficLightState>();
 
-        private static readonly object SpeedLimitManagerInstance;
-        private static readonly MethodInfo SpeedLimitSetLaneMethod;
-        private static readonly MethodInfo SpeedLimitCalculateMethod;
-        private static readonly MethodInfo SpeedLimitGetDefaultMethod;
-        private static readonly Type SetSpeedLimitActionType;
-        private static readonly MethodInfo SetSpeedLimitResetMethod;
-        private static readonly MethodInfo SetSpeedLimitOverrideMethod;
-        private static readonly Type SpeedValueType;
-        private static readonly MethodInfo SpeedValueFromKmphMethod;
-        private static readonly MethodInfo SpeedValueGetKmphMethod;
+        private static object SpeedLimitManagerInstance;
+        private static MethodInfo SpeedLimitSetLaneMethod;
+        private static MethodInfo SpeedLimitCalculateMethod;
+        private static MethodInfo SpeedLimitGetDefaultMethod;
+        private static Type SetSpeedLimitActionType;
+        private static MethodInfo SetSpeedLimitResetMethod;
+        private static MethodInfo SetSpeedLimitOverrideMethod;
+        private static Type SpeedValueType;
+        private static MethodInfo SpeedValueFromKmphMethod;
+        private static MethodInfo SpeedValueGetKmphMethod;
 
-        private static readonly object LaneArrowManagerInstance;
-        private static readonly MethodInfo LaneArrowSetMethod;
-        private static readonly MethodInfo LaneArrowGetMethod;
-        private static readonly Type LaneArrowsEnumType;
-        private static readonly int LaneArrowLeftMask;
-        private static readonly int LaneArrowForwardMask;
-        private static readonly int LaneArrowRightMask;
+        private static object LaneArrowManagerInstance;
+        private static MethodInfo LaneArrowSetMethod;
+        private static MethodInfo LaneArrowGetMethod;
+        private static Type LaneArrowsEnumType;
+        private static int LaneArrowLeftMask;
+        private static int LaneArrowForwardMask;
+        private static int LaneArrowRightMask;
 
-        private static readonly object VehicleRestrictionsManagerInstance;
-        private static readonly MethodInfo VehicleRestrictionsSetMethod;
-        private static readonly MethodInfo VehicleRestrictionsClearMethod;
-        private static readonly MethodInfo VehicleRestrictionsGetMethod;
-        private static readonly Type ExtVehicleTypeEnumType;
+        private static object VehicleRestrictionsManagerInstance;
+        private static MethodInfo VehicleRestrictionsSetMethod;
+        private static MethodInfo VehicleRestrictionsClearMethod;
+        private static MethodInfo VehicleRestrictionsGetMethod;
+        private static Type ExtVehicleTypeEnumType;
         private static int ExtVehiclePassengerCarMask;
         private static int ExtVehicleCargoTruckMask;
         private static int ExtVehicleBusMask;
@@ -103,38 +133,38 @@ namespace CSM.TmpeSync.Tmpe
         private static int ExtVehiclePassengerBlimpMask;
         private static int ExtVehicleTrolleybusMask;
 
-        private static readonly object LaneConnectionManagerInstance;
-        private static readonly MethodInfo LaneConnectionAddMethod;
-        private static readonly MethodInfo LaneConnectionRemoveMethod;
-        private static readonly MethodInfo LaneConnectionGetMethod;
-        private static readonly object LaneConnectionRoadSubManager;
-        private static readonly object LaneConnectionTrackSubManager;
-        private static readonly MethodInfo LaneConnectionSupportsLaneMethod;
-        private static readonly Type LaneEndTransitionGroupEnumType;
-        private static readonly object LaneEndTransitionGroupVehicleValue;
+        private static object LaneConnectionManagerInstance;
+        private static MethodInfo LaneConnectionAddMethod;
+        private static MethodInfo LaneConnectionRemoveMethod;
+        private static MethodInfo LaneConnectionGetMethod;
+        private static object LaneConnectionRoadSubManager;
+        private static object LaneConnectionTrackSubManager;
+        private static MethodInfo LaneConnectionSupportsLaneMethod;
+        private static Type LaneEndTransitionGroupEnumType;
+        private static object LaneEndTransitionGroupVehicleValue;
 
-        private static readonly object JunctionRestrictionsManagerInstance;
-        private static readonly MethodInfo SetUturnAllowedMethod;
-        private static readonly MethodInfo SetNearTurnOnRedAllowedMethod;
-        private static readonly MethodInfo SetFarTurnOnRedAllowedMethod;
-        private static readonly MethodInfo SetLaneChangingAllowedMethod;
-        private static readonly MethodInfo SetEnteringBlockedMethod;
-        private static readonly MethodInfo SetPedestrianCrossingMethod;
-        private static readonly MethodInfo IsUturnAllowedMethod;
-        private static readonly MethodInfo IsNearTurnOnRedAllowedMethod;
-        private static readonly MethodInfo IsFarTurnOnRedAllowedMethod;
-        private static readonly MethodInfo IsLaneChangingAllowedMethod;
-        private static readonly MethodInfo IsEnteringBlockedMethod;
-        private static readonly MethodInfo IsPedestrianCrossingAllowedMethod;
+        private static object JunctionRestrictionsManagerInstance;
+        private static MethodInfo SetUturnAllowedMethod;
+        private static MethodInfo SetNearTurnOnRedAllowedMethod;
+        private static MethodInfo SetFarTurnOnRedAllowedMethod;
+        private static MethodInfo SetLaneChangingAllowedMethod;
+        private static MethodInfo SetEnteringBlockedMethod;
+        private static MethodInfo SetPedestrianCrossingMethod;
+        private static MethodInfo IsUturnAllowedMethod;
+        private static MethodInfo IsNearTurnOnRedAllowedMethod;
+        private static MethodInfo IsFarTurnOnRedAllowedMethod;
+        private static MethodInfo IsLaneChangingAllowedMethod;
+        private static MethodInfo IsEnteringBlockedMethod;
+        private static MethodInfo IsPedestrianCrossingAllowedMethod;
 
-        private static readonly object TrafficPriorityManagerInstance;
-        private static readonly MethodInfo PrioritySignSetMethod;
-        private static readonly MethodInfo PrioritySignGetMethod;
-        private static readonly Type PriorityTypeEnumType;
+        private static object TrafficPriorityManagerInstance;
+        private static MethodInfo PrioritySignSetMethod;
+        private static MethodInfo PrioritySignGetMethod;
+        private static Type PriorityTypeEnumType;
 
-        private static readonly object ParkingRestrictionsManagerInstance;
-        private static readonly MethodInfo ParkingAllowedSetMethod;
-        private static readonly MethodInfo ParkingAllowedGetMethod;
+        private static object ParkingRestrictionsManagerInstance;
+        private static MethodInfo ParkingAllowedSetMethod;
+        private static MethodInfo ParkingAllowedGetMethod;
 
         static TmpeAdapter()
         {
@@ -173,11 +203,11 @@ namespace CSM.TmpeSync.Tmpe
                     AppendFeatureStatus(SupportsParkingRestrictions, supported, missing, "Parking Restrictions");
                     AppendFeatureStatus(SupportsTimedTrafficLights, supported, missing, "Timed Traffic Lights");
 
-                    Log.Info("TM:PE API detected – synchronisation bridges ready for: {0}.", string.Join(", ", supported));
+                    Log.Info("TM:PE API detected - synchronisation bridges ready for: {0}.", string.Join(", ", supported.ToArray()));
 
                     if (missing.Count > 0)
                     {
-                        Log.Warn("TM:PE API bridge missing for: {0}. Falling back to stub storage for these features.", string.Join(", ", missing));
+                        Log.Warn("TM:PE API bridge missing for: {0}. Falling back to stub storage for these features.", string.Join(", ", missing.ToArray()));
                     }
                 }
                 else
@@ -1280,16 +1310,17 @@ namespace CSM.TmpeSync.Tmpe
             if (LaneConnectionManagerInstance == null || LaneConnectionAddMethod == null || LaneConnectionRemoveMethod == null || LaneEndTransitionGroupVehicleValue == null)
                 return false;
 
-            var desired = new Dictionary<(ushort nodeId, bool sourceStartNode), HashSet<uint>>();
+            var desired = new Dictionary<LaneConnectionKey, HashSet<uint>>();
             foreach (var targetLaneId in targetLaneIds)
             {
                 if (!TryResolveLaneConnection(sourceLaneId, targetLaneId, out var nodeId, out var sourceStartNode))
                     continue;
 
-                if (!desired.TryGetValue((nodeId, sourceStartNode), out var set))
+                var desiredKey = new LaneConnectionKey(nodeId, sourceStartNode);
+                if (!desired.TryGetValue(desiredKey, out var set))
                 {
                     set = new HashSet<uint>();
-                    desired[(nodeId, sourceStartNode)] = set;
+                    desired[desiredKey] = set;
                 }
 
                 set.Add(targetLaneId);
@@ -1309,7 +1340,7 @@ namespace CSM.TmpeSync.Tmpe
                         {
                             (object)sourceLaneId,
                             (object)existingTarget,
-                            (object)key.sourceStartNode,
+                            (object)key.SourceStartNode,
                             LaneEndTransitionGroupVehicleValue
                         });
                     }
@@ -1329,7 +1360,7 @@ namespace CSM.TmpeSync.Tmpe
                     {
                         (object)sourceLaneId,
                         (object)target,
-                        (object)key.sourceStartNode,
+                        (object)key.SourceStartNode,
                         LaneEndTransitionGroupVehicleValue
                     });
                 }
@@ -1466,9 +1497,9 @@ namespace CSM.TmpeSync.Tmpe
             return result;
         }
 
-        private static Dictionary<(ushort nodeId, bool sourceStartNode), HashSet<uint>> GetExistingLaneConnectionsGrouped(uint sourceLaneId)
+        private static Dictionary<LaneConnectionKey, HashSet<uint>> GetExistingLaneConnectionsGrouped(uint sourceLaneId)
         {
-            var result = new Dictionary<(ushort, bool), HashSet<uint>>();
+            var result = new Dictionary<LaneConnectionKey, HashSet<uint>>();
 
             if (LaneConnectionGetMethod == null)
                 return result;
@@ -1488,7 +1519,7 @@ namespace CSM.TmpeSync.Tmpe
                         if (resolvedStartNode != startNode)
                             continue;
 
-                        var key = (nodeId, startNode);
+                        var key = new LaneConnectionKey(nodeId, startNode);
                         if (!result.TryGetValue(key, out var set))
                         {
                             set = new HashSet<uint>();
@@ -1541,8 +1572,8 @@ namespace CSM.TmpeSync.Tmpe
             if (!TryGetLaneSegment(sourceLaneId, out var sourceSegmentId) || !TryGetLaneSegment(targetLaneId, out var targetSegmentId))
                 return false;
 
-            ref var sourceSegment = ref NetManager.instance.m_segments[sourceSegmentId];
-            ref var targetSegment = ref NetManager.instance.m_segments[targetSegmentId];
+            ref var sourceSegment = ref NetManager.instance.m_segments.m_buffer[(int)sourceSegmentId];
+            ref var targetSegment = ref NetManager.instance.m_segments.m_buffer[(int)targetSegmentId];
 
             var sourceStart = sourceSegment.m_startNode;
             var sourceEnd = sourceSegment.m_endNode;
@@ -1587,7 +1618,7 @@ namespace CSM.TmpeSync.Tmpe
                 return false;
             }
 
-            ref var node = ref NetManager.instance.m_nodes[nodeId];
+            ref var node = ref NetManager.instance.m_nodes.m_buffer[(int)nodeId];
             if ((node.m_flags & NetNode.Flags.Created) == NetNode.Flags.None)
                 return false;
 
@@ -1598,11 +1629,11 @@ namespace CSM.TmpeSync.Tmpe
                 if (segmentId == 0)
                     continue;
 
-                ref var segment = ref NetManager.instance.m_segments[segmentId];
+                ref var segment = ref NetManager.instance.m_segments.m_buffer[(int)segmentId];
                 if ((segment.m_flags & NetSegment.Flags.Created) == NetSegment.Flags.None)
                     continue;
 
-                var startNode = segment.IsStartNode(nodeId);
+                var startNode = segment.m_startNode == nodeId;
 
                 SetUturnAllowedMethod.Invoke(JunctionRestrictionsManagerInstance, new object[] { segmentId, startNode, state.AllowUTurns });
                 SetNearTurnOnRedAllowedMethod.Invoke(JunctionRestrictionsManagerInstance, new object[] { segmentId, startNode, state.AllowNearTurnOnRed });
@@ -1632,7 +1663,7 @@ namespace CSM.TmpeSync.Tmpe
                 return false;
             }
 
-            ref var node = ref NetManager.instance.m_nodes[nodeId];
+            ref var node = ref NetManager.instance.m_nodes.m_buffer[(int)nodeId];
             if ((node.m_flags & NetNode.Flags.Created) == NetNode.Flags.None)
                 return false;
 
@@ -1650,11 +1681,11 @@ namespace CSM.TmpeSync.Tmpe
                 if (segmentId == 0)
                     continue;
 
-                ref var segment = ref NetManager.instance.m_segments[segmentId];
+                ref var segment = ref NetManager.instance.m_segments.m_buffer[(int)segmentId];
                 if ((segment.m_flags & NetSegment.Flags.Created) == NetSegment.Flags.None)
                     continue;
 
-                var startNode = segment.IsStartNode(nodeId);
+                var startNode = segment.m_startNode == nodeId;
 
                 allowUTurns &= (bool)IsUturnAllowedMethod.Invoke(JunctionRestrictionsManagerInstance, new object[] { segmentId, startNode });
                 allowLaneChange &= (bool)IsLaneChangingAllowedMethod.Invoke(JunctionRestrictionsManagerInstance, new object[] { segmentId, startNode });
@@ -1712,7 +1743,7 @@ namespace CSM.TmpeSync.Tmpe
         private static bool TryResolvePrioritySegmentOrientation(ushort nodeId, ushort segmentId, out bool startNode)
         {
             startNode = false;
-            ref var segment = ref NetManager.instance.m_segments[segmentId];
+            ref var segment = ref NetManager.instance.m_segments.m_buffer[(int)segmentId];
             if ((segment.m_flags & NetSegment.Flags.Created) == NetSegment.Flags.None)
                 return false;
 
@@ -1736,13 +1767,22 @@ namespace CSM.TmpeSync.Tmpe
             if (PriorityTypeEnumType == null)
                 return null;
 
-            var name = signType switch
+            string name;
+            switch (signType)
             {
-                PrioritySignType.Priority => "Main",
-                PrioritySignType.Stop => "Stop",
-                PrioritySignType.Yield => "Yield",
-                _ => "None"
-            };
+                case PrioritySignType.Priority:
+                    name = "Main";
+                    break;
+                case PrioritySignType.Stop:
+                    name = "Stop";
+                    break;
+                case PrioritySignType.Yield:
+                    name = "Yield";
+                    break;
+                default:
+                    name = "None";
+                    break;
+            }
 
             return Enum.Parse(PriorityTypeEnumType, name);
         }
@@ -1753,13 +1793,17 @@ namespace CSM.TmpeSync.Tmpe
                 return PrioritySignType.None;
 
             var name = Enum.GetName(PriorityTypeEnumType, value) ?? "None";
-            return name switch
+            switch (name)
             {
-                "Main" => PrioritySignType.Priority,
-                "Stop" => PrioritySignType.Stop,
-                "Yield" => PrioritySignType.Yield,
-                _ => PrioritySignType.None
-            };
+                case "Main":
+                    return PrioritySignType.Priority;
+                case "Stop":
+                    return PrioritySignType.Stop;
+                case "Yield":
+                    return PrioritySignType.Yield;
+                default:
+                    return PrioritySignType.None;
+            }
         }
 
         private static bool TryApplyParkingRestrictionReal(ushort segmentId, ParkingRestrictionState state)

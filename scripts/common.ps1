@@ -324,6 +324,55 @@ if (-not (Get-Variable -Name CSMTmpeSyncCommonInitialized -Scope Script -ErrorAc
         }
     }
 
+    $script:MsBuildCliPath = $null
+    function Resolve-MsBuildCli {
+        if ($script:MsBuildCliPath) {
+            return $script:MsBuildCliPath
+        }
+
+        $candidatePaths = @(
+            "$Env:ProgramFiles\Microsoft Visual Studio\2022\BuildTools\MSBuild\Current\Bin\MSBuild.exe",
+            "$Env:ProgramFiles\Microsoft Visual Studio\2022\Community\MSBuild\Current\Bin\MSBuild.exe",
+            "$Env:ProgramFiles\Microsoft Visual Studio\2022\Professional\MSBuild\Current\Bin\MSBuild.exe",
+            "$Env:ProgramFiles\Microsoft Visual Studio\2022\Enterprise\MSBuild\Current\Bin\MSBuild.exe",
+            "$Env:ProgramFiles(x86)\Microsoft Visual Studio\2019\BuildTools\MSBuild\Current\Bin\MSBuild.exe",
+            "$Env:ProgramFiles(x86)\Microsoft Visual Studio\2019\Community\MSBuild\Current\Bin\MSBuild.exe",
+            "$Env:ProgramFiles(x86)\Microsoft Visual Studio\2019\Professional\MSBuild\Current\Bin\MSBuild.exe",
+            "$Env:ProgramFiles(x86)\Microsoft Visual Studio\2019\Enterprise\MSBuild\Current\Bin\MSBuild.exe"
+        )
+
+        $msbuildCmd = Get-Command "msbuild" -ErrorAction SilentlyContinue
+        if ($msbuildCmd) {
+            $candidatePaths += $msbuildCmd.Source
+        }
+
+        foreach ($candidate in $candidatePaths | Where-Object { $_ } | Select-Object -Unique) {
+            if (Test-Path $candidate) {
+                $script:MsBuildCliPath = $candidate
+                break
+            }
+        }
+
+        if (-not $script:MsBuildCliPath) {
+            throw "MSBuild.exe not found. Install Visual Studio Build Tools 2019 or newer."
+        }
+
+        return $script:MsBuildCliPath
+    }
+
+    function Invoke-MsBuild {
+        param(
+            [string[]]$Arguments,
+            [string]$ErrorContext = "MSBuild command"
+        )
+
+        $msbuildCli = Resolve-MsBuildCli
+        & $msbuildCli @Arguments
+        if ($LASTEXITCODE -ne 0) {
+            throw "$ErrorContext failed with exit code $LASTEXITCODE."
+        }
+    }
+
     function Invoke-CsmBuildScript {
         param(
             [switch]$Update,
@@ -632,6 +681,68 @@ if (-not (Get-Variable -Name CSMTmpeSyncCommonInitialized -Scope Script -ErrorAc
         return ""
     }
 
+    function Resolve-Net35ReferenceInfo {
+        if (-not $HostIsWindows) {
+            return $null
+        }
+
+        $version = "1.0.3"
+        $candidateRoots = @(
+            (Join-Path $env:UserProfile ".nuget\packages\microsoft.netframework.referenceassemblies.net35\$version"),
+            "C:\Program Files (x86)\Microsoft Visual Studio\Shared\NuGetPackages\microsoft.netframework.referenceassemblies.net35\$version",
+            "C:\Program Files\dotnet\library-packs\microsoft.netframework.referenceassemblies.net35\$version",
+            "C:\Program Files\dotnet\packs\Microsoft.NETFramework.ReferenceAssemblies.net35\$version"
+        )
+
+        foreach ($root in $candidateRoots) {
+            if (-not (Test-Path $root)) {
+                continue
+            }
+
+            $candidates = @(
+                (Join-Path $root "build\.NETFramework\v3.5"),
+                (Join-Path $root "ref\.NETFramework\v3.5")
+            )
+
+            foreach ($frameworkDir in $candidates) {
+                if (-not (Test-Path $frameworkDir)) {
+                    continue
+                }
+
+                $mscorlibPath = Join-Path $frameworkDir "mscorlib.dll"
+                if (-not (Test-Path $mscorlibPath)) {
+                    continue
+                }
+
+                $tfDir = Split-Path $frameworkDir -Parent
+                $rootPath = Split-Path $tfDir -Parent
+
+                return [pscustomobject]@{
+                    RootPath = $rootPath
+                    FrameworkPath = $frameworkDir
+                }
+            }
+        }
+
+        $fallbacks = @(
+            "$env:WINDIR\Microsoft.NET\Framework\v2.0.50727",
+            "$env:WINDIR\Microsoft.NET\Framework64\v2.0.50727"
+        )
+
+        foreach ($fallback in $fallbacks) {
+            if (-not (Test-Path (Join-Path $fallback "mscorlib.dll"))) {
+                continue
+            }
+
+            return [pscustomobject]@{
+                RootPath = Split-Path $fallback
+                FrameworkPath = $fallback
+            }
+        }
+
+        return $null
+    }
+
     function Invoke-TmpeSyncUpdate {
         param(
             [string]$CitiesSkylinesDir,
@@ -835,15 +946,52 @@ if (-not (Get-Variable -Name CSMTmpeSyncCommonInitialized -Scope Script -ErrorAc
             @{ Name = "ModsOutDir"; Value = $ModDirectory }
         )
 
+        $net35Info = Resolve-Net35ReferenceInfo
+        if ($net35Info) {
+            $propertySpecs += @(
+                @{ Name = "TargetFrameworkRootPath"; Value = $net35Info.RootPath },
+                @{ Name = "FrameworkPathOverride"; Value = $net35Info.FrameworkPath },
+                @{ Name = "ReferencePath"; Value = $net35Info.FrameworkPath }
+            )
+        }
+
+        $msbuildProperties = @()
         foreach ($spec in $propertySpecs) {
             $property = Build-PropertyArgument -Name $spec.Name -Value $spec.Value
             if ($property) {
                 $dotnetArguments += $property
+
+                $escapedValue = $spec.Value.Replace('"', '\"')
+                $msbuildProperties += "/p:{0}={1}" -f $spec.Name, $escapedValue
             }
         }
 
         Write-Host "[CSM.TmpeSync] Building add-on (Configuration=$Configuration)." -ForegroundColor Cyan
-        Invoke-Dotnet -Arguments $dotnetArguments -ErrorContext "dotnet build for CSM.TmpeSync"
+
+        $buildInvoked = $false
+        if ($HostIsWindows) {
+            try {
+                $msbuildArguments = @(
+                    $script:ProjectPath,
+                    "/restore",
+                    "/t:Build",
+                    "/p:Configuration=$Configuration",
+                    "/nologo"
+                ) + $msbuildProperties
+
+                Invoke-MsBuild -Arguments $msbuildArguments -ErrorContext "MSBuild build for CSM.TmpeSync"
+                $buildInvoked = $true
+            }
+            catch {
+                if ($_.Exception.Message -notlike "*MSBuild.exe not found*") {
+                    throw
+                }
+            }
+        }
+
+        if (-not $buildInvoked) {
+            Invoke-Dotnet -Arguments $dotnetArguments -ErrorContext "dotnet build for CSM.TmpeSync"
+        }
 
         Write-Host "[CSM.TmpeSync] Build completed." -ForegroundColor Green
     }
