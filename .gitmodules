@@ -1,0 +1,3 @@
+[submodule "submodules/CSM"]
+	path = submodules/CSM
+	url = https://github.com/bonsaibauer/CSM.git
