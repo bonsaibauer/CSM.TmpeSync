@@ -12,6 +12,7 @@ namespace CSM.TmpeSync.Mod
         public string Description => "Synchronises TM:PE settings and Hide Crosswalks. Requires CSM and Harmony.";
 
         private static TmpeSyncConnection _connection;
+        private static bool _connectionRegistered;
 
         public void OnEnabled()
         {
@@ -26,16 +27,27 @@ namespace CSM.TmpeSync.Mod
 
             Log.Info("Registering TM:PE synchronisation channel with CSM.");
             var connection = new TmpeSyncConnection();
-            if (CsmCompat.RegisterConnection(connection))
+            var registration = CsmCompat.RegisterConnection(connection);
+            switch (registration)
             {
-                _connection = connection;
-                Log.Info("CSM connection ready – TM:PE synchronisation enabled.");
-                TmpeToolAvailability.OverrideRestriction(null);
-            }
-            else
-            {
-                Log.Warn("TM:PE sync connection could not be registered with CSM. Synchronisation remains inactive.");
-                TmpeToolAvailability.OverrideRestriction(false);
+                case CsmCompat.ConnectionRegistrationResult.Registered:
+                    _connection = connection;
+                    _connectionRegistered = true;
+                    Log.Info("CSM connection ready – TM:PE synchronisation enabled.");
+                    TmpeToolAvailability.OverrideRestriction(null);
+                    break;
+                case CsmCompat.ConnectionRegistrationResult.AlreadyRegistered:
+                    _connection = null;
+                    _connectionRegistered = false;
+                    Log.Info("CSM already manages TM:PE synchronisation connection. Continuing without manual registration.");
+                    TmpeToolAvailability.OverrideRestriction(null);
+                    break;
+                default:
+                    _connection = null;
+                    _connectionRegistered = false;
+                    Log.Warn("TM:PE sync connection could not be registered with CSM. Synchronisation remains inactive.");
+                    TmpeToolAvailability.OverrideRestriction(false);
+                    break;
             }
 
             CsmCompat.LogDiagnostics("OnEnabled");
@@ -44,7 +56,7 @@ namespace CSM.TmpeSync.Mod
         public void OnDisabled()
         {
             Log.Info("Disabling mod.");
-            if (_connection != null)
+            if (_connectionRegistered && _connection != null)
             {
                 Log.Info("Unregistering TM:PE sync connection from CSM.");
                 if (!CsmCompat.UnregisterConnection(_connection))
@@ -53,7 +65,11 @@ namespace CSM.TmpeSync.Mod
                 }
 
                 _connection = null;
+                _connectionRegistered = false;
             }
+
+            _connection = null;
+            _connectionRegistered = false;
 
             TmpeToolAvailability.OverrideRestriction(null);
             CsmCompat.LogDiagnostics("OnDisabled");
