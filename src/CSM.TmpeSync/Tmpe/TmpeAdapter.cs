@@ -87,6 +87,7 @@ namespace CSM.TmpeSync.Tmpe
         private static readonly Dictionary<NodeSegmentKey, PrioritySignType> PrioritySigns = new Dictionary<NodeSegmentKey, PrioritySignType>();
         private static readonly Dictionary<ushort, ParkingRestrictionState> ParkingRestrictions = new Dictionary<ushort, ParkingRestrictionState>();
         private static readonly Dictionary<ushort, TimedTrafficLightState> TimedTrafficLights = new Dictionary<ushort, TimedTrafficLightState>();
+        private static readonly HashSet<ushort> ManualTrafficLights = new HashSet<ushort>();
 
         private static object SpeedLimitManagerInstance;
         private static MethodInfo SpeedLimitSetLaneMethod;
@@ -165,6 +166,29 @@ namespace CSM.TmpeSync.Tmpe
         private static object ParkingRestrictionsManagerInstance;
         private static MethodInfo ParkingAllowedSetMethod;
         private static MethodInfo ParkingAllowedGetMethod;
+
+        private static object TrafficLightSimulationManagerInstance;
+        private static PropertyInfo TrafficLightSimulationsProperty;
+        private static MethodInfo TimedLightSetupMethod;
+        private static MethodInfo TimedLightRemoveMethod;
+        private static Type TrafficLightSimulationType;
+        private static FieldInfo TrafficLightSimulationTimedLightField;
+        private static Type TimedTrafficLightsType;
+        private static MethodInfo TimedLightStopMethod;
+        private static MethodInfo TimedLightResetStepsMethod;
+        private static MethodInfo TimedLightAddStepMethod;
+        private static MethodInfo TimedLightStartMethod;
+        private static MethodInfo TimedLightNumStepsMethod;
+        private static MethodInfo TimedLightIsStartedMethod;
+        private static MethodInfo TimedLightGetStepMethod;
+        private static Type TimedTrafficLightsStepType;
+        private static PropertyInfo TimedStepMinTimeProperty;
+        private static PropertyInfo TimedStepMaxTimeProperty;
+        private static Type StepChangeMetricEnumType;
+        private static object StepChangeMetricDefaultValue;
+        private static object TrafficLightManagerInstance;
+        private static MethodInfo GetHasTrafficLightMethod;
+        private static MethodInfo SetHasTrafficLightMethod;
 
         static TmpeAdapter()
         {
@@ -590,9 +614,109 @@ namespace CSM.TmpeSync.Tmpe
 
         private static bool InitialiseTimedTrafficLightBridge(Assembly tmpeAssembly)
         {
-            // Timed traffic lights synchronisation requires full step replication which is not yet implemented.
-            // Return false so the feature continues to use the stub storage and stays restricted in multiplayer.
-            return false;
+            try
+            {
+                var simulationManagerType = tmpeAssembly.GetType("TrafficManager.Manager.Impl.TrafficLightSimulationManager");
+                var simulationInstanceProperty = simulationManagerType?.GetProperty("Instance", BindingFlags.Public | BindingFlags.Static);
+                TrafficLightSimulationManagerInstance = simulationInstanceProperty?.GetValue(null, null);
+
+                TrafficLightSimulationsProperty = simulationManagerType?.GetProperty("TrafficLightSimulations", BindingFlags.Public | BindingFlags.Instance);
+                TimedLightSetupMethod = simulationManagerType?.GetMethod(
+                    "SetUpTimedTrafficLight",
+                    BindingFlags.Public | BindingFlags.Instance,
+                    null,
+                    new[] { typeof(ushort), typeof(IList<ushort>) },
+                    null);
+                TimedLightRemoveMethod = simulationManagerType?.GetMethod(
+                    "RemoveNodeFromSimulation",
+                    BindingFlags.Public | BindingFlags.Instance,
+                    null,
+                    new[] { typeof(ushort), typeof(bool), typeof(bool) },
+                    null);
+
+                TrafficLightSimulationType = tmpeAssembly.GetType("TrafficManager.TrafficLight.Impl.TrafficLightSimulation");
+                TrafficLightSimulationTimedLightField = TrafficLightSimulationType?.GetField("timedLight", BindingFlags.Public | BindingFlags.Instance);
+
+                var trafficLightManagerType = tmpeAssembly.GetType("TrafficManager.Manager.Impl.TrafficLightManager");
+                var trafficLightManagerInstanceProperty = trafficLightManagerType?.GetProperty("Instance", BindingFlags.Public | BindingFlags.Static);
+                TrafficLightManagerInstance = trafficLightManagerInstanceProperty?.GetValue(null, null);
+                GetHasTrafficLightMethod = trafficLightManagerType?.GetMethod(
+                    "GetHasTrafficLight",
+                    BindingFlags.Public | BindingFlags.Instance,
+                    null,
+                    new[] { typeof(ushort) },
+                    null);
+                SetHasTrafficLightMethod = trafficLightManagerType?.GetMethod(
+                    "SetHasTrafficLight",
+                    BindingFlags.Public | BindingFlags.Instance,
+                    null,
+                    new[] { typeof(ushort), typeof(bool?) },
+                    null);
+
+                TimedTrafficLightsType = tmpeAssembly.GetType("TrafficManager.TrafficLight.Impl.TimedTrafficLights");
+                if (TimedTrafficLightsType != null)
+                {
+                    TimedLightStopMethod = TimedTrafficLightsType.GetMethod("Stop", BindingFlags.Public | BindingFlags.Instance);
+                    TimedLightResetStepsMethod = TimedTrafficLightsType.GetMethod("ResetSteps", BindingFlags.Public | BindingFlags.Instance);
+                    TimedLightAddStepMethod = TimedTrafficLightsType.GetMethod(
+                        "AddStep",
+                        BindingFlags.Public | BindingFlags.Instance,
+                        null,
+                        new[] { typeof(int), typeof(int), tmpeAssembly.GetType("TrafficManager.API.Traffic.Enums.StepChangeMetric"), typeof(float), typeof(bool) },
+                        null);
+                    TimedLightStartMethod = TimedTrafficLightsType.GetMethod("Start", BindingFlags.Public | BindingFlags.Instance, null, Type.EmptyTypes, null);
+                    TimedLightNumStepsMethod = TimedTrafficLightsType.GetMethod("NumSteps", BindingFlags.Public | BindingFlags.Instance);
+                    TimedLightIsStartedMethod = TimedTrafficLightsType.GetMethod("IsStarted", BindingFlags.Public | BindingFlags.Instance);
+                    TimedLightGetStepMethod = TimedTrafficLightsType.GetMethod(
+                        "GetStep",
+                        BindingFlags.Public | BindingFlags.Instance,
+                        null,
+                        new[] { typeof(int) },
+                        null);
+                }
+
+                TimedTrafficLightsStepType = tmpeAssembly.GetType("TrafficManager.TrafficLight.Impl.TimedTrafficLightsStep");
+                if (TimedTrafficLightsStepType != null)
+                {
+                    TimedStepMinTimeProperty = TimedTrafficLightsStepType.GetProperty("MinTime", BindingFlags.Public | BindingFlags.Instance);
+                    TimedStepMaxTimeProperty = TimedTrafficLightsStepType.GetProperty("MaxTime", BindingFlags.Public | BindingFlags.Instance);
+                }
+
+                StepChangeMetricEnumType = tmpeAssembly.GetType("TrafficManager.API.Traffic.Enums.StepChangeMetric");
+                if (StepChangeMetricEnumType != null)
+                {
+                    try
+                    {
+                        StepChangeMetricDefaultValue = Enum.Parse(StepChangeMetricEnumType, "Default");
+                    }
+                    catch
+                    {
+                        StepChangeMetricDefaultValue = Enum.GetValues(StepChangeMetricEnumType).Cast<object>().FirstOrDefault();
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Warn("TM:PE timed traffic light bridge initialisation failed: {0}", ex);
+            }
+
+            return TrafficLightSimulationManagerInstance != null &&
+                   TrafficLightSimulationsProperty != null &&
+                   TimedLightSetupMethod != null &&
+                   TimedLightRemoveMethod != null &&
+                   TrafficLightSimulationTimedLightField != null &&
+                   TimedTrafficLightsType != null &&
+                   TimedLightStopMethod != null &&
+                   TimedLightResetStepsMethod != null &&
+                   TimedLightAddStepMethod != null &&
+                   TimedLightStartMethod != null &&
+                   TimedLightNumStepsMethod != null &&
+                   TimedLightGetStepMethod != null &&
+                   TimedStepMaxTimeProperty != null &&
+                   StepChangeMetricDefaultValue != null &&
+                   TrafficLightManagerInstance != null &&
+                   GetHasTrafficLightMethod != null &&
+                   SetHasTrafficLightMethod != null;
         }
 
         internal static bool ApplySpeedLimit(uint laneId, float speedKmh)
@@ -1057,9 +1181,41 @@ namespace CSM.TmpeSync.Tmpe
             {
                 var normalized = state?.Clone() ?? new TimedTrafficLightState();
                 if (SupportsTimedTrafficLights)
+                {
                     Log.Debug("[TMPE] Request timed traffic light node={0} -> {1}", nodeId, normalized);
+                    if (normalized.Enabled)
+                    {
+                        if (!TryApplyTimedTrafficLightReal(nodeId, normalized))
+                        {
+                            Log.Warn("[TMPE] Timed traffic light apply via TM:PE API failed – falling back to stub state.");
+                        }
+                        else
+                        {
+                            UpdateTimedLightCacheFromReal(nodeId);
+                            return true;
+                        }
+                    }
+                    else
+                    {
+                        if (!TryDisableTimedTrafficLightReal(nodeId))
+                        {
+                            Log.Warn("[TMPE] Timed traffic light removal via TM:PE API failed – falling back to stub state.");
+                        }
+                        else
+                        {
+                            lock (StateLock)
+                            {
+                                TimedTrafficLights.Remove(nodeId);
+                            }
+
+                            return true;
+                        }
+                    }
+                }
                 else
+                {
                     Log.Info("[TMPE] Timed traffic light node={0} -> {1} (stub)", nodeId, normalized);
+                }
 
                 lock (StateLock)
                 {
@@ -1082,6 +1238,9 @@ namespace CSM.TmpeSync.Tmpe
         {
             try
             {
+                if (SupportsTimedTrafficLights && TryGetTimedTrafficLightReal(nodeId, out state))
+                    return true;
+
                 lock (StateLock)
                 {
                     if (!TimedTrafficLights.TryGetValue(nodeId, out var stored))
@@ -1097,6 +1256,254 @@ namespace CSM.TmpeSync.Tmpe
                 Log.Error("TMPE TryGetTimedTrafficLight failed: " + ex);
                 state = new TimedTrafficLightState();
                 return false;
+            }
+        }
+
+        internal static bool ApplyManualTrafficLight(ushort nodeId, bool enabled)
+        {
+            try
+            {
+                if (TrafficLightManagerInstance != null && SetHasTrafficLightMethod != null)
+                {
+                    Log.Debug("[TMPE] Request manual traffic light node={0} -> {1}", nodeId, enabled);
+                    SetHasTrafficLightMethod.Invoke(TrafficLightManagerInstance, new object[] { nodeId, (bool?)enabled });
+                    if (!TryGetManualTrafficLight(nodeId, out var actual))
+                        actual = enabled;
+
+                    lock (StateLock)
+                    {
+                        if (actual)
+                            ManualTrafficLights.Add(nodeId);
+                        else
+                            ManualTrafficLights.Remove(nodeId);
+                    }
+
+                    return true;
+                }
+
+                Log.Info("[TMPE] Manual traffic light node={0} -> {1} (stub)", nodeId, enabled);
+                lock (StateLock)
+                {
+                    if (enabled)
+                        ManualTrafficLights.Add(nodeId);
+                    else
+                        ManualTrafficLights.Remove(nodeId);
+                }
+
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Log.Error("TMPE ApplyManualTrafficLight failed: " + ex);
+                return false;
+            }
+        }
+
+        internal static bool TryGetManualTrafficLight(ushort nodeId, out bool enabled)
+        {
+            try
+            {
+                if (TrafficLightManagerInstance != null && GetHasTrafficLightMethod != null)
+                {
+                    var result = GetHasTrafficLightMethod.Invoke(TrafficLightManagerInstance, new object[] { nodeId });
+                    enabled = result is bool has && has;
+
+                    lock (StateLock)
+                    {
+                        if (enabled)
+                            ManualTrafficLights.Add(nodeId);
+                        else
+                            ManualTrafficLights.Remove(nodeId);
+                    }
+
+                    return true;
+                }
+
+                lock (StateLock)
+                {
+                    enabled = ManualTrafficLights.Contains(nodeId);
+                }
+
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Log.Error("TMPE TryGetManualTrafficLight failed: " + ex);
+                enabled = false;
+                return false;
+            }
+        }
+
+        private static bool TryApplyTimedTrafficLightReal(ushort nodeId, TimedTrafficLightState state)
+        {
+            if (TrafficLightSimulationManagerInstance == null ||
+                TimedLightSetupMethod == null ||
+                TrafficLightSimulationsProperty == null ||
+                TrafficLightSimulationTimedLightField == null ||
+                TimedTrafficLightsType == null ||
+                TimedLightAddStepMethod == null ||
+                TimedLightStartMethod == null ||
+                StepChangeMetricDefaultValue == null)
+                return false;
+
+            try
+            {
+                try
+                {
+                    TimedLightSetupMethod.Invoke(TrafficLightSimulationManagerInstance, new object[] { nodeId, new ushort[] { nodeId } });
+                }
+                catch
+                {
+                    // ignored – timed light may already exist
+                }
+
+                var timedLight = GetTimedTrafficLightObject(nodeId);
+                if (timedLight == null)
+                    return false;
+
+                TimedLightStopMethod?.Invoke(timedLight, null);
+                TimedLightResetStepsMethod?.Invoke(timedLight, null);
+
+                int stepCount = Math.Max(1, state.StepCount);
+                float totalSeconds = state.CycleLengthSeconds;
+                if (float.IsNaN(totalSeconds) || float.IsInfinity(totalSeconds) || totalSeconds <= 0f)
+                    totalSeconds = stepCount;
+
+                var durations = new int[stepCount];
+                float baseDuration = totalSeconds / stepCount;
+                float carry = 0f;
+                for (int i = 0; i < stepCount; i++)
+                {
+                    float raw = baseDuration + carry;
+                    int duration = Math.Max(1, (int)Math.Round(raw));
+                    carry = raw - duration;
+                    durations[i] = duration;
+                }
+
+                if (durations.Sum() <= 0)
+                    durations[stepCount - 1] = Math.Max(1, durations[stepCount - 1]);
+
+                for (int i = 0; i < durations.Length; i++)
+                {
+                    var args = new object[]
+                    {
+                        durations[i],
+                        durations[i],
+                        StepChangeMetricDefaultValue,
+                        1f,
+                        false
+                    };
+                    TimedLightAddStepMethod.Invoke(timedLight, args);
+                }
+
+                TimedLightStartMethod.Invoke(timedLight, null);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Log.Warn("TMPE timed traffic light bridge failed: {0}", ex);
+                return false;
+            }
+        }
+
+        private static bool TryDisableTimedTrafficLightReal(ushort nodeId)
+        {
+            if (TrafficLightSimulationManagerInstance == null || TimedLightRemoveMethod == null)
+                return false;
+
+            try
+            {
+                TimedLightRemoveMethod.Invoke(TrafficLightSimulationManagerInstance, new object[] { nodeId, true, false });
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Log.Warn("TMPE timed traffic light removal failed: {0}", ex);
+                return false;
+            }
+        }
+
+        private static bool TryGetTimedTrafficLightReal(ushort nodeId, out TimedTrafficLightState state)
+        {
+            state = new TimedTrafficLightState();
+            if (TrafficLightSimulationManagerInstance == null ||
+                TrafficLightSimulationsProperty == null ||
+                TrafficLightSimulationTimedLightField == null)
+                return false;
+
+            try
+            {
+                var timedLight = GetTimedTrafficLightObject(nodeId);
+                if (timedLight == null)
+                    return false;
+
+                var stepCount = TimedLightNumStepsMethod != null
+                    ? Convert.ToInt32(TimedLightNumStepsMethod.Invoke(timedLight, null))
+                    : 0;
+                state.StepCount = stepCount;
+                state.Enabled = stepCount > 0;
+
+                if (TimedLightIsStartedMethod != null)
+                {
+                    try
+                    {
+                        state.Enabled = Convert.ToBoolean(TimedLightIsStartedMethod.Invoke(timedLight, null));
+                    }
+                    catch
+                    {
+                        // ignore – fall back to step count
+                    }
+                }
+
+                if (stepCount > 0 && TimedLightGetStepMethod != null && TimedStepMaxTimeProperty != null)
+                {
+                    float total = 0f;
+                    for (int i = 0; i < stepCount; i++)
+                    {
+                        var step = TimedLightGetStepMethod.Invoke(timedLight, new object[] { i });
+                        if (step == null)
+                            continue;
+
+                        var max = TimedStepMaxTimeProperty.GetValue(step, null);
+                        total += Convert.ToSingle(max);
+                    }
+
+                    state.CycleLengthSeconds = total;
+                }
+
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Log.Warn("TMPE timed traffic light query failed: {0}", ex);
+                state = new TimedTrafficLightState();
+                return false;
+            }
+        }
+
+        private static object GetTimedTrafficLightObject(ushort nodeId)
+        {
+            if (!(TrafficLightSimulationsProperty?.GetValue(TrafficLightSimulationManagerInstance, null) is Array simulations))
+                return null;
+
+            if (nodeId >= simulations.Length)
+                return null;
+
+            var simulation = simulations.GetValue(nodeId);
+            return simulation == null ? null : TrafficLightSimulationTimedLightField?.GetValue(simulation);
+        }
+
+        private static void UpdateTimedLightCacheFromReal(ushort nodeId)
+        {
+            if (!TryGetTimedTrafficLightReal(nodeId, out var actual))
+                return;
+
+            lock (StateLock)
+            {
+                if (actual.Enabled)
+                    TimedTrafficLights[nodeId] = actual;
+                else
+                    TimedTrafficLights.Remove(nodeId);
             }
         }
 
