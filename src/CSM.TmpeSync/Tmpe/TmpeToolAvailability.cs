@@ -12,8 +12,8 @@ namespace CSM.TmpeSync.Tmpe
     internal static class TmpeToolAvailability
     {
         private const string RestrictionMessage = "(CSM Multiplayer) TM:PE feature not yet synchronised – disabled.";
-        private const string SupportedToolsTooltip = "Available: Speed limits, lane arrows, lane connections, vehicle/junction restrictions, priority signs, parking restrictions, timed traffic lights.";
-        private const string SupportedToolsLogList = "Speed Limits, Lane Arrows, Lane Connector, Vehicle Restrictions, Junction Restrictions, Priority Signs, Parking Restrictions, Timed Traffic Lights";
+        private const string SupportedToolsTooltip = "Available: Speed limits, lane arrows, lane connections, vehicle/junction restrictions, priority signs, parking restrictions.";
+        private const string SupportedToolsLogList = "Speed Limits, Lane Arrows, Lane Connector, Vehicle Restrictions, Junction Restrictions, Priority Signs, Parking Restrictions";
 
         private static bool _restrictionActive;
 #pragma warning disable 414
@@ -105,8 +105,7 @@ namespace CSM.TmpeSync.Tmpe
             new SupportedToolDescriptor("Vehicle Restrictions", new[] { "vehicle", "restriction" }, new[] { "vehicle", "ban" }, new[] { "vehiclerestriction" }),
             new SupportedToolDescriptor("Junction Restrictions", new[] { "junction", "restriction" }, new[] { "junction", "control" }, new[] { "junctionrestriction" }),
             new SupportedToolDescriptor("Priority Signs", new[] { "priority", "sign" }, new[] { "prioritysign" }, new[] { "give", "way" }, new[] { "yield", "sign" }),
-            new SupportedToolDescriptor("Parking Restrictions", new[] { "parking", "restriction" }, new[] { "parking", "ban" }, new[] { "parkingrestriction" }),
-            new SupportedToolDescriptor("Timed Traffic Lights", new[] { "timed", "traffic" }, new[] { "timed", "light" }, new[] { "timedtraffic" }, new[] { "timedtrafficlight" })
+            new SupportedToolDescriptor("Parking Restrictions", new[] { "parking", "restriction" }, new[] { "parking", "ban" }, new[] { "parkingrestriction" })
         };
 
         private static string _lastMenuSummary;
