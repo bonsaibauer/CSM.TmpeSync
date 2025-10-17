@@ -8,7 +8,7 @@ namespace CSM.TmpeSync.Snapshot
     {
         public void Export()
         {
-            Log.Info("Exporting TM:PE parking restriction snapshot");
+            Log.Info(LogCategory.Snapshot, "Exporting TM:PE parking restriction snapshot");
             NetUtil.ForEachSegment(segmentId =>
             {
                 if (!TmpeAdapter.TryGetParkingRestriction(segmentId, out var state))

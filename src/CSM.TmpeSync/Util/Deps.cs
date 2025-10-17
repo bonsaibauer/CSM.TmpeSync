@@ -37,7 +37,7 @@ namespace CSM.TmpeSync.Util
             }
             catch (Exception ex)
             {
-                Log.Warn("CSM dependency check failed: {0}", ex);
+                Log.Warn(LogCategory.Dependency, "CSM dependency check failed | error={0}", ex);
             }
 
             return false;
@@ -72,7 +72,7 @@ namespace CSM.TmpeSync.Util
             }
             catch (Exception ex)
             {
-                Log.Warn("Harmony dependency check failed: {0}", ex);
+                Log.Warn(LogCategory.Dependency, "Harmony dependency check failed | error={0}", ex);
             }
 
             return false;
@@ -98,7 +98,7 @@ namespace CSM.TmpeSync.Util
             var csmEnabled = IsCsmEnabled();
             var harmonyAvailable = IsHarmonyAvailable();
 
-            Log.Debug("Dependency check -> CSM: {0}, Harmony: {1}", csmEnabled, harmonyAvailable);
+            Log.Debug(LogCategory.Dependency, "Dependency status | csmEnabled={0} harmonyAvailable={1}", csmEnabled, harmonyAvailable);
 
             if (!csmEnabled)
                 missing.Add("CSM");
@@ -121,7 +121,7 @@ namespace CSM.TmpeSync.Util
                     if (plugin == null || plugin.userModInstance != modInstance)
                         continue;
 
-                    Log.Warn("Disabling plugin '{0}' due to missing dependencies.", SafeName(plugin));
+                    Log.Warn(LogCategory.Dependency, "Disabling plugin due to missing dependencies | plugin={0}", SafeName(plugin));
                     var pluginName = plugin.name;
                     if (!string.IsNullOrEmpty(pluginName))
                     {
@@ -158,7 +158,7 @@ namespace CSM.TmpeSync.Util
             }
             catch (Exception ex)
             {
-                Log.Warn("Failed to disable plugin: {0}", ex);
+                Log.Warn(LogCategory.Dependency, "Failed to disable plugin | error={0}", ex);
             }
         }
 

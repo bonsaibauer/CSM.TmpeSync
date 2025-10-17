@@ -33,9 +33,7 @@ namespace CSM.TmpeSync.Tmpe
             {
                 if (!_restrictionActive)
                 {
-                    Log.Info(
-                        "Activating TM:PE menu restriction: keeping supported tools available ({0}).",
-                        SupportedToolsLogList);
+                    Log.Info(LogCategory.Menu, "Menu restriction activated | supported={0}", SupportedToolsLogList);
                     _restrictionActive = true;
                     ButtonSnapshots.Clear();
                     _lastMenuSummary = null;
@@ -44,7 +42,7 @@ namespace CSM.TmpeSync.Tmpe
                 if (_restrictionOverride.HasValue && !_restrictionOverride.Value)
                 {
                     if (!_loggedMissingMenu)
-                        Log.Info("TM:PE menu restriction override active – leaving all tools enabled.");
+                        Log.Info(LogCategory.Menu, "Menu restriction override active | behavior=leave_enabled");
 
                     _loggedMissingMenu = true;
                 }
@@ -52,7 +50,7 @@ namespace CSM.TmpeSync.Tmpe
                 {
                     if (!_loggedMissingMenu)
                     {
-                        Log.Debug("TM:PE main menu not ready yet – will retry to apply restriction.");
+                        Log.Debug(LogCategory.Menu, "TM:PE main menu not ready | action=retry_restriction");
                         _loggedMissingMenu = true;
                     }
                 }
@@ -64,7 +62,7 @@ namespace CSM.TmpeSync.Tmpe
             else if (_restrictionActive)
             {
                 RestoreAll();
-                Log.Info("Deactivating TM:PE menu restriction: all TM:PE tools available again.");
+                Log.Info(LogCategory.Menu, "Menu restriction deactivated | tools=all_enabled");
                 _restrictionActive = false;
                 _lastMenuSummary = null;
             }
@@ -87,11 +85,11 @@ namespace CSM.TmpeSync.Tmpe
             _restrictionOverride = restrict;
 
             if (restrict == null)
-                Log.Info("TM:PE menu restriction override cleared – following multiplayer role state again.");
+                Log.Info(LogCategory.Menu, "Menu restriction override cleared | mode=follow_multiplayer_role");
             else if (restrict.Value)
-                Log.Info("TM:PE menu restriction override ENABLED – unsupported tools will remain disabled.");
+                Log.Info(LogCategory.Menu, "Menu restriction override enabled | unsupported_tools=disabled");
             else
-                Log.Info("TM:PE menu restriction override DISABLED – keeping all TM:PE tools available for local testing.");
+                Log.Info(LogCategory.Menu, "Menu restriction override disabled | tools=all_enabled_for_local_testing");
 
             if (previous != restrict)
                 Reset();
@@ -339,13 +337,13 @@ namespace CSM.TmpeSync.Tmpe
             if (supported)
             {
                 if (!string.IsNullOrEmpty(toolName))
-                    Log.Info("[TM:PE Menu] Keeping supported tool '{0}' enabled (component='{1}', tooltip='{2}').", toolName, componentName, tooltip);
+                    Log.Info(LogCategory.Menu, "Menu entry kept enabled | tool={0} component={1} tooltip={2}", toolName, componentName, tooltip);
                 else
-                    Log.Info("[TM:PE Menu] Keeping supported tool entry '{0}' enabled (component='{1}', tooltip='{2}').", descriptor, componentName, tooltip);
+                    Log.Info(LogCategory.Menu, "Menu entry kept enabled | descriptor={0} component={1} tooltip={2}", descriptor, componentName, tooltip);
             }
             else
             {
-                Log.Info("[TM:PE Menu] Disabling unsupported entry '{0}' (component='{1}', tooltip='{2}').", descriptor, componentName, tooltip);
+                Log.Info(LogCategory.Menu, "Menu entry disabled | descriptor={0} component={1} tooltip={2}", descriptor, componentName, tooltip);
             }
         }
 
@@ -367,24 +365,17 @@ namespace CSM.TmpeSync.Tmpe
 
             if (disabledCount <= 0)
             {
-                Log.Info("TM:PE menu restriction applied. Enabled tools: {0}.", enabledText);
+                Log.Info(LogCategory.Menu, "Menu restriction applied | enabled={0}", enabledText);
                 return;
             }
 
             if (disabledSamples.Count > 0)
             {
-                Log.Info(
-                    "TM:PE menu restriction applied. Enabled tools: {0}. Disabled entries: {1} (examples: {2}).",
-                    enabledText,
-                    disabledCount,
-                    string.Join(", ", disabledSamples.ToArray()));
+                Log.Info(LogCategory.Menu, "Menu restriction applied | enabled={0} disabledCount={1} samples={2}", enabledText, disabledCount, string.Join(", ", disabledSamples.ToArray()));
                 return;
             }
 
-            Log.Info(
-                "TM:PE menu restriction applied. Enabled tools: {0}. Disabled entries: {1}.",
-                enabledText,
-                disabledCount);
+            Log.Info(LogCategory.Menu, "Menu restriction applied | enabled={0} disabledCount={1}", enabledText, disabledCount);
         }
 
         private static object GetMainMenuInstance()
@@ -430,7 +421,7 @@ namespace CSM.TmpeSync.Tmpe
             }
             catch (Exception ex)
             {
-                Log.Debug("Failed to locate TM:PE main menu via Unity lookup: {0}", ex);
+                Log.Debug(LogCategory.Menu, "Failed to locate TM:PE main menu via Unity lookup | error={0}", ex);
             }
 
             return null;
@@ -467,7 +458,7 @@ namespace CSM.TmpeSync.Tmpe
             }
 
             if (!_loggedMissingMenu)
-                Log.Warn("Unable to locate TM:PE main menu type. Tool restriction cannot be applied yet.");
+                Log.Warn(LogCategory.Menu, "Unable to locate TM:PE main menu type | action=defer_restriction");
 
             return null;
         }

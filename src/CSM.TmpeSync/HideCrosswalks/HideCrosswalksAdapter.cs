@@ -24,13 +24,13 @@ namespace CSM.TmpeSync.HideCrosswalks
                     });
 
                 if (HasRealHideCrosswalks)
-                    Log.Info("HideCrosswalks API detected – crosswalk synchronisation ready.");
+                    Log.Info(LogCategory.Bridge, "HideCrosswalks API detected | status=crosswalk_synchronization_ready");
                 else
-                    Log.Warn("HideCrosswalks API not detected – falling back to stubbed crosswalk state storage.");
+                    Log.Warn(LogCategory.Bridge, "HideCrosswalks API not detected | action=fallback_to_stub_storage");
             }
             catch (Exception ex)
             {
-                Log.Warn("HideCrosswalks detection failed: {0}", ex);
+                Log.Warn(LogCategory.Bridge, "HideCrosswalks detection failed | error={0}", ex);
             }
         }
 
@@ -41,9 +41,9 @@ namespace CSM.TmpeSync.HideCrosswalks
                 var key = new NodeSegmentKey(nodeId, segmentId);
 
                 if (HasRealHideCrosswalks)
-                    Log.Debug("[HideCrosswalks] Request node={0} segment={1} hidden={2}", nodeId, segmentId, hidden);
+                    Log.Debug(LogCategory.Hook, "HideCrosswalks request | nodeId={0} segmentId={1} hidden={2}", nodeId, segmentId, hidden);
                 else
-                    Log.Info("[HideCrosswalks] node={0} segment={1} hidden={2} (stub)", nodeId, segmentId, hidden);
+                    Log.Info(LogCategory.Synchronization, "HideCrosswalks stored in stub | nodeId={0} segmentId={1} hidden={2}", nodeId, segmentId, hidden);
 
                 lock (StateLock)
                 {
@@ -58,7 +58,7 @@ namespace CSM.TmpeSync.HideCrosswalks
             }
             catch (Exception ex)
             {
-                Log.Error("HideCrosswalks ApplyCrosswalkHidden failed: " + ex);
+                Log.Error(LogCategory.Synchronization, "HideCrosswalks ApplyCrosswalkHidden failed | error={0}", ex);
                 return false;
             }
         }
@@ -78,7 +78,7 @@ namespace CSM.TmpeSync.HideCrosswalks
             }
             catch (Exception ex)
             {
-                Log.Error("HideCrosswalks TryGetCrosswalkHidden failed: " + ex);
+                Log.Error(LogCategory.Synchronization, "HideCrosswalks TryGetCrosswalkHidden failed | error={0}", ex);
                 hidden = false;
                 return false;
             }

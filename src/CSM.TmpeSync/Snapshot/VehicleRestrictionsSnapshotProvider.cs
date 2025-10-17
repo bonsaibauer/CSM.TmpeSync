@@ -9,7 +9,7 @@ namespace CSM.TmpeSync.Snapshot
     {
         public void Export()
         {
-            Log.Info("Exporting TM:PE vehicle restrictions snapshot");
+            Log.Info(LogCategory.Snapshot, "Exporting TM:PE vehicle restrictions snapshot");
             NetUtil.ForEachLane(laneId =>
             {
                 if (!TmpeAdapter.TryGetVehicleRestrictions(laneId, out var restrictions))

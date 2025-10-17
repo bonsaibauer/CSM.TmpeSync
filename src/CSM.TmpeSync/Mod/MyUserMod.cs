@@ -9,23 +9,26 @@ namespace CSM.TmpeSync.Mod
     {
         public string Name => "CSM TM:PE Sync (Host-Authoritative)";
 
-        public string Description => "Synchronises TM:PE settings and Hide Crosswalks. Requires CSM and Harmony.";
+        public string Description => "Synchronizes TM:PE settings and Hide Crosswalks. Requires CSM and Harmony.";
 
         private static TmpeSyncConnection _connection;
         private static bool _connectionRegistered;
 
         public void OnEnabled()
         {
-            Log.Info("Enabling mod – validating dependencies.");
+            Log.Info(LogCategory.Lifecycle, "Mod enabled | action=validate_dependencies");
+            var debugEnabled = Log.IsDebugEnabled;
+            Log.Info(LogCategory.Configuration, "Runtime logging configuration | debug={0} path={1}", debugEnabled ? "ENABLED" : "disabled", Log.ConfigurationFilePath ?? "<unavailable>");
+
             var missing = Deps.GetMissingDependencies();
             if (missing.Length > 0)
             {
-                Log.Error("Missing dependency: {0}. Disabling mod.", string.Join(", ", missing));
+                Log.Error(LogCategory.Dependency, "Missing dependencies detected | items={0}", string.Join(", ", missing));
                 Deps.DisableSelf(this);
                 return;
             }
 
-            Log.Info("Registering TM:PE synchronisation channel with CSM.");
+            Log.Info(LogCategory.Network, "Registering TM:PE synchronization connection with CSM.");
             var connection = new TmpeSyncConnection();
             var registration = CsmCompat.RegisterConnection(connection);
             switch (registration)
@@ -33,19 +36,19 @@ namespace CSM.TmpeSync.Mod
                 case CsmCompat.ConnectionRegistrationResult.Registered:
                     _connection = connection;
                     _connectionRegistered = true;
-                    Log.Info("CSM connection ready – TM:PE synchronisation enabled.");
+                    Log.Info(LogCategory.Network, "CSM connection established | channel=TM:PE sync");
                     TmpeToolAvailability.OverrideRestriction(null);
                     break;
                 case CsmCompat.ConnectionRegistrationResult.AlreadyRegistered:
                     _connection = null;
                     _connectionRegistered = false;
-                    Log.Info("CSM already manages TM:PE synchronisation connection. Continuing without manual registration.");
+                    Log.Info(LogCategory.Network, "CSM already manages TM:PE synchronization | action=skip_manual_registration");
                     TmpeToolAvailability.OverrideRestriction(null);
                     break;
                 default:
                     _connection = null;
                     _connectionRegistered = false;
-                    Log.Warn("TM:PE sync connection could not be registered with CSM. Synchronisation remains inactive.");
+                    Log.Warn(LogCategory.Network, "TM:PE synchronization connection registration failed | synchronization=inactive");
                     TmpeToolAvailability.OverrideRestriction(false);
                     break;
             }
@@ -55,13 +58,13 @@ namespace CSM.TmpeSync.Mod
 
         public void OnDisabled()
         {
-            Log.Info("Disabling mod.");
+            Log.Info(LogCategory.Lifecycle, "Mod disabled | begin_cleanup");
             if (_connectionRegistered && _connection != null)
             {
-                Log.Info("Unregistering TM:PE sync connection from CSM.");
+                Log.Info(LogCategory.Network, "Unregistering TM:PE synchronization connection from CSM.");
                 if (!CsmCompat.UnregisterConnection(_connection))
                 {
-                    Log.Warn("TM:PE sync connection could not be cleanly unregistered from CSM.");
+                    Log.Warn(LogCategory.Network, "TM:PE synchronization connection could not be cleanly unregistered from CSM.");
                 }
 
                 _connection = null;
@@ -73,7 +76,7 @@ namespace CSM.TmpeSync.Mod
 
             TmpeToolAvailability.OverrideRestriction(null);
             CsmCompat.LogDiagnostics("OnDisabled");
-            Log.Debug("Mod disabled – awaiting next enable cycle.");
+            Log.Debug(LogCategory.Lifecycle, "Mod disabled | awaiting_next_enable_cycle");
         }
     }
 }
