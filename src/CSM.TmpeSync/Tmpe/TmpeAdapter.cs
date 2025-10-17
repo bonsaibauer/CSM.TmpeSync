@@ -22,6 +22,49 @@ namespace CSM.TmpeSync.Tmpe
         private static readonly bool SupportsTimedTrafficLights;
         private static readonly object StateLock = new object();
 
+        internal static IReadOnlyDictionary<string, bool> GetFeatureSupportMatrix()
+        {
+            return new Dictionary<string, bool>(StringComparer.OrdinalIgnoreCase)
+            {
+                { "speedLimits", SupportsSpeedLimits },
+                { "laneArrows", SupportsLaneArrows },
+                { "laneConnector", SupportsLaneConnections },
+                { "vehicleRestrictions", SupportsVehicleRestrictions },
+                { "junctionRestrictions", SupportsJunctionRestrictions },
+                { "prioritySigns", SupportsPrioritySigns },
+                { "parkingRestrictions", SupportsParkingRestrictions },
+                { "timedTrafficLights", SupportsTimedTrafficLights }
+            };
+        }
+
+        internal static bool IsFeatureSupported(string featureKey)
+        {
+            if (string.IsNullOrEmpty(featureKey))
+                return false;
+
+            switch (featureKey.ToLowerInvariant())
+            {
+                case "speedlimits":
+                    return SupportsSpeedLimits;
+                case "lanearrows":
+                    return SupportsLaneArrows;
+                case "laneconnector":
+                    return SupportsLaneConnections;
+                case "vehiclerestrictions":
+                    return SupportsVehicleRestrictions;
+                case "junctionrestrictions":
+                    return SupportsJunctionRestrictions;
+                case "prioritysigns":
+                    return SupportsPrioritySigns;
+                case "parkingrestrictions":
+                    return SupportsParkingRestrictions;
+                case "timedtrafficlights":
+                    return SupportsTimedTrafficLights;
+                default:
+                    return false;
+            }
+        }
+
         private static readonly Dictionary<uint, float> SpeedLimits = new Dictionary<uint, float>();
         private static readonly Dictionary<uint, LaneArrowFlags> LaneArrows = new Dictionary<uint, LaneArrowFlags>();
         private static readonly Dictionary<uint, VehicleRestrictionFlags> VehicleRestrictions = new Dictionary<uint, VehicleRestrictionFlags>();

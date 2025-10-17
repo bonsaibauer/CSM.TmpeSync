@@ -49,7 +49,7 @@ namespace CSM.TmpeSync.Mod
                     _connection = null;
                     _connectionRegistered = false;
                     Log.Warn(LogCategory.Network, "TM:PE synchronization connection registration failed | synchronization=inactive");
-                    TmpeToolAvailability.OverrideRestriction(false);
+                    TmpeToolAvailability.OverrideRestriction(true);
                     break;
             }
 

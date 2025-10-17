@@ -117,6 +117,43 @@ The installer clears any existing copy of the mod and copies the DLL (and option
 2. Enable the additional entry called **CSM.TmpeSync**.
 3. Start a multiplayer session through CSM. Once the connection is active, TM:PE configuration changes made by any player are synchronised to every participant.
 
+## Configuration
+
+CSM.TmpeSync stores its runtime configuration in
+`%LOCALAPPDATA%\Colossal Order\Cities_Skylines\CSM.TmpeSync\Config\logging.json`.
+When the file is created it contains both the logging flag and TM:PE menu
+restrictions. The relevant section looks as follows:
+
+```json
+{
+  "debug": false,
+  "tmpeRestrictions": {
+    "mode": "auto",
+    "features": {
+      "speedLimits": "yes",
+      "laneArrows": "yes",
+      "laneConnector": "yes",
+      "vehicleRestrictions": "yes",
+      "junctionRestrictions": "yes",
+      "prioritySigns": "yes",
+      "parkingRestrictions": "yes",
+      "timedTrafficLights": "no"
+    }
+  }
+}
+```
+
+- `mode` accepts `auto` (default) or `manual`. Auto mode inspects the detected
+  TM:PE feature bridge and disables menu entries that cannot be synchronised.
+  Manual mode applies the values specified for every feature instead.
+- Feature toggles use `yes`/`no` (or `true`/`false`). Features marked with `no`
+  stay disabled even if the local TM:PE installation supports them. Use this to
+  prevent access to tools that are intentionally unsynchronised in your session.
+
+Whenever the configuration changes the add-on logs which tools are available,
+which ones are blocked by manual policy and which ones are unavailable because
+the TM:PE API is missing.
+
 ## Diagnostics and Logs
 
 - Runtime logs are written to %LOCALAPPDATA%\Colossal Order\Cities_Skylines\CSM.TmpeSync\Logs\CSM.TmpeSync_<YYYY-MM-DD>.log (one file per day).
