@@ -60,7 +60,7 @@ namespace CSM.TmpeSync.Util
 
             internal TmpeRestrictionMode Mode { get; set; } = TmpeRestrictionMode.Auto;
 
-            internal IReadOnlyDictionary<string, bool> ManualOverrides => _manualOverrides;
+            internal IDictionary<string, bool> ManualOverrides => _manualOverrides;
 
             internal void ClearManualOverrides()
             {

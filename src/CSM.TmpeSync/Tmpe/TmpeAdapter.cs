@@ -22,7 +22,7 @@ namespace CSM.TmpeSync.Tmpe
         private static readonly bool SupportsTimedTrafficLights;
         private static readonly object StateLock = new object();
 
-        internal static IReadOnlyDictionary<string, bool> GetFeatureSupportMatrix()
+        internal static IDictionary<string, bool> GetFeatureSupportMatrix()
         {
             return new Dictionary<string, bool>(StringComparer.OrdinalIgnoreCase)
             {
