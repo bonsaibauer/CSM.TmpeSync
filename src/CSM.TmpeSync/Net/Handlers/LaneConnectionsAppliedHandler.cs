@@ -1,3 +1,4 @@
+using System;
 using CSM.API.Commands;
 using CSM.TmpeSync.Net.Contracts.Applied;
 using CSM.TmpeSync.Util;
@@ -29,7 +30,7 @@ namespace CSM.TmpeSync.Net.Handlers
 
         private static string FormatLaneIds(uint[] laneIds)
         {
-            return laneIds == null || laneIds.Length == 0 ? string.Empty : string.Join(", ", laneIds);
+            return laneIds == null || laneIds.Length == 0 ? string.Empty : string.Join(", ", Array.ConvertAll(laneIds, laneId => laneId.ToString()));
         }
     }
 }
