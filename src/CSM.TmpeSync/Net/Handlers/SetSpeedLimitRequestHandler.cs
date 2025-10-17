@@ -12,27 +12,28 @@ namespace CSM.TmpeSync.Net.Handlers
     {
         protected override void Handle(SetSpeedLimitRequest cmd)
         {
-            var senderId=CsmCompat.GetSenderId(cmd);
-            Log.Info("Received SetSpeedLimitRequest lane={0} speed={1}km/h from client={2} role={3}", cmd.LaneId, cmd.SpeedKmh, senderId, CsmCompat.DescribeCurrentRole());
+            var senderId = CsmCompat.GetSenderId(cmd);
+            Log.Info(LogCategory.Network, "SetSpeedLimitRequest received | laneId={0} speedKmh={1} senderId={2} role={3}", cmd.LaneId, cmd.SpeedKmh, senderId, CsmCompat.DescribeCurrentRole());
 
             if (!CsmCompat.IsServerInstance())
             {
-                Log.Debug("Ignoring SetSpeedLimitRequest on non-server instance.");
+                Log.Debug(LogCategory.Network, "Ignoring SetSpeedLimitRequest | reason=not_server_instance");
                 return;
             }
 
-            if (!NetUtil.LaneExists(cmd.LaneId)){
-                Log.Warn("Rejecting SetSpeedLimitRequest lane={0} – lane missing on server.", cmd.LaneId);
-                CsmCompat.SendToClient(senderId, new RequestRejected{ Reason="entity_missing", EntityId=cmd.LaneId, EntityType=1 });
+            if (!NetUtil.LaneExists(cmd.LaneId))
+            {
+                Log.Warn(LogCategory.Network, "Rejecting SetSpeedLimitRequest | laneId={0} reason=lane_missing", cmd.LaneId);
+                CsmCompat.SendToClient(senderId, new RequestRejected { Reason = "entity_missing", EntityId = cmd.LaneId, EntityType = 1 });
                 return;
             }
 
-            Log.Debug("Queueing simulation action to apply speed limit lane={0} -> {1}km/h", cmd.LaneId, cmd.SpeedKmh);
+            Log.Debug(LogCategory.Synchronization, "Queueing speed limit apply | laneId={0} speedKmh={1}", cmd.LaneId, cmd.SpeedKmh);
             NetUtil.RunOnSimulation(() =>
             {
                 if (!NetUtil.LaneExists(cmd.LaneId))
                 {
-                    Log.Warn("Simulation step aborted – lane {0} vanished before apply.", cmd.LaneId);
+                    Log.Warn(LogCategory.Synchronization, "Simulation step aborted | laneId={0} reason=lane_disappeared_before_apply", cmd.LaneId);
                     return;
                 }
 
@@ -40,19 +41,19 @@ namespace CSM.TmpeSync.Net.Handlers
                 {
                     if (!NetUtil.LaneExists(cmd.LaneId))
                     {
-                        Log.Warn("Skipping apply – lane {0} disappeared while locked.", cmd.LaneId);
+                        Log.Warn(LogCategory.Synchronization, "Skipping speed limit apply | laneId={0} reason=lane_disappeared_while_locked", cmd.LaneId);
                         return;
                     }
 
                     if (TmpeAdapter.ApplySpeedLimit(cmd.LaneId, cmd.SpeedKmh))
                     {
-                        Log.Info("Applied speed limit lane={0} -> {1}km/h; broadcasting update.", cmd.LaneId, cmd.SpeedKmh);
-                        CsmCompat.SendToAll(new SpeedLimitApplied { LaneId=cmd.LaneId, SpeedKmh=cmd.SpeedKmh });
+                        Log.Info(LogCategory.Synchronization, "Applied speed limit | laneId={0} speedKmh={1} action=broadcast", cmd.LaneId, cmd.SpeedKmh);
+                        CsmCompat.SendToAll(new SpeedLimitApplied { LaneId = cmd.LaneId, SpeedKmh = cmd.SpeedKmh });
                     }
                     else
                     {
-                        Log.Error("Failed to apply speed limit lane={0} -> {1}km/h; notifying client {2}.", cmd.LaneId, cmd.SpeedKmh, senderId);
-                        CsmCompat.SendToClient(senderId, new RequestRejected{ Reason="tmpe_apply_failed", EntityId=cmd.LaneId, EntityType=1 });
+                        Log.Error(LogCategory.Synchronization, "Failed to apply speed limit | laneId={0} speedKmh={1} notifyClient={2}", cmd.LaneId, cmd.SpeedKmh, senderId);
+                        CsmCompat.SendToClient(senderId, new RequestRejected { Reason = "tmpe_apply_failed", EntityId = cmd.LaneId, EntityType = 1 });
                     }
                 }
             });

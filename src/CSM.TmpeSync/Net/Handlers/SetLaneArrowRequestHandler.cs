@@ -13,24 +13,24 @@ namespace CSM.TmpeSync.Net.Handlers
         protected override void Handle(SetLaneArrowRequest cmd)
         {
             var senderId = CsmCompat.GetSenderId(cmd);
-            Log.Info("Received SetLaneArrowRequest lane={0} arrows={1} from client={2} role={3}", cmd.LaneId, cmd.Arrows, senderId, CsmCompat.DescribeCurrentRole());
+            Log.Info(LogCategory.Network, "SetLaneArrowRequest received | laneId={0} arrows={1} senderId={2} role={3}", cmd.LaneId, cmd.Arrows, senderId, CsmCompat.DescribeCurrentRole());
 
             if (!CsmCompat.IsServerInstance())
             {
-                Log.Debug("Ignoring SetLaneArrowRequest on non-server instance.");
+                Log.Debug(LogCategory.Network, "Ignoring SetLaneArrowRequest | reason=not_server_instance");
                 return;
             }
 
             if (!NetUtil.LaneExists(cmd.LaneId))
             {
-                Log.Warn("Rejecting SetLaneArrowRequest lane={0} – lane missing on server.", cmd.LaneId);
+                Log.Warn(LogCategory.Network, "Rejecting SetLaneArrowRequest | laneId={0} reason=lane_missing", cmd.LaneId);
                 CsmCompat.SendToClient(senderId, new RequestRejected { Reason = "entity_missing", EntityId = cmd.LaneId, EntityType = 1 });
                 return;
             }
 
             if (!LaneArrowValidation.IsValid(cmd.Arrows))
             {
-                Log.Warn("Rejecting SetLaneArrowRequest lane={0} – invalid arrow combination {1}.", cmd.LaneId, cmd.Arrows);
+                Log.Warn(LogCategory.Network, "Rejecting SetLaneArrowRequest | laneId={0} reason=invalid_arrow_combination value={1}", cmd.LaneId, cmd.Arrows);
                 CsmCompat.SendToClient(senderId, new RequestRejected { Reason = "invalid_payload", EntityId = cmd.LaneId, EntityType = 1 });
                 return;
             }
@@ -39,7 +39,7 @@ namespace CSM.TmpeSync.Net.Handlers
             {
                 if (!NetUtil.LaneExists(cmd.LaneId))
                 {
-                    Log.Warn("Simulation step aborted – lane {0} vanished before lane arrow apply.", cmd.LaneId);
+                    Log.Warn(LogCategory.Synchronization, "Simulation step aborted | laneId={0} reason=lane_disappeared_before_lane_arrow_apply", cmd.LaneId);
                     return;
                 }
 
@@ -47,18 +47,18 @@ namespace CSM.TmpeSync.Net.Handlers
                 {
                     if (!NetUtil.LaneExists(cmd.LaneId))
                     {
-                        Log.Warn("Skipping lane arrow apply – lane {0} disappeared while locked.", cmd.LaneId);
+                        Log.Warn(LogCategory.Synchronization, "Skipping lane arrow apply | laneId={0} reason=lane_disappeared_while_locked", cmd.LaneId);
                         return;
                     }
 
                     if (TmpeAdapter.ApplyLaneArrows(cmd.LaneId, cmd.Arrows))
                     {
-                        Log.Info("Applied lane arrows lane={0} -> {1}; broadcasting update.", cmd.LaneId, cmd.Arrows);
+                        Log.Info(LogCategory.Synchronization, "Applied lane arrows | laneId={0} arrows={1} action=broadcast", cmd.LaneId, cmd.Arrows);
                         CsmCompat.SendToAll(new LaneArrowApplied { LaneId = cmd.LaneId, Arrows = cmd.Arrows });
                     }
                     else
                     {
-                        Log.Error("Failed to apply lane arrows lane={0} -> {1}; notifying client {2}.", cmd.LaneId, cmd.Arrows, senderId);
+                        Log.Error(LogCategory.Synchronization, "Failed to apply lane arrows | laneId={0} arrows={1} notifyClient={2}", cmd.LaneId, cmd.Arrows, senderId);
                         CsmCompat.SendToClient(senderId, new RequestRejected { Reason = "tmpe_apply_failed", EntityId = cmd.LaneId, EntityType = 1 });
                     }
                 }

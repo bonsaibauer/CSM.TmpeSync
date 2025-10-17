@@ -9,7 +9,7 @@ namespace CSM.TmpeSync.Snapshot
     {
         public void Export()
         {
-            Log.Info("Exporting HideCrosswalks snapshot");
+            Log.Info(LogCategory.Snapshot, "Exporting HideCrosswalks snapshot");
             foreach (var entry in HideCrosswalksAdapter.GetHiddenCrosswalkSnapshot())
             {
                 if (!NetUtil.NodeExists(entry.Node) || !NetUtil.SegmentExists(entry.Segment))

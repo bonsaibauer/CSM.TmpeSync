@@ -8,22 +8,22 @@ namespace CSM.TmpeSync.Net.Handlers
     {
         protected override void Handle(LaneArrowApplied cmd)
         {
-            Log.Info("Received LaneArrowApplied lane={0} arrows={1}", cmd.LaneId, cmd.Arrows);
+            Log.Info(LogCategory.Synchronization, "LaneArrowApplied received | laneId={0} arrows={1}", cmd.LaneId, cmd.Arrows);
 
             if (NetUtil.LaneExists(cmd.LaneId))
             {
-                Log.Debug("Lane {0} exists – applying lane arrows immediately (ignore scope).", cmd.LaneId);
+                Log.Debug(LogCategory.Synchronization, "Lane exists locally | laneId={0} action=apply_lane_arrows_ignore_scope", cmd.LaneId);
                 using (CsmCompat.StartIgnore())
                 {
                     if (Tmpe.TmpeAdapter.ApplyLaneArrows(cmd.LaneId, cmd.Arrows))
-                        Log.Info("Applied remote lane arrows lane={0} -> {1}", cmd.LaneId, cmd.Arrows);
+                        Log.Info(LogCategory.Synchronization, "Applied remote lane arrows | laneId={0} arrows={1}", cmd.LaneId, cmd.Arrows);
                     else
-                        Log.Error("Failed to apply remote lane arrows lane={0} -> {1}", cmd.LaneId, cmd.Arrows);
+                        Log.Error(LogCategory.Synchronization, "Failed to apply remote lane arrows | laneId={0} arrows={1}", cmd.LaneId, cmd.Arrows);
                 }
             }
             else
             {
-                Log.Warn("Lane {0} missing – queueing deferred lane arrow apply.", cmd.LaneId);
+                Log.Warn(LogCategory.Synchronization, "Lane missing for lane arrow apply | laneId={0} action=queue_deferred", cmd.LaneId);
                 DeferredApply.Enqueue(new LaneArrowDeferredOp(cmd));
             }
         }

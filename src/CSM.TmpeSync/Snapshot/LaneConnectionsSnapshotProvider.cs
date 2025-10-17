@@ -8,7 +8,7 @@ namespace CSM.TmpeSync.Snapshot
     {
         public void Export()
         {
-            Log.Info("Exporting TM:PE lane connection snapshot");
+            Log.Info(LogCategory.Snapshot, "Exporting TM:PE lane connection snapshot");
             NetUtil.ForEachLane(laneId =>
             {
                 if (!TmpeAdapter.TryGetLaneConnections(laneId, out var targets))

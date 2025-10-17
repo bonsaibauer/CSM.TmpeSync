@@ -2,6 +2,7 @@ using CSM.API.Commands;
 using CSM.TmpeSync.Net.Contracts.Applied;
 using CSM.TmpeSync.Net.Contracts.Requests;
 using CSM.TmpeSync.Net.Contracts.System;
+using CSM.TmpeSync.Net.Contracts.States;
 using CSM.TmpeSync.Tmpe;
 using CSM.TmpeSync.Util;
 
@@ -12,17 +13,17 @@ namespace CSM.TmpeSync.Net.Handlers
         protected override void Handle(SetVehicleRestrictionsRequest cmd)
         {
             var senderId = CsmCompat.GetSenderId(cmd);
-            Log.Info("Received SetVehicleRestrictionsRequest lane={0} restrictions={1} from client={2} role={3}", cmd.LaneId, cmd.Restrictions, senderId, CsmCompat.DescribeCurrentRole());
+            Log.Info(LogCategory.Network, "SetVehicleRestrictionsRequest received | laneId={0} restrictions={1} senderId={2} role={3}", cmd.LaneId, cmd.Restrictions, senderId, CsmCompat.DescribeCurrentRole());
 
             if (!CsmCompat.IsServerInstance())
             {
-                Log.Debug("Ignoring SetVehicleRestrictionsRequest on non-server instance.");
+                Log.Debug(LogCategory.Network, "Ignoring SetVehicleRestrictionsRequest | reason=not_server_instance");
                 return;
             }
 
             if (!NetUtil.LaneExists(cmd.LaneId))
             {
-                Log.Warn("Rejecting SetVehicleRestrictionsRequest lane={0} – lane missing on server.", cmd.LaneId);
+                Log.Warn(LogCategory.Network, "Rejecting SetVehicleRestrictionsRequest | laneId={0} reason=lane_missing", cmd.LaneId);
                 CsmCompat.SendToClient(senderId, new RequestRejected { Reason = "entity_missing", EntityId = cmd.LaneId, EntityType = 1 });
                 return;
             }
@@ -31,7 +32,7 @@ namespace CSM.TmpeSync.Net.Handlers
             {
                 if (!NetUtil.LaneExists(cmd.LaneId))
                 {
-                    Log.Warn("Simulation step aborted – lane {0} vanished before vehicle restriction apply.", cmd.LaneId);
+                    Log.Warn(LogCategory.Synchronization, "Simulation step aborted | laneId={0} reason=lane_disappeared_before_vehicle_restriction_apply", cmd.LaneId);
                     return;
                 }
 
@@ -39,18 +40,18 @@ namespace CSM.TmpeSync.Net.Handlers
                 {
                     if (!NetUtil.LaneExists(cmd.LaneId))
                     {
-                        Log.Warn("Skipping vehicle restriction apply – lane {0} disappeared while locked.", cmd.LaneId);
+                        Log.Warn(LogCategory.Synchronization, "Skipping vehicle restriction apply | laneId={0} reason=lane_disappeared_while_locked", cmd.LaneId);
                         return;
                     }
 
                     if (TmpeAdapter.ApplyVehicleRestrictions(cmd.LaneId, cmd.Restrictions))
                     {
-                        Log.Info("Applied vehicle restrictions lane={0} -> {1}; broadcasting update.", cmd.LaneId, cmd.Restrictions);
+                        Log.Info(LogCategory.Synchronization, "Applied vehicle restrictions | laneId={0} restrictions={1} action=broadcast", cmd.LaneId, cmd.Restrictions);
                         CsmCompat.SendToAll(new VehicleRestrictionsApplied { LaneId = cmd.LaneId, Restrictions = cmd.Restrictions });
                     }
                     else
                     {
-                        Log.Error("Failed to apply vehicle restrictions lane={0} -> {1}; notifying client {2}.", cmd.LaneId, cmd.Restrictions, senderId);
+                        Log.Error(LogCategory.Synchronization, "Failed to apply vehicle restrictions | laneId={0} restrictions={1} notifyClient={2}", cmd.LaneId, cmd.Restrictions, senderId);
                         CsmCompat.SendToClient(senderId, new RequestRejected { Reason = "tmpe_apply_failed", EntityId = cmd.LaneId, EntityType = 1 });
                     }
                 }

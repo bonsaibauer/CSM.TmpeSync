@@ -185,14 +185,14 @@ namespace CSM.TmpeSync.Util
                     break;
             }
 
-            Log.Debug("CSM compat initialised. SendToClient={0}; SendToAll={1}; Register={2}; Unregister={3}",
+            Log.Debug(LogCategory.Diagnostics, "CSM compatibility initialized | sendToClient={0} sendToAll={1} register={2} unregister={3}",
                 DescribeMethod(SendToClientMethod),
                 DescribeMethod(SendToAllMethod),
                 DescribeMethod(RegisterConnectionMethod),
                 DescribeMethod(UnregisterConnectionMethod));
 
             if (SendToServerMethod != null)
-                Log.Debug("CSM compat detected SendToServer hook: {0}", DescribeMethod(SendToServerMethod));
+                Log.Debug(LogCategory.Diagnostics, "Detected SendToServer hook | method={0}", DescribeMethod(SendToServerMethod));
 
             foreach (var assembly in CandidateAssemblies)
             {
@@ -320,7 +320,7 @@ namespace CSM.TmpeSync.Util
             }
             catch (Exception ex)
             {
-                Log.Warn("Failed to resolve CSM server role: {0}", ex);
+                Log.Warn(LogCategory.Network, "Failed to resolve CSM server role | error={0}", ex);
             }
 
             return false;
@@ -349,7 +349,7 @@ namespace CSM.TmpeSync.Util
             }
             catch (Exception ex)
             {
-                Log.Warn("Failed to describe current CSM role: {0}", ex);
+                Log.Warn(LogCategory.Network, "Failed to describe current CSM role | error={0}", ex);
             }
 
             return "unknown";
@@ -403,7 +403,7 @@ namespace CSM.TmpeSync.Util
             }
             catch (Exception ex)
             {
-                Log.Warn("Failed to resolve sender id: {0}", ex);
+                Log.Warn(LogCategory.Network, "Failed to resolve sender id | error={0}", ex);
             }
 
             return -1;
@@ -414,7 +414,7 @@ namespace CSM.TmpeSync.Util
             if (command == null)
                 throw new ArgumentNullException(nameof(command));
 
-            Log.Info("CSM send to client {0}: {1}", clientId, DescribeCommand(command));
+            Log.Info(LogCategory.Network, "SendToClient | clientId={0} command={1}", clientId, DescribeCommand(command));
             try
             {
                 if (SendToClientMethod != null)
@@ -432,7 +432,7 @@ namespace CSM.TmpeSync.Util
             }
             catch (Exception ex)
             {
-                Log.Warn("Failed to invoke direct SendToClient for client {0}: {1}", clientId, ex);
+                Log.Warn(LogCategory.Network, "SendToClient direct invoke failed | clientId={0} error={1}", clientId, ex);
             }
 
             try
@@ -453,10 +453,10 @@ namespace CSM.TmpeSync.Util
             }
             catch (Exception ex)
             {
-                Log.Warn("Failed to invoke SendToClients fallback for client {0}: {1}", clientId, ex);
+                Log.Warn(LogCategory.Network, "SendToClients fallback failed | clientId={0} error={1}", clientId, ex);
             }
 
-            Log.Warn("No compatible send-to-client method available in CSM.API");
+            Log.Warn(LogCategory.Network, "No compatible send-to-client method available in CSM.API");
             if (!_loggedMissingSendToClient)
             {
                 _loggedMissingSendToClient = true;
@@ -469,7 +469,7 @@ namespace CSM.TmpeSync.Util
             if (command == null)
                 throw new ArgumentNullException(nameof(command));
 
-            Log.Info("CSM broadcast: {0}", DescribeCommand(command));
+            Log.Info(LogCategory.Network, "Broadcast | command={0}", DescribeCommand(command));
             try
             {
                 if (SendToAllMethod != null)
@@ -487,11 +487,11 @@ namespace CSM.TmpeSync.Util
             }
             catch (Exception ex)
             {
-                Log.Warn("Failed to broadcast command: {0}", ex);
+                Log.Warn(LogCategory.Network, "Broadcast failed | error={0}", ex);
                 return;
             }
 
-            Log.Warn("No compatible broadcast method available in CSM.API");
+            Log.Warn(LogCategory.Network, "No compatible broadcast method available in CSM.API");
             if (!_loggedMissingBroadcast)
             {
                 _loggedMissingBroadcast = true;
@@ -504,7 +504,7 @@ namespace CSM.TmpeSync.Util
             if (command == null)
                 throw new ArgumentNullException(nameof(command));
 
-            Log.Info("CSM send to server: {0}", DescribeCommand(command));
+            Log.Info(LogCategory.Network, "SendToServer | command={0}", DescribeCommand(command));
 
             if (SendToServerMethod != null)
             {
@@ -522,14 +522,14 @@ namespace CSM.TmpeSync.Util
                 }
                 catch (Exception ex)
                 {
-                    Log.Warn("Failed to invoke SendToServer: {0}", ex);
+                    Log.Warn(LogCategory.Network, "SendToServer invoke failed | error={0}", ex);
                 }
             }
 
             if (!_loggedMissingSendToServer)
             {
                 _loggedMissingSendToServer = true;
-                Log.Warn("Unable to send TM:PE request to server – CSM.API server hook missing");
+                Log.Warn(LogCategory.Network, "Unable to send TM:PE request to server | reason=missing_server_hook");
                 LogDiagnostics("SendToServer missing", true);
             }
 
@@ -632,7 +632,7 @@ namespace CSM.TmpeSync.Util
                 if (fallbackResult != ConnectionRegistrationResult.Failure)
                     return fallbackResult;
 
-                Log.Warn("Unable to register connection – CSM.API register hook missing");
+                Log.Warn(LogCategory.Network, "Unable to register connection | reason=missing_register_hook");
                 if (!_loggedMissingRegister)
                 {
                     _loggedMissingRegister = true;
@@ -641,13 +641,13 @@ namespace CSM.TmpeSync.Util
                 return ConnectionRegistrationResult.Failure;
             }
 
-            Log.Debug("Registering connection '{0}' via {1}", SafeName(connection), DescribeMethod(RegisterConnectionMethod));
+            Log.Debug(LogCategory.Network, "Registering connection | name={0} method={1}", SafeName(connection), DescribeMethod(RegisterConnectionMethod));
             try
             {
                 var method = PrepareMethodForInvoke(RegisterConnectionMethod, connection, null);
                 if (method == null)
                 {
-                    Log.Warn("Failed to prepare register connection method for '{0}'", SafeName(connection));
+                    Log.Warn(LogCategory.Network, "Register connection prepare failed | name={0}", SafeName(connection));
                     return ConnectionRegistrationResult.Failure;
                 }
 
@@ -655,12 +655,12 @@ namespace CSM.TmpeSync.Util
                 var args = BuildArguments(parameters, connection, null);
                 var target = method.IsStatic ? RegisterConnectionTarget : (RegisterConnectionTarget ?? ResolveTarget(RegisterConnectionMethod));
                 method.Invoke(target, args);
-                Log.Info("Registered connection '{0}' with CSM", SafeName(connection));
+                Log.Info(LogCategory.Network, "Connection registered | name={0}", SafeName(connection));
                 return ConnectionRegistrationResult.Registered;
             }
             catch (Exception ex)
             {
-                Log.Warn("Failed to register connection: {0}", ex);
+                Log.Warn(LogCategory.Network, "Connection registration failed | error={0}", ex);
                 return ConnectionRegistrationResult.Failure;
             }
         }
@@ -676,7 +676,7 @@ namespace CSM.TmpeSync.Util
                 if (fallbackResult)
                     return true;
 
-                Log.Warn("Unable to unregister connection – CSM.API unregister hook missing");
+                Log.Warn(LogCategory.Network, "Unable to unregister connection | reason=missing_unregister_hook");
                 if (!_loggedMissingUnregister)
                 {
                     _loggedMissingUnregister = true;
@@ -690,7 +690,7 @@ namespace CSM.TmpeSync.Util
                 var method = PrepareMethodForInvoke(UnregisterConnectionMethod, connection, null);
                 if (method == null)
                 {
-                    Log.Warn("Failed to prepare unregister connection method for '{0}'", SafeName(connection));
+                    Log.Warn(LogCategory.Network, "Unregister connection prepare failed | name={0}", SafeName(connection));
                     return false;
                 }
 
@@ -698,12 +698,12 @@ namespace CSM.TmpeSync.Util
                 var args = BuildArguments(parameters, connection, null);
                 var target = method.IsStatic ? UnregisterConnectionTarget : (UnregisterConnectionTarget ?? ResolveTarget(UnregisterConnectionMethod));
                 method.Invoke(target, args);
-                Log.Info("Unregistered connection '{0}' from CSM", SafeName(connection));
+                Log.Info(LogCategory.Network, "Connection unregistered | name={0}", SafeName(connection));
                 return true;
             }
             catch (Exception ex)
             {
-                Log.Warn("Failed to unregister connection: {0}", ex);
+                Log.Warn(LogCategory.Network, "Connection unregistration failed | error={0}", ex);
                 return false;
             }
         }
@@ -723,7 +723,7 @@ namespace CSM.TmpeSync.Util
             }
             catch (Exception ex)
             {
-                Log.Warn("Unable to resolve CSM.Mods.ModSupport instance: {0}", ex);
+                Log.Warn(LogCategory.Network, "Unable to resolve CSM.Mods.ModSupport instance | error={0}", ex);
                 return ConnectionRegistrationResult.Failure;
             }
 
@@ -737,7 +737,7 @@ namespace CSM.TmpeSync.Util
             }
             catch (Exception ex)
             {
-                Log.Warn("Unable to access CSM.Mods.ModSupport.ConnectedMods: {0}", ex);
+                Log.Warn(LogCategory.Network, "Unable to access CSM.Mods.ModSupport.ConnectedMods | error={0}", ex);
                 return ConnectionRegistrationResult.Failure;
             }
 
@@ -751,7 +751,7 @@ namespace CSM.TmpeSync.Util
 
                 if (ReferenceEquals(item, connection) || item.GetType() == connection.GetType())
                 {
-                    Log.Info("Connection '{0}' already registered with CSM (detected via ModSupport).", SafeName(connection));
+                    Log.Info(LogCategory.Network, "Connection already registered via ModSupport | name={0}", SafeName(connection));
                     return ConnectionRegistrationResult.AlreadyRegistered;
                 }
             }
@@ -783,7 +783,7 @@ namespace CSM.TmpeSync.Util
             }
 
             RefreshCommandModel();
-            Log.Info("Registered connection '{0}' with CSM via ModSupport fallback.", SafeName(connection));
+            Log.Info(LogCategory.Network, "Connection registered via ModSupport fallback | name={0}", SafeName(connection));
             return ConnectionRegistrationResult.Registered;
         }
 
@@ -802,7 +802,7 @@ namespace CSM.TmpeSync.Util
             }
             catch (Exception ex)
             {
-                Log.Warn("Unable to resolve CSM.Mods.ModSupport instance for unregister: {0}", ex);
+                Log.Warn(LogCategory.Network, "Unable to resolve CSM.Mods.ModSupport instance for unregister | error={0}", ex);
                 return false;
             }
 
@@ -816,7 +816,7 @@ namespace CSM.TmpeSync.Util
             }
             catch (Exception ex)
             {
-                Log.Warn("Unable to access CSM.Mods.ModSupport.ConnectedMods for unregister: {0}", ex);
+                Log.Warn(LogCategory.Network, "Unable to access CSM.Mods.ModSupport.ConnectedMods for unregister | error={0}", ex);
                 return false;
             }
 
@@ -825,13 +825,13 @@ namespace CSM.TmpeSync.Util
 
             if (!list.Contains(connection))
             {
-                Log.Debug("Connection '{0}' not present in ModSupport list during unregister – skipping.", SafeName(connection));
+                Log.Debug(LogCategory.Network, "Connection missing in ModSupport during unregister | name={0}", SafeName(connection));
                 return true;
             }
 
             list.Remove(connection);
             RefreshCommandModel();
-            Log.Info("Unregistered connection '{0}' from CSM via ModSupport fallback.", SafeName(connection));
+            Log.Info(LogCategory.Network, "Connection unregistered via ModSupport fallback | name={0}", SafeName(connection));
             return true;
         }
 
@@ -850,7 +850,7 @@ namespace CSM.TmpeSync.Util
             }
             catch (Exception ex)
             {
-                Log.Warn("Failed to refresh CSM command model: {0}", ex);
+                Log.Warn(LogCategory.Diagnostics, "Failed to refresh CSM command model | error={0}", ex);
             }
         }
 
@@ -893,41 +893,39 @@ namespace CSM.TmpeSync.Util
 
             LoggedDiagnosticContexts.Add(key);
 
-            var header = string.IsNullOrEmpty(context)
-                ? "CSM compat diagnostics:"
-                : $"CSM compat diagnostics ({context}):";
-            Log.Info(header);
-            Log.Info("  Command type: {0}", CommandType?.FullName ?? "<missing>");
-            Log.Info("  RegisterConnection method: {0}", DescribeMethod(RegisterConnectionMethod));
-            Log.Info("  UnregisterConnection method: {0}", DescribeMethod(UnregisterConnectionMethod));
-            Log.Info("  SendToClient method: {0}", DescribeMethod(SendToClientMethod));
-            Log.Info("  SendToClients method: {0}", DescribeMethod(SendToClientsMethod));
-            Log.Info("  SendToAll method: {0}", DescribeMethod(SendToAllMethod));
-            Log.Info("  SendToServer method: {0}", DescribeMethod(SendToServerMethod));
-            Log.Info("  SimulateClientConnected method: {0}", DescribeMethod(SimulateClientConnectedMethod));
-            Log.Info("  GetSimulatedClients method: {0}", DescribeMethod(GetSimulatedClientsMethod));
-            Log.Info("  ModSupport type: {0}", ModSupportType?.FullName ?? "<missing>");
-            Log.Info("  ModSupport.Instance property: {0}", DescribeMember(ModSupportInstanceProperty));
-            Log.Info("  ModSupport.ConnectedMods property: {0}", DescribeMember(ConnectedModsProperty));
-            Log.Info("  CommandInternal type: {0}", CommandInternalType?.FullName ?? "<missing>");
-            Log.Info("  CommandInternal.Instance field: {0}", DescribeMember(CommandInternalInstanceField));
-            Log.Info("  CommandInternal.RefreshModel method: {0}", DescribeMethod(CommandInternalRefreshMethod));
+            var normalizedContext = string.IsNullOrEmpty(context) ? "default" : context;
+            Log.Info(LogCategory.Diagnostics, "Diagnostics snapshot | context={0}", normalizedContext);
+            Log.Info(LogCategory.Diagnostics, "Command type | value={0}", CommandType?.FullName ?? "<missing>");
+            Log.Info(LogCategory.Diagnostics, "RegisterConnection method | value={0}", DescribeMethod(RegisterConnectionMethod));
+            Log.Info(LogCategory.Diagnostics, "UnregisterConnection method | value={0}", DescribeMethod(UnregisterConnectionMethod));
+            Log.Info(LogCategory.Diagnostics, "SendToClient method | value={0}", DescribeMethod(SendToClientMethod));
+            Log.Info(LogCategory.Diagnostics, "SendToClients method | value={0}", DescribeMethod(SendToClientsMethod));
+            Log.Info(LogCategory.Diagnostics, "SendToAll method | value={0}", DescribeMethod(SendToAllMethod));
+            Log.Info(LogCategory.Diagnostics, "SendToServer method | value={0}", DescribeMethod(SendToServerMethod));
+            Log.Info(LogCategory.Diagnostics, "SimulateClientConnected method | value={0}", DescribeMethod(SimulateClientConnectedMethod));
+            Log.Info(LogCategory.Diagnostics, "GetSimulatedClients method | value={0}", DescribeMethod(GetSimulatedClientsMethod));
+            Log.Info(LogCategory.Diagnostics, "ModSupport type | value={0}", ModSupportType?.FullName ?? "<missing>");
+            Log.Info(LogCategory.Diagnostics, "ModSupport.Instance property | value={0}", DescribeMember(ModSupportInstanceProperty));
+            Log.Info(LogCategory.Diagnostics, "ModSupport.ConnectedMods property | value={0}", DescribeMember(ConnectedModsProperty));
+            Log.Info(LogCategory.Diagnostics, "CommandInternal type | value={0}", CommandInternalType?.FullName ?? "<missing>");
+            Log.Info(LogCategory.Diagnostics, "CommandInternal.Instance field | value={0}", DescribeMember(CommandInternalInstanceField));
+            Log.Info(LogCategory.Diagnostics, "CommandInternal.RefreshModel method | value={0}", DescribeMethod(CommandInternalRefreshMethod));
 
             var ignoreInstance = IgnoreHelperInstance == null
                 ? "<missing>"
                 : IgnoreHelperInstance.GetType().FullName ?? IgnoreHelperInstance.GetType().Name;
-            Log.Info("  Ignore helper instance: {0}", ignoreInstance);
-            Log.Info("  Ignore start method: {0}", DescribeMethod(IgnoreStartMethod));
-            Log.Info("  Ignore end method: {0}", DescribeMethod(IgnoreEndMethod));
+            Log.Info(LogCategory.Diagnostics, "Ignore helper instance | value={0}", ignoreInstance);
+            Log.Info(LogCategory.Diagnostics, "Ignore start method | value={0}", DescribeMethod(IgnoreStartMethod));
+            Log.Info(LogCategory.Diagnostics, "Ignore end method | value={0}", DescribeMethod(IgnoreEndMethod));
 
-            Log.Info("  CurrentRole property: {0}", DescribeMember(CurrentRoleProperty));
-            Log.Info("  RoleName property: {0}", DescribeMember(RoleNameProperty));
-            Log.Info("  IsServer property: {0}", DescribeMember(IsServerProperty));
-            Log.Info("  IsServer field: {0}", DescribeMember(IsServerField));
-            Log.Info("  Role check method: {0}", DescribeMethod(RoleCheckMethod));
-            Log.Info("  SenderId property: {0}", DescribeMember(SenderIdProperty));
-            Log.Info("  SenderId field: {0}", DescribeMember(SenderIdField));
-            Log.Info("  Sender property: {0}", DescribeMember(SenderProperty));
+            Log.Info(LogCategory.Diagnostics, "CurrentRole property | value={0}", DescribeMember(CurrentRoleProperty));
+            Log.Info(LogCategory.Diagnostics, "RoleName property | value={0}", DescribeMember(RoleNameProperty));
+            Log.Info(LogCategory.Diagnostics, "IsServer property | value={0}", DescribeMember(IsServerProperty));
+            Log.Info(LogCategory.Diagnostics, "IsServer field | value={0}", DescribeMember(IsServerField));
+            Log.Info(LogCategory.Diagnostics, "Role check method | value={0}", DescribeMethod(RoleCheckMethod));
+            Log.Info(LogCategory.Diagnostics, "SenderId property | value={0}", DescribeMember(SenderIdProperty));
+            Log.Info(LogCategory.Diagnostics, "SenderId field | value={0}", DescribeMember(SenderIdField));
+            Log.Info(LogCategory.Diagnostics, "Sender property | value={0}", DescribeMember(SenderProperty));
         }
 
         internal static void EnsureStubSimulationActive()
@@ -939,7 +937,7 @@ namespace CSM.TmpeSync.Util
 
             if (SimulateClientConnectedMethod == null || GetSimulatedClientsMethod == null)
             {
-                Log.Debug("Stub simulation hooks unavailable – skipping autostart.");
+                Log.Debug(LogCategory.Diagnostics, "Stub simulation hooks unavailable | action=skip_autostart");
                 return;
             }
 
@@ -947,14 +945,14 @@ namespace CSM.TmpeSync.Util
             {
                 if (HasSimulatedClients())
                 {
-                    Log.Debug("Stub simulation already has connected clients – skipping autostart.");
+                    Log.Debug(LogCategory.Diagnostics, "Stub simulation already has connected clients | action=skip_autostart");
                     return;
                 }
 
                 var parameters = SimulateClientConnectedMethod.GetParameters();
                 if (parameters.Length != 1)
                 {
-                    Log.Warn("SimulateClientConnected signature unexpected – skipping stub autostart: {0}", DescribeMethod(SimulateClientConnectedMethod));
+                    Log.Warn(LogCategory.Diagnostics, "SimulateClientConnected signature unexpected | action=skip_autostart method={0}", DescribeMethod(SimulateClientConnectedMethod));
                     return;
                 }
 
@@ -965,16 +963,16 @@ namespace CSM.TmpeSync.Util
                 }
                 catch (Exception ex)
                 {
-                    Log.Warn("Unable to convert stub client id to '{0}': {1}", parameters[0].ParameterType, ex.Message);
+                    Log.Warn(LogCategory.Diagnostics, "Unable to convert stub client id | targetType={0} error={1}", parameters[0].ParameterType, ex.Message);
                     return;
                 }
 
                 SimulateClientConnectedMethod.Invoke(null, new[] { clientArgument });
-                Log.Info("Stub CSM simulation started automatically (clientId={0}).", clientArgument);
+                Log.Info(LogCategory.Diagnostics, "Stub CSM simulation autostarted | clientId={0}", clientArgument);
             }
             catch (Exception ex)
             {
-                Log.Warn("Failed to autostart stub simulation: {0}", ex);
+                Log.Warn(LogCategory.Diagnostics, "Failed to autostart stub simulation | error={0}", ex);
             }
         }
 
@@ -996,7 +994,7 @@ namespace CSM.TmpeSync.Util
             }
             catch (Exception ex)
             {
-                Log.Debug("Unable to inspect simulated clients: {0}", ex.Message);
+                Log.Debug(LogCategory.Diagnostics, "Unable to inspect simulated clients | error={0}", ex.Message);
             }
 
             return false;
@@ -1096,7 +1094,7 @@ namespace CSM.TmpeSync.Util
             }
             catch (Exception ex)
             {
-                Log.Warn("Failed to start ignore scope: {0}", ex);
+                Log.Warn(LogCategory.Network, "Failed to start ignore scope | error={0}", ex);
                 return new DummyScope();
             }
         }
@@ -1485,7 +1483,7 @@ namespace CSM.TmpeSync.Util
 
             var prepared = TryMakeGenericMethod(method, recipient, command);
             if (prepared == null)
-                Log.Warn("Unable to resolve generic method for invocation: {0}", DescribeMethod(method));
+                Log.Warn(LogCategory.Diagnostics, "Unable to resolve generic method for invocation | method={0}", DescribeMethod(method));
 
             return prepared;
         }
@@ -1835,7 +1833,7 @@ namespace CSM.TmpeSync.Util
                 }
                 catch (Exception ex)
                 {
-                    Log.Warn("Failed to end ignore scope: {0}", ex);
+                    Log.Warn(LogCategory.Network, "Failed to end ignore scope | error={0}", ex);
                 }
 
                 _disposed = true;

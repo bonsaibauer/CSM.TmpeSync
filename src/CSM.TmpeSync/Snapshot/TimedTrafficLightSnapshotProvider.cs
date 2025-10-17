@@ -8,7 +8,7 @@ namespace CSM.TmpeSync.Snapshot
     {
         public void Export()
         {
-            Log.Info("Exporting TM:PE timed traffic light snapshot");
+            Log.Info(LogCategory.Snapshot, "Exporting TM:PE timed traffic light snapshot");
             NetUtil.ForEachNode(nodeId =>
             {
                 if (!TmpeAdapter.TryGetTimedTrafficLight(nodeId, out var state))
