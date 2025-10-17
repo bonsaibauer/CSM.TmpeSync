@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.IO;
 using System.Linq;
 using System.Reflection;
 using CSM.TmpeSync.Net.Contracts.States;
@@ -20,7 +21,228 @@ namespace CSM.TmpeSync.Tmpe
         private static readonly bool SupportsPrioritySigns;
         private static readonly bool SupportsParkingRestrictions;
         private static readonly bool SupportsTimedTrafficLights;
+        private static readonly object FeatureDiagnosticsLock = new object();
+        private static readonly Dictionary<string, string> FeatureUnsupportedReasons = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        private static readonly Dictionary<string, HashSet<string>> FeatureGapDetails = new Dictionary<string, HashSet<string>>(StringComparer.OrdinalIgnoreCase);
+        private static readonly Dictionary<string, string> FeatureKeyAliases = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            { "speedLimits", "speedLimits" },
+            { "Speed Limits", "speedLimits" },
+            { "laneArrows", "laneArrows" },
+            { "Lane Arrows", "laneArrows" },
+            { "laneConnector", "laneConnector" },
+            { "Lane Connector", "laneConnector" },
+            { "vehicleRestrictions", "vehicleRestrictions" },
+            { "Vehicle Restrictions", "vehicleRestrictions" },
+            { "junctionRestrictions", "junctionRestrictions" },
+            { "Junction Restrictions", "junctionRestrictions" },
+            { "prioritySigns", "prioritySigns" },
+            { "Priority Signs", "prioritySigns" },
+            { "parkingRestrictions", "parkingRestrictions" },
+            { "Parking Restrictions", "parkingRestrictions" },
+            { "timedTrafficLights", "timedTrafficLights" },
+            { "Timed Traffic Lights", "timedTrafficLights" }
+        };
         private static readonly object StateLock = new object();
+        private static readonly Dictionary<string, Type> TypeCache = new Dictionary<string, Type>(StringComparer.Ordinal);
+        private static readonly HashSet<string> BridgeGapWarnings = new HashSet<string>(StringComparer.Ordinal);
+
+        private static void LogBridgeGap(string feature, string missingPart, string detail)
+        {
+            var key = feature + "|" + missingPart + "|" + (detail ?? string.Empty);
+            if (!BridgeGapWarnings.Add(key))
+                return;
+
+            RecordFeatureGapDetail(feature, missingPart, detail);
+            Log.Warn(LogCategory.Bridge, "TM:PE {0} bridge incomplete | part={1} detail={2}", feature, missingPart, string.IsNullOrEmpty(detail) ? "<unspecified>" : detail);
+        }
+
+        private static object TryGetStaticInstance(Type type, string featureName)
+        {
+            if (type == null)
+            {
+                LogBridgeGap(featureName, "type", "<null>");
+                return null;
+            }
+
+            try
+            {
+                var property = type.GetProperty("Instance", BindingFlags.Public | BindingFlags.Static);
+                if (property != null)
+                {
+                    var value = property.GetValue(null, null);
+                    if (value != null)
+                        return value;
+                }
+
+                var field = type.GetField("Instance", BindingFlags.Public | BindingFlags.Static);
+                if (field != null)
+                {
+                    var value = field.GetValue(null);
+                    if (value != null)
+                        return value;
+                }
+
+                LogBridgeGap(featureName, "Instance", type.FullName + ".Instance");
+            }
+            catch (Exception ex)
+            {
+                LogBridgeGap(featureName, "Instance", type.FullName + ".Instance error=" + ex.GetType().Name);
+            }
+
+            return null;
+        }
+
+        private static string DescribeMethodOverloads(Type type, string methodName)
+        {
+            if (type == null || string.IsNullOrEmpty(methodName))
+                return "<none>";
+
+            try
+            {
+                var methods = type
+                    .GetMethods(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)
+                    .Where(m => string.Equals(m.Name, methodName, StringComparison.Ordinal))
+                    .Select(m =>
+                    {
+                        var parameters = m.GetParameters()
+                            .Select(p => p.ParameterType.Name)
+                            .ToArray();
+                        return m.Name + "(" + string.Join(", ", parameters) + ")";
+                    })
+                    .ToArray();
+
+                return methods.Length == 0 ? "<none>" : string.Join(" | ", methods);
+            }
+            catch
+            {
+                return "<unavailable>";
+            }
+        }
+
+        private static string NormalizeFeatureKey(string feature)
+        {
+            if (string.IsNullOrEmpty(feature))
+                return null;
+
+            if (FeatureKeyAliases.TryGetValue(feature, out var normalized))
+                return normalized;
+
+            var compact = new string(feature.Where(ch => !char.IsWhiteSpace(ch)).ToArray());
+            return string.IsNullOrEmpty(compact) ? feature : compact.ToLowerInvariant();
+        }
+
+        private static void RecordFeatureGapDetail(string feature, string missingPart, string detail)
+        {
+            feature = NormalizeFeatureKey(feature);
+            if (string.IsNullOrEmpty(feature))
+                return;
+
+            var normalizedDetail = string.IsNullOrEmpty(detail) ? "<unspecified>" : detail;
+            var entry = string.IsNullOrEmpty(missingPart)
+                ? normalizedDetail
+                : missingPart + "=" + normalizedDetail;
+
+            lock (FeatureDiagnosticsLock)
+            {
+                if (!FeatureGapDetails.TryGetValue(feature, out var set))
+                {
+                    set = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                    FeatureGapDetails[feature] = set;
+                }
+
+                set.Add(entry);
+            }
+        }
+
+        private static void SetFeatureStatus(string featureKey, bool supported, IEnumerable<string> fallbackReasons)
+        {
+            featureKey = NormalizeFeatureKey(featureKey);
+
+            if (string.IsNullOrEmpty(featureKey))
+                return;
+
+            lock (FeatureDiagnosticsLock)
+            {
+                if (supported)
+                {
+                    FeatureUnsupportedReasons.Remove(featureKey);
+                    FeatureGapDetails.Remove(featureKey);
+                    return;
+                }
+
+                string reason = null;
+                if (FeatureGapDetails.TryGetValue(featureKey, out var gaps) && gaps.Count > 0)
+                {
+                    var ordered = gaps.ToList();
+                    ordered.Sort(StringComparer.OrdinalIgnoreCase);
+                    reason = string.Join("; ", ordered.ToArray());
+                }
+
+                if (fallbackReasons != null)
+                {
+                    var additional = fallbackReasons.Where(r => !string.IsNullOrEmpty(r)).ToArray();
+                    if (additional.Length > 0)
+                    {
+                        var additionalText = string.Join("; ", additional);
+                        reason = string.IsNullOrEmpty(reason) ? additionalText : reason + "; " + additionalText;
+                    }
+                }
+
+                FeatureUnsupportedReasons[featureKey] = string.IsNullOrEmpty(reason) ? "Unknown bridge gap" : reason;
+            }
+        }
+
+        private static void EnsureTmpeApiAssemblyLoaded(Assembly tmpeAssembly)
+        {
+            try
+            {
+                if (tmpeAssembly == null)
+                    return;
+
+                if (AppDomain.CurrentDomain
+                        .GetAssemblies()
+                        .Any(a => string.Equals(a.GetName().Name, "TMPE.API", StringComparison.OrdinalIgnoreCase) ||
+                                  string.Equals(a.GetName().Name, "TrafficManager.API", StringComparison.OrdinalIgnoreCase)))
+                    return;
+
+                var basePath = tmpeAssembly.Location;
+                if (string.IsNullOrEmpty(basePath))
+                    return;
+
+                var directory = Path.GetDirectoryName(basePath);
+                if (string.IsNullOrEmpty(directory))
+                    return;
+
+                var candidates = new[]
+                {
+                    Path.Combine(directory, "TMPE.API.dll"),
+                    Path.Combine(directory, "TrafficManager.API.dll")
+                };
+
+                foreach (var candidate in candidates)
+                {
+                    if (!File.Exists(candidate))
+                        continue;
+
+                    Assembly.LoadFrom(candidate);
+                    Log.Info(LogCategory.Bridge, "TM:PE API assembly loaded | path={0}", candidate);
+                    break;
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Warn(LogCategory.Bridge, "TM:PE API assembly load attempt failed | error={0}", ex);
+            }
+        }
+
+        private static Type ResolveTypeWithContext(string typeName, Assembly primaryAssembly, string featureName)
+        {
+            var type = ResolveType(typeName, primaryAssembly);
+            if (type == null)
+                LogBridgeGap(featureName, "type", typeName);
+            return type;
+        }
 
         internal static IDictionary<string, bool> GetFeatureSupportMatrix()
         {
@@ -35,6 +257,36 @@ namespace CSM.TmpeSync.Tmpe
                 { "parkingRestrictions", SupportsParkingRestrictions },
                 { "timedTrafficLights", SupportsTimedTrafficLights }
             };
+        }
+
+        internal static string GetUnsupportedReason(string featureKey)
+        {
+            featureKey = NormalizeFeatureKey(featureKey);
+            if (string.IsNullOrEmpty(featureKey))
+                return null;
+
+            lock (FeatureDiagnosticsLock)
+            {
+                return FeatureUnsupportedReasons.TryGetValue(featureKey, out var reason)
+                    ? reason
+                    : null;
+            }
+        }
+
+        internal static string DescribeMissingFeatures()
+        {
+            lock (FeatureDiagnosticsLock)
+            {
+                if (FeatureUnsupportedReasons.Count == 0)
+                    return "<none>";
+
+                var ordered = FeatureUnsupportedReasons
+                    .OrderBy(kvp => kvp.Key, StringComparer.OrdinalIgnoreCase)
+                    .Select(kvp => kvp.Key + ": " + kvp.Value)
+                    .ToArray();
+
+                return string.Join(" | ", ordered);
+            }
         }
 
         internal static bool IsFeatureSupported(string featureKey)
@@ -63,6 +315,52 @@ namespace CSM.TmpeSync.Tmpe
                 default:
                     return false;
             }
+        }
+
+        private static Type ResolveType(string fullName, Assembly primaryAssembly)
+        {
+            if (string.IsNullOrEmpty(fullName))
+                return null;
+
+            if (TypeCache.TryGetValue(fullName, out var cached))
+                return cached;
+
+            Type type = null;
+
+            if (primaryAssembly != null)
+            {
+                try
+                {
+                    type = primaryAssembly.GetType(fullName, false);
+                }
+                catch
+                {
+                    type = null;
+                }
+            }
+
+            if (type == null)
+            {
+                foreach (var assembly in AppDomain.CurrentDomain.GetAssemblies())
+                {
+                    try
+                    {
+                        type = assembly.GetType(fullName, false);
+                    }
+                    catch
+                    {
+                        type = null;
+                    }
+
+                    if (type != null)
+                        break;
+                }
+            }
+
+            if (type != null)
+                TypeCache[fullName] = type;
+
+            return type;
         }
 
         private static readonly Dictionary<uint, float> SpeedLimits = new Dictionary<uint, float>();
@@ -243,6 +541,7 @@ namespace CSM.TmpeSync.Tmpe
 
                 if (tmpeAssembly != null)
                 {
+                    EnsureTmpeApiAssemblyLoaded(tmpeAssembly);
                     SupportsSpeedLimits = InitialiseSpeedLimitBridge(tmpeAssembly);
                     SupportsLaneArrows = InitialiseLaneArrowBridge(tmpeAssembly);
                     SupportsVehicleRestrictions = InitialiseVehicleRestrictionsBridge(tmpeAssembly);
@@ -274,7 +573,7 @@ namespace CSM.TmpeSync.Tmpe
 
                     if (missing.Count > 0)
                     {
-                        Log.Warn(LogCategory.Bridge, "TM:PE API bridge missing | features={0} action=fallback_to_stub", string.Join(", ", missing.ToArray()));
+                        Log.Warn(LogCategory.Bridge, "TM:PE API bridge missing | features={0} action=fallback_to_stub details={1}", string.Join(", ", missing.ToArray()), DescribeMissingFeatures());
                     }
                 }
                 else
@@ -293,11 +592,13 @@ namespace CSM.TmpeSync.Tmpe
             try
             {
                 var managerType = tmpeAssembly.GetType("TrafficManager.Manager.Impl.SpeedLimitManager");
-                var instanceProperty = managerType?.GetProperty("Instance", BindingFlags.Public | BindingFlags.Static);
-                SpeedLimitManagerInstance = instanceProperty?.GetValue(null, null);
+                if (managerType == null)
+                    LogBridgeGap("Speed Limits", "type", "TrafficManager.Manager.Impl.SpeedLimitManager");
 
-                SetSpeedLimitActionType = tmpeAssembly.GetType("TrafficManager.State.SetSpeedLimitAction");
-                SpeedValueType = tmpeAssembly.GetType("TrafficManager.API.Traffic.Data.SpeedValue");
+                SpeedLimitManagerInstance = TryGetStaticInstance(managerType, "Speed Limits");
+
+                SetSpeedLimitActionType = ResolveTypeWithContext("TrafficManager.State.SetSpeedLimitAction", tmpeAssembly, "Speed Limits");
+                SpeedValueType = ResolveTypeWithContext("TrafficManager.API.Traffic.Data.SpeedValue", tmpeAssembly, "Speed Limits");
 
                 if (managerType != null && SetSpeedLimitActionType != null)
                 {
@@ -307,6 +608,8 @@ namespace CSM.TmpeSync.Tmpe
                         null,
                         new[] { typeof(uint), SetSpeedLimitActionType },
                         null);
+                    if (SpeedLimitSetLaneMethod == null)
+                        LogBridgeGap("Speed Limits", "SetLaneSpeedLimit(uint, SetSpeedLimitAction)", DescribeMethodOverloads(managerType, "SetLaneSpeedLimit"));
 
                     SpeedLimitCalculateMethod = managerType.GetMethod(
                         "CalculateLaneSpeedLimit",
@@ -314,6 +617,8 @@ namespace CSM.TmpeSync.Tmpe
                         null,
                         new[] { typeof(uint) },
                         null);
+                    if (SpeedLimitCalculateMethod == null)
+                        LogBridgeGap("Speed Limits", "CalculateLaneSpeedLimit(uint)", DescribeMethodOverloads(managerType, "CalculateLaneSpeedLimit"));
 
                     SpeedLimitGetDefaultMethod = managerType.GetMethod(
                         "GetGameSpeedLimit",
@@ -321,26 +626,44 @@ namespace CSM.TmpeSync.Tmpe
                         null,
                         new[] { typeof(uint), typeof(NetInfo.Lane) },
                         null);
+                    if (SpeedLimitGetDefaultMethod == null)
+                        LogBridgeGap("Speed Limits", "GetGameSpeedLimit(uint, NetInfo.Lane)", DescribeMethodOverloads(managerType, "GetGameSpeedLimit"));
                 }
 
                 if (SetSpeedLimitActionType != null)
                 {
                     SetSpeedLimitResetMethod = SetSpeedLimitActionType.GetMethod("ResetToDefault", BindingFlags.Public | BindingFlags.Static, null, Type.EmptyTypes, null);
-                    SetSpeedLimitOverrideMethod = SetSpeedLimitActionType.GetMethod("SetOverride", BindingFlags.Public | BindingFlags.Static, null, new[] { SpeedValueType }, null);
+                    if (SetSpeedLimitResetMethod == null)
+                        LogBridgeGap("Speed Limits", "SetSpeedLimitAction.ResetToDefault()", "<method missing>");
+
+                    if (SpeedValueType != null)
+                    {
+                        SetSpeedLimitOverrideMethod = SetSpeedLimitActionType.GetMethod("SetOverride", BindingFlags.Public | BindingFlags.Static, null, new[] { SpeedValueType }, null);
+                        if (SetSpeedLimitOverrideMethod == null)
+                            LogBridgeGap("Speed Limits", "SetSpeedLimitAction.SetOverride(SpeedValue)", "<method missing>");
+                    }
                 }
 
                 if (SpeedValueType != null)
                 {
                     SpeedValueFromKmphMethod = SpeedValueType.GetMethod("FromKmph", BindingFlags.Public | BindingFlags.Static, null, new[] { typeof(float) }, null);
+                    if (SpeedValueFromKmphMethod == null)
+                        LogBridgeGap("Speed Limits", "SpeedValue.FromKmph(float)", "<method missing>");
+
                     SpeedValueGetKmphMethod = SpeedValueType.GetMethod("GetKmph", BindingFlags.Public | BindingFlags.Instance, null, Type.EmptyTypes, null);
+                    if (SpeedValueGetKmphMethod == null)
+                        LogBridgeGap("Speed Limits", "SpeedValue.GetKmph()", "<method missing>");
                 }
             }
             catch (Exception ex)
             {
+                RecordFeatureGapDetail("speedLimits", "exception", ex.GetType().Name);
                 Log.Warn(LogCategory.Bridge, "TM:PE speed limit bridge initialization failed | error={0}", ex);
             }
 
-            return SpeedLimitManagerInstance != null && SpeedLimitSetLaneMethod != null;
+            var supported = SpeedLimitManagerInstance != null && SpeedLimitSetLaneMethod != null;
+            SetFeatureStatus("speedLimits", supported, null);
+            return supported;
         }
 
         private static bool InitialiseLaneArrowBridge(Assembly tmpeAssembly)
@@ -348,8 +671,10 @@ namespace CSM.TmpeSync.Tmpe
             try
             {
                 var managerType = tmpeAssembly.GetType("TrafficManager.Manager.Impl.LaneArrowManager");
-                var instanceProperty = managerType?.GetProperty("Instance", BindingFlags.Public | BindingFlags.Static);
-                LaneArrowManagerInstance = instanceProperty?.GetValue(null, null);
+                if (managerType == null)
+                    LogBridgeGap("Lane Arrows", "type", "TrafficManager.Manager.Impl.LaneArrowManager");
+
+                LaneArrowManagerInstance = TryGetStaticInstance(managerType, "Lane Arrows");
 
                 if (managerType != null)
                 {
@@ -365,6 +690,8 @@ namespace CSM.TmpeSync.Tmpe
                             break;
                         }
                     }
+                    if (LaneArrowSetMethod == null)
+                        LogBridgeGap("Lane Arrows", "SetLaneArrows", DescribeMethodOverloads(managerType, "SetLaneArrows"));
 
                     LaneArrowGetMethod = managerType.GetMethod(
                         "GetFinalLaneArrows",
@@ -372,9 +699,11 @@ namespace CSM.TmpeSync.Tmpe
                         null,
                         new[] { typeof(uint) },
                         null);
+                    if (LaneArrowGetMethod == null)
+                        LogBridgeGap("Lane Arrows", "GetFinalLaneArrows(uint)", DescribeMethodOverloads(managerType, "GetFinalLaneArrows"));
                 }
 
-                LaneArrowsEnumType = tmpeAssembly.GetType("TrafficManager.API.Traffic.Enums.LaneArrows");
+                LaneArrowsEnumType = ResolveTypeWithContext("TrafficManager.API.Traffic.Enums.LaneArrows", tmpeAssembly, "Lane Arrows");
                 if (LaneArrowsEnumType != null)
                 {
                     try
@@ -391,10 +720,13 @@ namespace CSM.TmpeSync.Tmpe
             }
             catch (Exception ex)
             {
+                RecordFeatureGapDetail("laneArrows", "exception", ex.GetType().Name);
                 Log.Warn(LogCategory.Bridge, "TM:PE lane arrow bridge initialization failed | error={0}", ex);
             }
 
-            return LaneArrowManagerInstance != null && LaneArrowSetMethod != null && LaneArrowsEnumType != null;
+            var supported = LaneArrowManagerInstance != null && LaneArrowSetMethod != null && LaneArrowsEnumType != null;
+            SetFeatureStatus("laneArrows", supported, null);
+            return supported;
         }
 
         private static bool InitialiseVehicleRestrictionsBridge(Assembly tmpeAssembly)
@@ -402,10 +734,12 @@ namespace CSM.TmpeSync.Tmpe
             try
             {
                 var managerType = tmpeAssembly.GetType("TrafficManager.Manager.Impl.VehicleRestrictionsManager");
-                var instanceProperty = managerType?.GetProperty("Instance", BindingFlags.Public | BindingFlags.Static);
-                VehicleRestrictionsManagerInstance = instanceProperty?.GetValue(null, null);
+                if (managerType == null)
+                    LogBridgeGap("Vehicle Restrictions", "type", "TrafficManager.Manager.Impl.VehicleRestrictionsManager");
 
-                ExtVehicleTypeEnumType = tmpeAssembly.GetType("TrafficManager.API.Traffic.Enums.ExtVehicleType");
+                VehicleRestrictionsManagerInstance = TryGetStaticInstance(managerType, "Vehicle Restrictions");
+
+                ExtVehicleTypeEnumType = ResolveTypeWithContext("TrafficManager.API.Traffic.Enums.ExtVehicleType", tmpeAssembly, "Vehicle Restrictions");
 
                 if (managerType != null && ExtVehicleTypeEnumType != null)
                 {
@@ -437,12 +771,17 @@ namespace CSM.TmpeSync.Tmpe
                         new[] { typeof(ushort), typeof(NetInfo), typeof(uint), typeof(NetInfo.Lane), typeof(uint), ExtVehicleTypeEnumType },
                         null);
 
+                    if (VehicleRestrictionsSetMethod == null)
+                        LogBridgeGap("Vehicle Restrictions", "SetAllowedVehicleTypes", DescribeMethodOverloads(managerType, "SetAllowedVehicleTypes"));
+
                     VehicleRestrictionsClearMethod = managerType.GetMethod(
                         "ClearVehicleRestrictions",
                         BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic,
                         null,
                         new[] { typeof(ushort), typeof(byte), typeof(uint) },
                         null);
+                    if (VehicleRestrictionsClearMethod == null)
+                        LogBridgeGap("Vehicle Restrictions", "ClearVehicleRestrictions(ushort, byte, uint)", DescribeMethodOverloads(managerType, "ClearVehicleRestrictions"));
 
                     VehicleRestrictionsGetMethod = managerType.GetMethod(
                         "GetAllowedVehicleTypesRaw",
@@ -450,18 +789,23 @@ namespace CSM.TmpeSync.Tmpe
                         null,
                         new[] { typeof(ushort), typeof(uint) },
                         null);
+                    if (VehicleRestrictionsGetMethod == null)
+                        LogBridgeGap("Vehicle Restrictions", "GetAllowedVehicleTypesRaw(ushort, uint)", DescribeMethodOverloads(managerType, "GetAllowedVehicleTypesRaw"));
                 }
             }
             catch (Exception ex)
             {
+                RecordFeatureGapDetail("vehicleRestrictions", "exception", ex.GetType().Name);
                 Log.Warn(LogCategory.Bridge, "TM:PE vehicle restrictions bridge initialization failed | error={0}", ex);
             }
 
-            return VehicleRestrictionsManagerInstance != null &&
-                   VehicleRestrictionsSetMethod != null &&
-                   VehicleRestrictionsClearMethod != null &&
-                   VehicleRestrictionsGetMethod != null &&
-                   ExtVehicleTypeEnumType != null;
+            var supported = VehicleRestrictionsManagerInstance != null &&
+                            VehicleRestrictionsSetMethod != null &&
+                            VehicleRestrictionsClearMethod != null &&
+                            VehicleRestrictionsGetMethod != null &&
+                            ExtVehicleTypeEnumType != null;
+            SetFeatureStatus("vehicleRestrictions", supported, null);
+            return supported;
         }
 
         private static bool InitialiseLaneConnectionBridge(Assembly tmpeAssembly)
@@ -469,10 +813,15 @@ namespace CSM.TmpeSync.Tmpe
             try
             {
                 var managerType = tmpeAssembly.GetType("TrafficManager.Manager.Impl.LaneConnection.LaneConnectionManager");
+                if (managerType == null)
+                    LogBridgeGap("Lane Connector", "type", "TrafficManager.Manager.Impl.LaneConnection.LaneConnectionManager");
+
                 var instanceProperty = managerType?.GetProperty("Instance", BindingFlags.Public | BindingFlags.Static);
                 LaneConnectionManagerInstance = instanceProperty?.GetValue(null, null);
+                if (LaneConnectionManagerInstance == null && managerType != null)
+                    LogBridgeGap("Lane Connector", "Instance", managerType.FullName + ".Instance");
 
-                LaneEndTransitionGroupEnumType = tmpeAssembly.GetType("TrafficManager.API.Traffic.Enums.LaneEndTransitionGroup");
+                LaneEndTransitionGroupEnumType = ResolveType("TrafficManager.API.Traffic.Enums.LaneEndTransitionGroup", tmpeAssembly);
                 if (LaneEndTransitionGroupEnumType != null)
                 {
                     try
@@ -525,16 +874,19 @@ namespace CSM.TmpeSync.Tmpe
             }
             catch (Exception ex)
             {
+                RecordFeatureGapDetail("laneConnector", "exception", ex.GetType().Name);
                 Log.Warn(LogCategory.Bridge, "TM:PE lane connection bridge initialization failed | error={0}", ex);
             }
 
-            return LaneConnectionManagerInstance != null &&
-                   LaneConnectionAddMethod != null &&
-                   LaneConnectionRemoveMethod != null &&
-                   LaneConnectionGetMethod != null &&
-                   LaneConnectionSupportsLaneMethod != null &&
-                   LaneEndTransitionGroupEnumType != null &&
-                   LaneEndTransitionGroupVehicleValue != null;
+            var supported = LaneConnectionManagerInstance != null &&
+                            LaneConnectionAddMethod != null &&
+                            LaneConnectionRemoveMethod != null &&
+                            LaneConnectionGetMethod != null &&
+                            LaneConnectionSupportsLaneMethod != null &&
+                            LaneEndTransitionGroupEnumType != null &&
+                            LaneEndTransitionGroupVehicleValue != null;
+            SetFeatureStatus("laneConnector", supported, null);
+            return supported;
         }
 
         private static bool InitialiseJunctionRestrictionsBridge(Assembly tmpeAssembly)
@@ -542,8 +894,13 @@ namespace CSM.TmpeSync.Tmpe
             try
             {
                 var managerType = tmpeAssembly.GetType("TrafficManager.Manager.Impl.JunctionRestrictionsManager");
+                if (managerType == null)
+                    LogBridgeGap("Junction Restrictions", "type", "TrafficManager.Manager.Impl.JunctionRestrictionsManager");
+
                 var instanceProperty = managerType?.GetProperty("Instance", BindingFlags.Public | BindingFlags.Static);
                 JunctionRestrictionsManagerInstance = instanceProperty?.GetValue(null, null);
+                if (JunctionRestrictionsManagerInstance == null && managerType != null)
+                    LogBridgeGap("Junction Restrictions", "Instance", managerType.FullName + ".Instance");
 
                 if (managerType != null)
                 {
@@ -564,22 +921,25 @@ namespace CSM.TmpeSync.Tmpe
             }
             catch (Exception ex)
             {
+                RecordFeatureGapDetail("junctionRestrictions", "exception", ex.GetType().Name);
                 Log.Warn(LogCategory.Bridge, "TM:PE junction restrictions bridge initialization failed | error={0}", ex);
             }
 
-            return JunctionRestrictionsManagerInstance != null &&
-                   SetUturnAllowedMethod != null &&
-                   SetNearTurnOnRedAllowedMethod != null &&
-                   SetFarTurnOnRedAllowedMethod != null &&
-                   SetLaneChangingAllowedMethod != null &&
-                   SetEnteringBlockedMethod != null &&
-                   SetPedestrianCrossingMethod != null &&
-                   IsUturnAllowedMethod != null &&
-                   IsNearTurnOnRedAllowedMethod != null &&
-                   IsFarTurnOnRedAllowedMethod != null &&
-                   IsLaneChangingAllowedMethod != null &&
-                   IsEnteringBlockedMethod != null &&
-                   IsPedestrianCrossingAllowedMethod != null;
+            var supported = JunctionRestrictionsManagerInstance != null &&
+                            SetUturnAllowedMethod != null &&
+                            SetNearTurnOnRedAllowedMethod != null &&
+                            SetFarTurnOnRedAllowedMethod != null &&
+                            SetLaneChangingAllowedMethod != null &&
+                            SetEnteringBlockedMethod != null &&
+                            SetPedestrianCrossingMethod != null &&
+                            IsUturnAllowedMethod != null &&
+                            IsNearTurnOnRedAllowedMethod != null &&
+                            IsFarTurnOnRedAllowedMethod != null &&
+                            IsLaneChangingAllowedMethod != null &&
+                            IsEnteringBlockedMethod != null &&
+                            IsPedestrianCrossingAllowedMethod != null;
+            SetFeatureStatus("junctionRestrictions", supported, null);
+            return supported;
         }
 
         private static bool InitialisePrioritySignBridge(Assembly tmpeAssembly)
@@ -587,10 +947,15 @@ namespace CSM.TmpeSync.Tmpe
             try
             {
                 var managerType = tmpeAssembly.GetType("TrafficManager.Manager.Impl.TrafficPriorityManager");
+                if (managerType == null)
+                    LogBridgeGap("Priority Signs", "type", "TrafficManager.Manager.Impl.TrafficPriorityManager");
+
                 var instanceProperty = managerType?.GetProperty("Instance", BindingFlags.Public | BindingFlags.Static);
                 TrafficPriorityManagerInstance = instanceProperty?.GetValue(null, null);
+                if (TrafficPriorityManagerInstance == null && managerType != null)
+                    LogBridgeGap("Priority Signs", "Instance", managerType.FullName + ".Instance");
 
-                PriorityTypeEnumType = tmpeAssembly.GetType("TrafficManager.API.Traffic.Enums.PriorityType");
+                PriorityTypeEnumType = ResolveType("TrafficManager.API.Traffic.Enums.PriorityType", tmpeAssembly);
 
                 if (managerType != null && PriorityTypeEnumType != null)
                 {
@@ -611,13 +976,16 @@ namespace CSM.TmpeSync.Tmpe
             }
             catch (Exception ex)
             {
+                RecordFeatureGapDetail("prioritySigns", "exception", ex.GetType().Name);
                 Log.Warn(LogCategory.Bridge, "TM:PE priority sign bridge initialization failed | error={0}", ex);
             }
 
-            return TrafficPriorityManagerInstance != null &&
-                   PrioritySignSetMethod != null &&
-                   PrioritySignGetMethod != null &&
-                   PriorityTypeEnumType != null;
+            var supported = TrafficPriorityManagerInstance != null &&
+                            PrioritySignSetMethod != null &&
+                            PrioritySignGetMethod != null &&
+                            PriorityTypeEnumType != null;
+            SetFeatureStatus("prioritySigns", supported, null);
+            return supported;
         }
 
         private static bool InitialiseParkingRestrictionBridge(Assembly tmpeAssembly)
@@ -625,8 +993,13 @@ namespace CSM.TmpeSync.Tmpe
             try
             {
                 var managerType = tmpeAssembly.GetType("TrafficManager.Manager.Impl.ParkingRestrictionsManager");
+                if (managerType == null)
+                    LogBridgeGap("Parking Restrictions", "type", "TrafficManager.Manager.Impl.ParkingRestrictionsManager");
+
                 var instanceField = managerType?.GetField("Instance", BindingFlags.Public | BindingFlags.Static);
                 ParkingRestrictionsManagerInstance = instanceField?.GetValue(null);
+                if (ParkingRestrictionsManagerInstance == null && managerType != null)
+                    LogBridgeGap("Parking Restrictions", "Instance", managerType.FullName + ".Instance");
 
                 if (managerType != null)
                 {
@@ -647,12 +1020,15 @@ namespace CSM.TmpeSync.Tmpe
             }
             catch (Exception ex)
             {
+                RecordFeatureGapDetail("parkingRestrictions", "exception", ex.GetType().Name);
                 Log.Warn(LogCategory.Bridge, "TM:PE parking restriction bridge initialization failed | error={0}", ex);
             }
 
-            return ParkingRestrictionsManagerInstance != null &&
-                   ParkingAllowedSetMethod != null &&
-                   ParkingAllowedGetMethod != null;
+            var supported = ParkingRestrictionsManagerInstance != null &&
+                            ParkingAllowedSetMethod != null &&
+                            ParkingAllowedGetMethod != null;
+            SetFeatureStatus("parkingRestrictions", supported, null);
+            return supported;
         }
 
         private static bool InitialiseTimedTrafficLightBridge(Assembly tmpeAssembly)
@@ -660,8 +1036,13 @@ namespace CSM.TmpeSync.Tmpe
             try
             {
                 var simulationManagerType = tmpeAssembly.GetType("TrafficManager.Manager.Impl.TrafficLightSimulationManager");
+                if (simulationManagerType == null)
+                    LogBridgeGap("Timed Traffic Lights", "type", "TrafficManager.Manager.Impl.TrafficLightSimulationManager");
+
                 var simulationInstanceProperty = simulationManagerType?.GetProperty("Instance", BindingFlags.Public | BindingFlags.Static);
                 TrafficLightSimulationManagerInstance = simulationInstanceProperty?.GetValue(null, null);
+                if (TrafficLightSimulationManagerInstance == null && simulationManagerType != null)
+                    LogBridgeGap("Timed Traffic Lights", "Instance", simulationManagerType.FullName + ".Instance");
 
                 TrafficLightSimulationsProperty = simulationManagerType?.GetProperty("TrafficLightSimulations", BindingFlags.Public | BindingFlags.Instance);
                 TimedLightSetupMethod = simulationManagerType?.GetMethod(
@@ -678,11 +1059,18 @@ namespace CSM.TmpeSync.Tmpe
                     null);
 
                 TrafficLightSimulationType = tmpeAssembly.GetType("TrafficManager.TrafficLight.Impl.TrafficLightSimulation");
+                if (TrafficLightSimulationType == null)
+                    LogBridgeGap("Timed Traffic Lights", "type", "TrafficManager.TrafficLight.Impl.TrafficLightSimulation");
                 TrafficLightSimulationTimedLightField = TrafficLightSimulationType?.GetField("timedLight", BindingFlags.Public | BindingFlags.Instance);
 
                 var trafficLightManagerType = tmpeAssembly.GetType("TrafficManager.Manager.Impl.TrafficLightManager");
+                if (trafficLightManagerType == null)
+                    LogBridgeGap("Timed Traffic Lights", "type", "TrafficManager.Manager.Impl.TrafficLightManager");
+
                 var trafficLightManagerInstanceProperty = trafficLightManagerType?.GetProperty("Instance", BindingFlags.Public | BindingFlags.Static);
                 TrafficLightManagerInstance = trafficLightManagerInstanceProperty?.GetValue(null, null);
+                if (TrafficLightManagerInstance == null && trafficLightManagerType != null)
+                    LogBridgeGap("Timed Traffic Lights", "TrafficLightManager.Instance", trafficLightManagerType.FullName + ".Instance");
                 GetHasTrafficLightMethod = trafficLightManagerType?.GetMethod(
                     "GetHasTrafficLight",
                     BindingFlags.Public | BindingFlags.Instance,
@@ -696,36 +1084,58 @@ namespace CSM.TmpeSync.Tmpe
                     new[] { typeof(ushort), typeof(bool?) },
                     null);
 
+                StepChangeMetricEnumType = StepChangeMetricEnumType ?? ResolveType("TrafficManager.API.Traffic.Enums.StepChangeMetric", tmpeAssembly);
+
                 TimedTrafficLightsType = tmpeAssembly.GetType("TrafficManager.TrafficLight.Impl.TimedTrafficLights");
+                if (TimedTrafficLightsType == null)
+                    LogBridgeGap("Timed Traffic Lights", "type", "TrafficManager.TrafficLight.Impl.TimedTrafficLights");
                 if (TimedTrafficLightsType != null)
                 {
                     TimedLightStopMethod = TimedTrafficLightsType.GetMethod("Stop", BindingFlags.Public | BindingFlags.Instance);
                     TimedLightResetStepsMethod = TimedTrafficLightsType.GetMethod("ResetSteps", BindingFlags.Public | BindingFlags.Instance);
-                    TimedLightAddStepMethod = TimedTrafficLightsType.GetMethod(
-                        "AddStep",
-                        BindingFlags.Public | BindingFlags.Instance,
-                        null,
-                        new[] { typeof(int), typeof(int), tmpeAssembly.GetType("TrafficManager.API.Traffic.Enums.StepChangeMetric"), typeof(float), typeof(bool) },
-                        null);
+                    if (StepChangeMetricEnumType != null)
+                    {
+                        TimedLightAddStepMethod = TimedTrafficLightsType.GetMethod(
+                            "AddStep",
+                            BindingFlags.Public | BindingFlags.Instance,
+                            null,
+                            new[] { typeof(int), typeof(int), StepChangeMetricEnumType, typeof(float), typeof(bool) },
+                            null);
+                    }
+                    else
+                    {
+                        TimedLightAddStepMethod = TimedTrafficLightsType
+                            .GetMethods(BindingFlags.Public | BindingFlags.Instance)
+                            .FirstOrDefault(method =>
+                            {
+                                if (!string.Equals(method.Name, "AddStep", StringComparison.Ordinal))
+                                    return false;
+
+                                var parameters = method.GetParameters();
+                                return parameters.Length == 5;
+                            });
+                    }
                     TimedLightStartMethod = TimedTrafficLightsType.GetMethod("Start", BindingFlags.Public | BindingFlags.Instance, null, Type.EmptyTypes, null);
                     TimedLightNumStepsMethod = TimedTrafficLightsType.GetMethod("NumSteps", BindingFlags.Public | BindingFlags.Instance);
                     TimedLightIsStartedMethod = TimedTrafficLightsType.GetMethod("IsStarted", BindingFlags.Public | BindingFlags.Instance);
                     TimedLightGetStepMethod = TimedTrafficLightsType.GetMethod(
                         "GetStep",
                         BindingFlags.Public | BindingFlags.Instance,
-                        null,
-                        new[] { typeof(int) },
-                        null);
+                    null,
+                    new[] { typeof(int) },
+                    null);
                 }
 
                 TimedTrafficLightsStepType = tmpeAssembly.GetType("TrafficManager.TrafficLight.Impl.TimedTrafficLightsStep");
+                if (TimedTrafficLightsStepType == null)
+                    LogBridgeGap("Timed Traffic Lights", "type", "TrafficManager.TrafficLight.Impl.TimedTrafficLightsStep");
                 if (TimedTrafficLightsStepType != null)
                 {
                     TimedStepMinTimeProperty = TimedTrafficLightsStepType.GetProperty("MinTime", BindingFlags.Public | BindingFlags.Instance);
                     TimedStepMaxTimeProperty = TimedTrafficLightsStepType.GetProperty("MaxTime", BindingFlags.Public | BindingFlags.Instance);
                 }
 
-                StepChangeMetricEnumType = tmpeAssembly.GetType("TrafficManager.API.Traffic.Enums.StepChangeMetric");
+                StepChangeMetricEnumType = ResolveType("TrafficManager.API.Traffic.Enums.StepChangeMetric", tmpeAssembly);
                 if (StepChangeMetricEnumType != null)
                 {
                     try
@@ -740,26 +1150,29 @@ namespace CSM.TmpeSync.Tmpe
             }
             catch (Exception ex)
             {
+                RecordFeatureGapDetail("timedTrafficLights", "exception", ex.GetType().Name);
                 Log.Warn(LogCategory.Bridge, "TM:PE timed traffic light bridge initialization failed | error={0}", ex);
             }
 
-            return TrafficLightSimulationManagerInstance != null &&
-                   TrafficLightSimulationsProperty != null &&
-                   TimedLightSetupMethod != null &&
-                   TimedLightRemoveMethod != null &&
-                   TrafficLightSimulationTimedLightField != null &&
-                   TimedTrafficLightsType != null &&
-                   TimedLightStopMethod != null &&
-                   TimedLightResetStepsMethod != null &&
-                   TimedLightAddStepMethod != null &&
-                   TimedLightStartMethod != null &&
-                   TimedLightNumStepsMethod != null &&
-                   TimedLightGetStepMethod != null &&
-                   TimedStepMaxTimeProperty != null &&
-                   StepChangeMetricDefaultValue != null &&
-                   TrafficLightManagerInstance != null &&
-                   GetHasTrafficLightMethod != null &&
-                   SetHasTrafficLightMethod != null;
+            var supported = TrafficLightSimulationManagerInstance != null &&
+                            TrafficLightSimulationsProperty != null &&
+                            TimedLightSetupMethod != null &&
+                            TimedLightRemoveMethod != null &&
+                            TrafficLightSimulationTimedLightField != null &&
+                            TimedTrafficLightsType != null &&
+                            TimedLightStopMethod != null &&
+                            TimedLightResetStepsMethod != null &&
+                            TimedLightAddStepMethod != null &&
+                            TimedLightStartMethod != null &&
+                            TimedLightNumStepsMethod != null &&
+                            TimedLightGetStepMethod != null &&
+                            TimedStepMaxTimeProperty != null &&
+                            StepChangeMetricDefaultValue != null &&
+                            TrafficLightManagerInstance != null &&
+                            GetHasTrafficLightMethod != null &&
+                            SetHasTrafficLightMethod != null;
+            SetFeatureStatus("timedTrafficLights", supported, null);
+            return supported;
         }
 
         internal static bool ApplySpeedLimit(uint laneId, float speedKmh)

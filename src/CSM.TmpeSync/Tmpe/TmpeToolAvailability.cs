@@ -149,14 +149,17 @@ namespace CSM.TmpeSync.Tmpe
                     if (allowed)
                     {
                         RestoreComponent(component);
-                        AuditButtonState(entry, true, descriptor.DisplayName, RestrictionBlockReason.None);
+                        AuditButtonState(entry, true, descriptor.DisplayName, RestrictionBlockReason.None, null);
                         if (!string.IsNullOrEmpty(descriptor.DisplayName))
                             enabledTools.Add(descriptor.DisplayName);
                         continue;
                     }
 
                     DisableComponent(component);
-                    AuditButtonState(entry, false, descriptor.DisplayName, blockReason);
+                    var reasonDetail = blockReason == RestrictionBlockReason.FeatureUnsupported
+                        ? TmpeAdapter.GetUnsupportedReason(descriptor.Key)
+                        : null;
+                    AuditButtonState(entry, false, descriptor.DisplayName, blockReason, reasonDetail);
                     disabledCount++;
                     if (disabledSamples.Count < 3)
                     {
@@ -171,7 +174,7 @@ namespace CSM.TmpeSync.Tmpe
                 }
 
                 DisableComponent(component);
-                AuditButtonState(entry, false, null, RestrictionBlockReason.Unknown);
+                AuditButtonState(entry, false, null, RestrictionBlockReason.Unknown, null);
                 disabledCount++;
                 if (disabledSamples.Count < 3)
                 {
@@ -380,7 +383,7 @@ namespace CSM.TmpeSync.Tmpe
             return null;
         }
 
-        private static void AuditButtonState(MenuButtonInfo entry, bool supported, string toolName, RestrictionBlockReason reason)
+        private static void AuditButtonState(MenuButtonInfo entry, bool supported, string toolName, RestrictionBlockReason reason, string detail)
         {
             var component = entry.Component;
             if (component == null)
@@ -388,7 +391,7 @@ namespace CSM.TmpeSync.Tmpe
 
             var key = supported
                 ? "supported:" + (toolName ?? string.Empty)
-                : "disabled:" + reason;
+                : "disabled:" + reason + ":" + (detail ?? string.Empty);
 
             if (ButtonAuditStates.TryGetValue(component, out var previous) && previous == key)
                 return;
@@ -409,6 +412,8 @@ namespace CSM.TmpeSync.Tmpe
             else
             {
                 var reasonText = DescribeBlockReason(reason);
+                if (!string.IsNullOrEmpty(detail))
+                    reasonText += "|detail=" + detail;
                 if (!string.IsNullOrEmpty(toolName))
                     Log.Info(LogCategory.Menu, "Menu entry disabled | tool={0} component={1} tooltip={2} reason={3}", toolName, componentName, tooltip, reasonText);
                 else
