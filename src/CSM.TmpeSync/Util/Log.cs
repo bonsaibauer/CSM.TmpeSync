@@ -39,6 +39,7 @@ namespace CSM.TmpeSync.Util
 
         private static readonly object Sync = new object();
         private static readonly object ConfigSync = new object();
+        private static readonly object EntrySync = new object();
 
         private static string _logFilePath;
         private static DateTime? _logFileDate;
@@ -47,6 +48,9 @@ namespace CSM.TmpeSync.Util
         private static LoggingConfiguration _configuration;
         private static DateTime _configurationCheckedUtc;
         private static bool _configurationLogged;
+        private static readonly Queue<LogEntry> RecentEntries = new Queue<LogEntry>();
+
+        private const int MaxCachedEntries = 200;
 
         internal enum TmpeRestrictionMode
         {
@@ -99,11 +103,39 @@ namespace CSM.TmpeSync.Util
             internal TmpeRestrictionConfiguration TmpeRestrictions = new TmpeRestrictionConfiguration();
         }
 
+        internal sealed class LogEntry
+        {
+            internal LogEntry(DateTime timestamp, string level, LogCategory category, string message, string line)
+            {
+                Timestamp = timestamp;
+                Level = level;
+                Category = category;
+                Message = message;
+                Line = line;
+            }
+
+            internal DateTime Timestamp { get; }
+            internal string Level { get; }
+            internal LogCategory Category { get; }
+            internal string Message { get; }
+            internal string Line { get; }
+        }
+
+        internal static event Action<LogEntry> EntryAdded;
+
         internal static bool IsDebugEnabled => GetConfiguration().DebugEnabled;
 
         internal static string ConfigurationFilePath => EnsureConfigFilePath();
 
         internal static TmpeRestrictionConfiguration TmpeRestrictions => GetConfiguration().TmpeRestrictions;
+
+        internal static LogEntry[] GetRecentEntries()
+        {
+            lock (EntrySync)
+            {
+                return RecentEntries.ToArray();
+            }
+        }
 
         internal static void Debug(string message, params object[] args) => Debug(LogCategory.General, message, args);
 
@@ -134,6 +166,7 @@ namespace CSM.TmpeSync.Util
             var line = FormatLogLine(timestamp, level, category, formatted);
 
             TryWrite(delegate { WriteFile(timestamp, line); });
+            RememberEntry(timestamp, level, category, formatted, line);
         }
 
         private static string FormatMessage(string message, object[] args)
@@ -200,6 +233,41 @@ namespace CSM.TmpeSync.Util
                 LevelName(level),
                 CategoryName(category),
                 message ?? string.Empty);
+        }
+
+        private static void RememberEntry(DateTime timestamp, Level level, LogCategory category, string formattedMessage, string line)
+        {
+            var entry = new LogEntry(timestamp, LevelName(level), category, StripPrefix(formattedMessage), line);
+
+            lock (EntrySync)
+            {
+                RecentEntries.Enqueue(entry);
+                while (RecentEntries.Count > MaxCachedEntries)
+                    RecentEntries.Dequeue();
+            }
+
+            var handler = EntryAdded;
+            if (handler == null)
+                return;
+
+            try
+            {
+                handler(entry);
+            }
+            catch
+            {
+                // Avoid recursive logging from listeners throwing.
+            }
+        }
+
+        private static string StripPrefix(string message)
+        {
+            if (string.IsNullOrEmpty(message))
+                return string.Empty;
+
+            return message.StartsWith(Prefix, StringComparison.Ordinal)
+                ? message.Substring(Prefix.Length)
+                : message;
         }
 
         private static string EnsureLogFilePath(DateTime timestamp)

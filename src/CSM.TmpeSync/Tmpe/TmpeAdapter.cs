@@ -1183,9 +1183,13 @@ namespace CSM.TmpeSync.Tmpe
                 {
                     Log.Debug(LogCategory.Hook, "TM:PE speed limit request | laneId={0} speedKmh={1}", laneId, speedKmh);
                     if (TryApplySpeedLimitReal(laneId, speedKmh))
+                    {
+                        Log.Info(LogCategory.Synchronization, "TM:PE speed limit applied via API | laneId={0} speedKmh={1}", laneId, speedKmh);
                         return true;
+                    }
 
                     Log.Warn(LogCategory.Bridge, "TM:PE speed limit apply via API failed | laneId={0} action=fallback_to_stub", laneId);
+                    Log.Info(LogCategory.Synchronization, "TM:PE speed limit cached locally after API failure | laneId={0} speedKmh={1}", laneId, speedKmh);
                 }
                 else
                 {
@@ -1644,10 +1648,12 @@ namespace CSM.TmpeSync.Tmpe
                         if (!TryApplyTimedTrafficLightReal(nodeId, normalized))
                         {
                             Log.Warn(LogCategory.Bridge, "TM:PE timed traffic light apply via API failed | nodeId={0} action=fallback_to_stub", nodeId);
+                            Log.Info(LogCategory.Synchronization, "TM:PE timed traffic light cached locally after API failure | nodeId={0} state={1}", nodeId, normalized);
                         }
                         else
                         {
                             UpdateTimedLightCacheFromReal(nodeId);
+                            Log.Info(LogCategory.Synchronization, "TM:PE timed traffic light applied via API | nodeId={0} state={1}", nodeId, normalized);
                             return true;
                         }
                     }
@@ -1656,6 +1662,7 @@ namespace CSM.TmpeSync.Tmpe
                         if (!TryDisableTimedTrafficLightReal(nodeId))
                         {
                             Log.Warn(LogCategory.Bridge, "TM:PE timed traffic light removal via API failed | nodeId={0} action=fallback_to_stub", nodeId);
+                            Log.Info(LogCategory.Synchronization, "TM:PE timed traffic light disable cached locally after API failure | nodeId={0}", nodeId);
                         }
                         else
                         {
@@ -1664,6 +1671,7 @@ namespace CSM.TmpeSync.Tmpe
                                 TimedTrafficLights.Remove(nodeId);
                             }
 
+                            Log.Info(LogCategory.Synchronization, "TM:PE timed traffic light disabled via API | nodeId={0}", nodeId);
                             return true;
                         }
                     }
@@ -1734,6 +1742,7 @@ namespace CSM.TmpeSync.Tmpe
                             ManualTrafficLights.Remove(nodeId);
                     }
 
+                    Log.Info(LogCategory.Synchronization, "TM:PE manual traffic light applied via API | nodeId={0} enabled={1}", nodeId, actual);
                     return true;
                 }
 
