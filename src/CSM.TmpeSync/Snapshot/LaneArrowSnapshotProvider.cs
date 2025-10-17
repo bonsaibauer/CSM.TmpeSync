@@ -9,7 +9,7 @@ namespace CSM.TmpeSync.Snapshot
     {
         public void Export()
         {
-            Log.Info("Exporting TM:PE lane arrow snapshot");
+            Log.Info(LogCategory.Snapshot, "Exporting TM:PE lane arrow snapshot");
             NetUtil.ForEachLane(laneId =>
             {
                 if (!TmpeAdapter.TryGetLaneArrows(laneId, out var arrows))

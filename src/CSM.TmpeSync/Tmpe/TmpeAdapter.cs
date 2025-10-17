@@ -22,6 +22,49 @@ namespace CSM.TmpeSync.Tmpe
         private static readonly bool SupportsTimedTrafficLights;
         private static readonly object StateLock = new object();
 
+        internal static IDictionary<string, bool> GetFeatureSupportMatrix()
+        {
+            return new Dictionary<string, bool>(StringComparer.OrdinalIgnoreCase)
+            {
+                { "speedLimits", SupportsSpeedLimits },
+                { "laneArrows", SupportsLaneArrows },
+                { "laneConnector", SupportsLaneConnections },
+                { "vehicleRestrictions", SupportsVehicleRestrictions },
+                { "junctionRestrictions", SupportsJunctionRestrictions },
+                { "prioritySigns", SupportsPrioritySigns },
+                { "parkingRestrictions", SupportsParkingRestrictions },
+                { "timedTrafficLights", SupportsTimedTrafficLights }
+            };
+        }
+
+        internal static bool IsFeatureSupported(string featureKey)
+        {
+            if (string.IsNullOrEmpty(featureKey))
+                return false;
+
+            switch (featureKey.ToLowerInvariant())
+            {
+                case "speedlimits":
+                    return SupportsSpeedLimits;
+                case "lanearrows":
+                    return SupportsLaneArrows;
+                case "laneconnector":
+                    return SupportsLaneConnections;
+                case "vehiclerestrictions":
+                    return SupportsVehicleRestrictions;
+                case "junctionrestrictions":
+                    return SupportsJunctionRestrictions;
+                case "prioritysigns":
+                    return SupportsPrioritySigns;
+                case "parkingrestrictions":
+                    return SupportsParkingRestrictions;
+                case "timedtrafficlights":
+                    return SupportsTimedTrafficLights;
+                default:
+                    return false;
+            }
+        }
+
         private static readonly Dictionary<uint, float> SpeedLimits = new Dictionary<uint, float>();
         private static readonly Dictionary<uint, LaneArrowFlags> LaneArrows = new Dictionary<uint, LaneArrowFlags>();
         private static readonly Dictionary<uint, VehicleRestrictionFlags> VehicleRestrictions = new Dictionary<uint, VehicleRestrictionFlags>();
@@ -227,21 +270,21 @@ namespace CSM.TmpeSync.Tmpe
                     AppendFeatureStatus(SupportsParkingRestrictions, supported, missing, "Parking Restrictions");
                     AppendFeatureStatus(SupportsTimedTrafficLights, supported, missing, "Timed Traffic Lights");
 
-                    Log.Info("TM:PE API detected - synchronisation bridges ready for: {0}.", string.Join(", ", supported.ToArray()));
+                    Log.Info(LogCategory.Bridge, "TM:PE API detected | features={0}", string.Join(", ", supported.ToArray()));
 
                     if (missing.Count > 0)
                     {
-                        Log.Warn("TM:PE API bridge missing for: {0}. Falling back to stub storage for these features.", string.Join(", ", missing.ToArray()));
+                        Log.Warn(LogCategory.Bridge, "TM:PE API bridge missing | features={0} action=fallback_to_stub", string.Join(", ", missing.ToArray()));
                     }
                 }
                 else
                 {
-                    Log.Warn("TM:PE API not detected – falling back to stubbed TM:PE state storage.");
+                    Log.Warn(LogCategory.Bridge, "TM:PE API not detected | action=fallback_to_stub_storage");
                 }
             }
             catch (Exception ex)
             {
-                Log.Warn("TM:PE detection failed: {0}", ex);
+                Log.Warn(LogCategory.Bridge, "TM:PE detection failed | error={0}", ex);
             }
         }
 
@@ -294,7 +337,7 @@ namespace CSM.TmpeSync.Tmpe
             }
             catch (Exception ex)
             {
-                Log.Warn("TM:PE speed limit bridge initialisation failed: {0}", ex);
+                Log.Warn(LogCategory.Bridge, "TM:PE speed limit bridge initialization failed | error={0}", ex);
             }
 
             return SpeedLimitManagerInstance != null && SpeedLimitSetLaneMethod != null;
@@ -342,13 +385,13 @@ namespace CSM.TmpeSync.Tmpe
                     }
                     catch (Exception ex)
                     {
-                        Log.Warn("TM:PE lane arrow enum conversion failed: {0}", ex);
+                        Log.Warn(LogCategory.Bridge, "TM:PE lane arrow enum conversion failed | error={0}", ex);
                     }
                 }
             }
             catch (Exception ex)
             {
-                Log.Warn("TM:PE lane arrow bridge initialisation failed: {0}", ex);
+                Log.Warn(LogCategory.Bridge, "TM:PE lane arrow bridge initialization failed | error={0}", ex);
             }
 
             return LaneArrowManagerInstance != null && LaneArrowSetMethod != null && LaneArrowsEnumType != null;
@@ -411,7 +454,7 @@ namespace CSM.TmpeSync.Tmpe
             }
             catch (Exception ex)
             {
-                Log.Warn("TM:PE vehicle restrictions bridge initialisation failed: {0}", ex);
+                Log.Warn(LogCategory.Bridge, "TM:PE vehicle restrictions bridge initialization failed | error={0}", ex);
             }
 
             return VehicleRestrictionsManagerInstance != null &&
@@ -438,7 +481,7 @@ namespace CSM.TmpeSync.Tmpe
                     }
                     catch (Exception ex)
                     {
-                        Log.Warn("TM:PE lane connection bridge enum conversion failed: {0}", ex);
+                        Log.Warn(LogCategory.Bridge, "TM:PE lane connection bridge enum conversion failed | error={0}", ex);
                     }
                 }
 
@@ -482,7 +525,7 @@ namespace CSM.TmpeSync.Tmpe
             }
             catch (Exception ex)
             {
-                Log.Warn("TM:PE lane connection bridge initialisation failed: {0}", ex);
+                Log.Warn(LogCategory.Bridge, "TM:PE lane connection bridge initialization failed | error={0}", ex);
             }
 
             return LaneConnectionManagerInstance != null &&
@@ -521,7 +564,7 @@ namespace CSM.TmpeSync.Tmpe
             }
             catch (Exception ex)
             {
-                Log.Warn("TM:PE junction restrictions bridge initialisation failed: {0}", ex);
+                Log.Warn(LogCategory.Bridge, "TM:PE junction restrictions bridge initialization failed | error={0}", ex);
             }
 
             return JunctionRestrictionsManagerInstance != null &&
@@ -568,7 +611,7 @@ namespace CSM.TmpeSync.Tmpe
             }
             catch (Exception ex)
             {
-                Log.Warn("TM:PE priority sign bridge initialisation failed: {0}", ex);
+                Log.Warn(LogCategory.Bridge, "TM:PE priority sign bridge initialization failed | error={0}", ex);
             }
 
             return TrafficPriorityManagerInstance != null &&
@@ -604,7 +647,7 @@ namespace CSM.TmpeSync.Tmpe
             }
             catch (Exception ex)
             {
-                Log.Warn("TM:PE parking restriction bridge initialisation failed: {0}", ex);
+                Log.Warn(LogCategory.Bridge, "TM:PE parking restriction bridge initialization failed | error={0}", ex);
             }
 
             return ParkingRestrictionsManagerInstance != null &&
@@ -697,7 +740,7 @@ namespace CSM.TmpeSync.Tmpe
             }
             catch (Exception ex)
             {
-                Log.Warn("TM:PE timed traffic light bridge initialisation failed: {0}", ex);
+                Log.Warn(LogCategory.Bridge, "TM:PE timed traffic light bridge initialization failed | error={0}", ex);
             }
 
             return TrafficLightSimulationManagerInstance != null &&
@@ -725,15 +768,15 @@ namespace CSM.TmpeSync.Tmpe
             {
                 if (SupportsSpeedLimits)
                 {
-                    Log.Debug("[TMPE] Request set speed lane={0} -> {1} km/h", laneId, speedKmh);
+                    Log.Debug(LogCategory.Hook, "TM:PE speed limit request | laneId={0} speedKmh={1}", laneId, speedKmh);
                     if (TryApplySpeedLimitReal(laneId, speedKmh))
                         return true;
 
-                    Log.Warn("[TMPE] Speed limit apply via TM:PE API failed – falling back to stub state.");
+                    Log.Warn(LogCategory.Bridge, "TM:PE speed limit apply via API failed | laneId={0} action=fallback_to_stub", laneId);
                 }
                 else
                 {
-                    Log.Info("[TMPE] Set speed lane={0} -> {1} km/h (stub)", laneId, speedKmh);
+                    Log.Info(LogCategory.Synchronization, "TM:PE speed limit stored in stub | laneId={0} speedKmh={1}", laneId, speedKmh);
                 }
 
                 lock (StateLock)
@@ -744,7 +787,7 @@ namespace CSM.TmpeSync.Tmpe
             }
             catch (Exception ex)
             {
-                Log.Error("TMPE ApplySpeedLimit failed: " + ex);
+                Log.Error(LogCategory.Synchronization, "TM:PE ApplySpeedLimit failed | error={0}", ex);
                 return false;
             }
         }
@@ -755,7 +798,7 @@ namespace CSM.TmpeSync.Tmpe
             {
                 if (SupportsSpeedLimits && TryGetSpeedLimitReal(laneId, out kmh))
                 {
-                    Log.Debug("[TMPE] Query speed lane={0} -> {1} km/h", laneId, kmh);
+                    Log.Debug(LogCategory.Hook, "TM:PE speed limit query | laneId={0} speedKmh={1}", laneId, kmh);
                     return true;
                 }
 
@@ -765,12 +808,12 @@ namespace CSM.TmpeSync.Tmpe
                         kmh = 50f;
                 }
                 if (SupportsSpeedLimits)
-                    Log.Debug("[TMPE] Query speed lane={0} -> {1} km/h (stub)", laneId, kmh);
+                    Log.Debug(LogCategory.Hook, "TM:PE speed limit query (stub) | laneId={0} speedKmh={1}", laneId, kmh);
                 return true;
             }
             catch (Exception ex)
             {
-                Log.Error("TMPE TryGetSpeedKmh failed: " + ex);
+                Log.Error(LogCategory.Synchronization, "TM:PE TryGetSpeedKmh failed | error={0}", ex);
                 kmh = 0f;
                 return false;
             }
@@ -782,15 +825,15 @@ namespace CSM.TmpeSync.Tmpe
             {
                 if (SupportsLaneArrows)
                 {
-                    Log.Debug("[TMPE] Request lane arrows lane={0} -> {1}", laneId, arrows);
+                    Log.Debug(LogCategory.Hook, "TM:PE lane arrow request | laneId={0} arrows={1}", laneId, arrows);
                     if (TryApplyLaneArrowsReal(laneId, arrows))
                         return true;
 
-                    Log.Warn("[TMPE] Lane arrow apply via TM:PE API failed – falling back to stub state.");
+                    Log.Warn(LogCategory.Bridge, "TM:PE lane arrow apply via API failed | laneId={0} action=fallback_to_stub", laneId);
                 }
                 else
                 {
-                    Log.Info("[TMPE] Lane arrows lane={0} -> {1} (stub)", laneId, arrows);
+                    Log.Info(LogCategory.Synchronization, "TM:PE lane arrows stored in stub | laneId={0} arrows={1}", laneId, arrows);
                 }
 
                 lock (StateLock)
@@ -805,7 +848,7 @@ namespace CSM.TmpeSync.Tmpe
             }
             catch (Exception ex)
             {
-                Log.Error("TMPE ApplyLaneArrows failed: " + ex);
+                Log.Error(LogCategory.Synchronization, "TM:PE ApplyLaneArrows failed | error={0}", ex);
                 return false;
             }
         }
@@ -816,7 +859,7 @@ namespace CSM.TmpeSync.Tmpe
             {
                 if (SupportsLaneArrows && TryGetLaneArrowsReal(laneId, out arrows))
                 {
-                    Log.Debug("[TMPE] Query lane arrows lane={0} -> {1}", laneId, arrows);
+                    Log.Debug(LogCategory.Hook, "TM:PE lane arrow query | laneId={0} arrows={1}", laneId, arrows);
                     return true;
                 }
 
@@ -827,12 +870,12 @@ namespace CSM.TmpeSync.Tmpe
                 }
 
                 if (SupportsLaneArrows)
-                    Log.Debug("[TMPE] Query lane arrows lane={0} -> {1} (stub)", laneId, arrows);
+                    Log.Debug(LogCategory.Hook, "TM:PE lane arrow query (stub) | laneId={0} arrows={1}", laneId, arrows);
                 return true;
             }
             catch (Exception ex)
             {
-                Log.Error("TMPE TryGetLaneArrows failed: " + ex);
+                Log.Error(LogCategory.Synchronization, "TM:PE TryGetLaneArrows failed | error={0}", ex);
                 arrows = LaneArrowFlags.None;
                 return false;
             }
@@ -844,15 +887,15 @@ namespace CSM.TmpeSync.Tmpe
             {
                 if (SupportsVehicleRestrictions)
                 {
-                    Log.Debug("[TMPE] Request vehicle restrictions lane={0} -> {1}", laneId, restrictions);
+                    Log.Debug(LogCategory.Hook, "TM:PE vehicle restriction request | laneId={0} restrictions={1}", laneId, restrictions);
                     if (TryApplyVehicleRestrictionsReal(laneId, restrictions))
                         return true;
 
-                    Log.Warn("[TMPE] Vehicle restrictions apply via TM:PE API failed – falling back to stub state.");
+                    Log.Warn(LogCategory.Bridge, "TM:PE vehicle restriction apply via API failed | laneId={0} action=fallback_to_stub", laneId);
                 }
                 else
                 {
-                    Log.Info("[TMPE] Vehicle restrictions lane={0} -> {1} (stub)", laneId, restrictions);
+                    Log.Info(LogCategory.Synchronization, "TM:PE vehicle restrictions stored in stub | laneId={0} restrictions={1}", laneId, restrictions);
                 }
 
                 lock (StateLock)
@@ -867,7 +910,7 @@ namespace CSM.TmpeSync.Tmpe
             }
             catch (Exception ex)
             {
-                Log.Error("TMPE ApplyVehicleRestrictions failed: " + ex);
+                Log.Error(LogCategory.Synchronization, "TM:PE ApplyVehicleRestrictions failed | error={0}", ex);
                 return false;
             }
         }
@@ -878,7 +921,7 @@ namespace CSM.TmpeSync.Tmpe
             {
                 if (SupportsVehicleRestrictions && TryGetVehicleRestrictionsReal(laneId, out restrictions))
                 {
-                    Log.Debug("[TMPE] Query vehicle restrictions lane={0} -> {1}", laneId, restrictions);
+                    Log.Debug(LogCategory.Hook, "TM:PE vehicle restriction query | laneId={0} restrictions={1}", laneId, restrictions);
                     return true;
                 }
 
@@ -891,7 +934,7 @@ namespace CSM.TmpeSync.Tmpe
             }
             catch (Exception ex)
             {
-                Log.Error("TMPE TryGetVehicleRestrictions failed: " + ex);
+                Log.Error(LogCategory.Synchronization, "TM:PE TryGetVehicleRestrictions failed | error={0}", ex);
                 restrictions = VehicleRestrictionFlags.None;
                 return false;
             }
@@ -908,15 +951,15 @@ namespace CSM.TmpeSync.Tmpe
 
                 if (SupportsLaneConnections)
                 {
-                    Log.Debug("[TMPE] Request lane connections lane={0} -> [{1}]", sourceLaneId, JoinLaneIds(sanitizedTargets));
+                    Log.Debug(LogCategory.Hook, "TM:PE lane connection request | sourceLaneId={0} targets=[{1}]", sourceLaneId, JoinLaneIds(sanitizedTargets));
                     if (TryApplyLaneConnectionsReal(sourceLaneId, sanitizedTargets))
                         return true;
 
-                    Log.Warn("[TMPE] Lane connection apply via TM:PE API failed – falling back to stub state.");
+                    Log.Warn(LogCategory.Bridge, "TM:PE lane connection apply via API failed | sourceLaneId={0} action=fallback_to_stub", sourceLaneId);
                 }
                 else
                 {
-                    Log.Info("[TMPE] Lane connections lane={0} -> [{1}] (stub)", sourceLaneId, JoinLaneIds(sanitizedTargets));
+                    Log.Info(LogCategory.Synchronization, "TM:PE lane connections stored in stub | sourceLaneId={0} targets=[{1}]", sourceLaneId, JoinLaneIds(sanitizedTargets));
                 }
 
                 lock (StateLock)
@@ -931,7 +974,7 @@ namespace CSM.TmpeSync.Tmpe
             }
             catch (Exception ex)
             {
-                Log.Error("TMPE ApplyLaneConnections failed: " + ex);
+                Log.Error(LogCategory.Synchronization, "TM:PE ApplyLaneConnections failed | error={0}", ex);
                 return false;
             }
         }
@@ -942,7 +985,7 @@ namespace CSM.TmpeSync.Tmpe
             {
                 if (SupportsLaneConnections && TryGetLaneConnectionsReal(sourceLaneId, out targetLaneIds))
                 {
-                    Log.Debug("[TMPE] Query lane connections lane={0} -> [{1}]", sourceLaneId, JoinLaneIds(targetLaneIds));
+                    Log.Debug(LogCategory.Hook, "TM:PE lane connection query | sourceLaneId={0} targets=[{1}]", sourceLaneId, JoinLaneIds(targetLaneIds));
                     return true;
                 }
 
@@ -962,7 +1005,7 @@ namespace CSM.TmpeSync.Tmpe
             }
             catch (Exception ex)
             {
-                Log.Error("TMPE TryGetLaneConnections failed: " + ex);
+                Log.Error(LogCategory.Synchronization, "TM:PE TryGetLaneConnections failed | error={0}", ex);
                 targetLaneIds = new uint[0];
                 return false;
             }
@@ -995,15 +1038,15 @@ namespace CSM.TmpeSync.Tmpe
                 var normalized = state?.Clone() ?? new JunctionRestrictionsState();
                 if (SupportsJunctionRestrictions)
                 {
-                    Log.Debug("[TMPE] Request junction restrictions node={0} -> {1}", nodeId, normalized);
+                    Log.Debug(LogCategory.Hook, "TM:PE junction restriction request | nodeId={0} state={1}", nodeId, normalized);
                     if (TryApplyJunctionRestrictionsReal(nodeId, normalized))
                         return true;
 
-                    Log.Warn("[TMPE] Junction restrictions apply via TM:PE API failed – falling back to stub state.");
+                    Log.Warn(LogCategory.Bridge, "TM:PE junction restriction apply via API failed | nodeId={0} action=fallback_to_stub", nodeId);
                 }
                 else
                 {
-                    Log.Info("[TMPE] Junction restrictions node={0} -> {1} (stub)", nodeId, normalized);
+                    Log.Info(LogCategory.Synchronization, "TM:PE junction restrictions stored in stub | nodeId={0} state={1}", nodeId, normalized);
                 }
 
                 lock (StateLock)
@@ -1018,7 +1061,7 @@ namespace CSM.TmpeSync.Tmpe
             }
             catch (Exception ex)
             {
-                Log.Error("TMPE ApplyJunctionRestrictions failed: " + ex);
+                Log.Error(LogCategory.Synchronization, "TM:PE ApplyJunctionRestrictions failed | error={0}", ex);
                 return false;
             }
         }
@@ -1029,7 +1072,7 @@ namespace CSM.TmpeSync.Tmpe
             {
                 if (SupportsJunctionRestrictions && TryGetJunctionRestrictionsReal(nodeId, out state))
                 {
-                    Log.Debug("[TMPE] Query junction restrictions node={0} -> {1}", nodeId, state);
+                    Log.Debug(LogCategory.Hook, "TM:PE junction restriction query | nodeId={0} state={1}", nodeId, state);
                     return true;
                 }
 
@@ -1045,7 +1088,7 @@ namespace CSM.TmpeSync.Tmpe
             }
             catch (Exception ex)
             {
-                Log.Error("TMPE TryGetJunctionRestrictions failed: " + ex);
+                Log.Error(LogCategory.Synchronization, "TM:PE TryGetJunctionRestrictions failed | error={0}", ex);
                 state = new JunctionRestrictionsState();
                 return false;
             }
@@ -1057,15 +1100,15 @@ namespace CSM.TmpeSync.Tmpe
             {
                 if (SupportsPrioritySigns)
                 {
-                    Log.Debug("[TMPE] Request priority sign node={0} segment={1} -> {2}", nodeId, segmentId, signType);
+                    Log.Debug(LogCategory.Hook, "TM:PE priority sign request | nodeId={0} segmentId={1} signType={2}", nodeId, segmentId, signType);
                     if (TryApplyPrioritySignReal(nodeId, segmentId, signType))
                         return true;
 
-                    Log.Warn("[TMPE] Priority sign apply via TM:PE API failed – falling back to stub state.");
+                    Log.Warn(LogCategory.Bridge, "TM:PE priority sign apply via API failed | nodeId={0} segmentId={1} action=fallback_to_stub", nodeId, segmentId);
                 }
                 else
                 {
-                    Log.Info("[TMPE] Priority sign node={0} segment={1} -> {2} (stub)", nodeId, segmentId, signType);
+                    Log.Info(LogCategory.Synchronization, "TM:PE priority sign stored in stub | nodeId={0} segmentId={1} signType={2}", nodeId, segmentId, signType);
                 }
 
                 lock (StateLock)
@@ -1081,7 +1124,7 @@ namespace CSM.TmpeSync.Tmpe
             }
             catch (Exception ex)
             {
-                Log.Error("TMPE ApplyPrioritySign failed: " + ex);
+                Log.Error(LogCategory.Synchronization, "TM:PE ApplyPrioritySign failed | error={0}", ex);
                 return false;
             }
         }
@@ -1092,7 +1135,7 @@ namespace CSM.TmpeSync.Tmpe
             {
                 if (SupportsPrioritySigns && TryGetPrioritySignReal(nodeId, segmentId, out signType))
                 {
-                    Log.Debug("[TMPE] Query priority sign node={0} segment={1} -> {2}", nodeId, segmentId, signType);
+                    Log.Debug(LogCategory.Hook, "TM:PE priority sign query | nodeId={0} segmentId={1} signType={2}", nodeId, segmentId, signType);
                     return true;
                 }
 
@@ -1106,7 +1149,7 @@ namespace CSM.TmpeSync.Tmpe
             }
             catch (Exception ex)
             {
-                Log.Error("TMPE TryGetPrioritySign failed: " + ex);
+                Log.Error(LogCategory.Synchronization, "TM:PE TryGetPrioritySign failed | error={0}", ex);
                 signType = PrioritySignType.None;
                 return false;
             }
@@ -1119,15 +1162,15 @@ namespace CSM.TmpeSync.Tmpe
                 var normalized = state ?? new ParkingRestrictionState();
                 if (SupportsParkingRestrictions)
                 {
-                    Log.Debug("[TMPE] Request parking restriction segment={0} -> {1}", segmentId, normalized);
+                    Log.Debug(LogCategory.Hook, "TM:PE parking restriction request | segmentId={0} state={1}", segmentId, normalized);
                     if (TryApplyParkingRestrictionReal(segmentId, normalized))
                         return true;
 
-                    Log.Warn("[TMPE] Parking restriction apply via TM:PE API failed – falling back to stub state.");
+                    Log.Warn(LogCategory.Bridge, "TM:PE parking restriction apply via API failed | segmentId={0} action=fallback_to_stub", segmentId);
                 }
                 else
                 {
-                    Log.Info("[TMPE] Parking restriction segment={0} -> {1} (stub)", segmentId, normalized);
+                    Log.Info(LogCategory.Synchronization, "TM:PE parking restriction stored in stub | segmentId={0} state={1}", segmentId, normalized);
                 }
 
                 lock (StateLock)
@@ -1142,7 +1185,7 @@ namespace CSM.TmpeSync.Tmpe
             }
             catch (Exception ex)
             {
-                Log.Error("TMPE ApplyParkingRestriction failed: " + ex);
+                Log.Error(LogCategory.Synchronization, "TM:PE ApplyParkingRestriction failed | error={0}", ex);
                 return false;
             }
         }
@@ -1153,7 +1196,7 @@ namespace CSM.TmpeSync.Tmpe
             {
                 if (SupportsParkingRestrictions && TryGetParkingRestrictionReal(segmentId, out state))
                 {
-                    Log.Debug("[TMPE] Query parking restriction segment={0} -> {1}", segmentId, state);
+                    Log.Debug(LogCategory.Hook, "TM:PE parking restriction query | segmentId={0} state={1}", segmentId, state);
                     return true;
                 }
 
@@ -1169,7 +1212,7 @@ namespace CSM.TmpeSync.Tmpe
             }
             catch (Exception ex)
             {
-                Log.Error("TMPE TryGetParkingRestriction failed: " + ex);
+                Log.Error(LogCategory.Synchronization, "TM:PE TryGetParkingRestriction failed | error={0}", ex);
                 state = new ParkingRestrictionState { AllowParkingForward = true, AllowParkingBackward = true };
                 return false;
             }
@@ -1182,12 +1225,12 @@ namespace CSM.TmpeSync.Tmpe
                 var normalized = state?.Clone() ?? new TimedTrafficLightState();
                 if (SupportsTimedTrafficLights)
                 {
-                    Log.Debug("[TMPE] Request timed traffic light node={0} -> {1}", nodeId, normalized);
+                    Log.Debug(LogCategory.Hook, "TM:PE timed traffic light request | nodeId={0} state={1}", nodeId, normalized);
                     if (normalized.Enabled)
                     {
                         if (!TryApplyTimedTrafficLightReal(nodeId, normalized))
                         {
-                            Log.Warn("[TMPE] Timed traffic light apply via TM:PE API failed – falling back to stub state.");
+                            Log.Warn(LogCategory.Bridge, "TM:PE timed traffic light apply via API failed | nodeId={0} action=fallback_to_stub", nodeId);
                         }
                         else
                         {
@@ -1199,7 +1242,7 @@ namespace CSM.TmpeSync.Tmpe
                     {
                         if (!TryDisableTimedTrafficLightReal(nodeId))
                         {
-                            Log.Warn("[TMPE] Timed traffic light removal via TM:PE API failed – falling back to stub state.");
+                            Log.Warn(LogCategory.Bridge, "TM:PE timed traffic light removal via API failed | nodeId={0} action=fallback_to_stub", nodeId);
                         }
                         else
                         {
@@ -1214,7 +1257,7 @@ namespace CSM.TmpeSync.Tmpe
                 }
                 else
                 {
-                    Log.Info("[TMPE] Timed traffic light node={0} -> {1} (stub)", nodeId, normalized);
+                    Log.Info(LogCategory.Synchronization, "TM:PE timed traffic light stored in stub | nodeId={0} state={1}", nodeId, normalized);
                 }
 
                 lock (StateLock)
@@ -1229,7 +1272,7 @@ namespace CSM.TmpeSync.Tmpe
             }
             catch (Exception ex)
             {
-                Log.Error("TMPE ApplyTimedTrafficLight failed: " + ex);
+                Log.Error(LogCategory.Synchronization, "TM:PE ApplyTimedTrafficLight failed | error={0}", ex);
                 return false;
             }
         }
@@ -1253,7 +1296,7 @@ namespace CSM.TmpeSync.Tmpe
             }
             catch (Exception ex)
             {
-                Log.Error("TMPE TryGetTimedTrafficLight failed: " + ex);
+                Log.Error(LogCategory.Synchronization, "TM:PE TryGetTimedTrafficLight failed | error={0}", ex);
                 state = new TimedTrafficLightState();
                 return false;
             }
@@ -1265,7 +1308,7 @@ namespace CSM.TmpeSync.Tmpe
             {
                 if (TrafficLightManagerInstance != null && SetHasTrafficLightMethod != null)
                 {
-                    Log.Debug("[TMPE] Request manual traffic light node={0} -> {1}", nodeId, enabled);
+                    Log.Debug(LogCategory.Hook, "TM:PE manual traffic light request | nodeId={0} enabled={1}", nodeId, enabled);
                     SetHasTrafficLightMethod.Invoke(TrafficLightManagerInstance, new object[] { nodeId, (bool?)enabled });
                     if (!TryGetManualTrafficLight(nodeId, out var actual))
                         actual = enabled;
@@ -1281,7 +1324,7 @@ namespace CSM.TmpeSync.Tmpe
                     return true;
                 }
 
-                Log.Info("[TMPE] Manual traffic light node={0} -> {1} (stub)", nodeId, enabled);
+                Log.Info(LogCategory.Synchronization, "TM:PE manual traffic light stored in stub | nodeId={0} enabled={1}", nodeId, enabled);
                 lock (StateLock)
                 {
                     if (enabled)
@@ -1294,7 +1337,7 @@ namespace CSM.TmpeSync.Tmpe
             }
             catch (Exception ex)
             {
-                Log.Error("TMPE ApplyManualTrafficLight failed: " + ex);
+                Log.Error(LogCategory.Synchronization, "TM:PE ApplyManualTrafficLight failed | error={0}", ex);
                 return false;
             }
         }
@@ -1328,7 +1371,7 @@ namespace CSM.TmpeSync.Tmpe
             }
             catch (Exception ex)
             {
-                Log.Error("TMPE TryGetManualTrafficLight failed: " + ex);
+                Log.Error(LogCategory.Synchronization, "TM:PE TryGetManualTrafficLight failed | error={0}", ex);
                 enabled = false;
                 return false;
             }
@@ -1401,7 +1444,7 @@ namespace CSM.TmpeSync.Tmpe
             }
             catch (Exception ex)
             {
-                Log.Warn("TMPE timed traffic light bridge failed: {0}", ex);
+                Log.Warn(LogCategory.Bridge, "TM:PE timed traffic light bridge failed | error={0}", ex);
                 return false;
             }
         }
@@ -1418,7 +1461,7 @@ namespace CSM.TmpeSync.Tmpe
             }
             catch (Exception ex)
             {
-                Log.Warn("TMPE timed traffic light removal failed: {0}", ex);
+                Log.Warn(LogCategory.Bridge, "TM:PE timed traffic light removal failed | error={0}", ex);
                 return false;
             }
         }
@@ -1475,7 +1518,7 @@ namespace CSM.TmpeSync.Tmpe
             }
             catch (Exception ex)
             {
-                Log.Warn("TMPE timed traffic light query failed: {0}", ex);
+                Log.Warn(LogCategory.Bridge, "TM:PE timed traffic light query failed | error={0}", ex);
                 state = new TimedTrafficLightState();
                 return false;
             }
@@ -1634,7 +1677,7 @@ namespace CSM.TmpeSync.Tmpe
             }
             catch (Exception ex)
             {
-                Log.Warn("TM:PE vehicle restrictions enum conversion failed for {0}: {1}", name, ex);
+                Log.Warn(LogCategory.Bridge, "TM:PE vehicle restrictions enum conversion failed | name={0} error={1}", name, ex);
                 return 0;
             }
         }

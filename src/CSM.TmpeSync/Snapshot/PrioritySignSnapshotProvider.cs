@@ -9,7 +9,7 @@ namespace CSM.TmpeSync.Snapshot
     {
         public void Export()
         {
-            Log.Info("Exporting TM:PE priority sign snapshot");
+            Log.Info(LogCategory.Snapshot, "Exporting TM:PE priority sign snapshot");
             NetUtil.ForEachNode(nodeId =>
             {
                 NetUtil.ForEachSegment(segmentId =>

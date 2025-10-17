@@ -8,7 +8,7 @@ namespace CSM.TmpeSync.Snapshot
     {
         public void Export()
         {
-            Log.Info("Exporting TM:PE junction restrictions snapshot");
+            Log.Info(LogCategory.Snapshot, "Exporting TM:PE junction restrictions snapshot");
             NetUtil.ForEachNode(nodeId =>
             {
                 if (!TmpeAdapter.TryGetJunctionRestrictions(nodeId, out var state))
