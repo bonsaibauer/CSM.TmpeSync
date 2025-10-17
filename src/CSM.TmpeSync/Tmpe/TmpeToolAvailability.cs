@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Reflection;
 using CSM.TmpeSync.Util;
@@ -20,6 +21,17 @@ namespace CSM.TmpeSync.Tmpe
         private static bool _loggedMissingMenu;
 #pragma warning restore 414
         private static bool? _restrictionOverride;
+        private static string _lastRestrictionPolicy;
+        private static string _lastUnsupportedConfigLog;
+        private static string _lastFeatureSupportLog;
+
+        private enum RestrictionBlockReason
+        {
+            None,
+            ManualConfiguration,
+            FeatureUnsupported,
+            Unknown
+        }
 
         private static readonly Dictionary<UIComponent, ButtonSnapshot> ButtonSnapshots = new Dictionary<UIComponent, ButtonSnapshot>();
         private static readonly Dictionary<UIComponent, string> ButtonAuditStates = new Dictionary<UIComponent, string>();
@@ -38,6 +50,8 @@ namespace CSM.TmpeSync.Tmpe
                     ButtonSnapshots.Clear();
                     _lastMenuSummary = null;
                 }
+
+                LogRestrictionPolicy();
 
                 if (_restrictionOverride.HasValue && !_restrictionOverride.Value)
                 {
@@ -65,6 +79,9 @@ namespace CSM.TmpeSync.Tmpe
                 Log.Info(LogCategory.Menu, "Menu restriction deactivated | tools=all_enabled");
                 _restrictionActive = false;
                 _lastMenuSummary = null;
+                _lastRestrictionPolicy = null;
+                _lastUnsupportedConfigLog = null;
+                _lastFeatureSupportLog = null;
             }
         }
 
@@ -76,6 +93,9 @@ namespace CSM.TmpeSync.Tmpe
             _cachedMenuType = null;
             _loggedMissingMenu = false;
             _lastMenuSummary = null;
+            _lastRestrictionPolicy = null;
+            _lastUnsupportedConfigLog = null;
+            _lastFeatureSupportLog = null;
             ButtonAuditStates.Clear();
         }
 
@@ -97,13 +117,13 @@ namespace CSM.TmpeSync.Tmpe
 
         private static readonly SupportedToolDescriptor[] SupportedTools =
         {
-            new SupportedToolDescriptor("Speed Limits", new[] { "speed" }),
-            new SupportedToolDescriptor("Lane Arrows", new[] { "lane", "arrow" }, new[] { "lanearrow" }, new[] { "lane", "turn" }),
-            new SupportedToolDescriptor("Lane Connector", new[] { "lane", "connector" }, new[] { "lane", "connection" }, new[] { "laneconnector" }),
-            new SupportedToolDescriptor("Vehicle Restrictions", new[] { "vehicle", "restriction" }, new[] { "vehicle", "ban" }, new[] { "vehiclerestriction" }),
-            new SupportedToolDescriptor("Junction Restrictions", new[] { "junction", "restriction" }, new[] { "junction", "control" }, new[] { "junctionrestriction" }),
-            new SupportedToolDescriptor("Priority Signs", new[] { "priority", "sign" }, new[] { "prioritysign" }, new[] { "give", "way" }, new[] { "yield", "sign" }),
-            new SupportedToolDescriptor("Parking Restrictions", new[] { "parking", "restriction" }, new[] { "parking", "ban" }, new[] { "parkingrestriction" })
+            new SupportedToolDescriptor("speedLimits", "Speed Limits", new[] { "speed" }),
+            new SupportedToolDescriptor("laneArrows", "Lane Arrows", new[] { "lane", "arrow" }, new[] { "lanearrow" }, new[] { "lane", "turn" }),
+            new SupportedToolDescriptor("laneConnector", "Lane Connector", new[] { "lane", "connector" }, new[] { "lane", "connection" }, new[] { "laneconnector" }),
+            new SupportedToolDescriptor("vehicleRestrictions", "Vehicle Restrictions", new[] { "vehicle", "restriction" }, new[] { "vehicle", "ban" }, new[] { "vehiclerestriction" }),
+            new SupportedToolDescriptor("junctionRestrictions", "Junction Restrictions", new[] { "junction", "restriction" }, new[] { "junction", "control" }, new[] { "junctionrestriction" }),
+            new SupportedToolDescriptor("prioritySigns", "Priority Signs", new[] { "priority", "sign" }, new[] { "prioritysign" }, new[] { "give", "way" }, new[] { "yield", "sign" }),
+            new SupportedToolDescriptor("parkingRestrictions", "Parking Restrictions", new[] { "parking", "restriction" }, new[] { "parking", "ban" }, new[] { "parkingrestriction" })
         };
 
         private static string _lastMenuSummary;
@@ -124,17 +144,34 @@ namespace CSM.TmpeSync.Tmpe
                 if (component == null)
                     continue;
 
-                if (TryMatchSupportedTool(entry, out var toolName))
+                if (TryMatchSupportedTool(entry, out var descriptor, out var allowed, out var blockReason))
                 {
-                    RestoreComponent(component);
-                    AuditButtonState(entry, true, toolName);
-                    if (!string.IsNullOrEmpty(toolName))
-                        enabledTools.Add(toolName);
+                    if (allowed)
+                    {
+                        RestoreComponent(component);
+                        AuditButtonState(entry, true, descriptor.DisplayName, RestrictionBlockReason.None);
+                        if (!string.IsNullOrEmpty(descriptor.DisplayName))
+                            enabledTools.Add(descriptor.DisplayName);
+                        continue;
+                    }
+
+                    DisableComponent(component);
+                    AuditButtonState(entry, false, descriptor.DisplayName, blockReason);
+                    disabledCount++;
+                    if (disabledSamples.Count < 3)
+                    {
+                        var description = DescribeMenuEntry(entry);
+                        if (IsNullOrWhiteSpace(description))
+                            description = descriptor.DisplayName;
+                        if (!IsNullOrWhiteSpace(description))
+                            disabledSamples.Add(description);
+                    }
+
                     continue;
                 }
 
                 DisableComponent(component);
-                AuditButtonState(entry, false, null);
+                AuditButtonState(entry, false, null, RestrictionBlockReason.Unknown);
                 disabledCount++;
                 if (disabledSamples.Count < 3)
                 {
@@ -243,7 +280,7 @@ namespace CSM.TmpeSync.Tmpe
             return original + "\n\n" + addition;
         }
 
-        private static bool TryMatchSupportedTool(MenuButtonInfo entry, out string toolName)
+        private static bool TryMatchSupportedTool(MenuButtonInfo entry, out SupportedToolDescriptor descriptor, out bool allowed, out RestrictionBlockReason reason)
         {
             var keyText = entry.Key?.ToString();
             var component = entry.Component;
@@ -254,13 +291,41 @@ namespace CSM.TmpeSync.Tmpe
             {
                 if (Matches(tool, keyText) || Matches(tool, componentName) || Matches(tool, tooltip))
                 {
-                    toolName = tool.DisplayName;
+                    descriptor = tool;
+                    allowed = IsToolAllowed(tool, out reason);
+                    if (allowed)
+                        reason = RestrictionBlockReason.None;
                     return true;
                 }
             }
 
-            toolName = null;
+            descriptor = default;
+            allowed = false;
+            reason = RestrictionBlockReason.Unknown;
             return false;
+        }
+
+        private static bool IsToolAllowed(SupportedToolDescriptor tool, out RestrictionBlockReason reason)
+        {
+            reason = RestrictionBlockReason.None;
+
+            var restrictions = Log.TmpeRestrictions;
+            if (restrictions != null && restrictions.TryGetManualOverride(tool.Key, out var manualValue))
+            {
+                if (!manualValue)
+                {
+                    reason = RestrictionBlockReason.ManualConfiguration;
+                    return false;
+                }
+            }
+
+            if (!TmpeAdapter.IsFeatureSupported(tool.Key))
+            {
+                reason = RestrictionBlockReason.FeatureUnsupported;
+                return false;
+            }
+
+            return true;
         }
 
         private static bool Matches(SupportedToolDescriptor tool, string text)
@@ -315,7 +380,7 @@ namespace CSM.TmpeSync.Tmpe
             return null;
         }
 
-        private static void AuditButtonState(MenuButtonInfo entry, bool supported, string toolName)
+        private static void AuditButtonState(MenuButtonInfo entry, bool supported, string toolName, RestrictionBlockReason reason)
         {
             var component = entry.Component;
             if (component == null)
@@ -323,7 +388,7 @@ namespace CSM.TmpeSync.Tmpe
 
             var key = supported
                 ? "supported:" + (toolName ?? string.Empty)
-                : "disabled";
+                : "disabled:" + reason;
 
             if (ButtonAuditStates.TryGetValue(component, out var previous) && previous == key)
                 return;
@@ -343,7 +408,26 @@ namespace CSM.TmpeSync.Tmpe
             }
             else
             {
-                Log.Info(LogCategory.Menu, "Menu entry disabled | descriptor={0} component={1} tooltip={2}", descriptor, componentName, tooltip);
+                var reasonText = DescribeBlockReason(reason);
+                if (!string.IsNullOrEmpty(toolName))
+                    Log.Info(LogCategory.Menu, "Menu entry disabled | tool={0} component={1} tooltip={2} reason={3}", toolName, componentName, tooltip, reasonText);
+                else
+                    Log.Info(LogCategory.Menu, "Menu entry disabled | descriptor={0} component={1} tooltip={2} reason={3}", descriptor, componentName, tooltip, reasonText);
+            }
+        }
+
+        private static string DescribeBlockReason(RestrictionBlockReason reason)
+        {
+            switch (reason)
+            {
+                case RestrictionBlockReason.ManualConfiguration:
+                    return "manual_override";
+                case RestrictionBlockReason.FeatureUnsupported:
+                    return "unsupported_feature";
+                case RestrictionBlockReason.None:
+                    return "policy";
+                default:
+                    return "policy";
             }
         }
 
@@ -376,6 +460,133 @@ namespace CSM.TmpeSync.Tmpe
             }
 
             Log.Info(LogCategory.Menu, "Menu restriction applied | enabled={0} disabledCount={1}", enabledText, disabledCount);
+        }
+
+        private static void LogRestrictionPolicy()
+        {
+            var restrictions = Log.TmpeRestrictions;
+            var enabled = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var disabledManual = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var disabledUnsupported = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+            foreach (var tool in SupportedTools)
+            {
+                if (IsToolAllowed(tool, out var reason))
+                {
+                    enabled.Add(tool.DisplayName);
+                }
+                else
+                {
+                    if (reason == RestrictionBlockReason.ManualConfiguration)
+                        disabledManual.Add(tool.DisplayName);
+                    else
+                        disabledUnsupported.Add(tool.DisplayName);
+                }
+            }
+
+            if (restrictions != null)
+            {
+                foreach (var overridePair in restrictions.GetManualOverrides())
+                {
+                    if (!overridePair.Value)
+                        disabledManual.Add(DescribeFeatureKey(overridePair.Key));
+                }
+            }
+
+            var mode = restrictions?.Mode ?? Log.TmpeRestrictionMode.Auto;
+            var enabledList = enabled.OrderBy(x => x, StringComparer.OrdinalIgnoreCase).ToArray();
+            var manualList = disabledManual.OrderBy(x => x, StringComparer.OrdinalIgnoreCase).ToArray();
+            var unsupportedList = disabledUnsupported.OrderBy(x => x, StringComparer.OrdinalIgnoreCase).ToArray();
+
+            var summaryKey = string.Format(
+                CultureInfo.InvariantCulture,
+                "{0}|enabled={1}|manual={2}|unsupported={3}",
+                mode,
+                string.Join(",", enabledList),
+                string.Join(",", manualList),
+                string.Join(",", unsupportedList));
+
+            if (!string.Equals(summaryKey, _lastRestrictionPolicy, StringComparison.Ordinal))
+            {
+                Log.Info(
+                    LogCategory.Menu,
+                    "TM:PE synchronization restriction policy | mode={0} enabled={1} disabled_manual={2} disabled_unsupported={3}",
+                    mode,
+                    FormatList(enabledList),
+                    FormatList(manualList),
+                    FormatList(unsupportedList));
+                _lastRestrictionPolicy = summaryKey;
+            }
+
+            var matrix = TmpeAdapter.GetFeatureSupportMatrix();
+            if (matrix != null)
+            {
+                var missing = matrix
+                    .Where(pair => !pair.Value)
+                    .Select(pair => DescribeFeatureKey(pair.Key))
+                    .Where(name => !string.IsNullOrEmpty(name))
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .OrderBy(x => x, StringComparer.OrdinalIgnoreCase)
+                    .ToArray();
+
+                var missingKey = missing.Length == 0 ? "none" : string.Join(",", missing);
+                if (!string.Equals(missingKey, _lastFeatureSupportLog, StringComparison.Ordinal))
+                {
+                    var summary = missing.Length == 0 ? "none" : string.Join(", ", missing);
+                    Log.Info(LogCategory.Menu, "TM:PE unsupported synchronization features detected | items={0}", summary);
+                    _lastFeatureSupportLog = missingKey;
+                }
+            }
+
+            if (restrictions != null)
+            {
+                var forcedUnsupported = restrictions.GetManualOverrides()
+                    .Where(pair => pair.Value && !TmpeAdapter.IsFeatureSupported(pair.Key))
+                    .Select(pair => DescribeFeatureKey(pair.Key))
+                    .Where(name => !string.IsNullOrEmpty(name))
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .OrderBy(x => x, StringComparer.OrdinalIgnoreCase)
+                    .ToArray();
+
+                var forcedKey = forcedUnsupported.Length == 0 ? "none" : string.Join(",", forcedUnsupported);
+                if (!string.Equals(forcedKey, _lastUnsupportedConfigLog, StringComparison.Ordinal))
+                {
+                    if (forcedUnsupported.Length > 0)
+                        Log.Warn(LogCategory.Menu, "TM:PE restriction configuration requests unsupported features | items={0}", string.Join(", ", forcedUnsupported));
+                    _lastUnsupportedConfigLog = forcedKey;
+                }
+            }
+        }
+
+        private static string FormatList(IEnumerable<string> values)
+        {
+            if (values == null)
+                return "none";
+
+            var items = values
+                .Where(value => !string.IsNullOrEmpty(value))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .OrderBy(value => value, StringComparer.OrdinalIgnoreCase)
+                .ToArray();
+
+            return items.Length == 0 ? "none" : string.Join(", ", items);
+        }
+
+        private static string DescribeFeatureKey(string key)
+        {
+            if (string.IsNullOrEmpty(key))
+                return null;
+
+            foreach (var tool in SupportedTools)
+            {
+                if (string.Equals(tool.Key, key, StringComparison.OrdinalIgnoreCase))
+                    return tool.DisplayName;
+            }
+
+            if (string.Equals(key, "timedTrafficLights", StringComparison.OrdinalIgnoreCase))
+                return "Timed Traffic Lights";
+
+            return key;
         }
 
         private static object GetMainMenuInstance()
@@ -665,12 +876,14 @@ namespace CSM.TmpeSync.Tmpe
 
         private readonly struct SupportedToolDescriptor
         {
-            internal SupportedToolDescriptor(string displayName, params string[][] patterns)
+            internal SupportedToolDescriptor(string key, string displayName, params string[][] patterns)
             {
+                Key = key;
                 DisplayName = displayName;
                 Patterns = patterns ?? new string[0][];
             }
 
+            internal string Key { get; }
             internal string DisplayName { get; }
             internal string[][] Patterns { get; }
         }
