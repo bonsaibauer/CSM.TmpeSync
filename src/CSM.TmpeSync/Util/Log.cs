@@ -129,6 +129,16 @@ namespace CSM.TmpeSync.Util
 
         internal static TmpeRestrictionConfiguration TmpeRestrictions => GetConfiguration().TmpeRestrictions;
 
+        internal static string GetCurrentLogFilePath()
+        {
+            return EnsureLogFilePath(DateTime.Now);
+        }
+
+        internal static string GetDataDirectory()
+        {
+            return ResolveBaseDirectory();
+        }
+
         internal static LogEntry[] GetRecentEntries()
         {
             lock (EntrySync)

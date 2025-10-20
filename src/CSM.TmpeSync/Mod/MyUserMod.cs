@@ -55,6 +55,7 @@ namespace CSM.TmpeSync.Mod
             }
 
             CsmCompat.LogDiagnostics("OnEnabled");
+            DebugGuiManager.EnsureInitialized();
 
             var featureSupport = TmpeAdapter.GetFeatureSupportMatrix();
             var supported = featureSupport
@@ -100,6 +101,7 @@ namespace CSM.TmpeSync.Mod
             TmpeToolAvailability.OverrideRestriction(null);
             CsmCompat.LogDiagnostics("OnDisabled");
             Log.Debug(LogCategory.Lifecycle, "Mod disabled | awaiting_next_enable_cycle");
+            DebugGuiManager.Shutdown();
         }
     }
 }
