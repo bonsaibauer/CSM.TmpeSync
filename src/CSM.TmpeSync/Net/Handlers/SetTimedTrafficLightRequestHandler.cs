@@ -25,8 +25,15 @@ namespace CSM.TmpeSync.Net.Handlers
 
             if (!NetUtil.NodeExists(cmd.NodeId))
             {
-                Log.Warn("Rejecting SetTimedTrafficLightRequest node={0} – node missing on server.", cmd.NodeId);
+                Log.Warn("Rejecting SetTimedTrafficLightRequest node={0} - node missing on server.", cmd.NodeId);
                 CsmCompat.SendToClient(senderId, new RequestRejected { Reason = "entity_missing", EntityId = cmd.NodeId, EntityType = 3 });
+                return;
+            }
+
+            if (!TmpeAdapter.IsFeatureSupported("timedTrafficLights"))
+            {
+                Log.Warn("Rejecting SetTimedTrafficLightRequest node={0} - feature not supported by TM:PE bridge.", cmd.NodeId);
+                CsmCompat.SendToClient(senderId, new RequestRejected { Reason = "feature_disabled", EntityId = cmd.NodeId, EntityType = 3 });
                 return;
             }
 
@@ -34,7 +41,7 @@ namespace CSM.TmpeSync.Net.Handlers
             {
                 if (!NetUtil.NodeExists(cmd.NodeId))
                 {
-                    Log.Warn("Simulation step aborted – node {0} vanished before timed traffic light apply.", cmd.NodeId);
+                    Log.Warn("Simulation step aborted - node {0} vanished before timed traffic light apply.", cmd.NodeId);
                     return;
                 }
 
@@ -46,17 +53,13 @@ namespace CSM.TmpeSync.Net.Handlers
                         return;
                     }
 
-                    var hadPrevious = TmpeAdapter.TryGetTimedTrafficLight(cmd.NodeId, out var previousState);
-                    if (hadPrevious && previousState != null)
-                        previousState = previousState.Clone();
                     if (TmpeAdapter.ApplyTimedTrafficLight(cmd.NodeId, state))
                     {
-                        TimedTrafficLightState resultingState = state?.Clone();
+                        var resultingState = state?.Clone();
                         if (TmpeAdapter.TryGetTimedTrafficLight(cmd.NodeId, out var appliedState) && appliedState != null)
                             resultingState = appliedState.Clone();
-                        DebugChangeMonitor.RecordTimedTrafficLightChange(cmd.NodeId, hadPrevious ? previousState : null, resultingState);
                         Log.Info("Applied timed traffic light node={0}; broadcasting update.", cmd.NodeId);
-                        CsmCompat.SendToAll(new TimedTrafficLightApplied { NodeId = cmd.NodeId, State = state });
+                        CsmCompat.SendToAll(new TimedTrafficLightApplied { NodeId = cmd.NodeId, State = resultingState });
                     }
                     else
                     {

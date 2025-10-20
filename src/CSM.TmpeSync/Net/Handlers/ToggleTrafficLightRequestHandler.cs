@@ -44,15 +44,13 @@ namespace CSM.TmpeSync.Net.Handlers
                         return;
                     }
 
-                    var hadPrevious = TmpeAdapter.TryGetManualTrafficLight(cmd.NodeId, out var previousEnabled);
                     if (TmpeAdapter.ApplyManualTrafficLight(cmd.NodeId, cmd.Enabled))
                     {
                         var resultingEnabled = cmd.Enabled;
                         if (TmpeAdapter.TryGetManualTrafficLight(cmd.NodeId, out var appliedEnabled))
                             resultingEnabled = appliedEnabled;
-                        DebugChangeMonitor.RecordManualTrafficLightChange(cmd.NodeId, hadPrevious ? previousEnabled : (bool?)null, resultingEnabled);
-                        Log.Info("Applied manual traffic light node={0} -> {1}; broadcasting update.", cmd.NodeId, cmd.Enabled);
-                        CsmCompat.SendToAll(new TrafficLightToggledApplied { NodeId = cmd.NodeId, Enabled = cmd.Enabled });
+                        Log.Info("Applied manual traffic light node={0} -> {1}; broadcasting update.", cmd.NodeId, resultingEnabled);
+                        CsmCompat.SendToAll(new TrafficLightToggledApplied { NodeId = cmd.NodeId, Enabled = resultingEnabled });
                     }
                     else
                     {

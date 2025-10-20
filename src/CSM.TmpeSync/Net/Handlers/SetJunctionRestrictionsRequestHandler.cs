@@ -46,17 +46,13 @@ namespace CSM.TmpeSync.Net.Handlers
                         return;
                     }
 
-                    var hadPrevious = TmpeAdapter.TryGetJunctionRestrictions(cmd.NodeId, out var previousState);
-                    if (hadPrevious && previousState != null)
-                        previousState = previousState.Clone();
                     if (TmpeAdapter.ApplyJunctionRestrictions(cmd.NodeId, state))
                     {
-                        JunctionRestrictionsState resultingState = state?.Clone();
+                        var resultingState = state?.Clone();
                         if (TmpeAdapter.TryGetJunctionRestrictions(cmd.NodeId, out var appliedState) && appliedState != null)
                             resultingState = appliedState.Clone();
-                        DebugChangeMonitor.RecordJunctionRestrictionsChange(cmd.NodeId, hadPrevious ? previousState : null, resultingState);
                         Log.Info("Applied junction restrictions node={0}; broadcasting update.", cmd.NodeId);
-                        CsmCompat.SendToAll(new JunctionRestrictionsApplied { NodeId = cmd.NodeId, State = state });
+                        CsmCompat.SendToAll(new JunctionRestrictionsApplied { NodeId = cmd.NodeId, State = resultingState });
                     }
                     else
                     {

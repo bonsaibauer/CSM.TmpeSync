@@ -1,23 +1,32 @@
-# TM:PE Feature Synchronisation Matrix
+# TM:PE Feature Sync Checklist
 
-The table below summarises how **CSM.TmpeSync** keeps the individual Traffic Manager: President Edition tools in sync.
-For every feature you will find:
+Use this checklist when verifying TM:PE synchronisation in a CSM session.
 
-- the request/applied command flow used on the wire,
-- the adapter bridge that talks to the TM:PE runtime (or the local stub if the real API is missing),
-- snapshot and deferred handling for late joiners,
-- short implementation notes with direct file references.
+## Pre-flight
 
-| Feature | Network flow | Adapter bridge | Snapshot & deferred | Notes |
-| --- | --- | --- | --- | --- |
-| Speed limits | `SetSpeedLimitRequest` → `SpeedLimitApplied` → `RequestRejected` fallback?F:src/Net/Handlers/SetSpeedLimitRequestHandler.cs�L13-L66? | Applies through TM:PE `SpeedLimitManager.SetLaneSpeedLimit`; falls back to cached km/h per lane when the API is absent.?F:src/Tmpe/TmpeAdapter.cs�L598-L1154? | `SpeedLimitSnapshotProvider` broadcasts all lanes; `SpeedLimitAppliedHandler` + `SpeedLimitDeferredOp` replay missing lanes.?F:src/Snapshot/SpeedLimitSnapshotProvider.cs�L9-L22??F:src/Net/Handlers/SpeedLimitAppliedHandler.cs�L7-L26??F:src/Net/Handlers/SpeedLimitDeferredOp.cs�L8-L49? | Per-lane default restored to 50 km/h when no override is stored. |
-| Lane arrows | `SetLaneArrowRequest` ↔ `LaneArrowApplied` with deferred replay.?F:src/Net/Handlers/SetLaneArrowRequestHandler.cs�L11-L66??F:src/Net/Handlers/LaneArrowAppliedHandler.cs�L7-L28? | Uses `LaneArrowManager.SetLaneArrows` when TM:PE is present, otherwise caches `LaneArrowFlags` per lane.?F:src/Tmpe/TmpeAdapter.cs�L655-L1246? | Snapshot skips `None` states; deferred operation waits for missing lanes.?F:src/Snapshot/LaneArrowSnapshotProvider.cs�L9-L22??F:src/Net/Handlers/LaneArrowDeferredOp.cs�L15-L36? | Removes flags entirely to restore vanilla behaviour when required. |
-| Lane connector | `SetLaneConnectionsRequest` → `LaneConnectionsApplied` → deferred op.?F:src/Net/Handlers/SetLaneConnectionsRequestHandler.cs�L15-L69??F:src/Net/Handlers/LaneConnectionsDeferredOp.cs�L14-L49? | Reflects into `LaneConnectionManager.Add/RemoveLaneConnection` with fallback to internal storage.?F:src/Tmpe/TmpeAdapter.cs�L776-L1557? | Snapshot replays every target lane ID for each source lane.?F:src/Snapshot/LaneConnectionsSnapshotProvider.cs�L9-L23? | Supports road and track sub-managers as exposed by TM:PE. |
-| Vehicle restrictions | `SetVehicleRestrictionsRequest` ↔ `VehicleRestrictionsApplied` with deferred apply.?F:src/Net/Handlers/SetVehicleRestrictionsRequestHandler.cs�L12-L56??F:src/Net/Handlers/VehicleRestrictionsDeferredOp.cs�L13-L36? | Bridges to `VehicleRestrictionsManager.SetAllowedVehicleTypes`; caches TM:PE `ExtVehicleType` mask otherwise.?F:src/Tmpe/TmpeAdapter.cs�L717-L1467? | Snapshot only sends non-default masks.?F:src/Snapshot/VehicleRestrictionsSnapshotProvider.cs�L9-L25? | Includes every vehicle class exposed by TM:PE (trains, ferries, blimps, trolleybus, …). |
-| Junction restrictions | `SetJunctionRestrictionsRequest` → `JunctionRestrictionsApplied` → deferred op.?F:src/Net/Handlers/SetJunctionRestrictionsRequestHandler.cs�L12-L59??F:src/Net/Handlers/JunctionRestrictionsDeferredOp.cs�L12-L40? | Uses `JunctionRestrictionsManager` toggles (near/far turn-on-red, pedestrians, blocking, etc.) and removes default states automatically.?F:src/Tmpe/TmpeAdapter.cs�L867-L1678? | Snapshot broadcasts per-node state to late joiners.?F:src/Snapshot/JunctionRestrictionsSnapshotProvider.cs�L9-L31? | Full parity with TM:PE including separated near/far turn-on-red flags.?F:src/Net/Contracts/States/TmpeStates.cs�L30-L95? |
-| Priority signs | `SetPrioritySignRequest` ↔ `PrioritySignApplied` with deferred handling.?F:src/Net/Handlers/SetPrioritySignRequestHandler.cs�L12-L65??F:src/Net/Handlers/PrioritySignDeferredOp.cs�L12-L35? | Reflects into `TrafficPriorityManager.SetPrioritySign`; caches per node/segment when TM:PE is absent.?F:src/Tmpe/TmpeAdapter.cs�L930-L1260? | Snapshot exports all configured signs.?F:src/Snapshot/PrioritySignSnapshotProvider.cs�L9-L32? | Default `None` entries remove stored data. |
-| Parking restrictions | `SetParkingRestrictionRequest` ↔ `ParkingRestrictionApplied` → deferred.?F:src/Net/Handlers/SetParkingRestrictionRequestHandler.cs�L15-L60??F:src/Net/Handlers/ParkingRestrictionDeferredOp.cs�L13-L36? | Calls `ParkingRestrictionsManager.SetParkingAllowed` per direction with stub fallback.?F:src/Tmpe/TmpeAdapter.cs�L991-L1288? | Snapshot sends only non-default bans.?F:src/Snapshot/ParkingRestrictionSnapshotProvider.cs�L9-L33? | Handles forward/backward flags separately to represent “both/forward/backward only”. |
-| Manual traffic lights (vanilla toggle) | `ToggleTrafficLightRequest` → `TrafficLightToggledApplied` (+ deferred).?F:src/Net/Handlers/ToggleTrafficLightRequestHandler.cs�L11-L61??F:src/Net/Handlers/TrafficLightToggledDeferredOp.cs�L11-L25? | Uses TM:PE `TrafficLightManager.SetHasTrafficLight`/`GetHasTrafficLight`; caches nodes when API unavailable.?F:src/Tmpe/TmpeAdapter.cs�L1207-L1265? | `ManualTrafficLightSnapshotProvider` replays active manual lights; applied handler runs under ignore scope.?F:src/Snapshot/ManualTrafficLightSnapshotProvider.cs�L9-L24??F:src/Net/Handlers/TrafficLightToggledAppliedHandler.cs�L9-L33? | Keeps node edit locks and supports late node loading through deferred operations. |
-| Timed traffic lights | `SetTimedTrafficLightRequest` ↔ `TimedTrafficLightApplied` (+ deferred).?F:src/Net/Handlers/SetTimedTrafficLightRequestHandler.cs�L12-L63??F:src/Net/Handlers/TimedTrafficLightDeferredOp.cs�L13-L35? | New bridge drives TM:PE `TrafficLightSimulationManager` (SetUp/Remove) and rebuilds steps via `TimedTrafficLights.AddStep`; falls back to stub cache when unavailable.?F:src/Tmpe/TmpeAdapter.cs�L591-L1555? | Snapshot exports current timed programmes; applied handler honours the ignore scope for remote updates.?F:src/Snapshot/TimedTrafficLightSnapshotProvider.cs�L9-L24??F:src/Net/Handlers/TimedTrafficLightAppliedHandler.cs�L7-L30? | Cycle length evenly distributed over requested steps; disabling removes TM:PE simulations cleanly. |
-| Hide Crosswalks | `SetCrosswalkHiddenRequest` ↔ `CrosswalkHiddenApplied` with deferred replay.?F:src/Net/Handlers/SetCrosswalkHiddenRequestHandler.cs�L12-L67??F:src/Net/Handlers/CrosswalkHiddenDeferredOp.cs�L13-L35? | Pending upstream API — stores state locally until Hide Crosswalks exposes public hooks.?F:src/HideCrosswalks/HideCrosswalksAdapter.cs�L8-L76? | Snapshot forwards cached node/segment pairs.?F:src/Snapshot/CrosswalkHiddenSnapshotProvider.cs�L9-L27? | Automatically downgrades when the Hide Crosswalks mod is not installed. |
-| Shared infrastructure | Edit locks & rejection flow keep host authority; all handlers acquire entity locks before mutating TM:PE state.?F:src/Net/Handlers/Locks/BeginEndHandlers.cs�L13-L45??F:src/Net/Contracts/System/RequestRejected.cs�L6-L11? | `TmpeAdapter` centralises (de-)serialisation and the reflection bridges while `MultiplayerStateObserver` tracks CSM host/client roles.?F:src/Tmpe/TmpeAdapter.cs�L51-L1678??F:src/Util/MultiplayerStateObserver.cs�L10-L73? | `DeferredApply` retries operations for entities that are not yet spawned.?F:src/Util/DeferredApply.cs�L7-L55? | Logging is unified through `Util.Log`, making sync issues traceable in the CSM.TmpeSync log files. |
+- [ ] CSM and TM:PE load without Harmony errors in the game log.
+- [ ] `CSM.TmpeSync` appears in the mod list and the log file `%APPDATA%\CSM.TmpeSync\csm.tmpe-sync.log` is created.
+- [ ] All participating clients run the same TM:PE version as the host.
+
+## Core features
+
+- [ ] **Speed limits** – Change a lane speed on the host; every client sees the updated value and vehicles respect it. Undo by resetting to default.
+- [ ] **Lane arrows** – Modify turn arrows on an intersection. Confirm the host broadcasts the final bitmask and clients converge.
+- [ ] **Lane connections** – Force a manual lane connection and ensure the same path renders on each client.
+- [ ] **Vehicle restrictions** – Restrict a lane to a single vehicle type. Vehicles on all instances obey the new rule.
+- [ ] **Junction restrictions** – Toggle “enter when blocked” and “turn on red” flags. Lights and behaviour stay in sync.
+- [ ] **Priority signs** – Place stop/yield/priority signs. Verify the applied message matches the TM:PE UI on clients.
+- [ ] **Parking restrictions** – Disable parking per direction on a segment; cars disappear on every instance.
+- [ ] **Timed traffic lights** - Create or delete a timed light plan. State should broadcast immediately once the bridge applies it on the host.
+- [ ] **Manual traffic lights** - Toggle manual control. The icon and behaviour stay aligned.
+- [ ] **Hide Crosswalks** - Hide a crosswalk on the host and confirm the visual change persists on every client through the session cache.
+
+## Failure scenarios
+
+- [ ] Break a lane/segment/node intentionally. Requests targeting missing entities are rejected and the client receives a `RequestRejected` response.
+- [ ] Run a client without TM:PE to ensure host-driven broadcasts still converge and no unauthorised edits slip through.
+
+## Post-session
+
+- [ ] Review the log file for `WARN` or `ERROR` entries that hint at missing API hooks.
+- [ ] Archive logs when reporting issues; the rotating files capture detailed bridge diagnostics when `CSM_TMPE_SYNC_DEBUG=1`.

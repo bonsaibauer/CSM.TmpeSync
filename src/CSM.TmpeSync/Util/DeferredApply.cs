@@ -127,6 +127,16 @@ namespace CSM.TmpeSync.Util
             internal IDeferredOp Op { get; }
             internal int Retries { get; set; }
         }
+
+        internal static void Reset()
+        {
+            lock (Pending)
+            {
+                Pending.Clear();
+            }
+
+            _running = false;
+        }
     }
 
     internal interface IDeferredOp

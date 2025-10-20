@@ -44,15 +44,13 @@ namespace CSM.TmpeSync.Net.Handlers
                         return;
                     }
 
-                    var hadPrevious = TmpeAdapter.TryGetVehicleRestrictions(cmd.LaneId, out var previousRestrictions);
                     if (TmpeAdapter.ApplyVehicleRestrictions(cmd.LaneId, cmd.Restrictions))
                     {
                         var resultingRestrictions = cmd.Restrictions;
                         if (TmpeAdapter.TryGetVehicleRestrictions(cmd.LaneId, out var appliedRestrictions))
                             resultingRestrictions = appliedRestrictions;
-                        DebugChangeMonitor.RecordVehicleRestrictionChange(cmd.LaneId, hadPrevious ? previousRestrictions : (VehicleRestrictionFlags?)null, resultingRestrictions);
-                        Log.Info(LogCategory.Synchronization, "Applied vehicle restrictions | laneId={0} restrictions={1} action=broadcast", cmd.LaneId, cmd.Restrictions);
-                        CsmCompat.SendToAll(new VehicleRestrictionsApplied { LaneId = cmd.LaneId, Restrictions = cmd.Restrictions });
+                        Log.Info(LogCategory.Synchronization, "Applied vehicle restrictions | laneId={0} restrictions={1} action=broadcast", cmd.LaneId, resultingRestrictions);
+                        CsmCompat.SendToAll(new VehicleRestrictionsApplied { LaneId = cmd.LaneId, Restrictions = resultingRestrictions });
                     }
                     else
                     {

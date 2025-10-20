@@ -108,14 +108,10 @@
     <Compile Include="Util\CsmCompat.cs" />
     <Compile Include="Util\LockRegistry.cs" />
     <Compile Include="Util\MultiplayerStateObserver.cs" />
-    <Compile Include="Util\DebugChangeMonitor.cs" />
-    <Compile Include="Util\DebugGuiManager.cs" />
-    <Compile Include="Util\DebugLogWindow.cs" />
 
     <Compile Include="HideCrosswalks\HideCrosswalksAdapter.cs" />
 
     <Compile Include="Tmpe\TmpeAdapter.cs" />
-    <Compile Include="Tmpe\TmpeToolAvailability.cs" />
 
     <Compile Include="Net\Contracts\States\TmpeStates.cs" />
     <Compile Include="Net\Contracts\Requests\SetSpeedLimitRequest.cs" />

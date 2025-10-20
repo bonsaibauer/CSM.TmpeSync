@@ -18,8 +18,7 @@ namespace CSM.TmpeSync.Mod
         public void OnEnabled()
         {
             Log.Info(LogCategory.Lifecycle, "Mod enabled | action=validate_dependencies");
-            var debugEnabled = Log.IsDebugEnabled;
-            Log.Info(LogCategory.Configuration, "Runtime logging configuration | debug={0} path={1}", debugEnabled ? "ENABLED" : "disabled", Log.ConfigurationFilePath ?? "<unavailable>");
+            Log.Info(LogCategory.Configuration, "Logging initialized | debug={0} path={1}", Log.IsDebugEnabled ? "ENABLED" : "disabled", Log.LogFilePath);
 
             var missing = Deps.GetMissingDependencies();
             if (missing.Length > 0)
@@ -38,24 +37,20 @@ namespace CSM.TmpeSync.Mod
                     _connection = connection;
                     _connectionRegistered = true;
                     Log.Info(LogCategory.Network, "CSM connection established | channel=TM:PE sync");
-                    TmpeToolAvailability.OverrideRestriction(null);
                     break;
                 case CsmCompat.ConnectionRegistrationResult.AlreadyRegistered:
                     _connection = null;
                     _connectionRegistered = false;
                     Log.Info(LogCategory.Network, "CSM already manages TM:PE synchronization | action=skip_manual_registration");
-                    TmpeToolAvailability.OverrideRestriction(null);
                     break;
                 default:
                     _connection = null;
                     _connectionRegistered = false;
                     Log.Warn(LogCategory.Network, "TM:PE synchronization connection registration failed | synchronization=inactive");
-                    TmpeToolAvailability.OverrideRestriction(true);
                     break;
             }
 
             CsmCompat.LogDiagnostics("OnEnabled");
-            DebugGuiManager.EnsureInitialized();
 
             var featureSupport = TmpeAdapter.GetFeatureSupportMatrix();
             var supported = featureSupport
@@ -98,10 +93,8 @@ namespace CSM.TmpeSync.Mod
             _connection = null;
             _connectionRegistered = false;
 
-            TmpeToolAvailability.OverrideRestriction(null);
             CsmCompat.LogDiagnostics("OnDisabled");
             Log.Debug(LogCategory.Lifecycle, "Mod disabled | awaiting_next_enable_cycle");
-            DebugGuiManager.Shutdown();
         }
     }
 }

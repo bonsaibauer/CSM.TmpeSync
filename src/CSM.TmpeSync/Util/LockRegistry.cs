@@ -140,5 +140,13 @@ namespace CSM.TmpeSync.Util
                 }
             }
         }
+
+        internal static void Reset()
+        {
+            lock (SyncRoot)
+            {
+                Locks.Clear();
+            }
+        }
     }
 }

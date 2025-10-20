@@ -1819,7 +1819,7 @@ namespace CSM.TmpeSync.Tmpe
                 }
                 catch
                 {
-                    // ignored – timed light may already exist
+                    // ignored ÔÇô timed light may already exist
                 }
 
                 var timedLight = GetTimedTrafficLightObject(nodeId);
@@ -1916,7 +1916,7 @@ namespace CSM.TmpeSync.Tmpe
                     }
                     catch
                     {
-                        // ignore – fall back to step count
+                        // ignore ÔÇô fall back to step count
                     }
                 }
 
