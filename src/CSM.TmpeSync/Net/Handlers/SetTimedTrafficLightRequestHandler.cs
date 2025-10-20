@@ -46,8 +46,15 @@ namespace CSM.TmpeSync.Net.Handlers
                         return;
                     }
 
+                    var hadPrevious = TmpeAdapter.TryGetTimedTrafficLight(cmd.NodeId, out var previousState);
+                    if (hadPrevious && previousState != null)
+                        previousState = previousState.Clone();
                     if (TmpeAdapter.ApplyTimedTrafficLight(cmd.NodeId, state))
                     {
+                        TimedTrafficLightState resultingState = state?.Clone();
+                        if (TmpeAdapter.TryGetTimedTrafficLight(cmd.NodeId, out var appliedState) && appliedState != null)
+                            resultingState = appliedState.Clone();
+                        DebugChangeMonitor.RecordTimedTrafficLightChange(cmd.NodeId, hadPrevious ? previousState : null, resultingState);
                         Log.Info("Applied timed traffic light node={0}; broadcasting update.", cmd.NodeId);
                         CsmCompat.SendToAll(new TimedTrafficLightApplied { NodeId = cmd.NodeId, State = state });
                     }
