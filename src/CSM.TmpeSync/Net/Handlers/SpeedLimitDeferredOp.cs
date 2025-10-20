@@ -1,26 +1,41 @@
-using CSM.TmpeSync.Net.Contracts.Applied;
 using CSM.TmpeSync.Util;
 
 namespace CSM.TmpeSync.Net.Handlers
 {
     internal sealed class SpeedLimitDeferredOp : IDeferredOp
     {
-        private readonly SpeedLimitApplied _cmd;
-        public SpeedLimitDeferredOp(SpeedLimitApplied cmd){ _cmd=cmd; }
-        public string Key => "Speed@Lane:"+_cmd.LaneId;
-        public bool Exists(){ return NetUtil.LaneExists(_cmd.LaneId); }
-        public bool TryApply(){
-            if(!NetUtil.LaneExists(_cmd.LaneId)){
-                Log.Debug("Deferred speed limit lane={0} still missing", _cmd.LaneId);
+        private readonly uint _laneId;
+        private readonly float _speedKmh;
+
+        internal SpeedLimitDeferredOp(uint laneId, float speedKmh)
+        {
+            _laneId = laneId;
+            _speedKmh = speedKmh;
+        }
+
+        public string Key => "Speed@Lane:" + _laneId;
+
+        public bool Exists()
+        {
+            return NetUtil.LaneExists(_laneId);
+        }
+
+        public bool TryApply()
+        {
+            if (!NetUtil.LaneExists(_laneId))
+            {
+                Log.Debug(LogCategory.Synchronization, "Deferred speed limit lane still missing | laneId={0}", _laneId);
                 return false;
             }
 
-            var success=Tmpe.TmpeAdapter.ApplySpeedLimit(_cmd.LaneId,_cmd.SpeedKmh);
-            if(success)
-                Log.Info("Deferred speed limit applied lane={0} -> {1}km/h", _cmd.LaneId, _cmd.SpeedKmh);
-            else
-                Log.Error("Deferred speed limit failed lane={0} -> {1}km/h", _cmd.LaneId, _cmd.SpeedKmh);
-            return success;
+            if (Tmpe.TmpeAdapter.ApplySpeedLimit(_laneId, _speedKmh))
+            {
+                Log.Info(LogCategory.Synchronization, "Deferred speed limit applied | laneId={0} speedKmh={1}", _laneId, _speedKmh);
+                return true;
+            }
+
+            Log.Error(LogCategory.Synchronization, "Deferred speed limit failed | laneId={0} speedKmh={1}", _laneId, _speedKmh);
+            return false;
         }
     }
 }

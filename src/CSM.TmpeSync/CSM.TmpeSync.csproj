@@ -129,6 +129,7 @@
     <Compile Include="Net\Contracts\Requests\ToggleTrafficLightRequest.cs" />
     <Compile Include="Net\Contracts\Requests\SetCrosswalkHiddenRequest.cs" />
     <Compile Include="Net\Contracts\Applied\SpeedLimitApplied.cs" />
+    <Compile Include="Net\Contracts\Applied\SpeedLimitBatchApplied.cs" />
     <Compile Include="Net\Contracts\Applied\LaneArrowApplied.cs" />
     <Compile Include="Net\Contracts\Applied\VehicleRestrictionsApplied.cs" />
     <Compile Include="Net\Contracts\Applied\LaneConnectionsApplied.cs" />
@@ -143,6 +144,8 @@
 
     <Compile Include="Net\Handlers\SetSpeedLimitRequestHandler.cs" />
     <Compile Include="Net\Handlers\SpeedLimitAppliedHandler.cs" />
+    <Compile Include="Net\Handlers\SpeedLimitBatchAppliedHandler.cs" />
+    <Compile Include="Net\Handlers\SpeedLimitCommandProcessor.cs" />
     <Compile Include="Net\Handlers\RequestRejectedHandler.cs" />
     <Compile Include="Net\Handlers\SpeedLimitDeferredOp.cs" />
     <Compile Include="Net\Handlers\SetLaneArrowRequestHandler.cs" />
