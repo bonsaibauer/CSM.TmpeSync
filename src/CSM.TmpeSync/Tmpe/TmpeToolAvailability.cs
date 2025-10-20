@@ -35,7 +35,6 @@ namespace CSM.TmpeSync.Tmpe
 
         private static readonly Dictionary<UIComponent, ButtonSnapshot> ButtonSnapshots = new Dictionary<UIComponent, ButtonSnapshot>();
         private static readonly Dictionary<UIComponent, string> ButtonAuditStates = new Dictionary<UIComponent, string>();
-        private static readonly HashSet<UIComponent> EnforcedDisabledComponents = new HashSet<UIComponent>();
         private static object _cachedMenuInstance;
         private static Type _cachedMenuType;
 
@@ -98,7 +97,6 @@ namespace CSM.TmpeSync.Tmpe
             _lastUnsupportedConfigLog = null;
             _lastFeatureSupportLog = null;
             ButtonAuditStates.Clear();
-            EnforcedDisabledComponents.Clear();
         }
 
         internal static void OverrideRestriction(bool? restrict)
@@ -140,11 +138,10 @@ namespace CSM.TmpeSync.Tmpe
             var disabledSamples = new List<string>();
             var disabledCount = 0;
 
-            var processedComponents = new HashSet<UIComponent>();
             foreach (var entry in EnumerateMenuButtons(menu))
             {
                 var component = entry.Component;
-                if (component == null || !processedComponents.Add(component))
+                if (component == null)
                     continue;
 
                 if (TryMatchSupportedTool(entry, out var descriptor, out var allowed, out var blockReason))
@@ -208,19 +205,9 @@ namespace CSM.TmpeSync.Tmpe
                 };
             }
 
-            if (EnforcedDisabledComponents.Contains(component) &&
-                !component.isEnabled &&
-                Mathf.Abs(component.opacity - 0.35f) < 0.0001f &&
-                !string.IsNullOrEmpty(component.tooltip) &&
-                component.tooltip.IndexOf(RestrictionMessage, StringComparison.OrdinalIgnoreCase) >= 0)
-            {
-                return;
-            }
-
             component.isEnabled = false;
             component.opacity = 0.35f;
             component.tooltip = MergeTooltip(ButtonSnapshots[component].Tooltip);
-            EnforcedDisabledComponents.Add(component);
         }
 
         private static void RestoreComponent(UIComponent component)
@@ -235,7 +222,6 @@ namespace CSM.TmpeSync.Tmpe
             component.opacity = snapshot.Opacity;
             component.tooltip = snapshot.Tooltip;
             ButtonSnapshots.Remove(component);
-            EnforcedDisabledComponents.Remove(component);
         }
 
         private static void RestoreAll()
@@ -256,7 +242,6 @@ namespace CSM.TmpeSync.Tmpe
             }
 
             ButtonSnapshots.Clear();
-            EnforcedDisabledComponents.Clear();
         }
 
         private static void CleanupSnapshots()
@@ -264,10 +249,7 @@ namespace CSM.TmpeSync.Tmpe
             foreach (var component in ButtonSnapshots.Keys.ToArray())
             {
                 if (component == null)
-                {
                     ButtonSnapshots.Remove(component);
-                    EnforcedDisabledComponents.Remove(component);
-                }
             }
         }
 
@@ -276,10 +258,7 @@ namespace CSM.TmpeSync.Tmpe
             foreach (var component in ButtonAuditStates.Keys.ToArray())
             {
                 if (component == null)
-                {
                     ButtonAuditStates.Remove(component);
-                    EnforcedDisabledComponents.Remove(component);
-                }
             }
         }
 

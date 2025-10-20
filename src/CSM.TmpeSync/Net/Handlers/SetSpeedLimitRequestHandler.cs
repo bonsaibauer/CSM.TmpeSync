@@ -45,13 +45,8 @@ namespace CSM.TmpeSync.Net.Handlers
                         return;
                     }
 
-                    var hadPrevious = TmpeAdapter.TryGetSpeedKmh(cmd.LaneId, out var previousSpeed);
                     if (TmpeAdapter.ApplySpeedLimit(cmd.LaneId, cmd.SpeedKmh))
                     {
-                        var resultingSpeed = cmd.SpeedKmh;
-                        if (TmpeAdapter.TryGetSpeedKmh(cmd.LaneId, out var appliedSpeed))
-                            resultingSpeed = appliedSpeed;
-                        DebugChangeMonitor.RecordSpeedLimitChange(cmd.LaneId, hadPrevious ? previousSpeed : (float?)null, resultingSpeed);
                         Log.Info(LogCategory.Synchronization, "Applied speed limit | laneId={0} speedKmh={1} action=broadcast", cmd.LaneId, cmd.SpeedKmh);
                         CsmCompat.SendToAll(new SpeedLimitApplied { LaneId = cmd.LaneId, SpeedKmh = cmd.SpeedKmh });
                     }

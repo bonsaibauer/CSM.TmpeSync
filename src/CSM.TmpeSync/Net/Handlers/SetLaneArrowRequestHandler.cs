@@ -51,13 +51,8 @@ namespace CSM.TmpeSync.Net.Handlers
                         return;
                     }
 
-                    var hadPrevious = TmpeAdapter.TryGetLaneArrows(cmd.LaneId, out var previousArrows);
                     if (TmpeAdapter.ApplyLaneArrows(cmd.LaneId, cmd.Arrows))
                     {
-                        var resultingArrows = cmd.Arrows;
-                        if (TmpeAdapter.TryGetLaneArrows(cmd.LaneId, out var appliedArrows))
-                            resultingArrows = appliedArrows;
-                        DebugChangeMonitor.RecordLaneArrowChange(cmd.LaneId, hadPrevious ? previousArrows : (LaneArrowFlags?)null, resultingArrows);
                         Log.Info(LogCategory.Synchronization, "Applied lane arrows | laneId={0} arrows={1} action=broadcast", cmd.LaneId, cmd.Arrows);
                         CsmCompat.SendToAll(new LaneArrowApplied { LaneId = cmd.LaneId, Arrows = cmd.Arrows });
                     }
