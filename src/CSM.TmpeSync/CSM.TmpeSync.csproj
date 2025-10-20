@@ -108,8 +108,6 @@
     <Compile Include="Util\CsmCompat.cs" />
     <Compile Include="Util\LockRegistry.cs" />
     <Compile Include="Util\MultiplayerStateObserver.cs" />
-    <Compile Include="Util\DebugChangeMonitor.cs" />
-    <Compile Include="Util\DebugGuiManager.cs" />
 
     <Compile Include="HideCrosswalks\HideCrosswalksAdapter.cs" />
 

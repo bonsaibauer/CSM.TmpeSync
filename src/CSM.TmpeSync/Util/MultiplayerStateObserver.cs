@@ -11,8 +11,6 @@ namespace CSM.TmpeSync.Util
 
         private static readonly TimeSpan RoleHoldDuration = TimeSpan.FromSeconds(2);
 
-        internal static event Action<string> RoleChanged;
-
         private static string _lastKnownRole = RoleNone;
         private static bool _loggedRoleReadError;
         private static DateTime _lastRoleConfirmationUtc = DateTime.MinValue;
@@ -50,13 +48,9 @@ namespace CSM.TmpeSync.Util
                 if (!string.Equals(observedRole, _lastKnownRole, StringComparison.OrdinalIgnoreCase))
                 {
                     Log.Info("CSM multiplayer role changed: {0} -> {1} (raw='{2}')", _lastKnownRole, observedRole, rawDescription ?? "<null>");
-                    _lastKnownRole = observedRole;
-                    NotifyRoleChanged(_lastKnownRole);
                 }
-                else
-                {
-                    _lastKnownRole = observedRole;
-                }
+
+                _lastKnownRole = observedRole;
                 _lastRoleConfirmationUtc = nowUtc;
                 _loggedRoleReadError = false;
                 _loggedTransientSuppression = false;
@@ -85,7 +79,6 @@ namespace CSM.TmpeSync.Util
             {
                 Log.Info("CSM multiplayer role changed: {0} -> {1} (raw='{2}')", _lastKnownRole, RoleNone, rawDescription ?? "<null>");
                 _lastKnownRole = RoleNone;
-                NotifyRoleChanged(_lastKnownRole);
             }
 
             if (!readFailed)
@@ -108,23 +101,6 @@ namespace CSM.TmpeSync.Util
             _lastRoleConfirmationUtc = DateTime.MinValue;
             _loggedTransientSuppression = false;
             CsmCompat.ResetStubSimulationState();
-            NotifyRoleChanged(_lastKnownRole);
-        }
-
-        private static void NotifyRoleChanged(string role)
-        {
-            var handler = RoleChanged;
-            if (handler == null)
-                return;
-
-            try
-            {
-                handler(role);
-            }
-            catch
-            {
-                // Swallow listener exceptions to avoid disrupting role tracking.
-            }
         }
 
         private static string GetCurrentRole(out string rawDescription)
