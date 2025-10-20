@@ -1,19 +1,24 @@
 using System;
-using System.ComponentModel;
-using System.Diagnostics;
-using System.Globalization;
-using System.IO;
-using System.Text;
+using System.Collections.Generic;
+using ColossalFramework.UI;
+using UnityEngine;
 
 namespace CSM.TmpeSync.Util
 {
     internal static class DebugGuiManager
     {
         private static readonly object Sync = new object();
+        private static readonly object PendingSync = new object();
+
         private static bool _initialised;
-        private static bool _subscribed;
-        private static Process _viewerProcess;
-        private static string _viewerScriptPath;
+        private static bool _roleSubscribed;
+        private static bool _logSubscribed;
+        private static bool _viewerRequested;
+        private static bool _uiUnavailableLogged;
+
+        private static DebugLogWindow _window;
+
+        private static readonly Queue<Log.LogEntry> PendingEntries = new Queue<Log.LogEntry>();
 
         internal static void EnsureInitialized()
         {
@@ -23,7 +28,7 @@ namespace CSM.TmpeSync.Util
                     return;
 
                 MultiplayerStateObserver.RoleChanged += OnRoleChanged;
-                _subscribed = true;
+                _roleSubscribed = true;
                 _initialised = true;
 
                 if (Log.IsDebugEnabled && CsmCompat.IsServerInstance())
@@ -35,15 +40,46 @@ namespace CSM.TmpeSync.Util
         {
             lock (Sync)
             {
-                if (_subscribed)
+                if (_roleSubscribed)
                 {
                     MultiplayerStateObserver.RoleChanged -= OnRoleChanged;
-                    _subscribed = false;
+                    _roleSubscribed = false;
                 }
 
-                StopViewer();
+                _viewerRequested = false;
+                StopViewerLocked();
                 _initialised = false;
             }
+        }
+
+        internal static void Tick()
+        {
+            DebugLogWindow window;
+
+            lock (Sync)
+            {
+                if (_viewerRequested && _window == null)
+                    TryEnsureWindowLocked();
+
+                window = _window;
+            }
+
+            if (window == null)
+                return;
+
+            List<Log.LogEntry> batch = null;
+            lock (PendingSync)
+            {
+                if (PendingEntries.Count > 0)
+                {
+                    batch = new List<Log.LogEntry>(PendingEntries.Count);
+                    while (PendingEntries.Count > 0)
+                        batch.Add(PendingEntries.Dequeue());
+                }
+            }
+
+            if (batch != null && batch.Count > 0)
+                window.AppendEntries(batch);
         }
 
         private static void OnRoleChanged(string role)
@@ -70,204 +106,119 @@ namespace CSM.TmpeSync.Util
             {
                 if (!Log.IsDebugEnabled)
                 {
-                    StopViewer();
+                    StopViewerLocked();
                     return;
                 }
 
-                if (_viewerProcess != null && !_viewerProcess.HasExited)
-                    return;
-
-                var scriptPath = EnsureViewerScript();
-                if (string.IsNullOrEmpty(scriptPath))
-                {
-                    Log.Warn(LogCategory.Diagnostics, "Debug log viewer unavailable | reason=script_initialisation_failed");
-                    return;
-                }
-
-                var logPath = Log.GetCurrentLogFilePath();
-                if (string.IsNullOrEmpty(logPath))
-                {
-                    Log.Warn(LogCategory.Diagnostics, "Debug log viewer unavailable | reason=log_file_missing path={0}", logPath ?? "<null>");
-                    return;
-                }
-
-                foreach (var candidate in new[] { "pythonw", "python", "python3" })
-                {
-                    try
-                    {
-                        var startInfo = new ProcessStartInfo
-                        {
-                            FileName = candidate,
-                            Arguments = string.Format(CultureInfo.InvariantCulture, "{0} {1}", Quote(scriptPath), Quote(logPath)),
-                            UseShellExecute = false,
-                            CreateNoWindow = true
-                        };
-
-                        _viewerProcess = Process.Start(startInfo);
-                        if (_viewerProcess != null && !_viewerProcess.HasExited)
-                        {
-                            Log.Info(LogCategory.Diagnostics, "Debug log viewer started | python={0} logPath={1}", candidate, logPath);
-                            return;
-                        }
-                    }
-                    catch (Win32Exception)
-                    {
-                        // try next candidate
-                    }
-                    catch (FileNotFoundException)
-                    {
-                        // try next candidate
-                    }
-                    catch (Exception ex)
-                    {
-                        Log.Warn(LogCategory.Diagnostics, "Debug log viewer launch failed | python={0} error={1}", candidate, ex);
-                    }
-                }
-
-                Log.Warn(LogCategory.Diagnostics, "Debug log viewer could not be started | reason=python_executable_missing");
-                _viewerProcess = null;
+                _viewerRequested = true;
+                TryEnsureWindowLocked();
             }
         }
 
-        private static string EnsureViewerScript()
+        private static void TryEnsureWindowLocked()
         {
-            if (!string.IsNullOrEmpty(_viewerScriptPath) && File.Exists(_viewerScriptPath))
-                return _viewerScriptPath;
+            if (_window != null || !_viewerRequested)
+                return;
 
-            var directory = Log.GetDataDirectory();
-            if (string.IsNullOrEmpty(directory))
-                return null;
-
-            try
+            var view = UIView.GetAView();
+            if (view == null)
             {
-                Directory.CreateDirectory(directory);
-                var path = Path.Combine(directory, "tmpe_log_viewer.py");
-                File.WriteAllText(path, ViewerScript, Encoding.UTF8);
-                _viewerScriptPath = path;
-                return path;
+                if (!_uiUnavailableLogged)
+                {
+                    Log.Debug(LogCategory.Diagnostics, "Debug log window deferred | reason=uiview_unavailable");
+                    _uiUnavailableLogged = true;
+                }
+
+                return;
             }
-            catch (Exception ex)
+
+            _uiUnavailableLogged = false;
+            var component = view.AddUIComponent(typeof(DebugLogWindow));
+            _window = component as DebugLogWindow;
+            if (_window == null)
             {
-                Log.Warn(LogCategory.Diagnostics, "Failed to prepare debug log viewer script | error={0}", ex);
-                return null;
+                Log.Warn(LogCategory.Diagnostics, "Failed to create debug log window component | type={0}", component?.GetType().FullName ?? "<null>");
+                if (component != null)
+                {
+                    try
+                    {
+                        UnityEngine.Object.Destroy(component);
+                    }
+                    catch
+                    {
+                    }
+                }
+
+                return;
+            }
+
+            _window.Closed += OnWindowClosed;
+
+            var recent = Log.GetRecentEntries();
+            if (recent != null && recent.Length > 0)
+                _window.SetEntries(recent);
+
+            if (!_logSubscribed)
+            {
+                Log.EntryAdded += OnEntryAdded;
+                _logSubscribed = true;
             }
         }
 
         private static void StopViewer()
         {
-            if (_viewerProcess == null)
-                return;
+            lock (Sync)
+            {
+                _viewerRequested = false;
+                StopViewerLocked();
+            }
+        }
 
-            try
+        private static void StopViewerLocked()
+        {
+            if (_logSubscribed)
             {
-                if (!_viewerProcess.HasExited)
-                {
-                    if (_viewerProcess.CloseMainWindow())
-                    {
-                        if (!_viewerProcess.WaitForExit(2000))
-                            _viewerProcess.Kill();
-                    }
-                    else
-                    {
-                        _viewerProcess.Kill();
-                    }
-                }
+                Log.EntryAdded -= OnEntryAdded;
+                _logSubscribed = false;
             }
-            catch (Exception ex)
+
+            if (_window != null)
             {
-                Log.Debug(LogCategory.Diagnostics, "Failed to stop debug log viewer | error={0}", ex);
-            }
-            finally
-            {
+                _window.Closed -= OnWindowClosed;
                 try
                 {
-                    _viewerProcess.Dispose();
+                    UnityEngine.Object.Destroy(_window.gameObject);
                 }
                 catch
                 {
-                    // ignore disposal errors
+                    // ignore destruction errors
                 }
 
-                _viewerProcess = null;
+                _window = null;
+            }
+
+            lock (PendingSync)
+            {
+                PendingEntries.Clear();
             }
         }
 
-        private static string Quote(string value)
+        private static void OnEntryAdded(Log.LogEntry entry)
         {
-            if (string.IsNullOrEmpty(value))
-                return "\"\"";
+            if (entry == null)
+                return;
 
-            return "\"" + value.Replace("\"", "\\\"") + "\"";
+            lock (PendingSync)
+            {
+                PendingEntries.Enqueue(entry);
+                while (PendingEntries.Count > 800)
+                    PendingEntries.Dequeue();
+            }
         }
 
-        private const string ViewerScript = @"import io
-import os
-import sys
-import tkinter as tk
-from tkinter import ttk
-
-REFRESH_MS = 500
-
-class LogViewer(tk.Tk):
-    def __init__(self, log_path):
-        super().__init__()
-        self.title('CSM TM:PE Sync Log Viewer')
-        self.geometry('900x600')
-        self.log_path = log_path
-
-        self.columnconfigure(0, weight=1)
-        self.rowconfigure(0, weight=1)
-
-        frame = ttk.Frame(self)
-        frame.grid(row=0, column=0, sticky='nsew')
-        frame.columnconfigure(0, weight=1)
-        frame.rowconfigure(0, weight=1)
-
-        self.text = tk.Text(frame, wrap='none')
-        self.text.configure(state='disabled')
-        vsb = ttk.Scrollbar(frame, orient='vertical', command=self.text.yview)
-        hsb = ttk.Scrollbar(frame, orient='horizontal', command=self.text.xview)
-        self.text.configure(yscrollcommand=vsb.set, xscrollcommand=hsb.set)
-        self.text.grid(row=0, column=0, sticky='nsew')
-        vsb.grid(row=0, column=1, sticky='ns')
-        hsb.grid(row=1, column=0, sticky='ew')
-
-        self.status = ttk.Label(frame, anchor='w')
-        self.status.grid(row=2, column=0, columnspan=2, sticky='ew')
-
-        self.after(0, self.refresh)
-
-    def refresh(self):
-        try:
-            with io.open(self.log_path, 'r', encoding='utf-8', errors='replace') as handle:
-                contents = handle.read()
-            status_text = os.path.abspath(self.log_path)
-        except OSError as exc:
-            contents = f'Unable to read log file: {exc}'
-            status_text = 'Waiting for log file...'
-
-        self.text.configure(state='normal')
-        self.text.delete('1.0', tk.END)
-        self.text.insert(tk.END, contents)
-        self.text.configure(state='disabled')
-        self.text.see(tk.END)
-        self.status.configure(text=status_text)
-        self.after(REFRESH_MS, self.refresh)
-
-
-def main():
-    if len(sys.argv) < 2:
-        print('Usage: python tmpe_log_viewer.py <log_file>')
-        return 1
-
-    path = sys.argv[1]
-    app = LogViewer(path)
-    app.mainloop()
-    return 0
-
-
-if __name__ == '__main__':
-    sys.exit(main())
-";
+        private static void OnWindowClosed()
+        {
+            StopViewer();
+        }
     }
 }

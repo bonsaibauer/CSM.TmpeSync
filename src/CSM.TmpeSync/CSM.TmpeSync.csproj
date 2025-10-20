@@ -110,6 +110,7 @@
     <Compile Include="Util\MultiplayerStateObserver.cs" />
     <Compile Include="Util\DebugChangeMonitor.cs" />
     <Compile Include="Util\DebugGuiManager.cs" />
+    <Compile Include="Util\DebugLogWindow.cs" />
 
     <Compile Include="HideCrosswalks\HideCrosswalksAdapter.cs" />
 

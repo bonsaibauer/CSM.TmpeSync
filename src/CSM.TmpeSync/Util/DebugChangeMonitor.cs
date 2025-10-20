@@ -166,7 +166,8 @@ namespace CSM.TmpeSync.Util
                     .Where(id => id != 0)
                     .Distinct()
                     .OrderBy(id => id)
-                    .Select(id => id.ToString(CultureInfo.InvariantCulture)));
+                    .Select(id => id.ToString(CultureInfo.InvariantCulture))
+                    .ToArray());
         }
 
         private static string FormatVehicleRestrictions(VehicleRestrictionFlags? value)

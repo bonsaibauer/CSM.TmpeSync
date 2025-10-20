@@ -37,7 +37,8 @@ namespace CSM.TmpeSync.Tmpe
         private static readonly Dictionary<UIComponent, string> ButtonAuditStates = new Dictionary<UIComponent, string>();
         private static readonly HashSet<UIComponent> EnforcedDisabledComponents = new HashSet<UIComponent>();
         private static object _cachedMenuInstance;
-        private static Type _cachedMenuType;
+        private static Type _modUiType;
+        private static bool _loggedMissingModUi;
 
         internal static void Tick(bool restrict)
         {
@@ -90,9 +91,9 @@ namespace CSM.TmpeSync.Tmpe
         {
             RestoreAll();
             _restrictionActive = false;
-            _cachedMenuInstance = null;
-            _cachedMenuType = null;
             _loggedMissingMenu = false;
+            _loggedMissingModUi = false;
+            _cachedMenuInstance = null;
             _lastMenuSummary = null;
             _lastRestrictionPolicy = null;
             _lastUnsupportedConfigLog = null;
@@ -119,13 +120,54 @@ namespace CSM.TmpeSync.Tmpe
 
         private static readonly SupportedToolDescriptor[] SupportedTools =
         {
-            new SupportedToolDescriptor("speedLimits", "Speed Limits", new[] { "speed" }),
-            new SupportedToolDescriptor("laneArrows", "Lane Arrows", new[] { "lane", "arrow" }, new[] { "lanearrow" }, new[] { "lane", "turn" }),
-            new SupportedToolDescriptor("laneConnector", "Lane Connector", new[] { "lane", "connector" }, new[] { "lane", "connection" }, new[] { "laneconnector" }),
-            new SupportedToolDescriptor("vehicleRestrictions", "Vehicle Restrictions", new[] { "vehicle", "restriction" }, new[] { "vehicle", "ban" }, new[] { "vehiclerestriction" }),
-            new SupportedToolDescriptor("junctionRestrictions", "Junction Restrictions", new[] { "junction", "restriction" }, new[] { "junction", "control" }, new[] { "junctionrestriction" }),
-            new SupportedToolDescriptor("prioritySigns", "Priority Signs", new[] { "priority", "sign" }, new[] { "prioritysign" }, new[] { "give", "way" }, new[] { "yield", "sign" }),
-            new SupportedToolDescriptor("parkingRestrictions", "Parking Restrictions", new[] { "parking", "restriction" }, new[] { "parking", "ban" }, new[] { "parkingrestriction" })
+            new SupportedToolDescriptor(
+                "speedLimits",
+                "Speed Limits",
+                new[] { "TrafficManager.UI.MainMenu.SpeedLimitsButton" },
+                new[] { "speed" }),
+            new SupportedToolDescriptor(
+                "laneArrows",
+                "Lane Arrows",
+                new[] { "TrafficManager.UI.MainMenu.LaneArrowsMenuButton", "TrafficManager.UI.MainMenu.LaneArrowsButton" },
+                new[] { "lane", "arrow" },
+                new[] { "lanearrow" },
+                new[] { "lane", "turn" }),
+            new SupportedToolDescriptor(
+                "laneConnector",
+                "Lane Connector",
+                new[] { "TrafficManager.UI.MainMenu.LaneConnectorButton" },
+                new[] { "lane", "connector" },
+                new[] { "lane", "connection" },
+                new[] { "laneconnector" }),
+            new SupportedToolDescriptor(
+                "vehicleRestrictions",
+                "Vehicle Restrictions",
+                new[] { "TrafficManager.UI.MainMenu.VehicleRestrictionsButton" },
+                new[] { "vehicle", "restriction" },
+                new[] { "vehicle", "ban" },
+                new[] { "vehiclerestriction" }),
+            new SupportedToolDescriptor(
+                "junctionRestrictions",
+                "Junction Restrictions",
+                new[] { "TrafficManager.UI.MainMenu.JunctionRestrictionsButton" },
+                new[] { "junction", "restriction" },
+                new[] { "junction", "control" },
+                new[] { "junctionrestriction" }),
+            new SupportedToolDescriptor(
+                "prioritySigns",
+                "Priority Signs",
+                new[] { "TrafficManager.UI.MainMenu.PrioritySignsButton" },
+                new[] { "priority", "sign" },
+                new[] { "prioritysign" },
+                new[] { "give", "way" },
+                new[] { "yield", "sign" }),
+            new SupportedToolDescriptor(
+                "parkingRestrictions",
+                "Parking Restrictions",
+                new[] { "TrafficManager.UI.MainMenu.ParkingRestrictionsButton" },
+                new[] { "parking", "restriction" },
+                new[] { "parking", "ban" },
+                new[] { "parkingrestriction" })
         };
 
         private static string _lastMenuSummary;
@@ -306,6 +348,25 @@ namespace CSM.TmpeSync.Tmpe
 
         private static bool TryMatchSupportedTool(MenuButtonInfo entry, out SupportedToolDescriptor descriptor, out bool allowed, out RestrictionBlockReason reason)
         {
+            var sourceType = entry.Source?.GetType();
+            while (sourceType != null)
+            {
+                var typeName = sourceType.FullName ?? sourceType.Name;
+                foreach (var tool in SupportedTools)
+                {
+                    if (MatchesType(tool, typeName))
+                    {
+                        descriptor = tool;
+                        allowed = IsToolAllowed(tool, out reason);
+                        if (allowed)
+                            reason = RestrictionBlockReason.None;
+                        return true;
+                    }
+                }
+
+                sourceType = sourceType.BaseType;
+            }
+
             var keyText = entry.Key?.ToString();
             var component = entry.Component;
             var componentName = component?.name;
@@ -617,60 +678,71 @@ namespace CSM.TmpeSync.Tmpe
 
         private static object GetMainMenuInstance()
         {
+            if (_cachedMenuInstance is UnityEngine.Object cachedUnity && cachedUnity == null)
+                _cachedMenuInstance = null;
+
             if (_cachedMenuInstance != null)
+                return _cachedMenuInstance;
+
+            var modUi = GetModUiInstance();
+            if (modUi == null)
+                return null;
+
+            var type = modUi.GetType();
+            var menu = GetMemberValue(modUi, type, "MainMenu");
+            if (menu == null)
+                return null;
+
+            if (menu is UnityEngine.Object unityObject && unityObject == null)
+                return null;
+
+            _cachedMenuInstance = menu;
+            return menu;
+        }
+
+        private static object GetModUiInstance()
+        {
+            var type = _modUiType ?? (_modUiType = ResolveModUiType());
+            if (type == null)
+                return null;
+
+            try
             {
-                if (_cachedMenuInstance is UnityEngine.Object unityObject)
+                var instanceProp = type.GetProperty("Instance", BindingFlags.Public | BindingFlags.Static);
+                var instance = instanceProp?.GetValue(null, null);
+                if (instance is UnityEngine.Object unityObject && unityObject == null)
+                    return null;
+
+                if (instance == null)
                 {
-                    if (unityObject == null)
+                    if (!_loggedMissingModUi)
                     {
-                        _cachedMenuInstance = null;
-                    }
-                    else
-                    {
-                        return _cachedMenuInstance;
+                        Log.Debug(LogCategory.Menu, "TM:PE ModUI instance unavailable | action=retry");
+                        _loggedMissingModUi = true;
                     }
                 }
                 else
                 {
-                    return _cachedMenuInstance;
+                    _loggedMissingModUi = false;
                 }
-            }
 
-            var type = _cachedMenuType ?? (_cachedMenuType = ResolveMainMenuType());
-            if (type == null)
-                return null;
-
-            var instance = type.GetProperty("Instance", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static)?.GetValue(null, null);
-            if (instance != null)
-            {
-                _cachedMenuInstance = instance;
                 return instance;
-            }
-
-            try
-            {
-                var candidates = UnityEngine.Object.FindObjectsOfType(type);
-                if (candidates != null && candidates.Length > 0)
-                {
-                    _cachedMenuInstance = candidates[0];
-                    return _cachedMenuInstance;
-                }
             }
             catch (Exception ex)
             {
-                Log.Debug(LogCategory.Menu, "Failed to locate TM:PE main menu via Unity lookup | error={0}", ex);
+                if (!_loggedMissingModUi)
+                    Log.Debug(LogCategory.Menu, "Failed to obtain TM:PE ModUI instance | error={0}", ex);
+                _loggedMissingModUi = true;
+                return null;
             }
-
-            return null;
         }
 
-        private static Type ResolveMainMenuType()
+        private static Type ResolveModUiType()
         {
             var knownNames = new[]
             {
-                "TrafficManager.UI.MainMenu.MainMenuWindow, TrafficManager",
-                "TrafficManager.UI.MainMenu.MainMenuWindow, TrafficManager.U",
-                "TrafficManager.U.UI.MainMenu.MainMenuWindow, TrafficManager"
+                "TrafficManager.UI.ModUI, TrafficManager",
+                "TrafficManager.UI.ModUI, TrafficManager.U"
             };
 
             foreach (var name in knownNames)
@@ -684,18 +756,14 @@ namespace CSM.TmpeSync.Tmpe
             {
                 try
                 {
-                    var type = assembly.GetType("TrafficManager.UI.MainMenu.MainMenuWindow");
+                    var type = assembly.GetType("TrafficManager.UI.ModUI");
                     if (type != null)
                         return type;
                 }
                 catch
                 {
-                    // ignore assembly load issues
                 }
             }
-
-            if (!_loggedMissingMenu)
-                Log.Warn(LogCategory.Menu, "Unable to locate TM:PE main menu type | action=defer_restriction");
 
             return null;
         }
@@ -705,20 +773,31 @@ namespace CSM.TmpeSync.Tmpe
             if (menuInstance == null)
                 yield break;
 
-            var yielded = false;
+            foreach (var info in EnumeratePreferredButtons(menuInstance))
+                yield return info;
+
             foreach (var candidate in EnumerateButtonCollections(menuInstance))
             {
-                foreach (var button in ExtractButtons(candidate))
+                foreach (var info in ExtractButtons(candidate))
                 {
-                    if (button.Component != null)
-                    {
-                        yield return button;
-                        yielded = true;
-                    }
+                    if (info.Component != null)
+                        yield return info;
                 }
+            }
+        }
 
-                if (yielded)
+        private static IEnumerable<MenuButtonInfo> EnumeratePreferredButtons(object menuInstance)
+        {
+            var type = menuInstance.GetType();
+            foreach (var name in new[] { "ToolButtonsList", "ToolButtons" })
+            {
+                var value = GetMemberValue(menuInstance, type, name);
+                if (value is IEnumerable enumerable)
+                {
+                    foreach (var info in ExtractButtons(enumerable))
+                        yield return info;
                     yield break;
+                }
             }
         }
 
@@ -727,47 +806,35 @@ namespace CSM.TmpeSync.Tmpe
             var type = menuInstance.GetType();
             var processed = new HashSet<object>();
 
-            foreach (var name in new[] { "Buttons", "buttons", "MenuButtons", "menuButtons", "_buttons" })
+            foreach (var name in new[] { "Buttons", "MenuButtons", "_buttons" })
             {
-                var field = type.GetField(name, BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-                if (field != null)
-                {
-                    var value = field.GetValue(menuInstance);
-                    if (value != null && processed.Add(value))
-                        yield return value;
-                }
-
-                var property = type.GetProperty(name, BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-                if (property != null)
-                {
-                    var value = property.GetValue(menuInstance, null);
-                    if (value != null && processed.Add(value))
-                        yield return value;
-                }
-            }
-
-            foreach (var member in type.GetFields(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic))
-            {
-                if (member.Name.IndexOf("button", StringComparison.OrdinalIgnoreCase) < 0)
-                    continue;
-
-                var value = member.GetValue(menuInstance);
+                var value = GetMemberValue(menuInstance, type, name);
                 if (value != null && processed.Add(value))
                     yield return value;
             }
 
-            foreach (var member in type.GetProperties(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic))
+            foreach (var field in type.GetFields(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic))
             {
-                if (!member.CanRead)
+                if (field.Name.IndexOf("button", StringComparison.OrdinalIgnoreCase) < 0)
                     continue;
 
-                if (member.Name.IndexOf("button", StringComparison.OrdinalIgnoreCase) < 0)
+                var value = field.GetValue(menuInstance);
+                if (value != null && processed.Add(value))
+                    yield return value;
+            }
+
+            foreach (var property in type.GetProperties(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic))
+            {
+                if (!property.CanRead)
+                    continue;
+
+                if (property.Name.IndexOf("button", StringComparison.OrdinalIgnoreCase) < 0)
                     continue;
 
                 object value;
                 try
                 {
-                    value = member.GetValue(menuInstance, null);
+                    value = property.GetValue(menuInstance, null);
                 }
                 catch
                 {
@@ -777,6 +844,35 @@ namespace CSM.TmpeSync.Tmpe
                 if (value != null && processed.Add(value))
                     yield return value;
             }
+        }
+
+        private static object GetMemberValue(object instance, Type type, string name)
+        {
+            var field = type.GetField(name, BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+            if (field != null)
+            {
+                try
+                {
+                    return field.GetValue(instance);
+                }
+                catch
+                {
+                }
+            }
+
+            var property = type.GetProperty(name, BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+            if (property != null)
+            {
+                try
+                {
+                    return property.GetValue(instance, null);
+                }
+                catch
+                {
+                }
+            }
+
+            return null;
         }
 
         private static IEnumerable<MenuButtonInfo> ExtractButtons(object collection)
@@ -831,8 +927,27 @@ namespace CSM.TmpeSync.Tmpe
                 return false;
             }
 
-            info = new MenuButtonInfo(component, key);
+            info = new MenuButtonInfo(rawValue, component, key);
             return true;
+        }
+
+        private static bool MatchesType(SupportedToolDescriptor tool, string typeName)
+        {
+            if (string.IsNullOrEmpty(typeName))
+                return false;
+
+            if (tool.TypeNames == null || tool.TypeNames.Length == 0)
+                return false;
+
+            for (int i = 0; i < tool.TypeNames.Length; i++)
+            {
+                var candidate = tool.TypeNames[i];
+                if (!string.IsNullOrEmpty(candidate) &&
+                    string.Equals(candidate, typeName, StringComparison.Ordinal))
+                    return true;
+            }
+
+            return false;
         }
 
         private static UIComponent ExtractComponent(object value)
@@ -860,7 +975,6 @@ namespace CSM.TmpeSync.Tmpe
                 }
                 catch
                 {
-                    // ignore property access issues
                 }
             }
 
@@ -874,7 +988,6 @@ namespace CSM.TmpeSync.Tmpe
                 }
                 catch
                 {
-                    // ignore field access issues
                 }
             }
 
@@ -883,12 +996,14 @@ namespace CSM.TmpeSync.Tmpe
 
         private readonly struct MenuButtonInfo
         {
-            internal MenuButtonInfo(UIComponent component, object key)
+            internal MenuButtonInfo(object source, UIComponent component, object key)
             {
+                Source = source;
                 Component = component;
                 Key = key;
             }
 
+            internal object Source { get; }
             internal UIComponent Component { get; }
             internal object Key { get; }
         }
@@ -902,15 +1017,17 @@ namespace CSM.TmpeSync.Tmpe
 
         private readonly struct SupportedToolDescriptor
         {
-            internal SupportedToolDescriptor(string key, string displayName, params string[][] patterns)
+            internal SupportedToolDescriptor(string key, string displayName, string[] typeNames, params string[][] patterns)
             {
                 Key = key;
                 DisplayName = displayName;
+                TypeNames = typeNames ?? new string[0];
                 Patterns = patterns ?? new string[0][];
             }
 
             internal string Key { get; }
             internal string DisplayName { get; }
+            internal string[] TypeNames { get; }
             internal string[][] Patterns { get; }
         }
 
