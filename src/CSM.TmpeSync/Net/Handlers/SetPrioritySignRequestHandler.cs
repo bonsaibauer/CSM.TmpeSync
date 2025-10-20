@@ -51,8 +51,13 @@ namespace CSM.TmpeSync.Net.Handlers
                         return;
                     }
 
+                    var hadPrevious = TmpeAdapter.TryGetPrioritySign(cmd.NodeId, cmd.SegmentId, out var previousSign);
                     if (TmpeAdapter.ApplyPrioritySign(cmd.NodeId, cmd.SegmentId, cmd.SignType))
                     {
+                        var resultingSign = cmd.SignType;
+                        if (TmpeAdapter.TryGetPrioritySign(cmd.NodeId, cmd.SegmentId, out var appliedSign))
+                            resultingSign = appliedSign;
+                        DebugChangeMonitor.RecordPrioritySignChange(cmd.NodeId, cmd.SegmentId, hadPrevious ? previousSign : (PrioritySignType?)null, resultingSign);
                         Log.Info("Applied priority sign node={0} segment={1} -> {2}; broadcasting update.", cmd.NodeId, cmd.SegmentId, cmd.SignType);
                         CsmCompat.SendToAll(new PrioritySignApplied { NodeId = cmd.NodeId, SegmentId = cmd.SegmentId, SignType = cmd.SignType });
                     }

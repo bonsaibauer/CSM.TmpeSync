@@ -56,8 +56,17 @@ namespace CSM.TmpeSync.Net.Handlers
                         return;
                     }
 
+                    var hadPrevious = TmpeAdapter.TryGetLaneConnections(cmd.SourceLaneId, out var previousTargets);
+                    if (hadPrevious && previousTargets != null)
+                        previousTargets = previousTargets.ToArray();
                     if (TmpeAdapter.ApplyLaneConnections(cmd.SourceLaneId, targets))
                     {
+                        uint[] updatedTargets = null;
+                        if (TmpeAdapter.TryGetLaneConnections(cmd.SourceLaneId, out var appliedTargets))
+                            updatedTargets = appliedTargets?.ToArray();
+                        if (updatedTargets == null)
+                            updatedTargets = targets?.ToArray() ?? new uint[0];
+                        DebugChangeMonitor.RecordLaneConnectionChange(cmd.SourceLaneId, hadPrevious ? previousTargets : null, updatedTargets);
                         Log.Info("Applied lane connections lane={0} -> [{1}]; broadcasting update.", cmd.SourceLaneId, FormatLaneIds(targets));
                         CsmCompat.SendToAll(new LaneConnectionsApplied { SourceLaneId = cmd.SourceLaneId, TargetLaneIds = targets });
                     }
