@@ -5,14 +5,14 @@ CSM TM:PE Sync writes all diagnostics to a single rotating log file to keep the 
 ## Location
 
 ```
-%APPDATA%\CSM.TmpeSync\csm.tmpe-sync.log
+%LOCALAPPDATA%\Colossal Order\Cities_Skylines\CSM.TmpeSync\csm.tmpe-sync.log
 ```
 
 The file rolls over at 2 MB. Archived logs live next to the active file and use the pattern `csm.tmpe-sync-YYYYMMDD-HHMMSS[[-GUID]].log`.
 
 ## Levels
 
-- `DEBUG` – Verbose bridge tracing and network chatter. Enable by setting the environment variable `CSM_TMPE_SYNC_DEBUG=1` before the game starts.
+- `DEBUG` – Verbose bridge tracing and network chatter. These entries are always emitted to aid troubleshooting.
 - `INFO` – Lifecycle events, dependency checks, and successful synchronisation operations.
 - `WARN` – Missing dependencies, TM:PE features that could not be resolved, or recoverable network issues.
 - `ERROR` – Exceptions thrown while applying or exporting state. These indicate the host rejected an operation.

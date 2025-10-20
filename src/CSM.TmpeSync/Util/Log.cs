@@ -40,10 +40,12 @@ namespace CSM.TmpeSync.Util
 
         static Log()
         {
-            var appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
-            LogDirectory = Path.Combine(appData, "CSM.TmpeSync");
+            var localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+            var colossalOrderDir = Path.Combine(localAppData, "Colossal Order");
+            var citiesDir = Path.Combine(colossalOrderDir, "Cities_Skylines");
+            LogDirectory = Path.Combine(citiesDir, "CSM.TmpeSync");
             LogFileFullPath = Path.Combine(LogDirectory, LogFileName);
-            DebugEnabled = ReadDebugFlag();
+            DebugEnabled = true;
         }
 
         internal static bool IsDebugEnabled => DebugEnabled;
@@ -152,17 +154,6 @@ namespace CSM.TmpeSync.Util
             {
                 // Rotation failures are non-fatal; next write will continue appending.
             }
-        }
-
-        private static bool ReadDebugFlag()
-        {
-            var value = Environment.GetEnvironmentVariable("CSM_TMPE_SYNC_DEBUG");
-            if (string.IsNullOrEmpty(value))
-                return false;
-
-            return value.Equals("1", StringComparison.OrdinalIgnoreCase) ||
-                   value.Equals("true", StringComparison.OrdinalIgnoreCase) ||
-                   value.Equals("yes", StringComparison.OrdinalIgnoreCase);
         }
     }
 }

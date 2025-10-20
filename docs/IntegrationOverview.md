@@ -12,7 +12,7 @@ Key characteristics:
 
 - **Host authoritative**: The server validates and applies every TM:PE change, then rebroadcasts the outcome so all clients converge.
 - **State capture**: Features such as Hide Crosswalks are mirrored using local caches, allowing the host to share the resulting layout during the session.
-- **File-based diagnostics**: Operational logs are written to `%APPDATA%\CSM.TmpeSync\csm.tmpe-sync.log` for later inspection.
+- **File-based diagnostics**: Operational logs are written to `%LOCALAPPDATA%\Colossal Order\Cities_Skylines\CSM.TmpeSync\csm.tmpe-sync.log` for later inspection.
 - **Full TM:PE access**: TM:PE tools remain available in multiplayer, matching the single-player user experience.
 
 When adding new synchronised features, follow the existing pattern:

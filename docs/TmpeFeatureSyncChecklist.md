@@ -5,7 +5,7 @@ Use this checklist when verifying TM:PE synchronisation in a CSM session.
 ## Pre-flight
 
 - [ ] CSM and TM:PE load without Harmony errors in the game log.
-- [ ] `CSM.TmpeSync` appears in the mod list and the log file `%APPDATA%\CSM.TmpeSync\csm.tmpe-sync.log` is created.
+- [ ] `CSM.TmpeSync` appears in the mod list and the log file `%LOCALAPPDATA%\Colossal Order\Cities_Skylines\CSM.TmpeSync\csm.tmpe-sync.log` is created.
 - [ ] All participating clients run the same TM:PE version as the host.
 
 ## Core features
@@ -29,4 +29,4 @@ Use this checklist when verifying TM:PE synchronisation in a CSM session.
 ## Post-session
 
 - [ ] Review the log file for `WARN` or `ERROR` entries that hint at missing API hooks.
-- [ ] Archive logs when reporting issues; the rotating files capture detailed bridge diagnostics when `CSM_TMPE_SYNC_DEBUG=1`.
+- [ ] Archive logs when reporting issues; the rotating files include full debug traces for support.

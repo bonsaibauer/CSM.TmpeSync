@@ -93,10 +93,10 @@ The installer clears any existing copy of the mod and copies the DLL (and option
 Operational logs are written to:
 
 ```
-%APPDATA%\CSM.TmpeSync\csm.tmpe-sync.log
+%LOCALAPPDATA%\Colossal Order\Cities_Skylines\CSM.TmpeSync\csm.tmpe-sync.log
 ```
 
-Set the environment variable `CSM_TMPE_SYNC_DEBUG=1` before launching the game when you need verbose diagnostics.
+Debug-level entries are always written, so you get full bridge traces without additional setup.
 
 ## Learn more
 

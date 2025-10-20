@@ -57,13 +57,15 @@ namespace CSM.TmpeSync.Tmpe
             Log.Warn(LogCategory.Bridge, "TM:PE {0} bridge incomplete | part={1} detail={2}", feature, missingPart, string.IsNullOrEmpty(detail) ? "<unspecified>" : detail);
         }
 
-        private static object TryGetStaticInstance(Type type, string featureName)
+        private static object TryGetStaticInstance(Type type, string featureName, string detailOverride = null)
         {
             if (type == null)
             {
                 LogBridgeGap(featureName, "type", "<null>");
                 return null;
             }
+
+            var detail = detailOverride ?? type.FullName + ".Instance";
 
             try
             {
@@ -83,11 +85,11 @@ namespace CSM.TmpeSync.Tmpe
                         return value;
                 }
 
-                LogBridgeGap(featureName, "Instance", type.FullName + ".Instance");
+                LogBridgeGap(featureName, "Instance", detail);
             }
             catch (Exception ex)
             {
-                LogBridgeGap(featureName, "Instance", type.FullName + ".Instance error=" + ex.GetType().Name);
+                LogBridgeGap(featureName, "Instance", detail + " error=" + ex.GetType().Name);
             }
 
             return null;
@@ -950,10 +952,7 @@ namespace CSM.TmpeSync.Tmpe
                 if (managerType == null)
                     LogBridgeGap("Priority Signs", "type", "TrafficManager.Manager.Impl.TrafficPriorityManager");
 
-                var instanceProperty = managerType?.GetProperty("Instance", BindingFlags.Public | BindingFlags.Static);
-                TrafficPriorityManagerInstance = instanceProperty?.GetValue(null, null);
-                if (TrafficPriorityManagerInstance == null && managerType != null)
-                    LogBridgeGap("Priority Signs", "Instance", managerType.FullName + ".Instance");
+                TrafficPriorityManagerInstance = TryGetStaticInstance(managerType, "Priority Signs", managerType?.FullName + ".Instance");
 
                 PriorityTypeEnumType = ResolveType("TrafficManager.API.Traffic.Enums.PriorityType", tmpeAssembly);
 
@@ -1039,10 +1038,7 @@ namespace CSM.TmpeSync.Tmpe
                 if (simulationManagerType == null)
                     LogBridgeGap("Timed Traffic Lights", "type", "TrafficManager.Manager.Impl.TrafficLightSimulationManager");
 
-                var simulationInstanceProperty = simulationManagerType?.GetProperty("Instance", BindingFlags.Public | BindingFlags.Static);
-                TrafficLightSimulationManagerInstance = simulationInstanceProperty?.GetValue(null, null);
-                if (TrafficLightSimulationManagerInstance == null && simulationManagerType != null)
-                    LogBridgeGap("Timed Traffic Lights", "Instance", simulationManagerType.FullName + ".Instance");
+                TrafficLightSimulationManagerInstance = TryGetStaticInstance(simulationManagerType, "Timed Traffic Lights", simulationManagerType?.FullName + ".Instance");
 
                 TrafficLightSimulationsProperty = simulationManagerType?.GetProperty("TrafficLightSimulations", BindingFlags.Public | BindingFlags.Instance);
                 TimedLightSetupMethod = simulationManagerType?.GetMethod(
@@ -1067,10 +1063,7 @@ namespace CSM.TmpeSync.Tmpe
                 if (trafficLightManagerType == null)
                     LogBridgeGap("Timed Traffic Lights", "type", "TrafficManager.Manager.Impl.TrafficLightManager");
 
-                var trafficLightManagerInstanceProperty = trafficLightManagerType?.GetProperty("Instance", BindingFlags.Public | BindingFlags.Static);
-                TrafficLightManagerInstance = trafficLightManagerInstanceProperty?.GetValue(null, null);
-                if (TrafficLightManagerInstance == null && trafficLightManagerType != null)
-                    LogBridgeGap("Timed Traffic Lights", "TrafficLightManager.Instance", trafficLightManagerType.FullName + ".Instance");
+                TrafficLightManagerInstance = TryGetStaticInstance(trafficLightManagerType, "Timed Traffic Lights", trafficLightManagerType?.FullName + ".Instance");
                 GetHasTrafficLightMethod = trafficLightManagerType?.GetMethod(
                     "GetHasTrafficLight",
                     BindingFlags.Public | BindingFlags.Instance,

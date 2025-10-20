@@ -8,9 +8,9 @@ namespace CSM.TmpeSync.Mod
 {
     public class MyUserMod : IUserMod
     {
-        public string Name => "CSM TM:PE Sync (Host-Authoritative)";
+        public string Name => "CSM TM:PE Sync";
 
-        public string Description => "Synchronizes TM:PE settings and Hide Crosswalks. Requires CSM and Harmony.";
+        public string Description => "Synchronizes TM:PE by bonsaibauer";
 
         private static TmpeSyncConnection _connection;
         private static bool _connectionRegistered;
