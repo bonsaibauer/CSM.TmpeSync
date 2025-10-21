@@ -12,15 +12,18 @@ namespace CSM.TmpeSync.Tmpe
 {
     internal static class TmpeAdapter
     {
-        private static readonly bool HasRealTmpe;
-        private static readonly bool SupportsSpeedLimits;
-        private static readonly bool SupportsLaneArrows;
-        private static readonly bool SupportsVehicleRestrictions;
-        private static readonly bool SupportsLaneConnections;
-        private static readonly bool SupportsJunctionRestrictions;
-        private static readonly bool SupportsPrioritySigns;
-        private static readonly bool SupportsParkingRestrictions;
-        private static readonly bool SupportsTimedTrafficLights;
+        private static bool HasRealTmpe;
+        private static bool SupportsSpeedLimits;
+        private static bool SupportsLaneArrows;
+        private static bool SupportsVehicleRestrictions;
+        private static bool SupportsLaneConnections;
+        private static bool SupportsJunctionRestrictions;
+        private static bool SupportsPrioritySigns;
+        private static bool SupportsParkingRestrictions;
+        private static bool SupportsTimedTrafficLights;
+        private static readonly object InitLock = new object();
+        private static bool _initializationAttempted;
+        private static bool _loggedMissingAssembly;
         private static readonly object FeatureDiagnosticsLock = new object();
         private static readonly Dictionary<string, string> FeatureUnsupportedReasons = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         private static readonly Dictionary<string, HashSet<string>> FeatureGapDetails = new Dictionary<string, HashSet<string>>(StringComparer.OrdinalIgnoreCase);
@@ -46,6 +49,27 @@ namespace CSM.TmpeSync.Tmpe
         private static readonly object StateLock = new object();
         private static readonly Dictionary<string, Type> TypeCache = new Dictionary<string, Type>(StringComparer.Ordinal);
         private static readonly HashSet<string> BridgeGapWarnings = new HashSet<string>(StringComparer.Ordinal);
+
+        private static Assembly FindTrafficManagerAssembly()
+        {
+            return AppDomain.CurrentDomain
+                .GetAssemblies()
+                .FirstOrDefault(a => string.Equals(a.GetName().Name, "TrafficManager", StringComparison.OrdinalIgnoreCase));
+        }
+
+        private static void OnAssemblyLoaded(object sender, AssemblyLoadEventArgs args)
+        {
+            try
+            {
+                var name = args?.LoadedAssembly?.GetName()?.Name;
+                if (string.Equals(name, "TrafficManager", StringComparison.OrdinalIgnoreCase))
+                    RefreshBridge(false);
+            }
+            catch (Exception ex)
+            {
+                Log.Debug(LogCategory.Diagnostics, "TM:PE assembly load hook failed | error={0}", ex);
+            }
+        }
 
         private static void LogBridgeGap(string feature, string missingPart, string detail)
         {
@@ -287,7 +311,7 @@ namespace CSM.TmpeSync.Tmpe
                     .Select(kvp => kvp.Key + ": " + kvp.Value)
                     .ToArray();
 
-                return string.Join(" | ", ordered);
+                return string.Join(" | ", ordered.ToArray());
             }
         }
 
@@ -432,6 +456,403 @@ namespace CSM.TmpeSync.Tmpe
         private static readonly Dictionary<ushort, TimedTrafficLightState> TimedTrafficLights = new Dictionary<ushort, TimedTrafficLightState>();
         private static readonly HashSet<ushort> ManualTrafficLights = new HashSet<ushort>();
 
+        private static void RefreshBridge(bool force)
+        {
+            lock (InitLock)
+            {
+                var tmpeAssembly = FindTrafficManagerAssembly();
+
+                if (!force && _initializationAttempted)
+                {
+                    if (tmpeAssembly == null || HasRealTmpe)
+                        return;
+                }
+
+                var previousHasRealTmpe = HasRealTmpe;
+                var prevSupportsSpeed = SupportsSpeedLimits;
+                var prevSupportsLaneArrows = SupportsLaneArrows;
+                var prevSupportsLaneConnections = SupportsLaneConnections;
+                var prevSupportsVehicleRestrictions = SupportsVehicleRestrictions;
+                var prevSupportsJunctionRestrictions = SupportsJunctionRestrictions;
+                var prevSupportsPrioritySigns = SupportsPrioritySigns;
+                var prevSupportsParkingRestrictions = SupportsParkingRestrictions;
+                var prevSupportsTimedTrafficLights = SupportsTimedTrafficLights;
+
+                SupportsSpeedLimits = false;
+                SupportsLaneArrows = false;
+                SupportsLaneConnections = false;
+                SupportsVehicleRestrictions = false;
+                SupportsJunctionRestrictions = false;
+                SupportsPrioritySigns = false;
+                SupportsParkingRestrictions = false;
+                SupportsTimedTrafficLights = false;
+                HasRealTmpe = false;
+
+                if (tmpeAssembly == null)
+                {
+                    if (!_loggedMissingAssembly)
+                    {
+                        Log.Warn(LogCategory.Bridge, "TM:PE API not detected | action=fallback_to_stub_storage");
+                        _loggedMissingAssembly = true;
+                    }
+
+                    _initializationAttempted = true;
+                    return;
+                }
+
+                try
+                {
+                    EnsureTmpeApiAssemblyLoaded(tmpeAssembly);
+                    SupportsSpeedLimits = InitialiseSpeedLimitBridge(tmpeAssembly);
+                    SupportsLaneArrows = InitialiseLaneArrowBridge(tmpeAssembly);
+                    SupportsVehicleRestrictions = InitialiseVehicleRestrictionsBridge(tmpeAssembly);
+                    SupportsLaneConnections = InitialiseLaneConnectionBridge(tmpeAssembly);
+                    SupportsJunctionRestrictions = InitialiseJunctionRestrictionsBridge(tmpeAssembly);
+                    SupportsPrioritySigns = InitialisePrioritySignBridge(tmpeAssembly);
+                    SupportsParkingRestrictions = InitialiseParkingRestrictionBridge(tmpeAssembly);
+                    SupportsTimedTrafficLights = InitialiseTimedTrafficLightBridge(tmpeAssembly);
+
+                    HasRealTmpe = SupportsSpeedLimits || SupportsLaneArrows || SupportsVehicleRestrictions || SupportsLaneConnections ||
+                                  SupportsJunctionRestrictions || SupportsPrioritySigns || SupportsParkingRestrictions || SupportsTimedTrafficLights;
+
+                    _initializationAttempted = true;
+
+                    if (HasRealTmpe)
+                    {
+                        if (!previousHasRealTmpe)
+                        {
+                    var supported = new List<string>();
+                    var missing = new List<string>();
+
+                    AppendFeatureStatus(SupportsSpeedLimits, supported, missing, "Speed Limits");
+                    AppendFeatureStatus(SupportsLaneArrows, supported, missing, "Lane Arrows");
+                    AppendFeatureStatus(SupportsLaneConnections, supported, missing, "Lane Connector");
+                    AppendFeatureStatus(SupportsVehicleRestrictions, supported, missing, "Vehicle Restrictions");
+                    AppendFeatureStatus(SupportsJunctionRestrictions, supported, missing, "Junction Restrictions");
+                    AppendFeatureStatus(SupportsPrioritySigns, supported, missing, "Priority Signs");
+                    AppendFeatureStatus(SupportsParkingRestrictions, supported, missing, "Parking Restrictions");
+                    AppendFeatureStatus(SupportsTimedTrafficLights, supported, missing, "Timed Traffic Lights");
+
+                    Log.Info(LogCategory.Bridge, "TM:PE API detected | features={0}", string.Join(", ", supported.ToArray()));
+
+                    if (missing.Count > 0)
+                        Log.Warn(LogCategory.Bridge, "TM:PE API bridge missing | features={0} action=fallback_to_stub details={1}", string.Join(", ", missing.ToArray()), DescribeMissingFeatures());
+                        }
+
+                        _loggedMissingAssembly = false;
+                    }
+                    else if (!_loggedMissingAssembly)
+                    {
+                        Log.Warn(LogCategory.Bridge, "TM:PE API detected but unusable | action=fallback_to_stub_storage details={0}", DescribeMissingFeatures());
+                        _loggedMissingAssembly = true;
+                    }
+
+                    var gainedSpeedLimits = !prevSupportsSpeed && SupportsSpeedLimits;
+                    var gainedLaneArrows = !prevSupportsLaneArrows && SupportsLaneArrows;
+                    var gainedLaneConnections = !prevSupportsLaneConnections && SupportsLaneConnections;
+                    var gainedVehicleRestrictions = !prevSupportsVehicleRestrictions && SupportsVehicleRestrictions;
+                    var gainedJunctionRestrictions = !prevSupportsJunctionRestrictions && SupportsJunctionRestrictions;
+                    var gainedPrioritySigns = !prevSupportsPrioritySigns && SupportsPrioritySigns;
+                    var gainedParkingRestrictions = !prevSupportsParkingRestrictions && SupportsParkingRestrictions;
+                    var gainedTimedTrafficLights = !prevSupportsTimedTrafficLights && SupportsTimedTrafficLights;
+
+                    ReplayCachedState(
+                        gainedSpeedLimits,
+                        gainedLaneArrows,
+                        gainedLaneConnections,
+                        gainedVehicleRestrictions,
+                        gainedJunctionRestrictions,
+                        gainedPrioritySigns,
+                        gainedParkingRestrictions,
+                        gainedTimedTrafficLights);
+                }
+                catch (Exception ex)
+                {
+                    Log.Warn(LogCategory.Bridge, "TM:PE detection failed | error={0}", ex);
+                }
+            }
+        }
+
+        private static void ReplayCachedState(
+            bool replaySpeedLimits,
+            bool replayLaneArrows,
+            bool replayLaneConnections,
+            bool replayVehicleRestrictions,
+            bool replayJunctionRestrictions,
+            bool replayPrioritySigns,
+            bool replayParkingRestrictions,
+            bool replayTimedTrafficLights)
+        {
+            if (!replaySpeedLimits && !replayLaneArrows && !replayLaneConnections && !replayVehicleRestrictions &&
+                !replayJunctionRestrictions && !replayPrioritySigns && !replayParkingRestrictions && !replayTimedTrafficLights)
+                return;
+
+            Dictionary<uint, float> speedSnapshot = null;
+            Dictionary<uint, LaneArrowFlags> laneArrowSnapshot = null;
+            Dictionary<uint, uint[]> laneConnectionSnapshot = null;
+            Dictionary<uint, VehicleRestrictionFlags> vehicleRestrictionSnapshot = null;
+            Dictionary<ushort, JunctionRestrictionsState> junctionSnapshot = null;
+            KeyValuePair<NodeSegmentKey, PrioritySignType>[] prioritySnapshot = null;
+            Dictionary<ushort, ParkingRestrictionState> parkingSnapshot = null;
+            Dictionary<ushort, TimedTrafficLightState> timedSnapshot = null;
+            HashSet<ushort> manualSnapshot = null;
+
+            lock (StateLock)
+            {
+                if (replaySpeedLimits && SpeedLimits.Count > 0)
+                    speedSnapshot = SpeedLimits.ToDictionary(kvp => kvp.Key, kvp => kvp.Value);
+                if (replayLaneArrows && LaneArrows.Count > 0)
+                    laneArrowSnapshot = LaneArrows.ToDictionary(kvp => kvp.Key, kvp => kvp.Value);
+                if (replayLaneConnections && LaneConnections.Count > 0)
+                    laneConnectionSnapshot = LaneConnections.ToDictionary(kvp => kvp.Key, kvp => kvp.Value?.ToArray() ?? new uint[0]);
+                if (replayVehicleRestrictions && VehicleRestrictions.Count > 0)
+                    vehicleRestrictionSnapshot = VehicleRestrictions.ToDictionary(kvp => kvp.Key, kvp => kvp.Value);
+                if (replayJunctionRestrictions && JunctionRestrictions.Count > 0)
+                    junctionSnapshot = JunctionRestrictions.ToDictionary(kvp => kvp.Key, kvp => kvp.Value?.Clone());
+                if (replayPrioritySigns && PrioritySigns.Count > 0)
+                    prioritySnapshot = PrioritySigns.ToArray();
+                if (replayParkingRestrictions && ParkingRestrictions.Count > 0)
+                    parkingSnapshot = ParkingRestrictions.ToDictionary(kvp => kvp.Key, kvp => kvp.Value?.Clone());
+                if (replayTimedTrafficLights && TimedTrafficLights.Count > 0)
+                    timedSnapshot = TimedTrafficLights.ToDictionary(kvp => kvp.Key, kvp => kvp.Value?.Clone());
+                if (replayTimedTrafficLights && ManualTrafficLights.Count > 0)
+                    manualSnapshot = new HashSet<ushort>(ManualTrafficLights);
+            }
+
+            if ((speedSnapshot == null || speedSnapshot.Count == 0) &&
+                (laneArrowSnapshot == null || laneArrowSnapshot.Count == 0) &&
+                (laneConnectionSnapshot == null || laneConnectionSnapshot.Count == 0) &&
+                (vehicleRestrictionSnapshot == null || vehicleRestrictionSnapshot.Count == 0) &&
+                (junctionSnapshot == null || junctionSnapshot.Count == 0) &&
+                (prioritySnapshot == null || prioritySnapshot.Length == 0) &&
+                (parkingSnapshot == null || parkingSnapshot.Count == 0) &&
+                (timedSnapshot == null || timedSnapshot.Count == 0) &&
+                (manualSnapshot == null || manualSnapshot.Count == 0))
+                return;
+
+            SimulationManager.instance.AddAction(() =>
+            {
+                if (speedSnapshot != null && speedSnapshot.Count > 0)
+                    Log.Info(LogCategory.Synchronization, "Replaying cached speed limits | count={0}", speedSnapshot.Count);
+
+                if (laneArrowSnapshot != null && laneArrowSnapshot.Count > 0)
+                    Log.Info(LogCategory.Synchronization, "Replaying cached lane arrows | count={0}", laneArrowSnapshot.Count);
+
+                if (laneConnectionSnapshot != null && laneConnectionSnapshot.Count > 0)
+                    Log.Info(LogCategory.Synchronization, "Replaying cached lane connections | count={0}", laneConnectionSnapshot.Count);
+
+                if (vehicleRestrictionSnapshot != null && vehicleRestrictionSnapshot.Count > 0)
+                    Log.Info(LogCategory.Synchronization, "Replaying cached vehicle restrictions | count={0}", vehicleRestrictionSnapshot.Count);
+
+                if (junctionSnapshot != null && junctionSnapshot.Count > 0)
+                    Log.Info(LogCategory.Synchronization, "Replaying cached junction restrictions | count={0}", junctionSnapshot.Count);
+
+                if (prioritySnapshot != null && prioritySnapshot.Length > 0)
+                    Log.Info(LogCategory.Synchronization, "Replaying cached priority signs | count={0}", prioritySnapshot.Length);
+
+                if (parkingSnapshot != null && parkingSnapshot.Count > 0)
+                    Log.Info(LogCategory.Synchronization, "Replaying cached parking restrictions | count={0}", parkingSnapshot.Count);
+
+                if (timedSnapshot != null && timedSnapshot.Count > 0)
+                    Log.Info(LogCategory.Synchronization, "Replaying cached traffic light state | timed={0} manual={1}", timedSnapshot.Count, manualSnapshot?.Count ?? 0);
+
+                if (speedSnapshot != null)
+                {
+                    foreach (var pair in speedSnapshot)
+                    {
+                        try
+                        {
+                            if (!NetUtil.LaneExists(pair.Key))
+                                continue;
+
+                            if (ApplySpeedLimit(pair.Key, pair.Value))
+                            {
+                                lock (StateLock)
+                                    SpeedLimits.Remove(pair.Key);
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            Log.Warn(LogCategory.Synchronization, "Failed to replay speed limit | laneId={0} error={1}", pair.Key, ex);
+                        }
+                    }
+                }
+
+                if (laneArrowSnapshot != null)
+                {
+                    foreach (var pair in laneArrowSnapshot)
+                    {
+                        try
+                        {
+                            if (!NetUtil.LaneExists(pair.Key))
+                                continue;
+
+                            if (ApplyLaneArrows(pair.Key, pair.Value))
+                            {
+                                lock (StateLock)
+                                    LaneArrows.Remove(pair.Key);
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            Log.Warn(LogCategory.Synchronization, "Failed to replay lane arrows | laneId={0} error={1}", pair.Key, ex);
+                        }
+                    }
+                }
+
+                if (laneConnectionSnapshot != null)
+                {
+                    foreach (var pair in laneConnectionSnapshot)
+                    {
+                        try
+                        {
+                            if (!NetUtil.LaneExists(pair.Key))
+                                continue;
+
+                            if (ApplyLaneConnections(pair.Key, pair.Value ?? new uint[0]))
+                            {
+                                lock (StateLock)
+                                    LaneConnections.Remove(pair.Key);
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            Log.Warn(LogCategory.Synchronization, "Failed to replay lane connections | laneId={0} error={1}", pair.Key, ex);
+                        }
+                    }
+                }
+
+                if (vehicleRestrictionSnapshot != null)
+                {
+                    foreach (var pair in vehicleRestrictionSnapshot)
+                    {
+                        try
+                        {
+                            if (!NetUtil.LaneExists(pair.Key))
+                                continue;
+
+                            if (ApplyVehicleRestrictions(pair.Key, pair.Value))
+                            {
+                                lock (StateLock)
+                                    VehicleRestrictions.Remove(pair.Key);
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            Log.Warn(LogCategory.Synchronization, "Failed to replay vehicle restrictions | laneId={0} error={1}", pair.Key, ex);
+                        }
+                    }
+                }
+
+                if (junctionSnapshot != null)
+                {
+                    foreach (var pair in junctionSnapshot)
+                    {
+                        try
+                        {
+                            if (!NetUtil.NodeExists(pair.Key))
+                                continue;
+
+                            if (ApplyJunctionRestrictions(pair.Key, pair.Value ?? new JunctionRestrictionsState()))
+                            {
+                                lock (StateLock)
+                                    JunctionRestrictions.Remove(pair.Key);
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            Log.Warn(LogCategory.Synchronization, "Failed to replay junction restrictions | nodeId={0} error={1}", pair.Key, ex);
+                        }
+                    }
+                }
+
+                if (prioritySnapshot != null)
+                {
+                    foreach (var pair in prioritySnapshot)
+                    {
+                        try
+                        {
+                            var key = pair.Key;
+                            if (!NetUtil.NodeExists(key.Node) || !NetUtil.SegmentExists(key.Segment))
+                                continue;
+
+                            if (ApplyPrioritySign(key.Node, key.Segment, pair.Value))
+                            {
+                                lock (StateLock)
+                                    PrioritySigns.Remove(key);
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            Log.Warn(LogCategory.Synchronization, "Failed to replay priority sign | nodeId={0} segmentId={1} error={2}", pair.Key.Node, pair.Key.Segment, ex);
+                        }
+                    }
+                }
+
+                if (parkingSnapshot != null)
+                {
+                    foreach (var pair in parkingSnapshot)
+                    {
+                        try
+                        {
+                            if (!NetUtil.SegmentExists(pair.Key))
+                                continue;
+
+                            if (ApplyParkingRestriction(pair.Key, pair.Value ?? new ParkingRestrictionState()))
+                            {
+                                lock (StateLock)
+                                    ParkingRestrictions.Remove(pair.Key);
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            Log.Warn(LogCategory.Synchronization, "Failed to replay parking restriction | segmentId={0} error={1}", pair.Key, ex);
+                        }
+                    }
+                }
+
+                if (timedSnapshot != null)
+                {
+                    foreach (var pair in timedSnapshot)
+                    {
+                        try
+                        {
+                            if (!NetUtil.NodeExists(pair.Key))
+                                continue;
+
+                            if (ApplyTimedTrafficLight(pair.Key, pair.Value ?? new TimedTrafficLightState()))
+                            {
+                                lock (StateLock)
+                                    TimedTrafficLights.Remove(pair.Key);
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            Log.Warn(LogCategory.Synchronization, "Failed to replay timed traffic light | nodeId={0} error={1}", pair.Key, ex);
+                        }
+                    }
+                }
+
+                if (manualSnapshot != null)
+                {
+                    foreach (var nodeId in manualSnapshot)
+                    {
+                        try
+                        {
+                            if (!NetUtil.NodeExists(nodeId))
+                                continue;
+
+                            ApplyManualTrafficLight(nodeId, true);
+                        }
+                        catch (Exception ex)
+                        {
+                            Log.Warn(LogCategory.Synchronization, "Failed to replay manual traffic light | nodeId={0} error={1}", nodeId, ex);
+                        }
+                    }
+                }
+            });
+        }
+
         private static object SpeedLimitManagerInstance;
         private static MethodInfo SpeedLimitSetLaneMethod;
         private static MethodInfo SpeedLimitCalculateMethod;
@@ -535,58 +956,8 @@ namespace CSM.TmpeSync.Tmpe
 
         static TmpeAdapter()
         {
-            try
-            {
-                var tmpeAssembly = AppDomain.CurrentDomain
-                    .GetAssemblies()
-                    .FirstOrDefault(a => string.Equals(a.GetName().Name, "TrafficManager", StringComparison.OrdinalIgnoreCase));
-
-                if (tmpeAssembly != null)
-                {
-                    EnsureTmpeApiAssemblyLoaded(tmpeAssembly);
-                    SupportsSpeedLimits = InitialiseSpeedLimitBridge(tmpeAssembly);
-                    SupportsLaneArrows = InitialiseLaneArrowBridge(tmpeAssembly);
-                    SupportsVehicleRestrictions = InitialiseVehicleRestrictionsBridge(tmpeAssembly);
-                    SupportsLaneConnections = InitialiseLaneConnectionBridge(tmpeAssembly);
-                    SupportsJunctionRestrictions = InitialiseJunctionRestrictionsBridge(tmpeAssembly);
-                    SupportsPrioritySigns = InitialisePrioritySignBridge(tmpeAssembly);
-                    SupportsParkingRestrictions = InitialiseParkingRestrictionBridge(tmpeAssembly);
-                    SupportsTimedTrafficLights = InitialiseTimedTrafficLightBridge(tmpeAssembly);
-                }
-
-                HasRealTmpe = SupportsSpeedLimits || SupportsLaneArrows || SupportsVehicleRestrictions || SupportsLaneConnections ||
-                              SupportsJunctionRestrictions || SupportsPrioritySigns || SupportsParkingRestrictions || SupportsTimedTrafficLights;
-
-                if (HasRealTmpe)
-                {
-                    var supported = new List<string>();
-                    var missing = new List<string>();
-
-                    AppendFeatureStatus(SupportsSpeedLimits, supported, missing, "Speed Limits");
-                    AppendFeatureStatus(SupportsLaneArrows, supported, missing, "Lane Arrows");
-                    AppendFeatureStatus(SupportsLaneConnections, supported, missing, "Lane Connector");
-                    AppendFeatureStatus(SupportsVehicleRestrictions, supported, missing, "Vehicle Restrictions");
-                    AppendFeatureStatus(SupportsJunctionRestrictions, supported, missing, "Junction Restrictions");
-                    AppendFeatureStatus(SupportsPrioritySigns, supported, missing, "Priority Signs");
-                    AppendFeatureStatus(SupportsParkingRestrictions, supported, missing, "Parking Restrictions");
-                    AppendFeatureStatus(SupportsTimedTrafficLights, supported, missing, "Timed Traffic Lights");
-
-                    Log.Info(LogCategory.Bridge, "TM:PE API detected | features={0}", string.Join(", ", supported.ToArray()));
-
-                    if (missing.Count > 0)
-                    {
-                        Log.Warn(LogCategory.Bridge, "TM:PE API bridge missing | features={0} action=fallback_to_stub details={1}", string.Join(", ", missing.ToArray()), DescribeMissingFeatures());
-                    }
-                }
-                else
-                {
-                    Log.Warn(LogCategory.Bridge, "TM:PE API not detected | action=fallback_to_stub_storage");
-                }
-            }
-            catch (Exception ex)
-            {
-                Log.Warn(LogCategory.Bridge, "TM:PE detection failed | error={0}", ex);
-            }
+            AppDomain.CurrentDomain.AssemblyLoad += OnAssemblyLoaded;
+            RefreshBridge(true);
         }
 
         private static bool InitialiseSpeedLimitBridge(Assembly tmpeAssembly)

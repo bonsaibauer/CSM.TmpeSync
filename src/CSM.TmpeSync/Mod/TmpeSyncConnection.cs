@@ -1,5 +1,6 @@
 using CSM.API;
 using CSM.TmpeSync.Tmpe;
+using CSM.TmpeSync.Util;
 
 namespace CSM.TmpeSync.Mod
 {
@@ -14,12 +15,18 @@ namespace CSM.TmpeSync.Mod
 
         public override void RegisterHandlers()
         {
-            TmpeEventBridge.Enable();
+            using (CsmCompat.StartIgnore())
+            {
+                TmpeEventBridge.Enable();
+            }
         }
 
         public override void UnregisterHandlers()
         {
-            TmpeEventBridge.Disable();
+            using (CsmCompat.StartIgnore())
+            {
+                TmpeEventBridge.Disable();
+            }
         }
     }
 }

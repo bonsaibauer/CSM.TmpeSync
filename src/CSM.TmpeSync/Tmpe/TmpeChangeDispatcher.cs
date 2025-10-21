@@ -86,6 +86,9 @@ namespace CSM.TmpeSync.Tmpe
 
         private static bool CanDispatch()
         {
+            if (!MultiplayerStateObserver.ShouldRestrictTools)
+                return false;
+
             try
             {
                 var helper = IgnoreHelper.Instance;
@@ -287,6 +290,12 @@ namespace CSM.TmpeSync.Tmpe
         {
             if (command == null)
                 return;
+
+            if (!MultiplayerStateObserver.ShouldRestrictTools)
+            {
+                Log.Debug(LogCategory.Network, "Skipping TM:PE broadcast | reason=inactive_role type={0}", command.GetType().Name);
+                return;
+            }
 
             try
             {
