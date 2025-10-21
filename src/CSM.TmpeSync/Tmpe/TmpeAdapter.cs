@@ -1229,6 +1229,36 @@ namespace CSM.TmpeSync.Tmpe
             }
         }
 
+        internal static bool TryGetDefaultSpeedKmh(uint laneId, NetInfo.Lane laneInfo, out float kmh)
+        {
+            kmh = 0f;
+
+            try
+            {
+                if (SupportsSpeedLimits && SpeedLimitManagerInstance != null && SpeedLimitGetDefaultMethod != null && laneInfo != null)
+                {
+                    var result = SpeedLimitGetDefaultMethod.Invoke(SpeedLimitManagerInstance, new object[] { (object)laneId, laneInfo });
+                    if (result is float gameUnits)
+                    {
+                        kmh = ConvertGameSpeedToKmh(gameUnits);
+                        return true;
+                    }
+                }
+
+                if (laneInfo != null)
+                {
+                    kmh = ConvertGameSpeedToKmh(laneInfo.m_speedLimit);
+                    return true;
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Warn(LogCategory.Diagnostics, "TM:PE TryGetDefaultSpeedKmh failed | error={0}", ex);
+            }
+
+            return false;
+        }
+
         internal static bool ApplyLaneArrows(uint laneId, LaneArrowFlags arrows)
         {
             try

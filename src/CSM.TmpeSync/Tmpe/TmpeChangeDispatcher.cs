@@ -1,0 +1,304 @@
+using System;
+using ColossalFramework;
+using CSM.API.Commands;
+using CSM.API.Helpers;
+using CSM.TmpeSync.Net.Contracts.Applied;
+using CSM.TmpeSync.Net.Contracts.States;
+using CSM.TmpeSync.Util;
+
+namespace CSM.TmpeSync.Tmpe
+{
+    /// <summary>
+    /// Converts TM:PE change notifications into CSM commands.
+    /// </summary>
+    internal static class TmpeChangeDispatcher
+    {
+        private const string SpeedLimitManagerType = "TrafficManager.Manager.Impl.SpeedLimitManager";
+        private const string VehicleRestrictionsManagerType = "TrafficManager.Manager.Impl.VehicleRestrictionsManager";
+        private const string ParkingRestrictionsManagerType = "TrafficManager.Manager.Impl.ParkingRestrictionsManager";
+        private const string JunctionRestrictionsManagerType = "TrafficManager.Manager.Impl.JunctionRestrictionsManager";
+        private const string TrafficPriorityManagerType = "TrafficManager.Manager.Impl.TrafficPriorityManager";
+        private const string TrafficLightManagerType = "TrafficManager.Manager.Impl.TrafficLightManager";
+
+        internal static void HandleSegmentModification(ushort segmentId, object sender)
+        {
+            if (!CanDispatch() || !NetUtil.SegmentExists(segmentId))
+                return;
+
+            var typeName = sender?.GetType().FullName ?? string.Empty;
+            if (string.IsNullOrEmpty(typeName))
+                return;
+
+            try
+            {
+                switch (typeName)
+                {
+                    case SpeedLimitManagerType:
+                        BroadcastSpeedLimits(segmentId);
+                        break;
+                    case VehicleRestrictionsManagerType:
+                        BroadcastVehicleRestrictions(segmentId);
+                        break;
+                    case ParkingRestrictionsManagerType:
+                        BroadcastParkingRestrictions(segmentId);
+                        break;
+                    default:
+                        break;
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Warn(LogCategory.Network, "Failed to serialize segment change | segmentId={0} sender={1} error={2}", segmentId, typeName, ex);
+            }
+        }
+
+        internal static void HandleNodeModification(ushort nodeId, object sender)
+        {
+            if (!CanDispatch() || !NetUtil.NodeExists(nodeId))
+                return;
+
+            var typeName = sender?.GetType().FullName ?? string.Empty;
+            if (string.IsNullOrEmpty(typeName))
+                return;
+
+            try
+            {
+                switch (typeName)
+                {
+                    case JunctionRestrictionsManagerType:
+                        BroadcastJunctionRestrictions(nodeId);
+                        break;
+                    case TrafficPriorityManagerType:
+                        BroadcastPrioritySigns(nodeId);
+                        break;
+                    case TrafficLightManagerType:
+                        BroadcastTrafficLights(nodeId);
+                        break;
+                    default:
+                        break;
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Warn(LogCategory.Network, "Failed to serialize node change | nodeId={0} sender={1} error={2}", nodeId, typeName, ex);
+            }
+        }
+
+        private static bool CanDispatch()
+        {
+            try
+            {
+                var helper = IgnoreHelper.Instance;
+                if (helper != null && helper.IsIgnored())
+                    return false;
+            }
+            catch
+            {
+                // ignore – fallback to allow dispatch
+            }
+
+            return true;
+        }
+
+        private static void BroadcastSpeedLimits(ushort segmentId)
+        {
+            ref var segment = ref NetManager.instance.m_segments.m_buffer[segmentId];
+            var info = segment.Info;
+            if (info?.m_lanes == null)
+                return;
+
+            uint laneId = segment.m_lanes;
+            for (int laneIndex = 0; laneId != 0 && laneIndex < info.m_lanes.Length; laneIndex++)
+            {
+                ref var lane = ref NetManager.instance.m_lanes.m_buffer[laneId];
+                if ((lane.m_flags & (uint)NetLane.Flags.Created) != 0)
+                {
+                    var laneInfo = info.m_lanes[laneIndex];
+                    if (TmpeAdapter.TryGetSpeedKmh(laneId, out var kmh))
+                    {
+                        if (TmpeAdapter.TryGetDefaultSpeedKmh(laneId, laneInfo, out var defaultKmh) &&
+                            Math.Abs(kmh - defaultKmh) < 0.01f)
+                        {
+                            kmh = 0f; // reset to default
+                        }
+
+                        Broadcast(new SpeedLimitApplied { LaneId = laneId, SpeedKmh = kmh });
+                    }
+                }
+
+                laneId = lane.m_nextLane;
+            }
+        }
+
+        private static void BroadcastVehicleRestrictions(ushort segmentId)
+        {
+            ref var segment = ref NetManager.instance.m_segments.m_buffer[segmentId];
+            var info = segment.Info;
+            if (info?.m_lanes == null)
+                return;
+
+            uint laneId = segment.m_lanes;
+            for (int laneIndex = 0; laneId != 0 && laneIndex < info.m_lanes.Length; laneIndex++)
+            {
+                ref var lane = ref NetManager.instance.m_lanes.m_buffer[laneId];
+                if ((lane.m_flags & (uint)NetLane.Flags.Created) != 0)
+                {
+                    if (TmpeAdapter.TryGetVehicleRestrictions(laneId, out var restrictions))
+                    {
+                        Broadcast(new VehicleRestrictionsApplied { LaneId = laneId, Restrictions = restrictions });
+                    }
+                }
+
+                laneId = lane.m_nextLane;
+            }
+        }
+
+        private static void BroadcastParkingRestrictions(ushort segmentId)
+        {
+            if (TmpeAdapter.TryGetParkingRestriction(segmentId, out var state))
+            {
+                Broadcast(new ParkingRestrictionApplied
+                {
+                    SegmentId = segmentId,
+                    State = state?.Clone() ?? new ParkingRestrictionState()
+                });
+            }
+        }
+
+        private static void BroadcastJunctionRestrictions(ushort nodeId)
+        {
+            if (TmpeAdapter.TryGetJunctionRestrictions(nodeId, out var state))
+            {
+                Broadcast(new JunctionRestrictionsApplied
+                {
+                    NodeId = nodeId,
+                    State = state?.Clone() ?? new JunctionRestrictionsState()
+                });
+            }
+        }
+
+        private static void BroadcastPrioritySigns(ushort nodeId)
+        {
+            ref var node = ref NetManager.instance.m_nodes.m_buffer[nodeId];
+            for (int i = 0; i < 8; i++)
+            {
+                var segmentId = node.GetSegment(i);
+                if (segmentId == 0)
+                    continue;
+
+                if (!NetUtil.SegmentExists(segmentId))
+                    continue;
+
+                if (TmpeAdapter.TryGetPrioritySign(nodeId, segmentId, out var signType))
+                {
+                    Broadcast(new PrioritySignApplied
+                    {
+                        NodeId = nodeId,
+                        SegmentId = segmentId,
+                        SignType = signType
+                    });
+                }
+            }
+        }
+
+        private static void BroadcastTrafficLights(ushort nodeId)
+        {
+            if (TmpeAdapter.TryGetManualTrafficLight(nodeId, out var manualEnabled))
+            {
+                Broadcast(new TrafficLightToggledApplied
+                {
+                    NodeId = nodeId,
+                    Enabled = manualEnabled
+                });
+            }
+
+            if (TmpeAdapter.TryGetTimedTrafficLight(nodeId, out var timedState))
+            {
+                Broadcast(new TimedTrafficLightApplied
+                {
+                    NodeId = nodeId,
+                    State = timedState?.Clone() ?? new TimedTrafficLightState()
+                });
+            }
+        }
+
+        internal static void HandleLaneArrows(uint laneId)
+        {
+            if (!CanDispatch() || !NetUtil.LaneExists(laneId))
+                return;
+
+            if (TmpeAdapter.TryGetLaneArrows(laneId, out var arrows))
+            {
+                Broadcast(new LaneArrowApplied
+                {
+                    LaneId = laneId,
+                    Arrows = arrows
+                });
+            }
+        }
+
+        internal static void HandleLaneConnections(uint laneId)
+        {
+            if (!CanDispatch() || !NetUtil.LaneExists(laneId))
+                return;
+
+            if (!TmpeAdapter.TryGetLaneConnections(laneId, out var targets) || targets == null)
+                targets = Array.Empty<uint>();
+
+            Broadcast(new LaneConnectionsApplied
+            {
+                SourceLaneId = laneId,
+                TargetLaneIds = targets
+            });
+        }
+
+        internal static void HandleLaneConnectionsForNode(ushort nodeId)
+        {
+            if (!CanDispatch() || !NetUtil.NodeExists(nodeId))
+                return;
+
+            ref var node = ref NetManager.instance.m_nodes.m_buffer[nodeId];
+            for (var i = 0; i < 8; i++)
+            {
+                var segmentId = node.GetSegment(i);
+                if (segmentId == 0 || !NetUtil.SegmentExists(segmentId))
+                    continue;
+
+                ref var segment = ref NetManager.instance.m_segments.m_buffer[segmentId];
+                var lanes = segment.Info?.m_lanes;
+                if (lanes == null)
+                    continue;
+
+                uint laneId = segment.m_lanes;
+                for (int laneIndex = 0; laneId != 0 && laneIndex < lanes.Length; laneIndex++)
+                {
+                    ref var lane = ref NetManager.instance.m_lanes.m_buffer[laneId];
+                    if ((lane.m_flags & (uint)NetLane.Flags.Created) != 0)
+                    {
+                        HandleLaneConnections(laneId);
+                    }
+
+                    laneId = lane.m_nextLane;
+                }
+            }
+        }
+
+        private static void Broadcast(CommandBase command)
+        {
+            if (command == null)
+                return;
+
+            try
+            {
+                if (CsmCompat.IsServerInstance())
+                    CsmCompat.SendToAll(command);
+                else
+                    CsmCompat.SendToServer(command);
+            }
+            catch (Exception ex)
+            {
+                Log.Warn(LogCategory.Network, "Failed to dispatch TM:PE command | type={0} error={1}", command.GetType().Name, ex);
+            }
+        }
+    }
+}

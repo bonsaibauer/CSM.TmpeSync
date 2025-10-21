@@ -1,4 +1,5 @@
 using CSM.API;
+using CSM.TmpeSync.Tmpe;
 
 namespace CSM.TmpeSync.Mod
 {
@@ -10,7 +11,15 @@ namespace CSM.TmpeSync.Mod
             ModClass=typeof(MyUserMod);
             CommandAssemblies.Add(typeof(TmpeSyncConnection).Assembly);
         }
-        public override void RegisterHandlers(){ }
-        public override void UnregisterHandlers(){ }
+
+        public override void RegisterHandlers()
+        {
+            TmpeEventBridge.Enable();
+        }
+
+        public override void UnregisterHandlers()
+        {
+            TmpeEventBridge.Disable();
+        }
     }
 }

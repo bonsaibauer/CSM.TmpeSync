@@ -1,6 +1,7 @@
 using System.Linq;
 using ICities;
 using CSM.TmpeSync.Tmpe;
+using CSM.TmpeSync.Snapshot;
 using CSM.TmpeSync.Util;
 using Log = CSM.TmpeSync.Util.Log;
 
@@ -37,6 +38,8 @@ namespace CSM.TmpeSync.Mod
                     _connection = connection;
                     _connectionRegistered = true;
                     Log.Info(LogCategory.Network, "CSM connection established | channel=TM:PE sync");
+                    SnapshotDispatcher.Initialize();
+                    SnapshotDispatcher.TryExportIfServer("mod_enabled");
                     break;
                 case CsmCompat.ConnectionRegistrationResult.AlreadyRegistered:
                     _connection = null;
@@ -78,6 +81,7 @@ namespace CSM.TmpeSync.Mod
         public void OnDisabled()
         {
             Log.Info(LogCategory.Lifecycle, "Mod disabled | begin_cleanup");
+            SnapshotDispatcher.Shutdown();
             if (_connectionRegistered && _connection != null)
             {
                 Log.Info(LogCategory.Network, "Unregistering TM:PE synchronization connection from CSM.");

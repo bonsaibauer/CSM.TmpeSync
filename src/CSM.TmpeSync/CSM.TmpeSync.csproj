@@ -186,8 +186,11 @@
     <Compile Include="Snapshot\TimedTrafficLightSnapshotProvider.cs" />
     <Compile Include="Snapshot\ManualTrafficLightSnapshotProvider.cs" />
     <Compile Include="Snapshot\CrosswalkHiddenSnapshotProvider.cs" />
+    <Compile Include="Snapshot\SnapshotDispatcher.cs" />
 
     <Compile Include="Tool\LockOverlay.cs" />
+    <Compile Include="Tmpe\TmpeChangeDispatcher.cs" />
+    <Compile Include="Tmpe\TmpeEventBridge.cs" />
   </ItemGroup>
 
   <!-- ==== Post-Build: Copy the add-on into the local mod directory ==== -->
