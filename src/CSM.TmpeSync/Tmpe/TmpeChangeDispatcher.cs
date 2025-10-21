@@ -243,7 +243,7 @@ namespace CSM.TmpeSync.Tmpe
                 return;
 
             if (!TmpeAdapter.TryGetLaneConnections(laneId, out var targets) || targets == null)
-                targets = Array.Empty<uint>();
+                targets = new uint[0];
 
             Broadcast(new LaneConnectionsApplied
             {

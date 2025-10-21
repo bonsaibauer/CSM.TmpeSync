@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using CSM.TmpeSync.Util;
 
 namespace CSM.TmpeSync.Snapshot
@@ -9,7 +8,7 @@ namespace CSM.TmpeSync.Snapshot
     /// </summary>
     internal static class SnapshotDispatcher
     {
-        private static readonly IReadOnlyList<ISnapshotProvider> Providers = new ISnapshotProvider[]
+        private static readonly ISnapshotProvider[] Providers =
         {
             new SpeedLimitSnapshotProvider(),
             new LaneArrowSnapshotProvider(),
