@@ -6,7 +6,9 @@ namespace CSM.TmpeSync.Net.Contracts.Requests
     [ProtoContract]
     public class SetSpeedLimitRequest : CommandBase
     {
-        [ProtoMember(1)] public uint LaneId { get; set; }
-        [ProtoMember(2)] public float SpeedKmh { get; set; }
+        [ProtoMember(1, IsRequired = true)] public uint LaneId { get; set; }
+        [ProtoMember(2, IsRequired = true)] public float SpeedKmh { get; set; }
+        [ProtoMember(3, IsRequired = true)] public ushort SegmentId { get; set; }
+        [ProtoMember(4, IsRequired = true)] public int LaneIndex { get; set; } = -1;
     }
 }

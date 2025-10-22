@@ -17,7 +17,7 @@ namespace CSM.TmpeSync.Snapshot
                 if (state == null || !state.Enabled)
                     return;
 
-                CsmCompat.SendToAll(new TimedTrafficLightApplied { NodeId = nodeId, State = state });
+                SnapshotDispatcher.Dispatch(new TimedTrafficLightApplied { NodeId = nodeId, State = state });
             });
         }
 

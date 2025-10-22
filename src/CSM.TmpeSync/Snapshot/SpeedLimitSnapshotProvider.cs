@@ -21,8 +21,17 @@ namespace CSM.TmpeSync.Snapshot
                 if (!Tmpe.TmpeAdapter.TryGetSpeedKmh(laneId, out var kmh))
                     return;
 
+                if (!NetUtil.TryGetLaneLocation(laneId, out var segmentId, out var laneIndex))
+                    return;
+
                 Log.Debug(LogCategory.Snapshot, "Speed limit snapshot entry | laneId={0} speedKmh={1}", laneId, kmh);
-                buffer.Add(new SpeedLimitBatchApplied.Entry { LaneId = laneId, SpeedKmh = kmh });
+                buffer.Add(new SpeedLimitBatchApplied.Entry
+                {
+                    LaneId = laneId,
+                    SpeedKmh = kmh,
+                    SegmentId = segmentId,
+                    LaneIndex = laneIndex
+                });
 
                 if (buffer.Count >= BatchSize)
                     exported += Flush(buffer);
@@ -47,7 +56,7 @@ namespace CSM.TmpeSync.Snapshot
                 Items = new List<SpeedLimitBatchApplied.Entry>(buffer)
             };
 
-            CsmCompat.SendToAll(payload);
+            SnapshotDispatcher.Dispatch(payload);
             Log.Debug(LogCategory.Snapshot, "Speed limit snapshot batch sent | count={0}", payload.Items.Count);
             buffer.Clear();
             return payload.Items.Count;

@@ -17,7 +17,7 @@ namespace CSM.TmpeSync.Snapshot
                 if (state == null || state.IsDefault())
                     return;
 
-                CsmCompat.SendToAll(new JunctionRestrictionsApplied { NodeId = nodeId, State = state });
+                SnapshotDispatcher.Dispatch(new JunctionRestrictionsApplied { NodeId = nodeId, State = state });
             });
         }
 

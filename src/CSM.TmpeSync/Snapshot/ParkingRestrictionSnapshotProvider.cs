@@ -17,7 +17,7 @@ namespace CSM.TmpeSync.Snapshot
                 if (state == null || state.AllowParkingBothDirections)
                     return;
 
-                CsmCompat.SendToAll(new ParkingRestrictionApplied { SegmentId = segmentId, State = state });
+                SnapshotDispatcher.Dispatch(new ParkingRestrictionApplied { SegmentId = segmentId, State = state });
             });
         }
 

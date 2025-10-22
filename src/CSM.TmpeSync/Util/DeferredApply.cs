@@ -73,9 +73,16 @@ namespace CSM.TmpeSync.Util
                         else
                         {
                             waitingForTarget = true;
-                            entry.Retries++;
-                            if (entry.Retries >= MaxRetries)
-                                drop = true;
+                            if (!entry.Op.ShouldWait())
+                            {
+                                entry.Retries++;
+                                if (entry.Retries >= MaxRetries)
+                                    drop = true;
+                            }
+                            else
+                            {
+                                entry.Retries = 0;
+                            }
                         }
                     }
                     catch (Exception ex)
@@ -144,5 +151,6 @@ namespace CSM.TmpeSync.Util
         string Key { get; }
         bool Exists();
         bool TryApply();
+        bool ShouldWait();
     }
 }

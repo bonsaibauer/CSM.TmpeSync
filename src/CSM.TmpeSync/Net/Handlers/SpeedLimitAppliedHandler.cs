@@ -11,8 +11,14 @@ namespace CSM.TmpeSync.Net.Handlers
             if (cmd == null)
                 return;
 
-            Log.Debug(LogCategory.Synchronization, "SpeedLimitApplied received | laneId={0} speedKmh={1}", cmd.LaneId, cmd.SpeedKmh);
-            SpeedLimitCommandProcessor.Apply(cmd.LaneId, cmd.SpeedKmh);
+            Log.Debug(
+                LogCategory.Synchronization,
+                "SpeedLimitApplied received | laneId={0} segmentId={1} laneIndex={2} speedKmh={3}",
+                cmd.LaneId,
+                cmd.SegmentId,
+                cmd.LaneIndex,
+                cmd.SpeedKmh);
+            SpeedLimitCommandProcessor.Apply(cmd.LaneId, cmd.SpeedKmh, cmd.SegmentId, cmd.LaneIndex);
         }
     }
 }

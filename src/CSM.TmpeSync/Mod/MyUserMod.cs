@@ -1,3 +1,4 @@
+using System;
 using System.Linq;
 using ICities;
 using CSM.TmpeSync.Tmpe;
@@ -38,7 +39,18 @@ namespace CSM.TmpeSync.Mod
                     _connection = connection;
                     _connectionRegistered = true;
                     Log.Info(LogCategory.Network, "CSM connection established | channel=TM:PE sync");
+                    MultiplayerStateObserver.RoleChanged += Log.HandleRoleChanged;
+                    try
+                    {
+                        Log.HandleRoleChanged(CsmCompat.DescribeCurrentRole());
+                    }
+                    catch (Exception ex)
+                    {
+                        Log.Warn(LogCategory.Diagnostics, "Unable to initialize session log for current role | error={0}", ex);
+                    }
                     SnapshotDispatcher.Initialize();
+                    LaneMappingTracker.Initialize();
+                    TmpeFeatureReadyNotifier.Initialize();
                     SnapshotDispatcher.TryExportIfServer("mod_enabled");
                     break;
                 case CsmCompat.ConnectionRegistrationResult.AlreadyRegistered:
@@ -81,6 +93,10 @@ namespace CSM.TmpeSync.Mod
         public void OnDisabled()
         {
             Log.Info(LogCategory.Lifecycle, "Mod disabled | begin_cleanup");
+            MultiplayerStateObserver.RoleChanged -= Log.HandleRoleChanged;
+            Log.EndServerSessionLog();
+            TmpeFeatureReadyNotifier.Shutdown();
+            LaneMappingTracker.Shutdown();
             SnapshotDispatcher.Shutdown();
             if (_connectionRegistered && _connection != null)
             {

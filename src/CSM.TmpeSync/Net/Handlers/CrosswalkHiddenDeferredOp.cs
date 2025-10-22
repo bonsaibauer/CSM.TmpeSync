@@ -37,5 +37,7 @@ namespace CSM.TmpeSync.Net.Handlers
                 }
             }
         }
+
+        public bool ShouldWait() => false;
     }
 }

@@ -13,6 +13,8 @@ namespace CSM.TmpeSync.Tmpe
     internal static class TmpeAdapter
     {
         private static bool HasRealTmpe;
+
+        internal static bool IsBridgeReady => HasRealTmpe;
         private static bool SupportsSpeedLimits;
         private static bool SupportsLaneArrows;
         private static bool SupportsVehicleRestrictions;
@@ -537,6 +539,8 @@ namespace CSM.TmpeSync.Tmpe
 
                     if (missing.Count > 0)
                         Log.Warn(LogCategory.Bridge, "TM:PE API bridge missing | features={0} action=fallback_to_stub details={1}", string.Join(", ", missing.ToArray()), DescribeMissingFeatures());
+
+                    TmpeFeatureReadyNotifier.OnFeaturesReady();
                         }
 
                         _loggedMissingAssembly = false;

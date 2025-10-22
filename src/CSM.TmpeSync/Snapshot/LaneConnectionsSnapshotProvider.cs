@@ -17,7 +17,33 @@ namespace CSM.TmpeSync.Snapshot
                 if (targets == null || targets.Length == 0)
                     return;
 
-                CsmCompat.SendToAll(new LaneConnectionsApplied { SourceLaneId = laneId, TargetLaneIds = targets });
+                if (!NetUtil.TryGetLaneLocation(laneId, out var segmentId, out var laneIndex))
+                    return;
+
+                var targetSegmentIds = new ushort[targets.Length];
+                var targetLaneIndexes = new int[targets.Length];
+
+                for (var i = 0; i < targets.Length; i++)
+                {
+                    if (!NetUtil.TryGetLaneLocation(targets[i], out var targetSegment, out var targetIndex))
+                    {
+                        targetSegment = 0;
+                        targetIndex = -1;
+                    }
+
+                    targetSegmentIds[i] = targetSegment;
+                    targetLaneIndexes[i] = targetIndex;
+                }
+
+                SnapshotDispatcher.Dispatch(new LaneConnectionsApplied
+                {
+                    SourceLaneId = laneId,
+                    SourceSegmentId = segmentId,
+                    SourceLaneIndex = laneIndex,
+                    TargetLaneIds = targets,
+                    TargetSegmentIds = targetSegmentIds,
+                    TargetLaneIndexes = targetLaneIndexes
+                });
             });
         }
 

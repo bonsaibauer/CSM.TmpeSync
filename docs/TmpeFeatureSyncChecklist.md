@@ -8,6 +8,12 @@ Use this checklist when verifying TM:PE synchronisation in a CSM session.
 - [ ] `CSM.TmpeSync` appears in the mod list and the log file `%LOCALAPPDATA%\Colossal Order\Cities_Skylines\CSM.TmpeSync\csm.tmpe-sync.log` is created.
 - [ ] All participating clients run the same TM:PE version as the host.
 
+## Lane mapping infrastructure
+
+- [ ] After the host enters the city, the log contains `Lane mapping snapshot broadcast`.
+- [ ] Joining clients log `Lane mapping snapshot imported` and no `reason=mapping_missing` warnings appear afterwards.
+- [ ] Upgrading or bulldozing a road writes `Lane mapping broadcast` or `Lane mapping removed` entries and the same manoeuvre is visible on every client.
+
 ## Core features
 
 - [ ] **Speed limits** – Change a lane speed on the host; every client sees the updated value and vehicles respect it. Undo by resetting to default.

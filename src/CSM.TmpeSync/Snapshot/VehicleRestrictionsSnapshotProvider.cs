@@ -18,7 +18,16 @@ namespace CSM.TmpeSync.Snapshot
                 if (restrictions == VehicleRestrictionFlags.None)
                     return;
 
-                CsmCompat.SendToAll(new VehicleRestrictionsApplied { LaneId = laneId, Restrictions = restrictions });
+                if (!NetUtil.TryGetLaneLocation(laneId, out var segmentId, out var laneIndex))
+                    return;
+
+                SnapshotDispatcher.Dispatch(new VehicleRestrictionsApplied
+                {
+                    LaneId = laneId,
+                    SegmentId = segmentId,
+                    LaneIndex = laneIndex,
+                    Restrictions = restrictions
+                });
             });
         }
 

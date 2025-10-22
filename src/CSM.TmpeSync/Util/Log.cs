@@ -29,14 +29,18 @@ namespace CSM.TmpeSync.Util
             Error
         }
 
-        private const string LogFileName = "csm.tmpe-sync.log";
+        private const string DefaultLogFileName = "csm.tmpe-sync.log";
+        private const string SessionLogFilePrefix = "csm.tmpe-sync-server-";
+        private const string SessionLogFileExtension = ".log";
         private const long MaxFileBytes = 2 * 1024 * 1024; // rotate at 2 MB
 
         private static readonly object SyncRoot = new object();
         private static readonly string LogDirectory;
-        private static readonly string LogFileFullPath;
         private static readonly bool DebugEnabled;
         private static bool _initialised;
+        private static string _currentLogFilePath;
+        private static string _sessionLogFilePath;
+        private static bool _sessionActive;
 
         static Log()
         {
@@ -44,13 +48,22 @@ namespace CSM.TmpeSync.Util
             var colossalOrderDir = Path.Combine(localAppData, "Colossal Order");
             var citiesDir = Path.Combine(colossalOrderDir, "Cities_Skylines");
             LogDirectory = Path.Combine(citiesDir, "CSM.TmpeSync");
-            LogFileFullPath = Path.Combine(LogDirectory, LogFileName);
+            _currentLogFilePath = Path.Combine(LogDirectory, DefaultLogFileName);
             DebugEnabled = true;
         }
 
         internal static bool IsDebugEnabled => DebugEnabled;
 
-        internal static string LogFilePath => LogFileFullPath;
+        internal static string LogFilePath
+        {
+            get
+            {
+                lock (SyncRoot)
+                {
+                    return _currentLogFilePath;
+                }
+            }
+        }
 
         internal static void Debug(string message, params object[] args) =>
             Write(Level.Debug, LogCategory.General, message, args);
@@ -75,6 +88,79 @@ namespace CSM.TmpeSync.Util
 
         internal static void Error(LogCategory category, string message, params object[] args) =>
             Write(Level.Error, category, message, args);
+
+        internal static void StartServerSessionLog()
+        {
+            string sessionPath;
+
+            lock (SyncRoot)
+            {
+                if (_sessionActive)
+                    return;
+
+                var timestamp = DateTime.UtcNow;
+                var stamp = timestamp.ToString("yyyyMMdd-HHmmss", CultureInfo.InvariantCulture);
+                sessionPath = Path.Combine(LogDirectory, SessionLogFilePrefix + stamp + SessionLogFileExtension);
+                var suffix = 1;
+                while (File.Exists(sessionPath))
+                {
+                    sessionPath = Path.Combine(
+                        LogDirectory,
+                        string.Format(
+                            CultureInfo.InvariantCulture,
+                            "{0}{1}-{2}{3}",
+                            SessionLogFilePrefix,
+                            stamp,
+                            suffix++,
+                            SessionLogFileExtension));
+                }
+
+                _sessionLogFilePath = sessionPath;
+                _currentLogFilePath = sessionPath;
+                _sessionActive = true;
+                _initialised = false;
+            }
+
+            Info(LogCategory.Lifecycle, "Server session logging started | file={0}", sessionPath);
+        }
+
+        internal static void EndServerSessionLog()
+        {
+            string sessionPath;
+            lock (SyncRoot)
+            {
+                if (!_sessionActive)
+                    return;
+
+                sessionPath = _sessionLogFilePath ?? _currentLogFilePath;
+            }
+
+            Info(LogCategory.Lifecycle, "Server session logging ending | file={0}", sessionPath);
+
+            string defaultPath;
+            lock (SyncRoot)
+            {
+                _sessionActive = false;
+                _sessionLogFilePath = null;
+                _currentLogFilePath = Path.Combine(LogDirectory, DefaultLogFileName);
+                _initialised = false;
+                defaultPath = _currentLogFilePath;
+            }
+
+            Info(LogCategory.Lifecycle, "Logging reverted to default file | file={0}", defaultPath);
+        }
+
+        internal static void HandleRoleChanged(string role)
+        {
+            if (string.Equals(role, "Server", StringComparison.OrdinalIgnoreCase))
+            {
+                StartServerSessionLog();
+            }
+            else
+            {
+                EndServerSessionLog();
+            }
+        }
 
         private static void Write(Level level, LogCategory category, string message, params object[] args)
         {
@@ -106,7 +192,7 @@ namespace CSM.TmpeSync.Util
                 try
                 {
                     EnsureTargetReady();
-                    File.AppendAllText(LogFileFullPath, line + Environment.NewLine);
+                    File.AppendAllText(_currentLogFilePath, line + Environment.NewLine);
                 }
                 catch
                 {
@@ -125,14 +211,19 @@ namespace CSM.TmpeSync.Util
 
             try
             {
-                if (File.Exists(LogFileFullPath))
+                if (File.Exists(_currentLogFilePath))
                 {
-                    var info = new FileInfo(LogFileFullPath);
+                    var info = new FileInfo(_currentLogFilePath);
                     if (info.Length >= MaxFileBytes)
                     {
+                        var baseName = Path.GetFileNameWithoutExtension(_currentLogFilePath);
+                        if (string.IsNullOrEmpty(baseName))
+                            baseName = "csm.tmpe-sync";
+
                         var archiveName = string.Format(
                             CultureInfo.InvariantCulture,
-                            "csm.tmpe-sync-{0:yyyyMMdd-HHmmss}.log",
+                            "{0}-archive-{1:yyyyMMdd-HHmmss}.log",
+                            baseName,
                             DateTime.UtcNow);
                         var archivePath = Path.Combine(LogDirectory, archiveName);
                         if (File.Exists(archivePath))
@@ -141,12 +232,13 @@ namespace CSM.TmpeSync.Util
                                 LogDirectory,
                                 string.Format(
                                     CultureInfo.InvariantCulture,
-                                    "csm.tmpe-sync-{0:yyyyMMdd-HHmmss}-{1}.log",
+                                    "{0}-archive-{1:yyyyMMdd-HHmmss}-{2}.log",
+                                    baseName,
                                     DateTime.UtcNow,
                                     Guid.NewGuid().ToString("N")));
                         }
 
-                        File.Move(LogFileFullPath, archivePath);
+                        File.Move(_currentLogFilePath, archivePath);
                     }
                 }
             }

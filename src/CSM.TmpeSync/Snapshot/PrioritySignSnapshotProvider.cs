@@ -20,7 +20,7 @@ namespace CSM.TmpeSync.Snapshot
                     if (signType == PrioritySignType.None)
                         return;
 
-                    CsmCompat.SendToAll(new PrioritySignApplied { NodeId = nodeId, SegmentId = segmentId, SignType = signType });
+                    SnapshotDispatcher.Dispatch(new PrioritySignApplied { NodeId = nodeId, SegmentId = segmentId, SignType = signType });
                 });
             });
         }

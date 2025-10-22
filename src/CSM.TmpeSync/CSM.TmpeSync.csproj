@@ -135,7 +135,11 @@
     <Compile Include="Net\Contracts\Applied\TimedTrafficLightApplied.cs" />
     <Compile Include="Net\Contracts\Applied\TrafficLightToggledApplied.cs" />
     <Compile Include="Net\Contracts\Applied\CrosswalkHiddenApplied.cs" />
+    <Compile Include="Net\Contracts\Mapping\LaneMappingBatch.cs" />
+    <Compile Include="Net\Contracts\Mapping\LaneMappingChanged.cs" />
+    <Compile Include="Net\Contracts\Mapping\LaneMappingRemoved.cs" />
     <Compile Include="Net\Contracts\System\RequestRejected.cs" />
+    <Compile Include="Net\Contracts\System\TmpeFeatureReady.cs" />
     <Compile Include="Net\Contracts\Locks\BeginEnd.cs" />
 
     <Compile Include="Net\Handlers\SetSpeedLimitRequestHandler.cs" />
@@ -171,6 +175,10 @@
     <Compile Include="Net\Handlers\SetCrosswalkHiddenRequestHandler.cs" />
     <Compile Include="Net\Handlers\CrosswalkHiddenAppliedHandler.cs" />
     <Compile Include="Net\Handlers\CrosswalkHiddenDeferredOp.cs" />
+    <Compile Include="Net\Handlers\LaneMappingBatchHandler.cs" />
+    <Compile Include="Net\Handlers\LaneMappingChangedHandler.cs" />
+    <Compile Include="Net\Handlers\LaneMappingRemovedHandler.cs" />
+    <Compile Include="Net\Handlers\TmpeFeatureReadyHandler.cs" />
     <Compile Include="Net\Handlers\Locks\BeginEndHandlers.cs" />
     <Compile Include="Net\Handlers\Locks\EditLockAppliedHandler.cs" />
     <Compile Include="Net\Handlers\Locks\EditLockClearedHandler.cs" />
@@ -178,6 +186,7 @@
     <Compile Include="Snapshot\ISnapshotProvider.cs" />
     <Compile Include="Snapshot\SpeedLimitSnapshotProvider.cs" />
     <Compile Include="Snapshot\LaneArrowSnapshotProvider.cs" />
+    <Compile Include="Snapshot\LaneMappingSnapshotProvider.cs" />
     <Compile Include="Snapshot\VehicleRestrictionsSnapshotProvider.cs" />
     <Compile Include="Snapshot\LaneConnectionsSnapshotProvider.cs" />
     <Compile Include="Snapshot\JunctionRestrictionsSnapshotProvider.cs" />
@@ -187,6 +196,9 @@
     <Compile Include="Snapshot\ManualTrafficLightSnapshotProvider.cs" />
     <Compile Include="Snapshot\CrosswalkHiddenSnapshotProvider.cs" />
     <Compile Include="Snapshot\SnapshotDispatcher.cs" />
+    <Compile Include="Util\LaneMappingStore.cs" />
+    <Compile Include="Util\LaneMappingTracker.cs" />
+    <Compile Include="Util\TmpeFeatureReadyNotifier.cs" />
 
     <Compile Include="Tool\LockOverlay.cs" />
     <Compile Include="Tmpe\TmpeChangeDispatcher.cs" />

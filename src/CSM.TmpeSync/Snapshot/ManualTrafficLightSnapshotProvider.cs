@@ -21,7 +21,7 @@ namespace CSM.TmpeSync.Snapshot
                     return;
 
                 Log.Debug("Snapshot manual traffic light node={0}", nodeId);
-                CsmCompat.SendToAll(new TrafficLightToggledApplied { NodeId = nodeId, Enabled = true });
+                SnapshotDispatcher.Dispatch(new TrafficLightToggledApplied { NodeId = nodeId, Enabled = true });
             });
         }
 
