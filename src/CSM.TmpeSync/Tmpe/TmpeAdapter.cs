@@ -929,6 +929,7 @@ namespace CSM.TmpeSync.Tmpe
 
         private static object SpeedLimitManagerInstance;
         private static MethodInfo SpeedLimitSetLaneMethod;
+        private static MethodInfo SpeedLimitSetLaneWithInfoMethod;
         private static MethodInfo SpeedLimitCalculateMethod;
         private static MethodInfo SpeedLimitGetDefaultMethod;
         private static Type SetSpeedLimitActionType;
@@ -943,10 +944,15 @@ namespace CSM.TmpeSync.Tmpe
         private static ConstructorInfo SetSpeedLimitActionCtorActionType;
         private static Type SetSpeedLimitActionActionTypeEnumType;
         private static object SetSpeedLimitActionResetEnumValue;
+        private static MethodInfo SpeedLimitMayHaveSegmentMethod;
+        private static MethodInfo SpeedLimitMayHaveLaneMethod;
+        private static NetInfo.LaneType SpeedLimitLaneTypeMask;
+        private static VehicleInfo.VehicleType SpeedLimitVehicleTypeMask;
 
         private static object LaneArrowManagerInstance;
         private static MethodInfo LaneArrowSetMethod;
         private static MethodInfo LaneArrowGetMethod;
+        private static MethodInfo LaneArrowCanHaveMethod;
         private static Type LaneArrowsEnumType;
         private static int LaneArrowLeftMask;
         private static int LaneArrowForwardMask;
@@ -1001,6 +1007,7 @@ namespace CSM.TmpeSync.Tmpe
         private static MethodInfo IsLaneChangingAllowedMethod;
         private static MethodInfo IsEnteringBlockedMethod;
         private static MethodInfo IsPedestrianCrossingAllowedMethod;
+        private static MethodInfo MayHaveJunctionRestrictionsMethod;
 
         private static object TrafficPriorityManagerInstance;
         private static MethodInfo PrioritySignSetMethod;
@@ -1010,6 +1017,8 @@ namespace CSM.TmpeSync.Tmpe
         private static object ParkingRestrictionsManagerInstance;
         private static MethodInfo ParkingAllowedSetMethod;
         private static MethodInfo ParkingAllowedGetMethod;
+        private static MethodInfo ParkingMayHaveMethod;
+        private static MethodInfo ParkingMayHaveDirectionMethod;
 
         private static object TrafficLightSimulationManagerInstance;
         private static PropertyInfo TrafficLightSimulationsProperty;
@@ -1044,6 +1053,7 @@ namespace CSM.TmpeSync.Tmpe
         {
             SpeedLimitManagerInstance = null;
             SpeedLimitSetLaneMethod = null;
+            SpeedLimitSetLaneWithInfoMethod = null;
             SpeedLimitCalculateMethod = null;
             SpeedLimitGetDefaultMethod = null;
             SetSpeedLimitActionType = null;
@@ -1058,6 +1068,10 @@ namespace CSM.TmpeSync.Tmpe
             SetSpeedLimitActionCtorActionType = null;
             SetSpeedLimitActionActionTypeEnumType = null;
             SetSpeedLimitActionResetEnumValue = null;
+            SpeedLimitMayHaveSegmentMethod = null;
+            SpeedLimitMayHaveLaneMethod = null;
+            SpeedLimitLaneTypeMask = NetInfo.LaneType.None;
+            SpeedLimitVehicleTypeMask = VehicleInfo.VehicleType.None;
 
             try
             {
@@ -1080,14 +1094,53 @@ namespace CSM.TmpeSync.Tmpe
 
                 if (managerType != null && SetSpeedLimitActionType != null)
                 {
+                    SpeedLimitSetLaneWithInfoMethod = managerType.GetMethod(
+                        "SetLaneSpeedLimit",
+                        BindingFlags.Instance | BindingFlags.Public,
+                        null,
+                        new[] { typeof(ushort), typeof(uint), typeof(NetInfo.Lane), typeof(uint), SetSpeedLimitActionType },
+                        null);
+                    if (SpeedLimitSetLaneWithInfoMethod == null)
+                        LogBridgeGap("Speed Limits", "SetLaneSpeedLimit(ushort, uint, NetInfo.Lane, uint, SetSpeedLimitAction)", DescribeMethodOverloads(managerType, "SetLaneSpeedLimit"));
+
                     SpeedLimitSetLaneMethod = managerType.GetMethod(
                         "SetLaneSpeedLimit",
                         BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic,
                         null,
                         new[] { typeof(uint), SetSpeedLimitActionType },
                         null);
-                    if (SpeedLimitSetLaneMethod == null)
+                    if (SpeedLimitSetLaneMethod == null && SpeedLimitSetLaneWithInfoMethod == null)
                         LogBridgeGap("Speed Limits", "SetLaneSpeedLimit(uint, SetSpeedLimitAction)", DescribeMethodOverloads(managerType, "SetLaneSpeedLimit"));
+
+                    var laneTypeField = managerType.GetField(
+                        "LANE_TYPES",
+                        BindingFlags.Public | BindingFlags.Static);
+                    if (laneTypeField != null)
+                    {
+                        try
+                        {
+                            SpeedLimitLaneTypeMask = (NetInfo.LaneType)laneTypeField.GetValue(null);
+                        }
+                        catch (Exception ex)
+                        {
+                            LogBridgeGap("Speed Limits", "LANE_TYPES", ex.GetType().Name);
+                        }
+                    }
+
+                    var vehicleTypeField = managerType.GetField(
+                        "VEHICLE_TYPES",
+                        BindingFlags.Public | BindingFlags.Static);
+                    if (vehicleTypeField != null)
+                    {
+                        try
+                        {
+                            SpeedLimitVehicleTypeMask = (VehicleInfo.VehicleType)vehicleTypeField.GetValue(null);
+                        }
+                        catch (Exception ex)
+                        {
+                            LogBridgeGap("Speed Limits", "VEHICLE_TYPES", ex.GetType().Name);
+                        }
+                    }
 
                     SpeedLimitCalculateMethod = managerType.GetMethod(
                         "CalculateLaneSpeedLimit",
@@ -1184,6 +1237,39 @@ namespace CSM.TmpeSync.Tmpe
                     if (SpeedValueCtor == null)
                         LogBridgeGap("Speed Limits", "SpeedValue..ctor(float)", "<ctor missing>");
                 }
+
+                var extType = contextAssembly?.GetType("TrafficManager.Manager.Impl.SpeedLimitManagerExt")
+                    ?? tmpeAssembly?.GetType("TrafficManager.Manager.Impl.SpeedLimitManagerExt");
+                if (extType != null)
+                {
+                    try
+                    {
+                        SpeedLimitMayHaveSegmentMethod = extType.GetMethod(
+                            "MayHaveCustomSpeedLimits",
+                            BindingFlags.Public | BindingFlags.Static,
+                            null,
+                            new[] { typeof(NetSegment).MakeByRefType() },
+                            null);
+                    }
+                    catch (Exception ex)
+                    {
+                        LogBridgeGap("Speed Limits", "SpeedLimitManagerExt.MayHaveCustomSpeedLimits(ref NetSegment)", ex.GetType().Name);
+                    }
+
+                    try
+                    {
+                        SpeedLimitMayHaveLaneMethod = extType.GetMethod(
+                            "MayHaveCustomSpeedLimits",
+                            BindingFlags.Public | BindingFlags.Static,
+                            null,
+                            new[] { typeof(NetInfo.Lane) },
+                            null);
+                    }
+                    catch (Exception ex)
+                    {
+                        LogBridgeGap("Speed Limits", "SpeedLimitManagerExt.MayHaveCustomSpeedLimits(NetInfo.Lane)", ex.GetType().Name);
+                    }
+                }
             }
             catch (Exception ex)
             {
@@ -1191,7 +1277,13 @@ namespace CSM.TmpeSync.Tmpe
                 Log.Warn(LogCategory.Bridge, "TM:PE speed limit bridge initialization failed | error={0}", ex);
             }
 
-            var supported = SpeedLimitManagerInstance != null && SpeedLimitSetLaneMethod != null;
+            if (SpeedLimitLaneTypeMask == NetInfo.LaneType.None)
+                SpeedLimitLaneTypeMask = NetInfo.LaneType.Vehicle | NetInfo.LaneType.TransportVehicle;
+
+            if (SpeedLimitVehicleTypeMask == VehicleInfo.VehicleType.None)
+                SpeedLimitVehicleTypeMask = VehicleInfo.VehicleType.Car | VehicleInfo.VehicleType.Tram | VehicleInfo.VehicleType.Metro | VehicleInfo.VehicleType.Train | VehicleInfo.VehicleType.Monorail | VehicleInfo.VehicleType.Trolleybus;
+
+            var supported = SpeedLimitManagerInstance != null && (SpeedLimitSetLaneWithInfoMethod != null || SpeedLimitSetLaneMethod != null);
             SetFeatureStatus("speedLimits", supported, null);
             return supported;
         }
@@ -1200,6 +1292,15 @@ namespace CSM.TmpeSync.Tmpe
         {
             try
             {
+                LaneArrowManagerInstance = null;
+                LaneArrowSetMethod = null;
+                LaneArrowGetMethod = null;
+                LaneArrowCanHaveMethod = null;
+                LaneArrowsEnumType = null;
+                LaneArrowLeftMask = 0;
+                LaneArrowForwardMask = 0;
+                LaneArrowRightMask = 0;
+
                 var managerType = tmpeAssembly?.GetType("TrafficManager.Manager.Impl.LaneArrowManager");
                 var manager = GetManagerFromFactory("LaneArrowManager", "Lane Arrows");
 
@@ -1272,6 +1373,28 @@ namespace CSM.TmpeSync.Tmpe
                     catch (Exception ex)
                     {
                         Log.Warn(LogCategory.Bridge, "TM:PE lane arrow enum conversion failed | error={0}", ex);
+                    }
+                }
+
+                if (contextAssembly != null)
+                {
+                    var flagsType = ResolveTypeWithContext("TrafficManager.State.Flags", contextAssembly, "Lane Arrows");
+                    if (flagsType != null)
+                    {
+                        LaneArrowCanHaveMethod = flagsType.GetMethod(
+                            "CanHaveLaneArrows",
+                            BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic,
+                            null,
+                            new[] { typeof(uint), typeof(bool?) },
+                            null) ?? flagsType.GetMethod(
+                            "CanHaveLaneArrows",
+                            BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic,
+                            null,
+                            new[] { typeof(uint) },
+                            null);
+
+                        if (LaneArrowCanHaveMethod == null)
+                            LogBridgeGap("Lane Arrows", "Flags.CanHaveLaneArrows", DescribeMethodOverloads(flagsType, "CanHaveLaneArrows"));
                     }
                 }
             }
@@ -1537,6 +1660,21 @@ namespace CSM.TmpeSync.Tmpe
 
         private static bool InitialiseJunctionRestrictionsBridge(Assembly tmpeAssembly)
         {
+            JunctionRestrictionsManagerInstance = null;
+            SetUturnAllowedMethod = null;
+            SetNearTurnOnRedAllowedMethod = null;
+            SetFarTurnOnRedAllowedMethod = null;
+            SetLaneChangingAllowedMethod = null;
+            SetEnteringBlockedMethod = null;
+            SetPedestrianCrossingMethod = null;
+            IsUturnAllowedMethod = null;
+            IsNearTurnOnRedAllowedMethod = null;
+            IsFarTurnOnRedAllowedMethod = null;
+            IsLaneChangingAllowedMethod = null;
+            IsEnteringBlockedMethod = null;
+            IsPedestrianCrossingAllowedMethod = null;
+            MayHaveJunctionRestrictionsMethod = null;
+
             try
             {
                 var managerType = tmpeAssembly?.GetType("TrafficManager.Manager.Impl.JunctionRestrictionsManager");
@@ -1570,6 +1708,14 @@ namespace CSM.TmpeSync.Tmpe
                     IsLaneChangingAllowedMethod = managerType.GetMethod("IsLaneChangingAllowedWhenGoingStraight", new[] { typeof(ushort), typeof(bool) });
                     IsEnteringBlockedMethod = managerType.GetMethod("IsEnteringBlockedJunctionAllowed", new[] { typeof(ushort), typeof(bool) });
                     IsPedestrianCrossingAllowedMethod = managerType.GetMethod("IsPedestrianCrossingAllowed", new[] { typeof(ushort), typeof(bool) });
+                    MayHaveJunctionRestrictionsMethod = managerType.GetMethod(
+                        "MayHaveJunctionRestrictions",
+                        BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic,
+                        null,
+                        new[] { typeof(ushort) },
+                        null);
+                    if (MayHaveJunctionRestrictionsMethod == null)
+                        LogBridgeGap("Junction Restrictions", "MayHaveJunctionRestrictions", DescribeMethodOverloads(managerType, "MayHaveJunctionRestrictions"));
                 }
             }
             catch (Exception ex)
@@ -1640,6 +1786,12 @@ namespace CSM.TmpeSync.Tmpe
 
         private static bool InitialiseParkingRestrictionBridge(Assembly tmpeAssembly)
         {
+            ParkingRestrictionsManagerInstance = null;
+            ParkingAllowedSetMethod = null;
+            ParkingAllowedGetMethod = null;
+            ParkingMayHaveMethod = null;
+            ParkingMayHaveDirectionMethod = null;
+
             try
             {
                 var managerType = tmpeAssembly?.GetType("TrafficManager.Manager.Impl.ParkingRestrictionsManager");
@@ -1666,6 +1818,20 @@ namespace CSM.TmpeSync.Tmpe
 
                     ParkingAllowedGetMethod = managerType.GetMethod(
                         "IsParkingAllowed",
+                        BindingFlags.Instance | BindingFlags.Public,
+                        null,
+                        new[] { typeof(ushort), typeof(NetInfo.Direction) },
+                        null);
+
+                    ParkingMayHaveMethod = managerType.GetMethod(
+                        "MayHaveParkingRestriction",
+                        BindingFlags.Instance | BindingFlags.Public,
+                        null,
+                        new[] { typeof(ushort) },
+                        null);
+
+                    ParkingMayHaveDirectionMethod = managerType.GetMethod(
+                        "MayHaveParkingRestriction",
                         BindingFlags.Instance | BindingFlags.Public,
                         null,
                         new[] { typeof(ushort), typeof(NetInfo.Direction) },
@@ -1827,28 +1993,39 @@ namespace CSM.TmpeSync.Tmpe
         {
             try
             {
+                var appliedViaApi = false;
+
                 if (SupportsSpeedLimits)
                 {
                     Log.Debug(LogCategory.Hook, "TM:PE speed limit request | laneId={0} speedKmh={1}", laneId, speedKmh);
-                    if (TryApplySpeedLimitReal(laneId, speedKmh))
+                    appliedViaApi = TryApplySpeedLimitReal(laneId, speedKmh);
+
+                    if (appliedViaApi)
                     {
                         Log.Info(LogCategory.Synchronization, "TM:PE speed limit applied via API | laneId={0} speedKmh={1}", laneId, speedKmh);
-                        return true;
                     }
-
-                    Log.Warn(LogCategory.Bridge, "TM:PE speed limit apply via API failed | laneId={0} action=fallback_to_stub", laneId);
-                    Log.Info(LogCategory.Synchronization, "TM:PE speed limit cached locally after API failure | laneId={0} speedKmh={1}", laneId, speedKmh);
+                    else
+                    {
+                        Log.Warn(LogCategory.Bridge, "TM:PE speed limit apply via API failed | laneId={0} action=aborted", laneId);
+                    }
                 }
                 else
                 {
                     Log.Info(LogCategory.Synchronization, "TM:PE speed limit stored in stub | laneId={0} speedKmh={1}", laneId, speedKmh);
                 }
 
-                lock (StateLock)
+                if (appliedViaApi || !SupportsSpeedLimits)
                 {
-                    SpeedLimits[laneId] = speedKmh;
+                    lock (StateLock)
+                    {
+                        if (speedKmh <= 0f)
+                            SpeedLimits.Remove(laneId);
+                        else
+                            SpeedLimits[laneId] = speedKmh;
+                    }
                 }
-                return true;
+
+                return appliedViaApi || !SupportsSpeedLimits;
             }
             catch (Exception ex)
             {
@@ -1922,9 +2099,17 @@ namespace CSM.TmpeSync.Tmpe
                 {
                     Log.Debug(LogCategory.Hook, "TM:PE lane arrow request | laneId={0} arrows={1}", laneId, arrows);
                     if (TryApplyLaneArrowsReal(laneId, arrows))
+                    {
+                        lock (StateLock)
+                        {
+                            LaneArrows.Remove(laneId);
+                        }
+                        Log.Info(LogCategory.Synchronization, "TM:PE lane arrows applied via API | laneId={0} arrows={1}", laneId, arrows);
                         return true;
+                    }
 
-                    Log.Warn(LogCategory.Bridge, "TM:PE lane arrow apply via API failed | laneId={0} action=fallback_to_stub", laneId);
+                    Log.Warn(LogCategory.Bridge, "TM:PE lane arrow apply via API failed | laneId={0} arrows={1} action=abort", laneId, arrows);
+                    return false;
                 }
                 else
                 {
@@ -2277,7 +2462,8 @@ namespace CSM.TmpeSync.Tmpe
                     if (TryApplyParkingRestrictionReal(segmentId, normalized))
                         return true;
 
-                    Log.Warn(LogCategory.Bridge, "TM:PE parking restriction apply via API failed | segmentId={0} action=fallback_to_stub", segmentId);
+                    Log.Warn(LogCategory.Bridge, "TM:PE parking restriction apply via API failed | segmentId={0}", segmentId);
+                    return false;
                 }
                 else
                 {
@@ -2668,14 +2854,71 @@ namespace CSM.TmpeSync.Tmpe
 
         private static bool TryApplySpeedLimitReal(uint laneId, float speedKmh)
         {
-            if (SpeedLimitManagerInstance == null || SpeedLimitSetLaneMethod == null)
+            if (SpeedLimitManagerInstance == null || (SpeedLimitSetLaneWithInfoMethod == null && SpeedLimitSetLaneMethod == null))
                 return false;
+
+            if (!TryGetLaneInfo(laneId, out var segmentId, out var laneIndex, out var laneInfo, out var segmentInfo))
+            {
+                Log.Warn(LogCategory.Bridge, "TM:PE speed limit apply rejected – lane missing | laneId={0}", laneId);
+                return false;
+            }
+
+            if (!LaneSupportsCustomSpeedLimits(segmentId, laneIndex, laneInfo, segmentInfo, out var rejectionDetail))
+            {
+                if (speedKmh <= 0f)
+                    return true;
+
+                var detail = string.IsNullOrEmpty(rejectionDetail) ? "<unspecified>" : rejectionDetail;
+                Log.Warn(LogCategory.Bridge, "TM:PE speed limit apply rejected – lane unsupported | laneId={0} detail={1}", laneId, detail);
+                return false;
+            }
 
             var action = CreateSpeedLimitAction(speedKmh);
             if (action == null)
+            {
+                Log.Warn(LogCategory.Bridge, "TM:PE speed limit apply rejected – failed to create action | laneId={0}", laneId);
                 return false;
+            }
 
-            SpeedLimitSetLaneMethod.Invoke(SpeedLimitManagerInstance, new[] { (object)laneId, action });
+            object result = null;
+            MethodInfo invokedMethod = null;
+
+            if (SpeedLimitSetLaneWithInfoMethod != null)
+            {
+                invokedMethod = SpeedLimitSetLaneWithInfoMethod;
+                result = SpeedLimitSetLaneWithInfoMethod.Invoke(
+                    SpeedLimitManagerInstance,
+                    new object[] { segmentId, (uint)laneIndex, laneInfo, laneId, action });
+            }
+            else if (SpeedLimitSetLaneMethod != null)
+            {
+                invokedMethod = SpeedLimitSetLaneMethod;
+                result = SpeedLimitSetLaneMethod.Invoke(SpeedLimitManagerInstance, new[] { (object)laneId, action });
+            }
+
+            if (invokedMethod != null && invokedMethod.ReturnType == typeof(bool))
+            {
+                if (!(result is bool success) || !success)
+                {
+                    Log.Warn(LogCategory.Bridge, "TM:PE speed limit apply rejected by API | laneId={0}", laneId);
+                    return false;
+                }
+            }
+
+            if (speedKmh > 0f && TryGetSpeedLimitReal(laneId, out var appliedKmh))
+            {
+                if (Math.Abs(appliedKmh - speedKmh) > 0.1f)
+                {
+                    Log.Warn(
+                        LogCategory.Bridge,
+                        "TM:PE speed limit verification failed | laneId={0} requested={1} applied={2}",
+                        laneId,
+                        speedKmh,
+                        appliedKmh);
+                    return false;
+                }
+            }
+
             return true;
         }
 
@@ -2824,17 +3067,251 @@ namespace CSM.TmpeSync.Tmpe
             return false;
         }
 
+        private static bool LaneSupportsCustomSpeedLimits(ushort segmentId, int laneIndex, NetInfo.Lane laneInfo, NetInfo segmentInfo, out string detail)
+        {
+            detail = null;
+
+            if (segmentId == 0 || segmentInfo == null)
+            {
+                detail = "segment_info_missing";
+                return false;
+            }
+
+            if (laneIndex < 0 || laneInfo == null)
+            {
+                detail = "lane_info_missing";
+                return false;
+            }
+
+            if (!NetUtil.SegmentExists(segmentId))
+            {
+                detail = "segment_missing";
+                return false;
+            }
+
+            if (SpeedLimitMayHaveSegmentMethod != null)
+            {
+                try
+                {
+                    var segment = NetManager.instance.m_segments.m_buffer[segmentId];
+                    var args = new object[] { segment };
+                    if (!Convert.ToBoolean(SpeedLimitMayHaveSegmentMethod.Invoke(null, args)))
+                    {
+                        detail = "segment_disallows_speed_limits";
+                        return false;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Log.Warn(LogCategory.Diagnostics, "TM:PE MayHaveCustomSpeedLimits(ref NetSegment) probe failed | segmentId={0} error={1}", segmentId, ex);
+                }
+            }
+
+            bool laneAllowed;
+
+            if (SpeedLimitMayHaveLaneMethod != null)
+            {
+                try
+                {
+                    laneAllowed = Convert.ToBoolean(SpeedLimitMayHaveLaneMethod.Invoke(null, new object[] { laneInfo }));
+                }
+                catch (Exception ex)
+                {
+                    Log.Warn(LogCategory.Diagnostics, "TM:PE MayHaveCustomSpeedLimits(NetInfo.Lane) probe failed | segmentId={0} laneIndex={1} error={2}", segmentId, laneIndex, ex);
+                    laneAllowed = LaneSupportsCustomSpeedLimitsFallback(laneInfo);
+                }
+            }
+            else
+            {
+                laneAllowed = LaneSupportsCustomSpeedLimitsFallback(laneInfo);
+            }
+
+            if (!laneAllowed)
+            {
+                detail = "lane_disallows_speed_limits";
+                return false;
+            }
+
+            return true;
+        }
+
+        private static bool LaneSupportsCustomSpeedLimitsFallback(NetInfo.Lane laneInfo)
+        {
+            if (laneInfo == null)
+                return false;
+
+            if (laneInfo.m_finalDirection == NetInfo.Direction.None)
+                return false;
+
+            if ((laneInfo.m_laneType & SpeedLimitLaneTypeMask) == NetInfo.LaneType.None)
+                return false;
+
+            if ((laneInfo.m_vehicleType & SpeedLimitVehicleTypeMask) == VehicleInfo.VehicleType.None)
+                return false;
+
+            return true;
+        }
+
+        private static bool NodeSupportsJunctionRestrictions(ushort nodeId, out string detail)
+        {
+            detail = null;
+
+            if (!NetUtil.NodeExists(nodeId))
+            {
+                detail = "node_missing";
+                return false;
+            }
+
+            ref var node = ref NetManager.instance.m_nodes.m_buffer[nodeId];
+            if ((node.m_flags & NetNode.Flags.Created) == NetNode.Flags.None)
+            {
+                detail = "node_not_created";
+                return false;
+            }
+
+            if (MayHaveJunctionRestrictionsMethod != null && JunctionRestrictionsManagerInstance != null)
+            {
+                try
+                {
+                    var result = MayHaveJunctionRestrictionsMethod.Invoke(JunctionRestrictionsManagerInstance, new object[] { nodeId });
+                    if (result is bool allowed && !allowed)
+                    {
+                        detail = "tmpe_may_have_junction_restrictions=false";
+                        return false;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Log.Warn(LogCategory.Diagnostics, "TM:PE MayHaveJunctionRestrictions probe failed | nodeId={0} error={1}", nodeId, ex);
+                }
+            }
+
+            if ((node.m_flags & (NetNode.Flags.Junction | NetNode.Flags.Bend)) == NetNode.Flags.None)
+            {
+                detail = "node_not_junction_or_bend";
+                return false;
+            }
+
+            for (int i = 0; i < 8; i++)
+            {
+                if (node.GetSegment(i) != 0)
+                    return true;
+            }
+
+            detail = "node_has_no_segments";
+            return false;
+        }
+
+        private static bool LaneSupportsCustomArrows(uint laneId, out string detail)
+        {
+            detail = null;
+
+            if (!TryGetLaneInfo(laneId, out var segmentId, out _, out var laneInfo, out var segmentInfo))
+            {
+                detail = "lane_lookup_failed";
+                return false;
+            }
+
+            if (laneInfo == null || segmentInfo == null)
+            {
+                detail = "lane_data_missing";
+                return false;
+            }
+
+            ref var segment = ref NetManager.instance.m_segments.m_buffer[segmentId];
+            if ((segment.m_flags & NetSegment.Flags.Created) == NetSegment.Flags.None)
+            {
+                detail = "segment_not_created";
+                return false;
+            }
+
+            var supportedLaneTypes = laneInfo.m_laneType & (NetInfo.LaneType.Vehicle | NetInfo.LaneType.TransportVehicle);
+            if (supportedLaneTypes == NetInfo.LaneType.None)
+            {
+                detail = "lane_type=" + laneInfo.m_laneType;
+                return false;
+            }
+
+            var forward = NetInfo.Direction.Forward;
+            var effectiveDirection = (segment.m_flags & NetSegment.Flags.Invert) == NetSegment.Flags.None
+                ? forward
+                : NetInfo.InvertDirection(forward);
+            var isStartNode = (laneInfo.m_finalDirection & effectiveDirection) == NetInfo.Direction.None;
+            var nodeId = isStartNode ? segment.m_startNode : segment.m_endNode;
+            if (nodeId == 0)
+            {
+                detail = "node_missing";
+                return false;
+            }
+
+            ref var node = ref NetManager.instance.m_nodes.m_buffer[nodeId];
+            if ((node.m_flags & NetNode.Flags.Created) == NetNode.Flags.None)
+            {
+                detail = "node_not_created";
+                return false;
+            }
+
+            if ((node.m_flags & NetNode.Flags.Junction) == NetNode.Flags.None)
+            {
+                detail = "node_not_junction";
+                return false;
+            }
+
+            if (LaneArrowCanHaveMethod != null)
+            {
+                try
+                {
+                    object result;
+                    var parameters = LaneArrowCanHaveMethod.GetParameters();
+                    if (parameters.Length == 1)
+                        result = LaneArrowCanHaveMethod.Invoke(null, new object[] { laneId });
+                    else
+                        result = LaneArrowCanHaveMethod.Invoke(null, new object[] { laneId, null });
+
+                    if (result is bool allowed && !allowed)
+                    {
+                        detail = "tmpe_can_have_lane_arrows=false";
+                        return false;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Log.Warn(LogCategory.Diagnostics, "TM:PE CanHaveLaneArrows probe failed | laneId={0} error={1}", laneId, ex);
+                }
+            }
+
+            return true;
+        }
+
         private static bool TryApplyLaneArrowsReal(uint laneId, LaneArrowFlags arrows)
         {
             if (LaneArrowManagerInstance == null || LaneArrowSetMethod == null || LaneArrowsEnumType == null)
                 return false;
 
+            if (!LaneSupportsCustomArrows(laneId, out var rejectionDetail))
+            {
+                var detailText = string.IsNullOrEmpty(rejectionDetail) ? "<unspecified>" : rejectionDetail;
+                Log.Warn(LogCategory.Bridge, "TM:PE lane arrow apply aborted | laneId={0} detail={1}", laneId, detailText);
+                return false;
+            }
+
             var tmpeValue = Enum.ToObject(LaneArrowsEnumType, CombineLaneArrowFlags(arrows));
             var parameters = LaneArrowSetMethod.GetParameters();
+            object result;
             if (parameters.Length == 3)
-                LaneArrowSetMethod.Invoke(LaneArrowManagerInstance, new[] { (object)laneId, tmpeValue, (object)true });
+                result = LaneArrowSetMethod.Invoke(LaneArrowManagerInstance, new[] { (object)laneId, tmpeValue, (object)true });
             else
-                LaneArrowSetMethod.Invoke(LaneArrowManagerInstance, new[] { (object)laneId, tmpeValue });
+                result = LaneArrowSetMethod.Invoke(LaneArrowManagerInstance, new[] { (object)laneId, tmpeValue });
+
+            if (LaneArrowSetMethod.ReturnType == typeof(bool))
+            {
+                if (!(result is bool success && success))
+                {
+                    Log.Warn(LogCategory.Bridge, "TM:PE lane arrow apply rejected by API | laneId={0} arrows={1}", laneId, arrows);
+                    return false;
+                }
+            }
+
             return true;
         }
 
@@ -3240,11 +3717,17 @@ namespace CSM.TmpeSync.Tmpe
                 return false;
             }
 
-            ref var node = ref NetManager.instance.m_nodes.m_buffer[(int)nodeId];
-            if ((node.m_flags & NetNode.Flags.Created) == NetNode.Flags.None)
+            if (!NodeSupportsJunctionRestrictions(nodeId, out var rejectionDetail))
+            {
+                var detailText = string.IsNullOrEmpty(rejectionDetail) ? "<unspecified>" : rejectionDetail;
+                Log.Warn(LogCategory.Bridge, "TM:PE junction restriction apply aborted | nodeId={0} detail={1}", nodeId, detailText);
                 return false;
+            }
 
-            var success = false;
+            ref var node = ref NetManager.instance.m_nodes.m_buffer[(int)nodeId];
+            var anySegment = false;
+            var allSegmentsSucceeded = true;
+
             for (int i = 0; i < 8; i++)
             {
                 var segmentId = node.GetSegment(i);
@@ -3256,18 +3739,30 @@ namespace CSM.TmpeSync.Tmpe
                     continue;
 
                 var startNode = segment.m_startNode == nodeId;
+                anySegment = true;
 
-                SetUturnAllowedMethod.Invoke(JunctionRestrictionsManagerInstance, new object[] { segmentId, startNode, state.AllowUTurns });
-                SetNearTurnOnRedAllowedMethod.Invoke(JunctionRestrictionsManagerInstance, new object[] { segmentId, startNode, state.AllowNearTurnOnRed });
-                SetFarTurnOnRedAllowedMethod.Invoke(JunctionRestrictionsManagerInstance, new object[] { segmentId, startNode, state.AllowFarTurnOnRed });
-                SetLaneChangingAllowedMethod.Invoke(JunctionRestrictionsManagerInstance, new object[] { segmentId, startNode, state.AllowLaneChangesWhenGoingStraight });
-                SetEnteringBlockedMethod.Invoke(JunctionRestrictionsManagerInstance, new object[] { segmentId, startNode, state.AllowEnterWhenBlocked });
-                SetPedestrianCrossingMethod.Invoke(JunctionRestrictionsManagerInstance, new object[] { segmentId, startNode, state.AllowPedestrianCrossing });
-
-                success = true;
+                if (!ApplyJunctionRestrictionSetters(segmentId, startNode, state))
+                    allSegmentsSucceeded = false;
             }
 
-            return success;
+            if (!anySegment || !allSegmentsSucceeded)
+                return false;
+
+            if (TryGetJunctionRestrictionsReal(nodeId, out var liveState))
+            {
+                if (!JunctionRestrictionStatesMatch(state, liveState))
+                {
+                    Log.Warn(LogCategory.Bridge, "TM:PE junction restriction verification failed | nodeId={0} requested={1} actual={2}", nodeId, state, liveState);
+                    return false;
+                }
+            }
+            else
+            {
+                Log.Warn(LogCategory.Bridge, "TM:PE junction restriction verification unavailable | nodeId={0}", nodeId);
+                return false;
+            }
+
+            return true;
         }
 
         private static bool TryGetJunctionRestrictionsReal(ushort nodeId, out JunctionRestrictionsState state)
@@ -3362,6 +3857,67 @@ namespace CSM.TmpeSync.Tmpe
             return true;
         }
 
+        private static bool ApplyJunctionRestrictionSetters(ushort segmentId, bool startNode, JunctionRestrictionsState state)
+        {
+            var segmentSucceeded = true;
+
+            segmentSucceeded &= InvokeJunctionRestrictionSetter(SetUturnAllowedMethod, "AllowUTurns", segmentId, startNode, state.AllowUTurns);
+            segmentSucceeded &= InvokeJunctionRestrictionSetter(SetNearTurnOnRedAllowedMethod, "AllowNearTurnOnRed", segmentId, startNode, state.AllowNearTurnOnRed);
+            segmentSucceeded &= InvokeJunctionRestrictionSetter(SetFarTurnOnRedAllowedMethod, "AllowFarTurnOnRed", segmentId, startNode, state.AllowFarTurnOnRed);
+            segmentSucceeded &= InvokeJunctionRestrictionSetter(SetLaneChangingAllowedMethod, "AllowLaneChangesWhenGoingStraight", segmentId, startNode, state.AllowLaneChangesWhenGoingStraight);
+            segmentSucceeded &= InvokeJunctionRestrictionSetter(SetEnteringBlockedMethod, "AllowEnterWhenBlocked", segmentId, startNode, state.AllowEnterWhenBlocked);
+            segmentSucceeded &= InvokeJunctionRestrictionSetter(SetPedestrianCrossingMethod, "AllowPedestrianCrossing", segmentId, startNode, state.AllowPedestrianCrossing);
+
+            return segmentSucceeded;
+        }
+
+        private static bool InvokeJunctionRestrictionSetter(MethodInfo method, string flagName, ushort segmentId, bool startNode, bool value)
+        {
+            if (method == null)
+                return false;
+
+            object result;
+            try
+            {
+                result = method.Invoke(JunctionRestrictionsManagerInstance, new object[] { segmentId, startNode, value });
+            }
+            catch (Exception ex)
+            {
+                Log.Warn(LogCategory.Bridge, "TM:PE junction restriction apply threw | segmentId={0} startNode={1} flag={2} value={3} error={4}", segmentId, startNode, flagName, value, ex);
+                return false;
+            }
+
+            if (method.ReturnType == typeof(bool))
+            {
+                if (!(result is bool success))
+                {
+                    Log.Warn(LogCategory.Bridge, "TM:PE junction restriction unexpected return | segmentId={0} startNode={1} flag={2}", segmentId, startNode, flagName);
+                    return false;
+                }
+
+                if (!success)
+                {
+                    Log.Warn(LogCategory.Bridge, "TM:PE junction restriction rejected | segmentId={0} startNode={1} flag={2} value={3}", segmentId, startNode, flagName, value);
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
+        private static bool JunctionRestrictionStatesMatch(JunctionRestrictionsState expected, JunctionRestrictionsState actual)
+        {
+            if (expected == null || actual == null)
+                return false;
+
+            return expected.AllowUTurns == actual.AllowUTurns &&
+                   expected.AllowLaneChangesWhenGoingStraight == actual.AllowLaneChangesWhenGoingStraight &&
+                   expected.AllowEnterWhenBlocked == actual.AllowEnterWhenBlocked &&
+                   expected.AllowPedestrianCrossing == actual.AllowPedestrianCrossing &&
+                   expected.AllowNearTurnOnRed == actual.AllowNearTurnOnRed &&
+                   expected.AllowFarTurnOnRed == actual.AllowFarTurnOnRed;
+        }
+
         private static bool TryResolvePrioritySegmentOrientation(ushort nodeId, ushort segmentId, out bool startNode)
         {
             startNode = false;
@@ -3428,14 +3984,158 @@ namespace CSM.TmpeSync.Tmpe
             }
         }
 
+        private static bool TryDescribeParkingLanes(ushort segmentId, out bool hasForward, out bool hasBackward)
+        {
+            hasForward = false;
+            hasBackward = false;
+
+            if (!NetUtil.SegmentExists(segmentId))
+                return false;
+
+            ref var segment = ref NetManager.instance.m_segments.m_buffer[(int)segmentId];
+            var info = segment.Info;
+            if (info?.m_lanes == null)
+                return true;
+
+            foreach (var lane in info.m_lanes)
+            {
+                if ((lane.m_laneType & NetInfo.LaneType.Parking) == 0)
+                    continue;
+
+                switch (lane.m_finalDirection)
+                {
+                    case NetInfo.Direction.Forward:
+                        hasForward = true;
+                        break;
+                    case NetInfo.Direction.Backward:
+                        hasBackward = true;
+                        break;
+                    case NetInfo.Direction.Both:
+                    case NetInfo.Direction.AvoidBoth:
+                        hasForward = true;
+                        hasBackward = true;
+                        break;
+                }
+
+                if (hasForward && hasBackward)
+                    return true;
+            }
+
+            return true;
+        }
+
         private static bool TryApplyParkingRestrictionReal(ushort segmentId, ParkingRestrictionState state)
         {
             if (ParkingRestrictionsManagerInstance == null || ParkingAllowedSetMethod == null)
                 return false;
 
-            ParkingAllowedSetMethod.Invoke(ParkingRestrictionsManagerInstance, new object[] { segmentId, NetInfo.Direction.Forward, state.AllowParkingForward });
-            ParkingAllowedSetMethod.Invoke(ParkingRestrictionsManagerInstance, new object[] { segmentId, NetInfo.Direction.Backward, state.AllowParkingBackward });
-            return true;
+            if (!TryDescribeParkingLanes(segmentId, out var hasForwardLane, out var hasBackwardLane))
+            {
+                Log.Warn(LogCategory.Bridge, "TM:PE parking restriction rejected – segment missing | segmentId={0}", segmentId);
+                return false;
+            }
+
+            bool? segmentSupportsRestrictions = null;
+            if (ParkingMayHaveMethod != null)
+            {
+                segmentSupportsRestrictions = Convert.ToBoolean(
+                    ParkingMayHaveMethod.Invoke(ParkingRestrictionsManagerInstance, new object[] { segmentId }));
+
+                if (segmentSupportsRestrictions == false)
+                {
+                    if (state.AllowParkingBothDirections)
+                        return true;
+
+                    Log.Warn(LogCategory.Bridge, "TM:PE parking restriction rejected – segment has no configurable parking | segmentId={0}", segmentId);
+                    return false;
+                }
+            }
+
+            if (!hasForwardLane && !hasBackwardLane)
+            {
+                if (state.AllowParkingBothDirections)
+                    return true;
+
+                Log.Warn(LogCategory.Bridge, "TM:PE parking restriction rejected – segment has no parking lanes | segmentId={0}", segmentId);
+                return false;
+            }
+
+            bool? forwardConfigurable = null;
+            bool? backwardConfigurable = null;
+
+            if (ParkingMayHaveDirectionMethod != null)
+            {
+                forwardConfigurable = Convert.ToBoolean(
+                    ParkingMayHaveDirectionMethod.Invoke(
+                        ParkingRestrictionsManagerInstance,
+                        new object[] { segmentId, NetInfo.Direction.Forward }));
+
+                backwardConfigurable = Convert.ToBoolean(
+                    ParkingMayHaveDirectionMethod.Invoke(
+                        ParkingRestrictionsManagerInstance,
+                        new object[] { segmentId, NetInfo.Direction.Backward }));
+            }
+
+            bool ApplyDirection(NetInfo.Direction direction, bool allowParking, bool? configurable, bool hasLane)
+            {
+                if (!hasLane)
+                {
+                    if (allowParking)
+                        return true;
+
+                    Log.Warn(
+                        LogCategory.Bridge,
+                        "TM:PE parking restriction rejected – no parking lane for direction | segmentId={0} direction={1}",
+                        segmentId,
+                        direction);
+                    return false;
+                }
+
+                if (configurable == false)
+                {
+                    if (allowParking)
+                        return true;
+
+                    Log.Warn(
+                        LogCategory.Bridge,
+                        "TM:PE parking restriction rejected – direction unsupported | segmentId={0} direction={1}",
+                        segmentId,
+                        direction);
+                    return false;
+                }
+
+                var result = Convert.ToBoolean(
+                    ParkingAllowedSetMethod.Invoke(
+                        ParkingRestrictionsManagerInstance,
+                        new object[] { segmentId, direction, allowParking }));
+
+                if (!result)
+                {
+                    Log.Warn(
+                        LogCategory.Bridge,
+                        "TM:PE parking restriction apply returned false | segmentId={0} direction={1}",
+                        segmentId,
+                        direction);
+                }
+
+                return result;
+            }
+
+            var forwardResult = ApplyDirection(NetInfo.Direction.Forward, state.AllowParkingForward, forwardConfigurable, hasForwardLane);
+            var backwardResult = ApplyDirection(NetInfo.Direction.Backward, state.AllowParkingBackward, backwardConfigurable, hasBackwardLane);
+
+            if (forwardResult && backwardResult)
+                return true;
+
+            if (TryGetParkingRestrictionReal(segmentId, out var appliedState) &&
+                appliedState != null &&
+                appliedState.AllowParkingForward == state.AllowParkingForward &&
+                appliedState.AllowParkingBackward == state.AllowParkingBackward)
+            {
+                return true;
+            }
+
+            return false;
         }
 
         private static bool TryGetParkingRestrictionReal(ushort segmentId, out ParkingRestrictionState state)
