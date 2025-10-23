@@ -6,6 +6,7 @@ using System.Reflection;
 using ColossalFramework;
 using CSM.TmpeSync.Net.Contracts.Mapping;
 using CSM.TmpeSync.Snapshot;
+using CSM.TmpeSync.Net;
 
 namespace CSM.TmpeSync.Util
 {
@@ -19,6 +20,8 @@ namespace CSM.TmpeSync.Util
         private static bool _segmentHooksRegistered;
         private static readonly System.Reflection.EventInfo SegmentReleasedEvent = typeof(NetManager).GetEvent("EventSegmentReleased");
         private static Delegate _segmentReleasedHandler;
+        private static readonly Dictionary<ushort, uint> SegmentBuildIndices = new Dictionary<ushort, uint>();
+        private static readonly List<ushort> SegmentScratch = new List<ushort>();
 
         private sealed class LaneMappingUpdate
         {
@@ -32,6 +35,10 @@ namespace CSM.TmpeSync.Util
                 return;
 
             LaneMappingStore.Clear();
+            LaneGuidRegistry.Clear();
+            LaneAssignmentRetryBuffer.Clear();
+            SegmentBuildIndices.Clear();
+            ApplyLaneGuidRoleSettings();
             MultiplayerStateObserver.RoleChanged += OnRoleChanged;
             RegisterSegmentHooks();
             NetUtil.StartSimulationCoroutine(Validator());
@@ -46,6 +53,9 @@ namespace CSM.TmpeSync.Util
             MultiplayerStateObserver.RoleChanged -= OnRoleChanged;
             UnregisterSegmentHooks();
             LaneMappingStore.Clear();
+            LaneGuidRegistry.Clear();
+            LaneAssignmentRetryBuffer.Clear();
+            SegmentBuildIndices.Clear();
             _initialized = false;
         }
 
@@ -54,12 +64,18 @@ namespace CSM.TmpeSync.Util
             if (!string.Equals(role, "Server", StringComparison.OrdinalIgnoreCase))
             {
                 LaneMappingStore.Clear();
+                LaneGuidRegistry.SetAutomaticGeneration(false);
+                LaneGuidRegistry.Clear();
+                LaneAssignmentRetryBuffer.Clear();
+                SegmentBuildIndices.Clear();
                 return;
             }
 
             if (!CsmCompat.IsServerInstance())
                 return;
 
+            ApplyLaneGuidRoleSettings();
+            SegmentBuildIndices.Clear();
             SyncAllSegments("role_change");
         }
 
@@ -99,15 +115,17 @@ namespace CSM.TmpeSync.Util
                     SegmentId = update.Entry.SegmentId,
                     LaneIndex = update.Entry.LaneIndex,
                     HostLaneId = update.Entry.HostLaneId,
+                    LaneGuid = update.Entry.LaneGuid,
                     Version = update.Version
                 });
 
                 Log.Debug(
                     LogCategory.Synchronization,
-                    "Lane mapping broadcast | segment={0} laneIndex={1} hostLane={2} version={3} reason={4}",
+                    "Lane mapping broadcast | segment={0} laneIndex={1} hostLane={2} guid={3} version={4} reason={5}",
                     update.Entry.SegmentId,
                     update.Entry.LaneIndex,
                     update.Entry.HostLaneId,
+                    update.Entry.LaneGuid,
                     update.Version,
                     reason ?? "<unspecified>");
             }
@@ -122,14 +140,19 @@ namespace CSM.TmpeSync.Util
             if (removed.Count == 0)
                 return;
 
+            LaneGuidRegistry.HandleSegmentReleased(segmentId);
+            LaneAssignmentRetryBuffer.RemoveForSegment(segmentId);
+            SegmentBuildIndices.Remove(segmentId);
+
             foreach (var entry in removed)
             {
-                if (LaneMappingStore.Remove(entry.SegmentId, entry.LaneIndex, out _, out var version))
+                if (LaneMappingStore.Remove(entry.SegmentId, entry.LaneIndex, out var removed, out var version))
                 {
                     var removal = new LaneMappingRemoved
                     {
                         SegmentId = entry.SegmentId,
                         LaneIndex = entry.LaneIndex,
+                        LaneGuid = removed?.LaneGuid ?? default,
                         Version = version
                     };
 
@@ -141,9 +164,10 @@ namespace CSM.TmpeSync.Util
 
                     Log.Debug(
                         LogCategory.Synchronization,
-                        "Lane mapping removed | segment={0} laneIndex={1} version={2} reason={3}",
+                        "Lane mapping removed | segment={0} laneIndex={1} guid={2} version={3} reason={4}",
                         entry.SegmentId,
                         entry.LaneIndex,
+                        removed?.LaneGuid ?? default,
                         version,
                         reason ?? "<unspecified>");
                 }
@@ -158,6 +182,7 @@ namespace CSM.TmpeSync.Util
                 return null;
             }
 
+            SegmentBuildIndices[segmentId] = NetManager.instance.m_segments.m_buffer[segmentId].m_buildIndex;
             var info = NetManager.instance.m_segments.m_buffer[segmentId].Info;
             if (info?.m_lanes == null || info.m_lanes.Length == 0)
                 return null;
@@ -173,7 +198,18 @@ namespace CSM.TmpeSync.Util
                     continue;
                 }
 
-                var result = LaneMappingStore.UpsertHostLane(laneId, segmentId, laneIndex, out _, out var version);
+                var laneGuid = LaneGuidRegistry.GetOrCreateLaneGuid(laneId);
+                if (!laneGuid.IsValid)
+                {
+                    Log.Warn(
+                        LogCategory.Synchronization,
+                        "Lane GUID generation failed | segment={0} laneIndex={1} laneId={2}",
+                        segmentId,
+                        laneIndex,
+                        laneId);
+                }
+
+                var result = LaneMappingStore.UpsertHostLane(laneGuid, laneId, segmentId, laneIndex, out _, out var version);
                 if (result == LaneMappingStore.UpsertResult.Added || result == LaneMappingStore.UpsertResult.Updated)
                 {
                     updates.Add(new LaneMappingUpdate
@@ -182,11 +218,15 @@ namespace CSM.TmpeSync.Util
                         {
                             SegmentId = segmentId,
                             LaneIndex = laneIndex,
-                            HostLaneId = laneId
+                            HostLaneId = laneId,
+                            LaneGuid = laneGuid
                         },
                         Version = version
                     });
                 }
+
+                if (laneGuid.IsValid)
+                    LaneGuidRegistry.AssignLaneGuid(laneId, laneGuid, true);
 
                 LaneMappingStore.UpdateLocalLane(segmentId, laneIndex, laneId);
                 laneId = lane.m_nextLane;
@@ -209,12 +249,16 @@ namespace CSM.TmpeSync.Util
             {
                 if (!currentKeys.Contains(entry.LaneIndex))
                 {
-                    if (LaneMappingStore.Remove(entry.SegmentId, entry.LaneIndex, out _, out var version))
+                    if (entry.HostLaneId != 0)
+                        LaneGuidRegistry.HandleLaneReleased(entry.HostLaneId);
+
+                    if (LaneMappingStore.Remove(entry.SegmentId, entry.LaneIndex, out var removed, out var version))
                     {
                         var removal = new LaneMappingRemoved
                         {
                             SegmentId = entry.SegmentId,
                             LaneIndex = entry.LaneIndex,
+                            LaneGuid = removed?.LaneGuid ?? default,
                             Version = version
                         };
 
@@ -227,6 +271,7 @@ namespace CSM.TmpeSync.Util
                 }
             }
 
+            LaneAssignmentRetryBuffer.ProcessForSegment(segmentId);
             return updates;
         }
 
@@ -271,6 +316,22 @@ namespace CSM.TmpeSync.Util
                 version,
                 reason ?? "<unspecified>",
                 targetClientId.HasValue ? ("client:" + targetClientId.Value) : "broadcast");
+        }
+
+        private static void ApplyLaneGuidRoleSettings()
+        {
+            if (CsmCompat.IsServerInstance())
+            {
+                LaneGuidRegistry.SetAutomaticGeneration(true);
+                LaneGuidRegistry.Rebuild();
+                SegmentBuildIndices.Clear();
+            }
+            else
+            {
+                LaneGuidRegistry.SetAutomaticGeneration(false);
+                LaneGuidRegistry.Clear();
+                SegmentBuildIndices.Clear();
+            }
         }
 
         private static void RegisterSegmentHooks()
@@ -363,6 +424,8 @@ namespace CSM.TmpeSync.Util
                     yield break;
 
                 PruneStaleMappings();
+                DetectSegmentLifecycle();
+                LaneAssignmentRetryBuffer.Process();
             }
         }
 
@@ -381,14 +444,23 @@ namespace CSM.TmpeSync.Util
             if (staleEntries.Count == 0)
                 return;
 
+            var handledSegments = new HashSet<ushort>();
             foreach (var entry in staleEntries)
             {
-                if (LaneMappingStore.Remove(entry.SegmentId, entry.LaneIndex, out _, out var version))
+                if (handledSegments.Add(entry.SegmentId))
+                {
+                    LaneGuidRegistry.HandleSegmentReleased(entry.SegmentId);
+                    LaneAssignmentRetryBuffer.RemoveForSegment(entry.SegmentId);
+                    SegmentBuildIndices.Remove(entry.SegmentId);
+                }
+
+                if (LaneMappingStore.Remove(entry.SegmentId, entry.LaneIndex, out var removed, out var version))
                 {
                     var removal = new LaneMappingRemoved
                     {
                         SegmentId = entry.SegmentId,
                         LaneIndex = entry.LaneIndex,
+                        LaneGuid = removed?.LaneGuid ?? default,
                         Version = version
                     };
 
@@ -400,12 +472,60 @@ namespace CSM.TmpeSync.Util
 
                     Log.Debug(
                         LogCategory.Synchronization,
-                        "Lane mapping pruned | segment={0} laneIndex={1} version={2} reason=validator",
+                        "Lane mapping pruned | segment={0} laneIndex={1} guid={2} version={3} reason=validator",
                         entry.SegmentId,
                         entry.LaneIndex,
+                        removed?.LaneGuid ?? default,
                         version);
                 }
             }
+        }
+
+        private static void DetectSegmentLifecycle()
+        {
+            if (!CsmCompat.IsServerInstance())
+                return;
+
+            if (!NetManager.exists)
+                return;
+
+            var netManager = NetManager.instance;
+
+            SegmentScratch.Clear();
+            SegmentScratch.AddRange(SegmentBuildIndices.Keys);
+
+            var changedSegments = new List<ushort>();
+            foreach (var segmentId in SegmentScratch)
+            {
+                if (!NetUtil.SegmentExists(segmentId))
+                {
+                    SegmentBuildIndices.Remove(segmentId);
+                    continue;
+                }
+
+                var currentBuild = netManager.m_segments.m_buffer[segmentId].m_buildIndex;
+                if (SegmentBuildIndices[segmentId] != currentBuild)
+                {
+                    SegmentBuildIndices[segmentId] = currentBuild;
+                    changedSegments.Add(segmentId);
+                }
+            }
+
+            var discoveredSegments = new List<ushort>();
+            NetUtil.ForEachSegment(segmentId =>
+            {
+                if (!SegmentBuildIndices.ContainsKey(segmentId))
+                {
+                    SegmentBuildIndices[segmentId] = netManager.m_segments.m_buffer[segmentId].m_buildIndex;
+                    discoveredSegments.Add(segmentId);
+                }
+            });
+
+            foreach (var segmentId in discoveredSegments)
+                SyncSegment(segmentId, "segment_discovered");
+
+            foreach (var segmentId in changedSegments)
+                SyncSegment(segmentId, "build_index_changed");
         }
     }
 }

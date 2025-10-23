@@ -107,6 +107,8 @@
     <Compile Include="Util\DeferredApply.cs" />
     <Compile Include="Util\CsmCompat.cs" />
     <Compile Include="Util\LockRegistry.cs" />
+    <Compile Include="Util\LaneGuidRegistry.cs" />
+    <Compile Include="Util\LaneAssignmentRetryBuffer.cs" />
     <Compile Include="Util\MultiplayerStateObserver.cs" />
 
     <Compile Include="HideCrosswalks\HideCrosswalksAdapter.cs" />
@@ -138,6 +140,7 @@
     <Compile Include="Net\Contracts\Mapping\LaneMappingBatch.cs" />
     <Compile Include="Net\Contracts\Mapping\LaneMappingChanged.cs" />
     <Compile Include="Net\Contracts\Mapping\LaneMappingRemoved.cs" />
+    <Compile Include="Net\LaneGuid.cs" />
     <Compile Include="Net\Contracts\System\RequestRejected.cs" />
     <Compile Include="Net\Contracts\System\TmpeFeatureReady.cs" />
     <Compile Include="Net\Contracts\Locks\BeginEnd.cs" />

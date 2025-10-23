@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using CSM.API.Commands;
 using CSM.TmpeSync.Net.Contracts.Mapping;
 using CSM.TmpeSync.Util;
+using CSM.TmpeSync.Net;
 
 namespace CSM.TmpeSync.Net.Handlers
 {
@@ -23,7 +24,8 @@ namespace CSM.TmpeSync.Net.Handlers
                         LaneIndex = entry.LaneIndex,
                         HostLaneId = entry.HostLaneId,
                         LocalLaneId = 0,
-                        IsLocalResolved = false
+                        IsLocalResolved = false,
+                        LaneGuid = entry.LaneGuid
                     });
                 }
 
@@ -34,35 +36,51 @@ namespace CSM.TmpeSync.Net.Handlers
                 }
 
                 foreach (var entry in command.Entries)
-                    ResolveLocalLane(entry.SegmentId, entry.LaneIndex, entry.HostLaneId);
+                    ResolveLocalLane(entry.SegmentId, entry.LaneIndex, entry.LaneGuid);
 
                 Log.Info(
                     LogCategory.Synchronization,
                     "Lane mapping snapshot imported | count={0} version={1}",
                     command.Entries.Count,
                     command.Version);
+                LaneAssignmentRetryBuffer.Process();
                 return;
             }
 
             foreach (var entry in command.Entries)
             {
-                if (!LaneMappingStore.ApplyRemoteChange(command.Version, entry.HostLaneId, entry.SegmentId, entry.LaneIndex))
+                if (!LaneMappingStore.ApplyRemoteChange(command.Version, entry.HostLaneId, entry.LaneGuid, entry.SegmentId, entry.LaneIndex))
                 {
                     Log.Debug(LogCategory.Synchronization, "Ignoring stale lane mapping change | segment={0} laneIndex={1} version={2}", entry.SegmentId, entry.LaneIndex, command.Version);
                     continue;
                 }
 
-                ResolveLocalLane(entry.SegmentId, entry.LaneIndex, entry.HostLaneId);
+                ResolveLocalLane(entry.SegmentId, entry.LaneIndex, entry.LaneGuid);
             }
+
+            LaneAssignmentRetryBuffer.Process();
         }
 
-        internal static void ResolveLocalLane(ushort segmentId, int laneIndex, uint hostLaneId)
+        internal static bool ResolveLocalLane(ushort segmentId, int laneIndex, LaneGuid laneGuid)
         {
-            if (segmentId == 0 || laneIndex < 0)
-                return;
+            if (!laneGuid.IsValid)
+                return false;
 
-            if (NetUtil.TryGetLaneId(segmentId, laneIndex, out var localLaneId))
-                LaneMappingStore.UpdateLocalLane(segmentId, laneIndex, localLaneId);
+            if (!LaneGuidRegistry.TryResolveLane(laneGuid, out var localLaneId))
+            {
+                LaneAssignmentRetryBuffer.Queue(laneGuid, segmentId, laneIndex);
+                return false;
+            }
+
+            if (segmentId == 0 || laneIndex < 0)
+            {
+                if (!NetUtil.TryGetLaneLocation(localLaneId, out segmentId, out laneIndex))
+                    return false;
+            }
+
+            LaneGuidRegistry.AssignLaneGuid(localLaneId, laneGuid, true);
+            LaneMappingStore.UpdateLocalLane(segmentId, laneIndex, localLaneId);
+            return true;
         }
     }
 }

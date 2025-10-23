@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using ColossalFramework;
+using CSM.TmpeSync.Net;
 
 namespace CSM.TmpeSync.Util
 {
@@ -37,6 +38,7 @@ namespace CSM.TmpeSync.Util
             internal uint HostLaneId { get; set; }
             internal uint LocalLaneId { get; set; }
             internal bool IsLocalResolved { get; set; }
+            internal LaneGuid LaneGuid { get; set; }
         }
 
         internal enum UpsertResult
@@ -49,6 +51,7 @@ namespace CSM.TmpeSync.Util
         private static readonly object SyncRoot = new object();
         private static readonly Dictionary<LaneKey, Entry> ByKey = new Dictionary<LaneKey, Entry>();
         private static readonly Dictionary<uint, LaneKey> ByHostLane = new Dictionary<uint, LaneKey>();
+        private static readonly Dictionary<LaneGuid, LaneKey> ByLaneGuid = new Dictionary<LaneGuid, LaneKey>();
         private static long _version;
 
         internal static void Clear()
@@ -57,6 +60,7 @@ namespace CSM.TmpeSync.Util
             {
                 ByKey.Clear();
                 ByHostLane.Clear();
+                ByLaneGuid.Clear();
                 _version = 0;
             }
         }
@@ -72,7 +76,7 @@ namespace CSM.TmpeSync.Util
             }
         }
 
-        internal static UpsertResult UpsertHostLane(uint hostLaneId, ushort segmentId, int laneIndex, out Entry entry, out long version)
+        internal static UpsertResult UpsertHostLane(LaneGuid laneGuid, uint hostLaneId, ushort segmentId, int laneIndex, out Entry entry, out long version)
         {
             var key = new LaneKey(segmentId, laneIndex);
 
@@ -80,21 +84,41 @@ namespace CSM.TmpeSync.Util
             {
                 if (ByKey.TryGetValue(key, out var existing))
                 {
-                    if (existing.HostLaneId == hostLaneId)
+                    var changed = false;
+
+                    if (existing.HostLaneId != hostLaneId)
                     {
-                        entry = existing;
+                        if (existing.HostLaneId != 0)
+                            ByHostLane.Remove(existing.HostLaneId);
+                        existing.HostLaneId = hostLaneId;
+                        changed = true;
+                    }
+
+                    if (existing.LaneGuid != laneGuid)
+                    {
+                        if (existing.LaneGuid.IsValid)
+                            ByLaneGuid.Remove(existing.LaneGuid);
+                        existing.LaneGuid = laneGuid;
+                        changed = true;
+                    }
+
+                    if (hostLaneId != 0)
+                        ByHostLane[hostLaneId] = key;
+
+                    if (laneGuid.IsValid)
+                        ByLaneGuid[laneGuid] = key;
+
+                    existing.LocalLaneId = hostLaneId != 0 ? hostLaneId : existing.LocalLaneId;
+                    existing.IsLocalResolved = existing.LocalLaneId != 0;
+
+                    entry = existing;
+
+                    if (!changed)
+                    {
                         version = _version;
                         return UpsertResult.Unchanged;
                     }
 
-                    if (existing.HostLaneId != 0)
-                        ByHostLane.Remove(existing.HostLaneId);
-
-                    existing.HostLaneId = hostLaneId;
-                    existing.LocalLaneId = hostLaneId;
-                    existing.IsLocalResolved = true;
-                    entry = existing;
-                    ByHostLane[hostLaneId] = key;
                     version = ++_version;
                     return UpsertResult.Updated;
                 }
@@ -105,12 +129,16 @@ namespace CSM.TmpeSync.Util
                     LaneIndex = laneIndex,
                     HostLaneId = hostLaneId,
                     LocalLaneId = hostLaneId,
-                    IsLocalResolved = true
+                    IsLocalResolved = hostLaneId != 0,
+                    LaneGuid = laneGuid
                 };
 
                 ByKey[key] = created;
                 if (hostLaneId != 0)
                     ByHostLane[hostLaneId] = key;
+
+                if (laneGuid.IsValid)
+                    ByLaneGuid[laneGuid] = key;
 
                 entry = created;
                 version = ++_version;
@@ -124,6 +152,24 @@ namespace CSM.TmpeSync.Util
             {
                 if (ByHostLane.TryGetValue(hostLaneId, out var key) && ByKey.TryGetValue(key, out entry))
                     return true;
+                entry = null;
+                return false;
+            }
+        }
+
+        internal static bool TryResolveLaneGuid(LaneGuid laneGuid, out Entry entry)
+        {
+            if (!laneGuid.IsValid)
+            {
+                entry = null;
+                return false;
+            }
+
+            lock (SyncRoot)
+            {
+                if (ByLaneGuid.TryGetValue(laneGuid, out var key) && ByKey.TryGetValue(key, out entry))
+                    return true;
+
                 entry = null;
                 return false;
             }
@@ -148,7 +194,8 @@ namespace CSM.TmpeSync.Util
                     LaneIndex = e.LaneIndex,
                     HostLaneId = e.HostLaneId,
                     LocalLaneId = e.LocalLaneId,
-                    IsLocalResolved = e.IsLocalResolved
+                    IsLocalResolved = e.IsLocalResolved,
+                    LaneGuid = e.LaneGuid
                 }).ToArray();
             }
         }
@@ -162,6 +209,7 @@ namespace CSM.TmpeSync.Util
 
                 ByKey.Clear();
                 ByHostLane.Clear();
+                ByLaneGuid.Clear();
 
                 foreach (var entry in entries)
                 {
@@ -172,12 +220,16 @@ namespace CSM.TmpeSync.Util
                         LaneIndex = entry.LaneIndex,
                         HostLaneId = entry.HostLaneId,
                         LocalLaneId = entry.LocalLaneId,
-                        IsLocalResolved = entry.IsLocalResolved
+                        IsLocalResolved = entry.IsLocalResolved,
+                        LaneGuid = entry.LaneGuid
                     };
 
                     ByKey[key] = clone;
                     if (clone.HostLaneId != 0)
                         ByHostLane[clone.HostLaneId] = key;
+
+                    if (clone.LaneGuid.IsValid)
+                        ByLaneGuid[clone.LaneGuid] = key;
                 }
 
                 _version = version;
@@ -201,6 +253,9 @@ namespace CSM.TmpeSync.Util
                 if (removed.HostLaneId != 0)
                     ByHostLane.Remove(removed.HostLaneId);
 
+                if (removed.LaneGuid.IsValid)
+                    ByLaneGuid.Remove(removed.LaneGuid);
+
                 version = ++_version;
                 return true;
             }
@@ -214,7 +269,7 @@ namespace CSM.TmpeSync.Util
             }
         }
 
-        internal static bool ApplyRemoteChange(long version, uint hostLaneId, ushort segmentId, int laneIndex)
+        internal static bool ApplyRemoteChange(long version, uint hostLaneId, LaneGuid laneGuid, ushort segmentId, int laneIndex)
         {
             var key = new LaneKey(segmentId, laneIndex);
             lock (SyncRoot)
@@ -227,8 +282,12 @@ namespace CSM.TmpeSync.Util
                     if (existing.HostLaneId != 0)
                         ByHostLane.Remove(existing.HostLaneId);
 
+                    if (existing.LaneGuid.IsValid)
+                        ByLaneGuid.Remove(existing.LaneGuid);
+
                     existing.HostLaneId = hostLaneId;
                     existing.IsLocalResolved = false;
+                    existing.LaneGuid = laneGuid;
                 }
                 else
                 {
@@ -238,33 +297,54 @@ namespace CSM.TmpeSync.Util
                         LaneIndex = laneIndex,
                         HostLaneId = hostLaneId,
                         LocalLaneId = 0,
-                        IsLocalResolved = false
+                        IsLocalResolved = false,
+                        LaneGuid = laneGuid
                     };
 
                     ByKey[key] = created;
+                    existing = created;
                 }
 
                 if (hostLaneId != 0)
                     ByHostLane[hostLaneId] = key;
+
+                if (laneGuid.IsValid)
+                    ByLaneGuid[laneGuid] = key;
 
                 _version = version;
                 return true;
             }
         }
 
-        internal static bool ApplyRemoteRemoval(long version, ushort segmentId, int laneIndex)
+        internal static bool ApplyRemoteRemoval(long version, LaneGuid laneGuid, ushort segmentId, int laneIndex, out Entry removed)
         {
-            var key = new LaneKey(segmentId, laneIndex);
+            removed = null;
             lock (SyncRoot)
             {
                 if (version <= _version)
                     return false;
 
-                if (ByKey.TryGetValue(key, out var removed))
+                if (!laneGuid.IsValid)
                 {
+                    _version = version;
+                    return true;
+                }
+
+                if (ByLaneGuid.TryGetValue(laneGuid, out var key) && ByKey.TryGetValue(key, out var entry))
+                {
+                    if (entry.SegmentId != segmentId || entry.LaneIndex != laneIndex)
+                    {
+                        _version = version;
+                        return true;
+                    }
+
+                    removed = entry;
                     ByKey.Remove(key);
-                    if (removed.HostLaneId != 0)
-                        ByHostLane.Remove(removed.HostLaneId);
+                    if (entry.HostLaneId != 0)
+                        ByHostLane.Remove(entry.HostLaneId);
+
+                    if (entry.LaneGuid.IsValid)
+                        ByLaneGuid.Remove(entry.LaneGuid);
                 }
 
                 _version = version;

@@ -11,7 +11,7 @@ namespace CSM.TmpeSync.Net.Handlers
             if (command == null)
                 return;
 
-            if (!LaneMappingStore.ApplyRemoteChange(command.Version, command.HostLaneId, command.SegmentId, command.LaneIndex))
+            if (!LaneMappingStore.ApplyRemoteChange(command.Version, command.HostLaneId, command.LaneGuid, command.SegmentId, command.LaneIndex))
             {
                 Log.Debug(
                     LogCategory.Synchronization,
@@ -24,13 +24,15 @@ namespace CSM.TmpeSync.Net.Handlers
 
             Log.Debug(
                 LogCategory.Synchronization,
-                "Lane mapping changed | segment={0} laneIndex={1} hostLane={2} version={3}",
+                "Lane mapping changed | segment={0} laneIndex={1} hostLane={2} guid={3} version={4}",
                 command.SegmentId,
                 command.LaneIndex,
                 command.HostLaneId,
+                command.LaneGuid,
                 command.Version);
 
-            LaneMappingBatchHandler.ResolveLocalLane(command.SegmentId, command.LaneIndex, command.HostLaneId);
+            LaneMappingBatchHandler.ResolveLocalLane(command.SegmentId, command.LaneIndex, command.LaneGuid);
+            LaneAssignmentRetryBuffer.ProcessForSegment(command.SegmentId);
         }
     }
 }
