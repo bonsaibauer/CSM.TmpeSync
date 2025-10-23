@@ -864,9 +864,15 @@ namespace CSM.TmpeSync.Tmpe
         private static Type SetSpeedLimitActionType;
         private static MethodInfo SetSpeedLimitResetMethod;
         private static MethodInfo SetSpeedLimitOverrideMethod;
+        private static MethodInfo SetSpeedLimitFromNullableMethod;
         private static Type SpeedValueType;
         private static MethodInfo SpeedValueFromKmphMethod;
         private static MethodInfo SpeedValueGetKmphMethod;
+        private static ConstructorInfo SpeedValueCtor;
+        private static ConstructorInfo SetSpeedLimitActionCtorSpeedValue;
+        private static ConstructorInfo SetSpeedLimitActionCtorActionType;
+        private static Type SetSpeedLimitActionActionTypeEnumType;
+        private static object SetSpeedLimitActionResetEnumValue;
 
         private static object LaneArrowManagerInstance;
         private static MethodInfo LaneArrowSetMethod;
@@ -966,6 +972,23 @@ namespace CSM.TmpeSync.Tmpe
 
         private static bool InitialiseSpeedLimitBridge(Assembly tmpeAssembly)
         {
+            SpeedLimitManagerInstance = null;
+            SpeedLimitSetLaneMethod = null;
+            SpeedLimitCalculateMethod = null;
+            SpeedLimitGetDefaultMethod = null;
+            SetSpeedLimitActionType = null;
+            SetSpeedLimitResetMethod = null;
+            SetSpeedLimitOverrideMethod = null;
+            SetSpeedLimitFromNullableMethod = null;
+            SpeedValueType = null;
+            SpeedValueFromKmphMethod = null;
+            SpeedValueGetKmphMethod = null;
+            SpeedValueCtor = null;
+            SetSpeedLimitActionCtorSpeedValue = null;
+            SetSpeedLimitActionCtorActionType = null;
+            SetSpeedLimitActionActionTypeEnumType = null;
+            SetSpeedLimitActionResetEnumValue = null;
+
             try
             {
                 var managerType = tmpeAssembly.GetType("TrafficManager.Manager.Impl.SpeedLimitManager");
@@ -1013,11 +1036,55 @@ namespace CSM.TmpeSync.Tmpe
                     if (SetSpeedLimitResetMethod == null)
                         LogBridgeGap("Speed Limits", "SetSpeedLimitAction.ResetToDefault()", "<method missing>");
 
+                    SetSpeedLimitFromNullableMethod = SetSpeedLimitActionType.GetMethod(
+                        "FromNullableFloat",
+                        BindingFlags.Public | BindingFlags.Static,
+                        null,
+                        new[] { typeof(float?) },
+                        null);
+                    if (SetSpeedLimitFromNullableMethod == null)
+                        LogBridgeGap("Speed Limits", "SetSpeedLimitAction.FromNullableFloat(float?)", "<method missing>");
+
+                    SetSpeedLimitActionActionTypeEnumType = SetSpeedLimitActionType.GetNestedType(
+                        "ActionType",
+                        BindingFlags.Public | BindingFlags.NonPublic);
+                    if (SetSpeedLimitActionActionTypeEnumType == null)
+                    {
+                        LogBridgeGap("Speed Limits", "SetSpeedLimitAction.ActionType", "<type missing>");
+                    }
+                    else
+                    {
+                        try
+                        {
+                            SetSpeedLimitActionResetEnumValue = Enum.Parse(SetSpeedLimitActionActionTypeEnumType, "ResetToDefault");
+                        }
+                        catch (Exception ex)
+                        {
+                            LogBridgeGap("Speed Limits", "SetSpeedLimitAction.ActionType.ResetToDefault", ex.GetType().Name);
+                        }
+
+                        SetSpeedLimitActionCtorActionType = SetSpeedLimitActionType.GetConstructor(
+                            BindingFlags.NonPublic | BindingFlags.Instance,
+                            null,
+                            new[] { SetSpeedLimitActionActionTypeEnumType },
+                            null);
+                        if (SetSpeedLimitActionCtorActionType == null)
+                            LogBridgeGap("Speed Limits", "SetSpeedLimitAction(ActionType)", "<ctor missing>");
+                    }
+
                     if (SpeedValueType != null)
                     {
                         SetSpeedLimitOverrideMethod = SetSpeedLimitActionType.GetMethod("SetOverride", BindingFlags.Public | BindingFlags.Static, null, new[] { SpeedValueType }, null);
                         if (SetSpeedLimitOverrideMethod == null)
                             LogBridgeGap("Speed Limits", "SetSpeedLimitAction.SetOverride(SpeedValue)", "<method missing>");
+
+                        SetSpeedLimitActionCtorSpeedValue = SetSpeedLimitActionType.GetConstructor(
+                            BindingFlags.NonPublic | BindingFlags.Instance,
+                            null,
+                            new[] { SpeedValueType },
+                            null);
+                        if (SetSpeedLimitActionCtorSpeedValue == null)
+                            LogBridgeGap("Speed Limits", "SetSpeedLimitAction(SpeedValue)", "<ctor missing>");
                     }
                 }
 
@@ -1030,6 +1097,14 @@ namespace CSM.TmpeSync.Tmpe
                     SpeedValueGetKmphMethod = SpeedValueType.GetMethod("GetKmph", BindingFlags.Public | BindingFlags.Instance, null, Type.EmptyTypes, null);
                     if (SpeedValueGetKmphMethod == null)
                         LogBridgeGap("Speed Limits", "SpeedValue.GetKmph()", "<method missing>");
+
+                    SpeedValueCtor = SpeedValueType.GetConstructor(
+                        BindingFlags.Public | BindingFlags.Instance,
+                        null,
+                        new[] { typeof(float) },
+                        null);
+                    if (SpeedValueCtor == null)
+                        LogBridgeGap("Speed Limits", "SpeedValue..ctor(float)", "<ctor missing>");
                 }
             }
             catch (Exception ex)
@@ -1081,13 +1156,32 @@ namespace CSM.TmpeSync.Tmpe
                 }
 
                 LaneArrowsEnumType = ResolveTypeWithContext("TrafficManager.API.Traffic.Enums.LaneArrows", tmpeAssembly, "Lane Arrows");
+
+                if (LaneArrowsEnumType == null)
+                {
+                    var enumCandidate = LaneArrowSetMethod?.GetParameters()
+                        .Skip(1)
+                        .FirstOrDefault()
+                        ?.ParameterType;
+
+                    if (enumCandidate?.IsEnum == true)
+                        LaneArrowsEnumType = enumCandidate;
+                }
+
+                if (LaneArrowsEnumType == null)
+                {
+                    var enumCandidate = LaneArrowGetMethod?.ReturnType;
+                    if (enumCandidate?.IsEnum == true)
+                        LaneArrowsEnumType = enumCandidate;
+                }
+
                 if (LaneArrowsEnumType != null)
                 {
                     try
                     {
-                        LaneArrowLeftMask = (int)Enum.Parse(LaneArrowsEnumType, "Left");
-                        LaneArrowForwardMask = (int)Enum.Parse(LaneArrowsEnumType, "Forward");
-                        LaneArrowRightMask = (int)Enum.Parse(LaneArrowsEnumType, "Right");
+                        LaneArrowLeftMask = (int)Enum.Parse(LaneArrowsEnumType, "Left", true);
+                        LaneArrowForwardMask = (int)Enum.Parse(LaneArrowsEnumType, "Forward", true);
+                        LaneArrowRightMask = (int)Enum.Parse(LaneArrowsEnumType, "Right", true);
                     }
                     catch (Exception ex)
                     {
@@ -1141,15 +1235,37 @@ namespace CSM.TmpeSync.Tmpe
                     ExtVehiclePassengerBlimpMask = GetExtVehicleMask("PassengerBlimp");
                     ExtVehicleTrolleybusMask = GetExtVehicleMask("Trolleybus");
 
-                    VehicleRestrictionsSetMethod = managerType.GetMethod(
-                        "SetAllowedVehicleTypes",
-                        BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic,
-                        null,
-                        new[] { typeof(ushort), typeof(NetInfo), typeof(uint), typeof(NetInfo.Lane), typeof(uint), ExtVehicleTypeEnumType },
-                        null);
+                    var setParameterTypes = ExtVehicleTypeEnumType == null
+                        ? null
+                        : new[] { typeof(ushort), typeof(NetInfo), typeof(uint), typeof(NetInfo.Lane), typeof(uint), ExtVehicleTypeEnumType };
+
+                    if (setParameterTypes != null)
+                    {
+                        VehicleRestrictionsSetMethod = managerType.GetMethod(
+                            "SetAllowedVehicleTypes",
+                            BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic,
+                            null,
+                            setParameterTypes,
+                            null);
+                    }
+
+                    if (VehicleRestrictionsSetMethod == null)
+                    {
+                        VehicleRestrictionsSetMethod = managerType
+                            .GetMethods(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)
+                            .FirstOrDefault(m =>
+                                string.Equals(m.Name, "SetAllowedVehicleTypes", StringComparison.Ordinal) &&
+                                m.GetParameters().Length == 6);
+                    }
 
                     if (VehicleRestrictionsSetMethod == null)
                         LogBridgeGap("Vehicle Restrictions", "SetAllowedVehicleTypes", DescribeMethodOverloads(managerType, "SetAllowedVehicleTypes"));
+                    else if (ExtVehicleTypeEnumType == null)
+                    {
+                        var parameterType = VehicleRestrictionsSetMethod.GetParameters().LastOrDefault()?.ParameterType;
+                        if (parameterType?.IsEnum == true)
+                            ExtVehicleTypeEnumType = parameterType;
+                    }
 
                     VehicleRestrictionsClearMethod = managerType.GetMethod(
                         "ClearVehicleRestrictions",
@@ -1168,6 +1284,17 @@ namespace CSM.TmpeSync.Tmpe
                         null);
                     if (VehicleRestrictionsGetMethod == null)
                         LogBridgeGap("Vehicle Restrictions", "GetAllowedVehicleTypesRaw(ushort, uint)", DescribeMethodOverloads(managerType, "GetAllowedVehicleTypesRaw"));
+                    else if (ExtVehicleTypeEnumType == null && VehicleRestrictionsGetMethod.ReturnType?.IsEnum == true)
+                        ExtVehicleTypeEnumType = VehicleRestrictionsGetMethod.ReturnType;
+                }
+
+                if (ExtVehicleTypeEnumType == null)
+                {
+                    var parameterType = VehicleRestrictionsSetMethod?.GetParameters()
+                        .LastOrDefault()
+                        ?.ParameterType;
+                    if (parameterType?.IsEnum == true)
+                        ExtVehicleTypeEnumType = parameterType;
                 }
             }
             catch (Exception ex)
@@ -1213,19 +1340,59 @@ namespace CSM.TmpeSync.Tmpe
 
                 if (managerType != null)
                 {
-                    LaneConnectionAddMethod = managerType.GetMethod(
-                        "AddLaneConnection",
-                        BindingFlags.Instance | BindingFlags.Public,
-                        null,
-                        new[] { typeof(uint), typeof(uint), typeof(bool), LaneEndTransitionGroupEnumType },
-                        null);
+                    var laneConnectionParameterTypes = LaneEndTransitionGroupEnumType == null
+                        ? null
+                        : new[] { typeof(uint), typeof(uint), typeof(bool), LaneEndTransitionGroupEnumType };
 
-                    LaneConnectionRemoveMethod = managerType.GetMethod(
-                        "RemoveLaneConnection",
-                        BindingFlags.Instance | BindingFlags.Public,
-                        null,
-                        new[] { typeof(uint), typeof(uint), typeof(bool), LaneEndTransitionGroupEnumType },
-                        null);
+                    if (laneConnectionParameterTypes != null)
+                    {
+                        LaneConnectionAddMethod = managerType.GetMethod(
+                            "AddLaneConnection",
+                            BindingFlags.Instance | BindingFlags.Public,
+                            null,
+                            laneConnectionParameterTypes,
+                            null);
+
+                        LaneConnectionRemoveMethod = managerType.GetMethod(
+                            "RemoveLaneConnection",
+                            BindingFlags.Instance | BindingFlags.Public,
+                            null,
+                            laneConnectionParameterTypes,
+                            null);
+                    }
+
+                    if (LaneConnectionAddMethod == null || LaneConnectionRemoveMethod == null)
+                    {
+                        LaneConnectionAddMethod ??= managerType
+                            .GetMethods(BindingFlags.Instance | BindingFlags.Public)
+                            .FirstOrDefault(m =>
+                                string.Equals(m.Name, "AddLaneConnection", StringComparison.Ordinal) &&
+                                m.GetParameters().Length == 4);
+
+                        LaneConnectionRemoveMethod ??= managerType
+                            .GetMethods(BindingFlags.Instance | BindingFlags.Public)
+                            .FirstOrDefault(m =>
+                                string.Equals(m.Name, "RemoveLaneConnection", StringComparison.Ordinal) &&
+                                m.GetParameters().Length == 4);
+                    }
+
+                    if (LaneEndTransitionGroupEnumType == null)
+                    {
+                        var enumCandidate = LaneConnectionAddMethod?.GetParameters().LastOrDefault()?.ParameterType ??
+                                            LaneConnectionRemoveMethod?.GetParameters().LastOrDefault()?.ParameterType;
+                        if (enumCandidate?.IsEnum == true)
+                        {
+                            LaneEndTransitionGroupEnumType = enumCandidate;
+                            try
+                            {
+                                LaneEndTransitionGroupVehicleValue = Enum.Parse(LaneEndTransitionGroupEnumType, "Vehicle");
+                            }
+                            catch (Exception ex)
+                            {
+                                Log.Warn(LogCategory.Bridge, "TM:PE lane connection bridge enum conversion failed | error={0}", ex);
+                            }
+                        }
+                    }
 
                     LaneConnectionRoadSubManager = managerType.GetField("Road", BindingFlags.Instance | BindingFlags.Public)?.GetValue(LaneConnectionManagerInstance);
                     LaneConnectionTrackSubManager = managerType.GetField("Track", BindingFlags.Instance | BindingFlags.Public)?.GetValue(LaneConnectionManagerInstance);
@@ -2417,11 +2584,62 @@ namespace CSM.TmpeSync.Tmpe
             if (SetSpeedLimitActionType == null)
                 return null;
 
-            if (speedKmh <= 0f || SpeedValueFromKmphMethod == null || SetSpeedLimitOverrideMethod == null)
-                return SetSpeedLimitResetMethod?.Invoke(null, null);
+            if (speedKmh <= 0f)
+                return CreateSpeedLimitResetAction();
 
-            var speedValue = SpeedValueFromKmphMethod.Invoke(null, new object[] { speedKmh });
-            return SetSpeedLimitOverrideMethod.Invoke(null, new[] { speedValue });
+            return CreateSpeedLimitOverrideAction(speedKmh);
+        }
+
+        private static object CreateSpeedLimitResetAction()
+        {
+            if (SetSpeedLimitResetMethod != null)
+                return SetSpeedLimitResetMethod.Invoke(null, null);
+
+            if (SetSpeedLimitActionCtorActionType != null && SetSpeedLimitActionResetEnumValue != null)
+            {
+                try
+                {
+                    return SetSpeedLimitActionCtorActionType.Invoke(new[] { SetSpeedLimitActionResetEnumValue });
+                }
+                catch (Exception ex)
+                {
+                    Log.Debug(LogCategory.Bridge, "TM:PE speed limit reset construction failed | error={0}", ex);
+                }
+            }
+
+            return null;
+        }
+
+        private static object CreateSpeedLimitOverrideAction(float speedKmh)
+        {
+            if (SpeedValueFromKmphMethod != null && SetSpeedLimitOverrideMethod != null)
+            {
+                var speedValue = SpeedValueFromKmphMethod.Invoke(null, new object[] { speedKmh });
+                if (speedValue != null)
+                    return SetSpeedLimitOverrideMethod.Invoke(null, new[] { speedValue });
+            }
+
+            if (SetSpeedLimitFromNullableMethod != null)
+            {
+                var action = SetSpeedLimitFromNullableMethod.Invoke(null, new object[] { (float?)ConvertKmhToGameSpeed(speedKmh) });
+                if (action != null)
+                    return action;
+            }
+
+            if (SpeedValueCtor != null && SetSpeedLimitActionCtorSpeedValue != null)
+            {
+                try
+                {
+                    var constructedSpeedValue = SpeedValueCtor.Invoke(new object[] { ConvertKmhToGameSpeed(speedKmh) });
+                    return SetSpeedLimitActionCtorSpeedValue.Invoke(new[] { constructedSpeedValue });
+                }
+                catch (Exception ex)
+                {
+                    Log.Debug(LogCategory.Bridge, "TM:PE speed limit override construction failed | error={0}", ex);
+                }
+            }
+
+            return null;
         }
 
         private static float ConvertGameSpeedToKmh(float gameUnits)
@@ -2431,6 +2649,11 @@ namespace CSM.TmpeSync.Tmpe
 
             var speedValue = Activator.CreateInstance(SpeedValueType, BindingFlags.Public | BindingFlags.Instance, null, new object[] { gameUnits }, CultureInfo.InvariantCulture);
             return Convert.ToSingle(SpeedValueGetKmphMethod.Invoke(speedValue, null));
+        }
+
+        private static float ConvertKmhToGameSpeed(float speedKmh)
+        {
+            return speedKmh / 50f;
         }
 
         private static bool TryGetLaneInfo(uint laneId, out ushort segmentId, out int laneIndex, out NetInfo.Lane laneInfo, out NetInfo segmentInfo)
