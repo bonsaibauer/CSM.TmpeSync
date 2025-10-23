@@ -1363,17 +1363,33 @@ namespace CSM.TmpeSync.Tmpe
 
                     if (LaneConnectionAddMethod == null || LaneConnectionRemoveMethod == null)
                     {
-                        LaneConnectionAddMethod ??= managerType
-                            .GetMethods(BindingFlags.Instance | BindingFlags.Public)
-                            .FirstOrDefault(m =>
-                                string.Equals(m.Name, "AddLaneConnection", StringComparison.Ordinal) &&
-                                m.GetParameters().Length == 4);
+                        if (LaneConnectionAddMethod == null)
+                        {
+                            var addCandidate = managerType
+                                .GetMethods(BindingFlags.Instance | BindingFlags.Public)
+                                .FirstOrDefault(m =>
+                                    string.Equals(m.Name, "AddLaneConnection", StringComparison.Ordinal) &&
+                                    m.GetParameters().Length == 4);
 
-                        LaneConnectionRemoveMethod ??= managerType
-                            .GetMethods(BindingFlags.Instance | BindingFlags.Public)
-                            .FirstOrDefault(m =>
-                                string.Equals(m.Name, "RemoveLaneConnection", StringComparison.Ordinal) &&
-                                m.GetParameters().Length == 4);
+                            if (addCandidate != null)
+                            {
+                                LaneConnectionAddMethod = addCandidate;
+                            }
+                        }
+
+                        if (LaneConnectionRemoveMethod == null)
+                        {
+                            var removeCandidate = managerType
+                                .GetMethods(BindingFlags.Instance | BindingFlags.Public)
+                                .FirstOrDefault(m =>
+                                    string.Equals(m.Name, "RemoveLaneConnection", StringComparison.Ordinal) &&
+                                    m.GetParameters().Length == 4);
+
+                            if (removeCandidate != null)
+                            {
+                                LaneConnectionRemoveMethod = removeCandidate;
+                            }
+                        }
                     }
 
                     if (LaneEndTransitionGroupEnumType == null)
