@@ -136,23 +136,23 @@ namespace CSM.TmpeSync.Util
             if (!CsmCompat.IsServerInstance())
                 return;
 
-            var removed = new List<LaneMappingStore.Entry>(LaneMappingStore.GetEntriesForSegment(segmentId));
-            if (removed.Count == 0)
+            var removedEntries = new List<LaneMappingStore.Entry>(LaneMappingStore.GetEntriesForSegment(segmentId));
+            if (removedEntries.Count == 0)
                 return;
 
             LaneGuidRegistry.HandleSegmentReleased(segmentId);
             LaneAssignmentRetryBuffer.RemoveForSegment(segmentId);
             SegmentBuildIndices.Remove(segmentId);
 
-            foreach (var entry in removed)
+            foreach (var entry in removedEntries)
             {
-                if (LaneMappingStore.Remove(entry.SegmentId, entry.LaneIndex, out var removed, out var version))
+                if (LaneMappingStore.Remove(entry.SegmentId, entry.LaneIndex, out var removedEntry, out var version))
                 {
                     var removal = new LaneMappingRemoved
                     {
                         SegmentId = entry.SegmentId,
                         LaneIndex = entry.LaneIndex,
-                        LaneGuid = removed?.LaneGuid ?? default,
+                        LaneGuid = removedEntry?.LaneGuid ?? default,
                         Version = version
                     };
 
@@ -167,7 +167,7 @@ namespace CSM.TmpeSync.Util
                         "Lane mapping removed | segment={0} laneIndex={1} guid={2} version={3} reason={4}",
                         entry.SegmentId,
                         entry.LaneIndex,
-                        removed?.LaneGuid ?? default,
+                        removedEntry?.LaneGuid ?? default,
                         version,
                         reason ?? "<unspecified>");
                 }

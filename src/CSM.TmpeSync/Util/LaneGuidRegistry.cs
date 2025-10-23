@@ -239,7 +239,7 @@ namespace CSM.TmpeSync.Util
                 ref var lane = ref laneBuffer[laneId];
                 if ((lane.m_flags & (uint)NetLane.Flags.Created) != 0)
                 {
-                    var slotKey = new LaneSlotKey(segmentId, segment.m_buildIndex, info.m_prefabDataIndex, (byte)laneIndex);
+                    var slotKey = new LaneSlotKey(segmentId, segment.m_buildIndex, (ushort)info.m_prefabDataIndex, (byte)laneIndex);
                     EnsureLaneRegistration(laneId, slotKey);
                 }
 
@@ -348,7 +348,7 @@ namespace CSM.TmpeSync.Util
             {
                 if (currentLaneId == laneId)
                 {
-                    slotKey = new LaneSlotKey(segmentId, segment.m_buildIndex, info.m_prefabDataIndex, (byte)laneIndex);
+                    slotKey = new LaneSlotKey(segmentId, segment.m_buildIndex, (ushort)info.m_prefabDataIndex, (byte)laneIndex);
                     return true;
                 }
 
