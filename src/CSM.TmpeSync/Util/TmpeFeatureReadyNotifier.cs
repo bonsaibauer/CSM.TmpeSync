@@ -63,6 +63,42 @@ namespace CSM.TmpeSync.Util
         private static void OnRoleChanged(string role)
         {
             _notified = false;
+
+            if (string.Equals(role, "Server", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(role, "Client", StringComparison.OrdinalIgnoreCase))
+            {
+                Tmpe.TmpeEventBridge.Refresh();
+            }
+            else
+            {
+                Tmpe.TmpeEventBridge.Disable();
+            }
+
+            DeferredApply.Reset();
+            LogFeatureStatus(role);
+        }
+
+        private static void LogFeatureStatus(string role)
+        {
+            try
+            {
+                var speed = TmpeAdapter.IsFeatureSupported("speedLimits");
+                var arrows = TmpeAdapter.IsFeatureSupported("laneArrows");
+                var parking = TmpeAdapter.IsFeatureSupported("parkingRestrictions");
+                var vehicle = TmpeAdapter.IsFeatureSupported("vehicleRestrictions");
+                Log.Info(
+                    LogCategory.Diagnostics,
+                    "TM:PE feature availability after role change | role={0} speed={1} arrows={2} parking={3} vehicle={4}",
+                    role ?? "<null>",
+                    speed ? "OK" : "MISSING",
+                    arrows ? "OK" : "MISSING",
+                    parking ? "OK" : "MISSING",
+                    vehicle ? "OK" : "MISSING");
+            }
+            catch (Exception ex)
+            {
+                Log.Warn(LogCategory.Diagnostics, "Failed to log TM:PE feature status | error={0}", ex);
+            }
         }
 
         private static ulong BuildFeatureMask()

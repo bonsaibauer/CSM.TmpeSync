@@ -73,6 +73,14 @@ namespace CSM.TmpeSync.Tmpe
             }
         }
 
+        internal static void Refresh()
+        {
+            if (_enabled)
+                Disable();
+
+            Enable();
+        }
+
         private static class SegmentPatch
         {
             internal static bool Apply(Harmony harmony)

@@ -123,6 +123,7 @@ namespace CSM.TmpeSync.Tmpe
             if (info?.m_lanes == null)
                 return;
 
+            var mappingVersion = LaneMappingStore.Version;
             uint laneId = segment.m_lanes;
             for (int laneIndex = 0; laneId != 0 && laneIndex < info.m_lanes.Length; laneIndex++)
             {
@@ -143,7 +144,8 @@ namespace CSM.TmpeSync.Tmpe
                             LaneId = laneId,
                             SpeedKmh = kmh,
                             SegmentId = segmentId,
-                            LaneIndex = laneIndex
+                            LaneIndex = laneIndex,
+                            MappingVersion = mappingVersion
                         });
                     }
                 }
@@ -274,12 +276,14 @@ namespace CSM.TmpeSync.Tmpe
                 {
                     LaneMappingTracker.SyncSegment(segmentId, "lane_arrows");
 
+                    var mappingVersion = LaneMappingStore.Version;
                     Broadcast(new LaneArrowApplied
                     {
                         LaneId = laneId,
                         SegmentId = segmentId,
                         LaneIndex = laneIndex,
-                        Arrows = arrows
+                        Arrows = arrows,
+                        MappingVersion = mappingVersion
                     });
                 }
             }

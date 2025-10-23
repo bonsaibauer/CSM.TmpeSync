@@ -70,22 +70,25 @@ namespace CSM.TmpeSync.Util
                                 applied = entry.Op.TryApply();
                             }
                         }
+                    else
+                    {
+                        waitingForTarget = true;
+                        if (!entry.Op.ShouldWait())
+                        {
+                            entry.Retries++;
+                            entry.WaitCycles = 0;
+                            if (entry.Retries >= MaxRetries)
+                                drop = true;
+                        }
                         else
                         {
-                            waitingForTarget = true;
-                            if (!entry.Op.ShouldWait())
-                            {
-                                entry.Retries++;
-                                if (entry.Retries >= MaxRetries)
-                                    drop = true;
-                            }
-                            else
-                            {
-                                entry.Retries = 0;
-                            }
+                            entry.WaitCycles++;
+                            if (entry.WaitCycles >= MaxRetries)
+                                drop = true;
                         }
                     }
-                    catch (Exception ex)
+                }
+                catch (Exception ex)
                     {
                         Log.Error(LogCategory.Synchronization, "Deferred apply failed | key={0} error={1}", entry.Key, ex);
                         drop = true;
@@ -133,6 +136,7 @@ namespace CSM.TmpeSync.Util
             internal string Key { get; }
             internal IDeferredOp Op { get; }
             internal int Retries { get; set; }
+            internal int WaitCycles { get; set; }
         }
 
         internal static void Reset()
