@@ -264,6 +264,72 @@ namespace CSM.TmpeSync.Tmpe
             }
         }
 
+        private static void ResolveManagerFactory(Assembly tmpeAssembly)
+        {
+            ManagerFactoryInstance = null;
+            ManagerFactoryRuntimeType = null;
+
+            try
+            {
+                var factoryStaticType = ResolveType("TrafficManager.API.Implementations.ManagerFactory", tmpeAssembly);
+                if (factoryStaticType == null)
+                    return;
+
+                var managerFactoryProperty = factoryStaticType.GetProperty(
+                    "ManagerFactory",
+                    BindingFlags.Public | BindingFlags.Static);
+                if (managerFactoryProperty == null)
+                {
+                    LogBridgeGap("managerFactory", "property", factoryStaticType.FullName + ".ManagerFactory");
+                    return;
+                }
+
+                var instance = managerFactoryProperty.GetValue(null, null);
+                if (instance == null)
+                {
+                    LogBridgeGap("managerFactory", "instance", factoryStaticType.FullName + ".ManagerFactory");
+                    return;
+                }
+
+                ManagerFactoryInstance = instance;
+                ManagerFactoryRuntimeType = instance.GetType();
+            }
+            catch (Exception ex)
+            {
+                Log.Warn(LogCategory.Bridge, "TM:PE manager factory resolution failed | error={0}", ex);
+                ManagerFactoryInstance = null;
+                ManagerFactoryRuntimeType = null;
+            }
+        }
+
+        private static object GetManagerFromFactory(string propertyName, string featureName)
+        {
+            if (ManagerFactoryInstance == null || ManagerFactoryRuntimeType == null || string.IsNullOrEmpty(propertyName))
+                return null;
+
+            try
+            {
+                var property = ManagerFactoryRuntimeType.GetProperty(
+                    propertyName,
+                    BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                if (property == null)
+                {
+                    LogBridgeGap(featureName, "ManagerFactory." + propertyName, "<missing>");
+                    return null;
+                }
+
+                var value = property.GetValue(ManagerFactoryInstance, null);
+                if (value == null)
+                    LogBridgeGap(featureName, "ManagerFactory." + propertyName, "<null>");
+                return value;
+            }
+            catch (Exception ex)
+            {
+                RecordFeatureGapDetail(featureName, "ManagerFactory." + propertyName, ex.GetType().Name);
+                return null;
+            }
+        }
+
         private static Type ResolveTypeWithContext(string typeName, Assembly primaryAssembly, string featureName)
         {
             var type = ResolveType(typeName, primaryAssembly);
@@ -505,6 +571,7 @@ namespace CSM.TmpeSync.Tmpe
                 try
                 {
                     EnsureTmpeApiAssemblyLoaded(tmpeAssembly);
+                    ResolveManagerFactory(tmpeAssembly);
                     SupportsSpeedLimits = InitialiseSpeedLimitBridge(tmpeAssembly);
                     SupportsLaneArrows = InitialiseLaneArrowBridge(tmpeAssembly);
                     SupportsVehicleRestrictions = InitialiseVehicleRestrictionsBridge(tmpeAssembly);
@@ -857,6 +924,9 @@ namespace CSM.TmpeSync.Tmpe
             });
         }
 
+        private static object ManagerFactoryInstance;
+        private static Type ManagerFactoryRuntimeType;
+
         private static object SpeedLimitManagerInstance;
         private static MethodInfo SpeedLimitSetLaneMethod;
         private static MethodInfo SpeedLimitCalculateMethod;
@@ -991,14 +1061,22 @@ namespace CSM.TmpeSync.Tmpe
 
             try
             {
-                var managerType = tmpeAssembly.GetType("TrafficManager.Manager.Impl.SpeedLimitManager");
+                var managerType = tmpeAssembly?.GetType("TrafficManager.Manager.Impl.SpeedLimitManager");
+                var manager = GetManagerFromFactory("SpeedLimitManager", "Speed Limits");
+
+                if (manager != null)
+                    managerType = manager.GetType();
+                else if (managerType != null)
+                    manager = TryGetStaticInstance(managerType, "Speed Limits");
+
                 if (managerType == null)
                     LogBridgeGap("Speed Limits", "type", "TrafficManager.Manager.Impl.SpeedLimitManager");
 
-                SpeedLimitManagerInstance = TryGetStaticInstance(managerType, "Speed Limits");
+                SpeedLimitManagerInstance = manager;
 
-                SetSpeedLimitActionType = ResolveTypeWithContext("TrafficManager.State.SetSpeedLimitAction", tmpeAssembly, "Speed Limits");
-                SpeedValueType = ResolveTypeWithContext("TrafficManager.API.Traffic.Data.SpeedValue", tmpeAssembly, "Speed Limits");
+                var contextAssembly = managerType?.Assembly ?? tmpeAssembly;
+                SetSpeedLimitActionType = ResolveTypeWithContext("TrafficManager.State.SetSpeedLimitAction", contextAssembly, "Speed Limits");
+                SpeedValueType = ResolveTypeWithContext("TrafficManager.API.Traffic.Data.SpeedValue", contextAssembly, "Speed Limits");
 
                 if (managerType != null && SetSpeedLimitActionType != null)
                 {
@@ -1122,11 +1200,18 @@ namespace CSM.TmpeSync.Tmpe
         {
             try
             {
-                var managerType = tmpeAssembly.GetType("TrafficManager.Manager.Impl.LaneArrowManager");
+                var managerType = tmpeAssembly?.GetType("TrafficManager.Manager.Impl.LaneArrowManager");
+                var manager = GetManagerFromFactory("LaneArrowManager", "Lane Arrows");
+
+                if (manager != null)
+                    managerType = manager.GetType();
+                else if (managerType != null)
+                    manager = TryGetStaticInstance(managerType, "Lane Arrows");
+
                 if (managerType == null)
                     LogBridgeGap("Lane Arrows", "type", "TrafficManager.Manager.Impl.LaneArrowManager");
 
-                LaneArrowManagerInstance = TryGetStaticInstance(managerType, "Lane Arrows");
+                LaneArrowManagerInstance = manager;
 
                 if (managerType != null)
                 {
@@ -1155,7 +1240,8 @@ namespace CSM.TmpeSync.Tmpe
                         LogBridgeGap("Lane Arrows", "GetFinalLaneArrows(uint)", DescribeMethodOverloads(managerType, "GetFinalLaneArrows"));
                 }
 
-                LaneArrowsEnumType = ResolveTypeWithContext("TrafficManager.API.Traffic.Enums.LaneArrows", tmpeAssembly, "Lane Arrows");
+                var contextAssembly = managerType?.Assembly ?? tmpeAssembly;
+                LaneArrowsEnumType = ResolveTypeWithContext("TrafficManager.API.Traffic.Enums.LaneArrows", contextAssembly, "Lane Arrows");
 
                 if (LaneArrowsEnumType == null)
                 {
@@ -1453,14 +1539,21 @@ namespace CSM.TmpeSync.Tmpe
         {
             try
             {
-                var managerType = tmpeAssembly.GetType("TrafficManager.Manager.Impl.JunctionRestrictionsManager");
+                var managerType = tmpeAssembly?.GetType("TrafficManager.Manager.Impl.JunctionRestrictionsManager");
+                var manager = GetManagerFromFactory("JunctionRestrictionsManager", "Junction Restrictions");
+
+                if (manager != null)
+                    managerType = manager.GetType();
+                else if (managerType != null)
+                {
+                    var instanceProperty = managerType.GetProperty("Instance", BindingFlags.Public | BindingFlags.Static);
+                    manager = instanceProperty?.GetValue(null, null);
+                }
+
                 if (managerType == null)
                     LogBridgeGap("Junction Restrictions", "type", "TrafficManager.Manager.Impl.JunctionRestrictionsManager");
 
-                var instanceProperty = managerType?.GetProperty("Instance", BindingFlags.Public | BindingFlags.Static);
-                JunctionRestrictionsManagerInstance = instanceProperty?.GetValue(null, null);
-                if (JunctionRestrictionsManagerInstance == null && managerType != null)
-                    LogBridgeGap("Junction Restrictions", "Instance", managerType.FullName + ".Instance");
+                JunctionRestrictionsManagerInstance = manager;
 
                 if (managerType != null)
                 {
@@ -1549,14 +1642,18 @@ namespace CSM.TmpeSync.Tmpe
         {
             try
             {
-                var managerType = tmpeAssembly.GetType("TrafficManager.Manager.Impl.ParkingRestrictionsManager");
+                var managerType = tmpeAssembly?.GetType("TrafficManager.Manager.Impl.ParkingRestrictionsManager");
+                var manager = GetManagerFromFactory("ParkingRestrictionsManager", "Parking Restrictions");
+
+                if (manager != null)
+                    managerType = manager.GetType();
+                else if (managerType != null)
+                    manager = TryGetStaticInstance(managerType, "Parking Restrictions");
+
                 if (managerType == null)
                     LogBridgeGap("Parking Restrictions", "type", "TrafficManager.Manager.Impl.ParkingRestrictionsManager");
 
-                var instanceField = managerType?.GetField("Instance", BindingFlags.Public | BindingFlags.Static);
-                ParkingRestrictionsManagerInstance = instanceField?.GetValue(null);
-                if (ParkingRestrictionsManagerInstance == null && managerType != null)
-                    LogBridgeGap("Parking Restrictions", "Instance", managerType.FullName + ".Instance");
+                ParkingRestrictionsManagerInstance = manager;
 
                 if (managerType != null)
                 {
@@ -2096,29 +2193,34 @@ namespace CSM.TmpeSync.Tmpe
         {
             try
             {
+                var appliedViaApi = false;
+
                 if (SupportsPrioritySigns)
                 {
                     Log.Debug(LogCategory.Hook, "TM:PE priority sign request | nodeId={0} segmentId={1} signType={2}", nodeId, segmentId, signType);
-                    if (TryApplyPrioritySignReal(nodeId, segmentId, signType))
-                        return true;
+                    appliedViaApi = TryApplyPrioritySignReal(nodeId, segmentId, signType);
 
-                    Log.Warn(LogCategory.Bridge, "TM:PE priority sign apply via API failed | nodeId={0} segmentId={1} action=fallback_to_stub", nodeId, segmentId);
+                    if (!appliedViaApi)
+                        Log.Warn(LogCategory.Bridge, "TM:PE priority sign apply via API failed | nodeId={0} segmentId={1} action=aborted", nodeId, segmentId);
                 }
                 else
                 {
                     Log.Info(LogCategory.Synchronization, "TM:PE priority sign stored in stub | nodeId={0} segmentId={1} signType={2}", nodeId, segmentId, signType);
                 }
 
-                lock (StateLock)
+                if (appliedViaApi || !SupportsPrioritySigns)
                 {
-                    var key = new NodeSegmentKey(nodeId, segmentId);
-                    if (signType == PrioritySignType.None)
-                        PrioritySigns.Remove(key);
-                    else
-                        PrioritySigns[key] = signType;
+                    lock (StateLock)
+                    {
+                        var key = new NodeSegmentKey(nodeId, segmentId);
+                        if (signType == PrioritySignType.None)
+                            PrioritySigns.Remove(key);
+                        else
+                            PrioritySigns[key] = signType;
+                    }
                 }
 
-                return true;
+                return appliedViaApi || !SupportsPrioritySigns;
             }
             catch (Exception ex)
             {
@@ -2131,15 +2233,26 @@ namespace CSM.TmpeSync.Tmpe
         {
             try
             {
+                var key = new NodeSegmentKey(nodeId, segmentId);
+
                 if (SupportsPrioritySigns && TryGetPrioritySignReal(nodeId, segmentId, out signType))
                 {
                     Log.Debug(LogCategory.Hook, "TM:PE priority sign query | nodeId={0} segmentId={1} signType={2}", nodeId, segmentId, signType);
+
+                    lock (StateLock)
+                    {
+                        if (signType == PrioritySignType.None)
+                            PrioritySigns.Remove(key);
+                        else
+                            PrioritySigns[key] = signType;
+                    }
+
                     return true;
                 }
 
                 lock (StateLock)
                 {
-                    if (!PrioritySigns.TryGetValue(new NodeSegmentKey(nodeId, segmentId), out signType))
+                    if (!PrioritySigns.TryGetValue(key, out signType))
                         signType = PrioritySignType.None;
                 }
 
