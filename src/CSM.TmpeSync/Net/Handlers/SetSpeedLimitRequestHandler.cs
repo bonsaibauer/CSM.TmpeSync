@@ -73,13 +73,15 @@ namespace CSM.TmpeSync.Net.Handlers
                             currentLaneIndex = laneIndex;
                         }
 
+                        var mappingVersion = LaneMappingStore.Version;
                         Log.Info(LogCategory.Synchronization, "Applied speed limit | laneId={0} segmentId={1} laneIndex={2} speedKmh={3} action=broadcast", lockedLaneId, currentSegment, currentLaneIndex, resultingSpeed);
                         CsmCompat.SendToAll(new SpeedLimitApplied
                         {
                             LaneId = lockedLaneId,
                             SpeedKmh = resultingSpeed,
                             SegmentId = currentSegment,
-                            LaneIndex = currentLaneIndex
+                            LaneIndex = currentLaneIndex,
+                            MappingVersion = mappingVersion
                         });
                     }
                     else

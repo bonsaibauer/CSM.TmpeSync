@@ -85,13 +85,15 @@ namespace CSM.TmpeSync.Net.Handlers
                             simLaneIndex = laneIndex;
                         }
 
+                        var mappingVersion = LaneMappingStore.Version;
                         Log.Info(LogCategory.Synchronization, "Applied lane arrows | laneId={0} segmentId={1} laneIndex={2} arrows={3} action=broadcast", simLaneId, simSegmentId, simLaneIndex, resultingArrows);
                         CsmCompat.SendToAll(new LaneArrowApplied
                         {
                             LaneId = simLaneId,
                             Arrows = resultingArrows,
                             SegmentId = simSegmentId,
-                            LaneIndex = simLaneIndex
+                            LaneIndex = simLaneIndex,
+                            MappingVersion = mappingVersion
                         });
                     }
                     else

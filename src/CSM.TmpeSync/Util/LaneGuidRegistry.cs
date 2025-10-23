@@ -366,15 +366,16 @@ namespace CSM.TmpeSync.Util
                 return false;
 
             ref var segment = ref NetManager.instance.m_segments.m_buffer[laneGuid.SegmentId];
-            if (segment.m_buildIndex != laneGuid.SegmentBuildIndex)
+            var actualBuildIndex = segment.m_buildIndex;
+            var buildMismatch = actualBuildIndex != laneGuid.SegmentBuildIndex;
+            if (buildMismatch)
             {
                 Log.Warn(
                     LogCategory.Synchronization,
-                    "Lane GUID build index mismatch | segment={0} expectedBuild={1} actualBuild={2}",
+                    "Lane GUID build index mismatch | segment={0} expectedBuild={1} actualBuild={2} action=attempt_remap",
                     laneGuid.SegmentId,
                     laneGuid.SegmentBuildIndex,
-                    segment.m_buildIndex);
-                return false;
+                    actualBuildIndex);
             }
 
             var info = segment.Info;
@@ -394,6 +395,16 @@ namespace CSM.TmpeSync.Util
                         return false;
 
                     laneId = currentLaneId;
+                    if (buildMismatch)
+                    {
+                        Log.Info(
+                            LogCategory.Synchronization,
+                            "Lane GUID build index remap succeeded | segment={0} previousBuild={1} currentBuild={2} laneId={3}",
+                            laneGuid.SegmentId,
+                            laneGuid.SegmentBuildIndex,
+                            actualBuildIndex,
+                            laneId);
+                    }
                     return true;
                 }
 

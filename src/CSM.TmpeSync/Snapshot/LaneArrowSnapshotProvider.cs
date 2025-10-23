@@ -26,7 +26,8 @@ namespace CSM.TmpeSync.Snapshot
                     LaneId = laneId,
                     Arrows = arrows,
                     SegmentId = segmentId,
-                    LaneIndex = laneIndex
+                    LaneIndex = laneIndex,
+                    MappingVersion = LaneMappingStore.Version
                 });
             });
         }

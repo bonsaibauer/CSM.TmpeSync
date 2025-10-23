@@ -25,12 +25,14 @@ namespace CSM.TmpeSync.Snapshot
                     return;
 
                 Log.Debug(LogCategory.Snapshot, "Speed limit snapshot entry | laneId={0} speedKmh={1}", laneId, kmh);
+                var mappingVersion = LaneMappingStore.Version;
                 buffer.Add(new SpeedLimitBatchApplied.Entry
                 {
                     LaneId = laneId,
                     SpeedKmh = kmh,
                     SegmentId = segmentId,
-                    LaneIndex = laneIndex
+                    LaneIndex = laneIndex,
+                    MappingVersion = mappingVersion
                 });
 
                 if (buffer.Count >= BatchSize)
@@ -51,9 +53,15 @@ namespace CSM.TmpeSync.Snapshot
                 return 0;
 
             // Send one command per batch to avoid flooding the network channel.
+            long mappingVersion = 0;
+            foreach (var entry in buffer)
+                if (entry.MappingVersion > mappingVersion)
+                    mappingVersion = entry.MappingVersion;
+
             var payload = new SpeedLimitBatchApplied
             {
-                Items = new List<SpeedLimitBatchApplied.Entry>(buffer)
+                Items = new List<SpeedLimitBatchApplied.Entry>(buffer),
+                MappingVersion = mappingVersion
             };
 
             SnapshotDispatcher.Dispatch(payload);

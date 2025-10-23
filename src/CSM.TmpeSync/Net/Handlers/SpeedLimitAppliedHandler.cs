@@ -18,7 +18,7 @@ namespace CSM.TmpeSync.Net.Handlers
                 cmd.SegmentId,
                 cmd.LaneIndex,
                 cmd.SpeedKmh);
-            SpeedLimitCommandProcessor.Apply(cmd.LaneId, cmd.SpeedKmh, cmd.SegmentId, cmd.LaneIndex);
+            SpeedLimitCommandProcessor.Apply(cmd.LaneId, cmd.SpeedKmh, cmd.SegmentId, cmd.LaneIndex, cmd.MappingVersion);
         }
     }
 }

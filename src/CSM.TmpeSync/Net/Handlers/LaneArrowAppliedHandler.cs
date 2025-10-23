@@ -20,6 +20,19 @@ namespace CSM.TmpeSync.Net.Handlers
             var segmentId = cmd.SegmentId;
             var laneIndex = cmd.LaneIndex;
 
+            if (cmd.MappingVersion > 0 && LaneMappingStore.Version < cmd.MappingVersion)
+            {
+                Log.Debug(
+                    LogCategory.Synchronization,
+                    "Lane arrows waiting for mapping version | laneId={0} expectedVersion={1} currentVersion={2} action=queue_deferred",
+                    cmd.LaneId,
+                    cmd.MappingVersion,
+                    LaneMappingStore.Version);
+
+                DeferredApply.Enqueue(new LaneArrowDeferredOp(cmd.LaneId, cmd.SegmentId, cmd.LaneIndex, cmd.Arrows, cmd.MappingVersion));
+                return;
+            }
+
             if (NetUtil.TryResolveLane(ref laneId, ref segmentId, ref laneIndex))
             {
                 Log.Debug(
@@ -40,11 +53,12 @@ namespace CSM.TmpeSync.Net.Handlers
             {
                 Log.Warn(
                     LogCategory.Synchronization,
-                    "Lane missing for lane arrow apply | laneId={0} segmentId={1} laneIndex={2} action=queue_deferred",
+                    "Lane missing for lane arrow apply | laneId={0} segmentId={1} laneIndex={2} action=queue_deferred expectedVersion={3}",
                     cmd.LaneId,
                     cmd.SegmentId,
-                    cmd.LaneIndex);
-                DeferredApply.Enqueue(new LaneArrowDeferredOp(cmd.LaneId, cmd.SegmentId, cmd.LaneIndex, cmd.Arrows));
+                    cmd.LaneIndex,
+                    cmd.MappingVersion);
+                DeferredApply.Enqueue(new LaneArrowDeferredOp(cmd.LaneId, cmd.SegmentId, cmd.LaneIndex, cmd.Arrows, cmd.MappingVersion));
             }
         }
     }

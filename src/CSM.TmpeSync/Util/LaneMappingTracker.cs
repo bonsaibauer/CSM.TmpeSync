@@ -68,6 +68,7 @@ namespace CSM.TmpeSync.Util
                 LaneGuidRegistry.Clear();
                 LaneAssignmentRetryBuffer.Clear();
                 SegmentBuildIndices.Clear();
+                DeferredApply.Reset();
                 return;
             }
 
@@ -76,6 +77,7 @@ namespace CSM.TmpeSync.Util
 
             ApplyLaneGuidRoleSettings();
             SegmentBuildIndices.Clear();
+            DeferredApply.Reset();
             SyncAllSegments("role_change");
         }
 
