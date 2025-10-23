@@ -101,7 +101,7 @@ namespace CSM.TmpeSync.Util
                 PendingByGuid.Remove(guid);
         }
 
-        private static void ProcessInternal(IReadOnlyList<LaneGuid> subset)
+        private static void ProcessInternal(IList<LaneGuid> subset)
         {
             if (PendingByGuid.Count == 0)
                 return;
