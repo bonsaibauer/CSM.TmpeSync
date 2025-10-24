@@ -29,10 +29,14 @@ namespace CSM.TmpeSync.Tmpe
             if (speedKmh >= UnlimitedKmh - 0.5f)
                 return Unlimited();
 
-            var (kmhIndex, kmhDiff) = FindNearest(KmphPalette, speedKmh);
+            int kmhIndex;
+            float kmhDiff;
+            FindNearest(KmphPalette, speedKmh, out kmhIndex, out kmhDiff);
 
             var mphValue = speedKmh / KmPerMile;
-            var (mphIndex, mphDiff) = FindNearest(MphPalette, mphValue);
+            int mphIndex;
+            float mphDiff;
+            FindNearest(MphPalette, mphValue, out mphIndex, out mphDiff);
             var mphDiffKmh = mphDiff * KmPerMile;
 
             if (kmhDiff <= mphDiffKmh + 0.25f)
@@ -108,25 +112,30 @@ namespace CSM.TmpeSync.Tmpe
             }
         }
 
-        private static (int index, float diff) FindNearest(float[] palette, float value)
+        private static void FindNearest(float[] palette, float value, out int index, out float diff)
         {
             if (palette == null || palette.Length == 0)
-                return (0, float.MaxValue);
+            {
+                index = 0;
+                diff = float.MaxValue;
+                return;
+            }
 
             var bestIndex = 0;
             var bestDiff = float.MaxValue;
 
             for (var i = 0; i < palette.Length; i++)
             {
-                var diff = Math.Abs(palette[i] - value);
-                if (diff < bestDiff)
+                var currentDiff = Math.Abs(palette[i] - value);
+                if (currentDiff < bestDiff)
                 {
-                    bestDiff = diff;
+                    bestDiff = currentDiff;
                     bestIndex = i;
                 }
             }
 
-            return (bestIndex, bestDiff);
+            index = bestIndex;
+            diff = bestDiff;
         }
     }
 }
