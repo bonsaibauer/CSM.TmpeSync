@@ -1,5 +1,4 @@
 using CSM.TmpeSync.Net.Contracts.Applied;
-using CSM.TmpeSync.Tmpe;
 using CSM.TmpeSync.Util;
 
 namespace CSM.TmpeSync.Snapshot
@@ -11,7 +10,7 @@ namespace CSM.TmpeSync.Snapshot
             Log.Info(LogCategory.Snapshot, "Exporting TM:PE lane connection snapshot");
             NetUtil.ForEachLane(laneId =>
             {
-                if (!TmpeAdapter.TryGetLaneConnections(laneId, out var targets))
+                if (!PendingMap.TryGetLaneConnections(laneId, out var targets))
                     return;
 
                 if (targets == null || targets.Length == 0)
@@ -19,6 +18,8 @@ namespace CSM.TmpeSync.Snapshot
 
                 if (!NetUtil.TryGetLaneLocation(laneId, out var segmentId, out var laneIndex))
                     return;
+
+                LaneMappingTracker.SyncSegment(segmentId, "lane_connections_snapshot_source");
 
                 var targetSegmentIds = new ushort[targets.Length];
                 var targetLaneIndexes = new int[targets.Length];
@@ -33,7 +34,12 @@ namespace CSM.TmpeSync.Snapshot
 
                     targetSegmentIds[i] = targetSegment;
                     targetLaneIndexes[i] = targetIndex;
+
+                    if (targetSegment != 0 && NetUtil.SegmentExists(targetSegment))
+                        LaneMappingTracker.SyncSegment(targetSegment, "lane_connections_snapshot_target");
                 }
+
+                var mappingVersion = LaneMappingStore.Version;
 
                 SnapshotDispatcher.Dispatch(new LaneConnectionsApplied
                 {
@@ -42,7 +48,8 @@ namespace CSM.TmpeSync.Snapshot
                     SourceLaneIndex = laneIndex,
                     TargetLaneIds = targets,
                     TargetSegmentIds = targetSegmentIds,
-                    TargetLaneIndexes = targetLaneIndexes
+                    TargetLaneIndexes = targetLaneIndexes,
+                    MappingVersion = mappingVersion
                 });
             });
         }

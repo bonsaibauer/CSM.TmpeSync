@@ -13,8 +13,9 @@ namespace CSM.TmpeSync.Net.Handlers
         private uint[] _targetLaneIds;
         private ushort[] _targetSegmentIds;
         private int[] _targetLaneIndexes;
+        private readonly long _expectedMappingVersion;
 
-        internal LaneConnectionsDeferredOp(LaneConnectionsApplied cmd)
+        internal LaneConnectionsDeferredOp(LaneConnectionsApplied cmd, long expectedMappingVersion)
         {
             _sourceLaneId = cmd?.SourceLaneId ?? 0;
             _sourceSegmentId = cmd?.SourceSegmentId ?? 0;
@@ -22,6 +23,7 @@ namespace CSM.TmpeSync.Net.Handlers
             _targetLaneIds = cmd?.TargetLaneIds != null ? (uint[])cmd.TargetLaneIds.Clone() : new uint[0];
             _targetSegmentIds = cmd?.TargetSegmentIds != null ? (ushort[])cmd.TargetSegmentIds.Clone() : new ushort[_targetLaneIds.Length];
             _targetLaneIndexes = cmd?.TargetLaneIndexes != null ? (int[])cmd.TargetLaneIndexes.Clone() : Enumerable.Repeat(-1, _targetLaneIds.Length).ToArray();
+            _expectedMappingVersion = expectedMappingVersion > 0 ? expectedMappingVersion : cmd?.MappingVersion ?? 0;
 
             EnsureArrayLengths();
         }
@@ -30,6 +32,9 @@ namespace CSM.TmpeSync.Net.Handlers
 
         public bool Exists()
         {
+            if (_expectedMappingVersion > 0 && LaneMappingStore.Version < _expectedMappingVersion)
+                return false;
+
             if (!NetUtil.IsLaneResolved(_sourceLaneId, _sourceSegmentId, _sourceLaneIndex))
                 return false;
 
@@ -44,6 +49,9 @@ namespace CSM.TmpeSync.Net.Handlers
 
         public bool TryApply()
         {
+            if (_expectedMappingVersion > 0 && LaneMappingStore.Version < _expectedMappingVersion)
+                return false;
+
             var sourceLaneId = _sourceLaneId;
             var sourceSegmentId = _sourceSegmentId;
             var sourceLaneIndex = _sourceLaneIndex;
@@ -93,21 +101,18 @@ namespace CSM.TmpeSync.Net.Handlers
                 if (!NetUtil.TryResolveLane(ref lockSource, ref lockSegment, ref lockIndex))
                     return false;
 
-                using (CsmCompat.StartIgnore())
+                if (PendingMap.ApplyLaneConnections(lockSource, resolvedTargetLaneIds, ignoreScope: true))
                 {
-                    if (Tmpe.TmpeAdapter.ApplyLaneConnections(lockSource, resolvedTargetLaneIds))
-                    {
-                        _sourceLaneId = lockSource;
-                        _sourceSegmentId = lockSegment;
-                        _sourceLaneIndex = lockIndex;
-                        _targetLaneIds = resolvedTargetLaneIds;
-                        _targetSegmentIds = resolvedTargetSegments;
-                        _targetLaneIndexes = resolvedTargetIndexes;
-                        return true;
-                    }
-
-                    return false;
+                    _sourceLaneId = lockSource;
+                    _sourceSegmentId = lockSegment;
+                    _sourceLaneIndex = lockIndex;
+                    _targetLaneIds = resolvedTargetLaneIds;
+                    _targetSegmentIds = resolvedTargetSegments;
+                    _targetLaneIndexes = resolvedTargetIndexes;
+                    return true;
                 }
+
+                return false;
             }
         }
 
@@ -132,6 +137,9 @@ namespace CSM.TmpeSync.Net.Handlers
 
         public bool ShouldWait()
         {
+            if (_expectedMappingVersion > 0 && LaneMappingStore.Version < _expectedMappingVersion)
+                return true;
+
             if (!NetUtil.CanResolveLaneSoon(_sourceLaneId, _sourceSegmentId, _sourceLaneIndex))
                 return false;
 

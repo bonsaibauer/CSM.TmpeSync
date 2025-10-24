@@ -1,6 +1,5 @@
 using System.Collections.Generic;
 using CSM.TmpeSync.Net.Contracts.Applied;
-using CSM.TmpeSync.Tmpe;
 using CSM.TmpeSync.Util;
 using Log = CSM.TmpeSync.Util.Log;
 
@@ -19,7 +18,7 @@ namespace CSM.TmpeSync.Snapshot
 
             NetUtil.ForEachLane(laneId =>
             {
-                if (!Tmpe.TmpeAdapter.TryGetSpeedLimit(laneId, out var kmh, out var defaultKmh, out var hasOverride, out var pending))
+                if (!PendingMap.TryGetSpeedLimit(laneId, out var kmh, out var defaultKmh, out var hasOverride, out var pending))
                     return;
 
                 if (!NetUtil.TryGetLaneLocation(laneId, out var segmentId, out var laneIndex))

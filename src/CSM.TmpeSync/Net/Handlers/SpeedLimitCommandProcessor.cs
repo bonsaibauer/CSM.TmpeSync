@@ -1,5 +1,4 @@
 using CSM.TmpeSync.Net.Contracts.States;
-using CSM.TmpeSync.Tmpe;
 using CSM.TmpeSync.Util;
 
 namespace CSM.TmpeSync.Net.Handlers
@@ -39,32 +38,29 @@ namespace CSM.TmpeSync.Net.Handlers
                 return;
             }
 
-            using (CsmCompat.StartIgnore())
+            if (PendingMap.ApplySpeedLimit(resolvedLaneId, speedKmh, ignoreScope: true))
             {
-                if (Tmpe.TmpeAdapter.ApplySpeedLimit(resolvedLaneId, speedKmh))
-                {
-                    Log.Info(
-                        LogCategory.Synchronization,
-                        "Applied speed limit | laneId={0} segmentId={1} laneIndex={2} value={3} speedKmh={4} expectedVersion={5}",
-                        resolvedLaneId,
-                        resolvedSegmentId,
-                        resolvedLaneIndex,
-                        speedDescription,
-                        speedKmh,
-                        mappingVersion);
-                }
-                else
-                {
-                    Log.Error(
-                        LogCategory.Synchronization,
-                        "Failed to apply speed limit | laneId={0} segmentId={1} laneIndex={2} value={3} speedKmh={4} expectedVersion={5}",
-                        resolvedLaneId,
-                        resolvedSegmentId,
-                        resolvedLaneIndex,
-                        speedDescription,
-                        speedKmh,
-                        mappingVersion);
-                }
+                Log.Info(
+                    LogCategory.Synchronization,
+                    "Applied speed limit | laneId={0} segmentId={1} laneIndex={2} value={3} speedKmh={4} expectedVersion={5}",
+                    resolvedLaneId,
+                    resolvedSegmentId,
+                    resolvedLaneIndex,
+                    speedDescription,
+                    speedKmh,
+                    mappingVersion);
+            }
+            else
+            {
+                Log.Error(
+                    LogCategory.Synchronization,
+                    "Failed to apply speed limit | laneId={0} segmentId={1} laneIndex={2} value={3} speedKmh={4} expectedVersion={5}",
+                    resolvedLaneId,
+                    resolvedSegmentId,
+                    resolvedLaneIndex,
+                    speedDescription,
+                    speedKmh,
+                    mappingVersion);
             }
         }
     }

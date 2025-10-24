@@ -18,6 +18,19 @@ namespace CSM.TmpeSync.Net.Handlers
                 cmd.SourceLaneIndex,
                 FormatLaneIds(cmd.TargetLaneIds));
 
+            var expectedMappingVersion = cmd.MappingVersion;
+            if (expectedMappingVersion > 0 && LaneMappingStore.Version < expectedMappingVersion)
+            {
+                Log.Debug(
+                    LogCategory.Synchronization,
+                    "Lane connections waiting for mapping | laneId={0} expectedVersion={1} currentVersion={2}",
+                    cmd.SourceLaneId,
+                    expectedMappingVersion,
+                    LaneMappingStore.Version);
+                DeferredApply.Enqueue(new LaneConnectionsDeferredOp(CloneCommand(cmd), expectedMappingVersion));
+                return;
+            }
+
             var sourceLaneId = cmd.SourceLaneId;
             var sourceSegmentId = cmd.SourceSegmentId;
             var sourceLaneIndex = cmd.SourceLaneIndex;
@@ -30,7 +43,7 @@ namespace CSM.TmpeSync.Net.Handlers
                     cmd.SourceLaneId,
                     cmd.SourceSegmentId,
                     cmd.SourceLaneIndex);
-                DeferredApply.Enqueue(new LaneConnectionsDeferredOp(CloneCommand(cmd)));
+                DeferredApply.Enqueue(new LaneConnectionsDeferredOp(CloneCommand(cmd), expectedMappingVersion));
                 return;
             }
 
@@ -72,32 +85,30 @@ namespace CSM.TmpeSync.Net.Handlers
                     SourceLaneIndex = sourceLaneIndex,
                     TargetLaneIds = (uint[])resolvedTargetLaneIds.Clone(),
                     TargetSegmentIds = (ushort[])resolvedTargetSegments.Clone(),
-                    TargetLaneIndexes = (int[])resolvedTargetIndexes.Clone()
-                }));
+                    TargetLaneIndexes = (int[])resolvedTargetIndexes.Clone(),
+                    MappingVersion = expectedMappingVersion
+                }, expectedMappingVersion));
                 return;
             }
 
-            using (CsmCompat.StartIgnore())
+            if (PendingMap.ApplyLaneConnections(sourceLaneId, resolvedTargetLaneIds, ignoreScope: true))
             {
-                if (Tmpe.TmpeAdapter.ApplyLaneConnections(sourceLaneId, resolvedTargetLaneIds))
-                {
-                    Log.Info(
-                        LogCategory.Synchronization,
-                        "Applied remote lane connections | laneId={0} segmentId={1} laneIndex={2} targets=[{3}]",
-                        sourceLaneId,
-                        sourceSegmentId,
-                        sourceLaneIndex,
-                        FormatLaneIds(resolvedTargetLaneIds));
-                }
-                else
-                {
-                    Log.Error(
-                        LogCategory.Synchronization,
-                        "Failed to apply remote lane connections | laneId={0} segmentId={1} laneIndex={2}",
-                        sourceLaneId,
-                        sourceSegmentId,
-                        sourceLaneIndex);
-                }
+                Log.Info(
+                    LogCategory.Synchronization,
+                    "Applied remote lane connections | laneId={0} segmentId={1} laneIndex={2} targets=[{3}]",
+                    sourceLaneId,
+                    sourceSegmentId,
+                    sourceLaneIndex,
+                    FormatLaneIds(resolvedTargetLaneIds));
+            }
+            else
+            {
+                Log.Error(
+                    LogCategory.Synchronization,
+                    "Failed to apply remote lane connections | laneId={0} segmentId={1} laneIndex={2}",
+                    sourceLaneId,
+                    sourceSegmentId,
+                    sourceLaneIndex);
             }
         }
 
@@ -138,7 +149,8 @@ namespace CSM.TmpeSync.Net.Handlers
                 SourceLaneIndex = source.SourceLaneIndex,
                 TargetLaneIds = targetLaneIds,
                 TargetSegmentIds = NormalizeArray(source.TargetSegmentIds, targetLaneIds.Length),
-                TargetLaneIndexes = NormalizeArray(source.TargetLaneIndexes, targetLaneIds.Length)
+                TargetLaneIndexes = NormalizeArray(source.TargetLaneIndexes, targetLaneIds.Length),
+                MappingVersion = source?.MappingVersion ?? 0
             };
         }
     }

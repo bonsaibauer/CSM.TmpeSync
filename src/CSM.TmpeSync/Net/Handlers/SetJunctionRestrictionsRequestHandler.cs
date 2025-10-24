@@ -1,9 +1,9 @@
+using ColossalFramework;
 using CSM.API.Commands;
 using CSM.TmpeSync.Net.Contracts.Applied;
 using CSM.TmpeSync.Net.Contracts.Requests;
 using CSM.TmpeSync.Net.Contracts.System;
 using CSM.TmpeSync.Net.Contracts.States;
-using CSM.TmpeSync.Tmpe;
 using CSM.TmpeSync.Util;
 
 namespace CSM.TmpeSync.Net.Handlers
@@ -46,20 +46,32 @@ namespace CSM.TmpeSync.Net.Handlers
                         return;
                     }
 
-                    if (TmpeAdapter.ApplyJunctionRestrictions(cmd.NodeId, state))
+                    if (PendingMap.ApplyJunctionRestrictions(cmd.NodeId, state, ignoreScope: false))
                     {
                         var resultingState = state?.Clone();
-                        if (TmpeAdapter.TryGetJunctionRestrictions(cmd.NodeId, out var appliedState) && appliedState != null)
+                        if (PendingMap.TryGetJunctionRestrictions(cmd.NodeId, out var appliedState) && appliedState != null)
                             resultingState = appliedState.Clone();
                         resultingState = TransmissionDiagnostics.LogOutgoingJunctionRestrictions(
                             cmd.NodeId,
                             resultingState,
                             "request_handler");
+                        if (NetUtil.NodeExists(cmd.NodeId))
+                        {
+                            ref var node = ref NetManager.instance.m_nodes.m_buffer[cmd.NodeId];
+                            for (var i = 0; i < 8; i++)
+                            {
+                                var segmentId = node.GetSegment(i);
+                                if (segmentId != 0 && NetUtil.SegmentExists(segmentId))
+                                    LaneMappingTracker.SyncSegment(segmentId, "junction_restrictions_request");
+                            }
+                        }
+                        var mappingVersion = LaneMappingStore.Version;
                         Log.Info("Applied junction restrictions node={0}; broadcasting update.", cmd.NodeId);
                         CsmCompat.SendToAll(new JunctionRestrictionsApplied
                         {
                             NodeId = cmd.NodeId,
-                            State = resultingState?.Clone() ?? new JunctionRestrictionsState()
+                            State = resultingState?.Clone() ?? new JunctionRestrictionsState(),
+                            MappingVersion = mappingVersion
                         });
                     }
                     else

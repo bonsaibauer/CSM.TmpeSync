@@ -1,6 +1,5 @@
 using CSM.TmpeSync.Net.Contracts.Applied;
 using CSM.TmpeSync.Net.Contracts.States;
-using CSM.TmpeSync.Tmpe;
 using CSM.TmpeSync.Util;
 
 namespace CSM.TmpeSync.Snapshot
@@ -14,13 +13,25 @@ namespace CSM.TmpeSync.Snapshot
             {
                 NetUtil.ForEachSegment(segmentId =>
                 {
-                    if (!TmpeAdapter.TryGetPrioritySign(nodeId, segmentId, out var signType))
+                if (!PendingMap.TryGetPrioritySign(nodeId, segmentId, out var signType))
                         return;
 
                     if (signType == PrioritySignType.None)
                         return;
 
-                    SnapshotDispatcher.Dispatch(new PrioritySignApplied { NodeId = nodeId, SegmentId = segmentId, SignType = signType });
+                    if (!NetUtil.SegmentExists(segmentId))
+                        return;
+
+                    LaneMappingTracker.SyncSegment(segmentId, "priority_signs_snapshot");
+                    var mappingVersion = LaneMappingStore.Version;
+
+                    SnapshotDispatcher.Dispatch(new PrioritySignApplied
+                    {
+                        NodeId = nodeId,
+                        SegmentId = segmentId,
+                        SignType = signType,
+                        MappingVersion = mappingVersion
+                    });
                 });
             });
         }

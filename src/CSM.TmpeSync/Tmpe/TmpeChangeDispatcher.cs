@@ -145,14 +145,13 @@ namespace CSM.TmpeSync.Tmpe
             if (info?.m_lanes == null)
                 return;
 
-            var mappingVersion = LaneMappingStore.Version;
             uint laneId = segment.m_lanes;
             for (int laneIndex = 0; laneId != 0 && laneIndex < info.m_lanes.Length; laneIndex++)
             {
                 ref var lane = ref NetManager.instance.m_lanes.m_buffer[laneId];
                 if ((lane.m_flags & (uint)NetLane.Flags.Created) != 0)
                 {
-                    if (TmpeAdapter.TryGetSpeedLimit(laneId, out var kmh, out var defaultKmh, out var hasOverride, out var pending))
+                    if (PendingMap.TryGetSpeedLimit(laneId, out var kmh, out var defaultKmh, out var hasOverride, out var pending))
                     {
                         var encoded = SpeedLimitCodec.Encode(kmh, defaultKmh, hasOverride, pending);
 
@@ -187,13 +186,14 @@ namespace CSM.TmpeSync.Tmpe
             if (info?.m_lanes == null)
                 return;
 
+            var mappingVersion = LaneMappingStore.Version;
             uint laneId = segment.m_lanes;
             for (int laneIndex = 0; laneId != 0 && laneIndex < info.m_lanes.Length; laneIndex++)
             {
                 ref var lane = ref NetManager.instance.m_lanes.m_buffer[laneId];
                 if ((lane.m_flags & (uint)NetLane.Flags.Created) != 0)
                 {
-                    if (TmpeAdapter.TryGetVehicleRestrictions(laneId, out var restrictions))
+                    if (PendingMap.TryGetVehicleRestrictions(laneId, out var restrictions))
                     {
                         if (NetUtil.TryGetLaneLocation(laneId, out var resolvedSegmentId, out var resolvedLaneIndex))
                         {
@@ -202,7 +202,8 @@ namespace CSM.TmpeSync.Tmpe
                                 LaneId = laneId,
                                 SegmentId = resolvedSegmentId,
                                 LaneIndex = resolvedLaneIndex,
-                                Restrictions = restrictions
+                                Restrictions = restrictions,
+                                MappingVersion = LaneMappingStore.Version
                             });
                         }
                     }
@@ -216,12 +217,13 @@ namespace CSM.TmpeSync.Tmpe
         {
             LaneMappingTracker.SyncSegment(segmentId, "parking_restrictions");
 
-            if (TmpeAdapter.TryGetParkingRestriction(segmentId, out var state))
+            if (PendingMap.TryGetParkingRestriction(segmentId, out var state))
             {
                 Broadcast(new ParkingRestrictionApplied
                 {
                     SegmentId = segmentId,
-                    State = state?.Clone() ?? new ParkingRestrictionState()
+                    State = state?.Clone() ?? new ParkingRestrictionState(),
+                    MappingVersion = LaneMappingStore.Version
                 });
             }
         }
@@ -230,7 +232,7 @@ namespace CSM.TmpeSync.Tmpe
         {
             SyncSegmentsForNode(nodeId, "junction_restrictions");
 
-            if (TmpeAdapter.TryGetJunctionRestrictions(nodeId, out var state))
+            if (PendingMap.TryGetJunctionRestrictions(nodeId, out var state))
             {
                 var preparedState = TransmissionDiagnostics.LogOutgoingJunctionRestrictions(
                     nodeId,
@@ -240,7 +242,8 @@ namespace CSM.TmpeSync.Tmpe
                 Broadcast(new JunctionRestrictionsApplied
                 {
                     NodeId = nodeId,
-                    State = preparedState?.Clone() ?? new JunctionRestrictionsState()
+                    State = preparedState?.Clone() ?? new JunctionRestrictionsState(),
+                    MappingVersion = LaneMappingStore.Version
                 });
             }
         }
@@ -259,13 +262,14 @@ namespace CSM.TmpeSync.Tmpe
                 if (!NetUtil.SegmentExists(segmentId))
                     continue;
 
-                if (TmpeAdapter.TryGetPrioritySign(nodeId, segmentId, out var signType))
+                if (PendingMap.TryGetPrioritySign(nodeId, segmentId, out var signType))
                 {
                     Broadcast(new PrioritySignApplied
                     {
                         NodeId = nodeId,
                         SegmentId = segmentId,
-                        SignType = signType
+                        SignType = signType,
+                        MappingVersion = LaneMappingStore.Version
                     });
                 }
             }
@@ -290,7 +294,7 @@ namespace CSM.TmpeSync.Tmpe
             if (!CanDispatch() || !NetUtil.LaneExists(laneId))
                 return;
 
-            if (TmpeAdapter.TryGetLaneArrows(laneId, out var arrows))
+            if (PendingMap.TryGetLaneArrows(laneId, out var arrows))
             {
                 if (NetUtil.TryGetLaneLocation(laneId, out var segmentId, out var laneIndex))
                 {
@@ -314,7 +318,7 @@ namespace CSM.TmpeSync.Tmpe
             if (!CanDispatch() || !NetUtil.LaneExists(laneId))
                 return;
 
-            if (!TmpeAdapter.TryGetLaneConnections(laneId, out var targets) || targets == null)
+            if (!PendingMap.TryGetLaneConnections(laneId, out var targets) || targets == null)
                 targets = new uint[0];
 
             if (!NetUtil.TryGetLaneLocation(laneId, out var segmentId, out var laneIndex))
@@ -347,7 +351,8 @@ namespace CSM.TmpeSync.Tmpe
                 SourceLaneIndex = laneIndex,
                 TargetLaneIds = targets,
                 TargetSegmentIds = targetSegmentIds,
-                TargetLaneIndexes = targetLaneIndexes
+                TargetLaneIndexes = targetLaneIndexes,
+                MappingVersion = LaneMappingStore.Version
             });
         }
 

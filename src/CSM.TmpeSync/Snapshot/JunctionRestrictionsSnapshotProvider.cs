@@ -1,5 +1,5 @@
+using ColossalFramework;
 using CSM.TmpeSync.Net.Contracts.Applied;
-using CSM.TmpeSync.Tmpe;
 using CSM.TmpeSync.Util;
 
 namespace CSM.TmpeSync.Snapshot
@@ -11,13 +11,31 @@ namespace CSM.TmpeSync.Snapshot
             Log.Info(LogCategory.Snapshot, "Exporting TM:PE junction restrictions snapshot");
             NetUtil.ForEachNode(nodeId =>
             {
-                if (!TmpeAdapter.TryGetJunctionRestrictions(nodeId, out var state))
+                if (!PendingMap.TryGetJunctionRestrictions(nodeId, out var state))
                     return;
 
                 if (state == null || state.IsDefault())
                     return;
 
-                SnapshotDispatcher.Dispatch(new JunctionRestrictionsApplied { NodeId = nodeId, State = state });
+                if (NetUtil.NodeExists(nodeId))
+                {
+                    ref var node = ref NetManager.instance.m_nodes.m_buffer[nodeId];
+                    for (var i = 0; i < 8; i++)
+                    {
+                        var segmentId = node.GetSegment(i);
+                        if (segmentId != 0 && NetUtil.SegmentExists(segmentId))
+                            LaneMappingTracker.SyncSegment(segmentId, "junction_restrictions_snapshot");
+                    }
+                }
+
+                var mappingVersion = LaneMappingStore.Version;
+
+                SnapshotDispatcher.Dispatch(new JunctionRestrictionsApplied
+                {
+                    NodeId = nodeId,
+                    State = state,
+                    MappingVersion = mappingVersion
+                });
             });
         }
 

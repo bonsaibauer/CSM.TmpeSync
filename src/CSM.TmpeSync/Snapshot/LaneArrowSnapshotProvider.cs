@@ -1,6 +1,5 @@
 using CSM.TmpeSync.Net.Contracts.Applied;
 using CSM.TmpeSync.Net.Contracts.States;
-using CSM.TmpeSync.Tmpe;
 using CSM.TmpeSync.Util;
 
 namespace CSM.TmpeSync.Snapshot
@@ -12,7 +11,7 @@ namespace CSM.TmpeSync.Snapshot
             Log.Info(LogCategory.Snapshot, "Exporting TM:PE lane arrow snapshot");
             NetUtil.ForEachLane(laneId =>
             {
-                if (!TmpeAdapter.TryGetLaneArrows(laneId, out var arrows))
+                if (!PendingMap.TryGetLaneArrows(laneId, out var arrows))
                     return;
 
                 if (arrows == LaneArrowFlags.None)

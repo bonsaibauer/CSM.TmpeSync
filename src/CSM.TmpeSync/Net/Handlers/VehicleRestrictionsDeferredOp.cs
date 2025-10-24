@@ -9,21 +9,37 @@ namespace CSM.TmpeSync.Net.Handlers
         private ushort _segmentId;
         private int _laneIndex;
         private readonly VehicleRestrictionFlags _restrictions;
+        private readonly long _expectedMappingVersion;
 
-        internal VehicleRestrictionsDeferredOp(uint laneId, ushort segmentId, int laneIndex, VehicleRestrictionFlags restrictions)
+        internal VehicleRestrictionsDeferredOp(
+            uint laneId,
+            ushort segmentId,
+            int laneIndex,
+            VehicleRestrictionFlags restrictions,
+            long expectedMappingVersion)
         {
             _laneId = laneId;
             _segmentId = segmentId;
             _laneIndex = laneIndex;
             _restrictions = restrictions;
+            _expectedMappingVersion = expectedMappingVersion;
         }
 
         public string Key => $"vehicle_restrictions:{_laneId}:{_segmentId}:{_laneIndex}";
 
-        public bool Exists() => NetUtil.IsLaneResolved(_laneId, _segmentId, _laneIndex);
+        public bool Exists()
+        {
+            if (_expectedMappingVersion > 0 && LaneMappingStore.Version < _expectedMappingVersion)
+                return false;
+
+            return NetUtil.IsLaneResolved(_laneId, _segmentId, _laneIndex);
+        }
 
         public bool TryApply()
         {
+            if (_expectedMappingVersion > 0 && LaneMappingStore.Version < _expectedMappingVersion)
+                return false;
+
             var laneId = _laneId;
             var segmentId = _segmentId;
             var laneIndex = _laneIndex;
@@ -48,13 +64,16 @@ namespace CSM.TmpeSync.Net.Handlers
                 _segmentId = segmentId;
                 _laneIndex = laneIndex;
 
-                using (CsmCompat.StartIgnore())
-                {
-                    return Tmpe.TmpeAdapter.ApplyVehicleRestrictions(_laneId, _restrictions);
-                }
+            return PendingMap.ApplyVehicleRestrictions(_laneId, _restrictions, ignoreScope: true);
             }
         }
 
-        public bool ShouldWait() => NetUtil.CanResolveLaneSoon(_laneId, _segmentId, _laneIndex);
+        public bool ShouldWait()
+        {
+            if (_expectedMappingVersion > 0 && LaneMappingStore.Version < _expectedMappingVersion)
+                return true;
+
+            return NetUtil.CanResolveLaneSoon(_laneId, _segmentId, _laneIndex);
+        }
     }
 }

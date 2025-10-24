@@ -12,20 +12,30 @@ namespace CSM.TmpeSync.Net.Handlers
 
             TransmissionDiagnostics.LogIncomingJunctionRestrictions(cmd.NodeId, cmd.State, "applied_handler");
 
+            var expectedMappingVersion = cmd.MappingVersion;
+            if (expectedMappingVersion > 0 && LaneMappingStore.Version < expectedMappingVersion)
+            {
+                Log.Debug(
+                    LogCategory.Synchronization,
+                    "Junction restrictions waiting for mapping | nodeId={0} expectedVersion={1} currentVersion={2}",
+                    cmd.NodeId,
+                    expectedMappingVersion,
+                    LaneMappingStore.Version);
+                DeferredApply.Enqueue(new JunctionRestrictionsDeferredOp(cmd, expectedMappingVersion));
+                return;
+            }
+
             if (NetUtil.NodeExists(cmd.NodeId))
             {
-                using (CsmCompat.StartIgnore())
-                {
-                    if (Tmpe.TmpeAdapter.ApplyJunctionRestrictions(cmd.NodeId, cmd.State))
-                        Log.Info("Applied remote junction restrictions node={0}", cmd.NodeId);
-                    else
-                        Log.Error("Failed to apply remote junction restrictions node={0}", cmd.NodeId);
-                }
+                if (PendingMap.ApplyJunctionRestrictions(cmd.NodeId, cmd.State, ignoreScope: true))
+                    Log.Info("Applied remote junction restrictions node={0}", cmd.NodeId);
+                else
+                    Log.Error("Failed to apply remote junction restrictions node={0}", cmd.NodeId);
             }
             else
             {
                 Log.Warn("Node {0} missing – queueing deferred junction restrictions apply.", cmd.NodeId);
-                DeferredApply.Enqueue(new JunctionRestrictionsDeferredOp(cmd));
+                DeferredApply.Enqueue(new JunctionRestrictionsDeferredOp(cmd, expectedMappingVersion));
             }
         }
     }

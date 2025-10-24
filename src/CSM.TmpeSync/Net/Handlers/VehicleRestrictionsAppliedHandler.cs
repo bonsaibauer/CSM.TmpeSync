@@ -16,6 +16,24 @@ namespace CSM.TmpeSync.Net.Handlers
                 cmd.LaneIndex,
                 cmd.Restrictions);
 
+            var expectedMappingVersion = cmd.MappingVersion;
+            if (expectedMappingVersion > 0 && LaneMappingStore.Version < expectedMappingVersion)
+            {
+                Log.Debug(
+                    LogCategory.Synchronization,
+                    "Vehicle restrictions waiting for mapping | laneId={0} expectedVersion={1} currentVersion={2}",
+                    cmd.LaneId,
+                    expectedMappingVersion,
+                    LaneMappingStore.Version);
+                DeferredApply.Enqueue(new VehicleRestrictionsDeferredOp(
+                    cmd.LaneId,
+                    cmd.SegmentId,
+                    cmd.LaneIndex,
+                    cmd.Restrictions,
+                    expectedMappingVersion));
+                return;
+            }
+
             var laneId = cmd.LaneId;
             var segmentId = cmd.SegmentId;
             var laneIndex = cmd.LaneIndex;
@@ -28,13 +46,10 @@ namespace CSM.TmpeSync.Net.Handlers
                     laneId,
                     segmentId,
                     laneIndex);
-                using (CsmCompat.StartIgnore())
-                {
-                    if (Tmpe.TmpeAdapter.ApplyVehicleRestrictions(laneId, cmd.Restrictions))
-                        Log.Info(LogCategory.Synchronization, "Applied remote vehicle restrictions | laneId={0} segmentId={1} laneIndex={2} restrictions={3}", laneId, segmentId, laneIndex, cmd.Restrictions);
-                    else
-                        Log.Error(LogCategory.Synchronization, "Failed to apply remote vehicle restrictions | laneId={0} segmentId={1} laneIndex={2} restrictions={3}", laneId, segmentId, laneIndex, cmd.Restrictions);
-                }
+                if (PendingMap.ApplyVehicleRestrictions(laneId, cmd.Restrictions, ignoreScope: true))
+                    Log.Info(LogCategory.Synchronization, "Applied remote vehicle restrictions | laneId={0} segmentId={1} laneIndex={2} restrictions={3}", laneId, segmentId, laneIndex, cmd.Restrictions);
+                else
+                    Log.Error(LogCategory.Synchronization, "Failed to apply remote vehicle restrictions | laneId={0} segmentId={1} laneIndex={2} restrictions={3}", laneId, segmentId, laneIndex, cmd.Restrictions);
             }
             else
             {
@@ -44,7 +59,12 @@ namespace CSM.TmpeSync.Net.Handlers
                     cmd.LaneId,
                     cmd.SegmentId,
                     cmd.LaneIndex);
-                DeferredApply.Enqueue(new VehicleRestrictionsDeferredOp(cmd.LaneId, cmd.SegmentId, cmd.LaneIndex, cmd.Restrictions));
+                DeferredApply.Enqueue(new VehicleRestrictionsDeferredOp(
+                    cmd.LaneId,
+                    cmd.SegmentId,
+                    cmd.LaneIndex,
+                    cmd.Restrictions,
+                    expectedMappingVersion));
             }
         }
     }

@@ -3,7 +3,6 @@ using CSM.TmpeSync.Net.Contracts.Applied;
 using CSM.TmpeSync.Net.Contracts.Requests;
 using CSM.TmpeSync.Net.Contracts.States;
 using CSM.TmpeSync.Net.Contracts.System;
-using CSM.TmpeSync.Tmpe;
 using CSM.TmpeSync.Util;
 
 namespace CSM.TmpeSync.Net.Handlers
@@ -52,13 +51,22 @@ namespace CSM.TmpeSync.Net.Handlers
                         return;
                     }
 
-                    if (TmpeAdapter.ApplyPrioritySign(cmd.NodeId, cmd.SegmentId, cmd.SignType))
+                    if (PendingMap.ApplyPrioritySign(cmd.NodeId, cmd.SegmentId, cmd.SignType, ignoreScope: false))
                     {
                         var resultingSign = cmd.SignType;
-                        if (TmpeAdapter.TryGetPrioritySign(cmd.NodeId, cmd.SegmentId, out var appliedSign))
+                        if (PendingMap.TryGetPrioritySign(cmd.NodeId, cmd.SegmentId, out var appliedSign))
                             resultingSign = appliedSign;
+                        if (cmd.SegmentId != 0)
+                            LaneMappingTracker.SyncSegment(cmd.SegmentId, "priority_signs_request");
+                        var mappingVersion = LaneMappingStore.Version;
                         Log.Info("Applied priority sign node={0} segment={1} -> {2}; broadcasting update.", cmd.NodeId, cmd.SegmentId, resultingSign);
-                        CsmCompat.SendToAll(new PrioritySignApplied { NodeId = cmd.NodeId, SegmentId = cmd.SegmentId, SignType = resultingSign });
+                        CsmCompat.SendToAll(new PrioritySignApplied
+                        {
+                            NodeId = cmd.NodeId,
+                            SegmentId = cmd.SegmentId,
+                            SignType = resultingSign,
+                            MappingVersion = mappingVersion
+                        });
                     }
                     else
                     {

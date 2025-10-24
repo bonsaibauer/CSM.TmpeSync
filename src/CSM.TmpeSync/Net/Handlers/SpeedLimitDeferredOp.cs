@@ -1,5 +1,4 @@
 using CSM.TmpeSync.Net.Contracts.States;
-using CSM.TmpeSync.Tmpe;
 using CSM.TmpeSync.Util;
 
 namespace CSM.TmpeSync.Net.Handlers
@@ -79,7 +78,7 @@ namespace CSM.TmpeSync.Net.Handlers
             _laneIndex = laneIndex;
 
             var speedKmh = SpeedLimitCodec.DecodeToKmh(_value);
-            if (Tmpe.TmpeAdapter.ApplySpeedLimit(_laneId, speedKmh))
+            if (PendingMap.ApplySpeedLimit(_laneId, speedKmh, ignoreScope: true))
             {
                 Log.Info(
                     LogCategory.Synchronization,

@@ -65,10 +65,7 @@ namespace CSM.TmpeSync.Net.Handlers
                 _segmentId = segmentId;
                 _laneIndex = laneIndex;
 
-                using (CsmCompat.StartIgnore())
-                {
-                    return Tmpe.TmpeAdapter.ApplyLaneArrows(_laneId, _arrows);
-                }
+                return PendingMap.ApplyLaneArrows(_laneId, _arrows, ignoreScope: true);
             }
         }
 

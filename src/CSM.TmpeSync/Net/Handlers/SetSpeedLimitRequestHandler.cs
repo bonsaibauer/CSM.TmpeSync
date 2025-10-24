@@ -3,7 +3,6 @@ using CSM.TmpeSync.Net.Contracts.Applied;
 using CSM.TmpeSync.Net.Contracts.Requests;
 using CSM.TmpeSync.Net.Contracts.States;
 using CSM.TmpeSync.Net.Contracts.System;
-using CSM.TmpeSync.Tmpe;
 using CSM.TmpeSync.Util;
 using Log = CSM.TmpeSync.Util.Log;
 
@@ -73,13 +72,13 @@ namespace CSM.TmpeSync.Net.Handlers
                         return;
                     }
 
-                    if (TmpeAdapter.ApplySpeedLimit(lockedLaneId, requestedKmh))
+                    if (PendingMap.ApplySpeedLimit(lockedLaneId, requestedKmh, ignoreScope: false))
                     {
                         SpeedLimitValue resultingValue = requestedValue;
                         float? resultingDefault = null;
                         var resultingSpeedKmh = SpeedLimitCodec.DecodeToKmh(resultingValue);
 
-                        if (TmpeAdapter.TryGetSpeedLimit(lockedLaneId, out var appliedSpeed, out var appliedDefault, out var hasOverride, out var pending))
+                        if (PendingMap.TryGetSpeedLimit(lockedLaneId, out var appliedSpeed, out var appliedDefault, out var hasOverride, out var pending))
                         {
                             resultingValue = SpeedLimitCodec.Encode(appliedSpeed, appliedDefault, hasOverride, pending);
                             resultingDefault = appliedDefault;
