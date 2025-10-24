@@ -1,5 +1,4 @@
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
@@ -25,11 +24,6 @@ namespace CSM.TmpeSync.Tmpe
         private static bool SupportsParkingRestrictions;
         private static bool SupportsTimedTrafficLights;
         private static bool SupportsClearTraffic;
-        private static FieldInfo TimedLightsEnabledOptionField;
-        private static MethodInfo TimedLightsInvokeOnValueChangedMethod;
-        private static PropertyInfo TimedLightsValueProperty;
-        private static PropertyInfo SavedGameOptionsAvailableProperty;
-        private static bool _loggedSavedGameOptionsAvailabilityError;
         private static readonly object InitLock = new object();
         private static bool _initializationAttempted;
         private static bool _loggedMissingAssembly;
@@ -581,11 +575,6 @@ namespace CSM.TmpeSync.Tmpe
                 SupportsParkingRestrictions = false;
                 SupportsTimedTrafficLights = false;
                 SupportsClearTraffic = false;
-                TimedLightsEnabledOptionField = null;
-                TimedLightsInvokeOnValueChangedMethod = null;
-                TimedLightsValueProperty = null;
-                SavedGameOptionsAvailableProperty = null;
-                _loggedSavedGameOptionsAvailabilityError = false;
                 HasRealTmpe = false;
 
                 if (tmpeAssembly == null)
@@ -2042,32 +2031,6 @@ namespace CSM.TmpeSync.Tmpe
                     TimedStepMaxTimeProperty = TimedTrafficLightsStepType.GetProperty("MaxTime", BindingFlags.Public | BindingFlags.Instance);
                 }
 
-                var maintenanceTabType = tmpeAssembly.GetType("TrafficManager.State.MaintenanceTab_FeaturesGroup");
-                if (maintenanceTabType == null)
-                {
-                    LogBridgeGap("Timed Traffic Lights", "type", "TrafficManager.State.MaintenanceTab_FeaturesGroup");
-                }
-                else
-                {
-                    TimedLightsEnabledOptionField = maintenanceTabType.GetField("TimedLightsEnabled", BindingFlags.Public | BindingFlags.Static);
-                    if (TimedLightsEnabledOptionField == null)
-                        LogBridgeGap("Timed Traffic Lights", "field", maintenanceTabType.FullName + ".TimedLightsEnabled");
-                    else
-                    {
-                        var checkboxOptionType = TimedLightsEnabledOptionField.FieldType;
-                        TimedLightsInvokeOnValueChangedMethod = checkboxOptionType?.GetMethod(
-                            "InvokeOnValueChanged",
-                            BindingFlags.Instance | BindingFlags.Public,
-                            null,
-                            new[] { typeof(bool) },
-                            null);
-                        TimedLightsValueProperty = checkboxOptionType?.GetProperty("Value", BindingFlags.Public | BindingFlags.Instance);
-                    }
-                }
-
-                var savedGameOptionsType = tmpeAssembly.GetType("TrafficManager.State.SavedGameOptions");
-                SavedGameOptionsAvailableProperty = savedGameOptionsType?.GetProperty("Available", BindingFlags.Public | BindingFlags.Static);
-
                 StepChangeMetricEnumType = ResolveType("TrafficManager.API.Traffic.Enums.StepChangeMetric", tmpeAssembly);
                 if (StepChangeMetricEnumType != null)
                 {
@@ -2107,114 +2070,6 @@ namespace CSM.TmpeSync.Tmpe
             SetFeatureStatus("timedTrafficLights", supported, null);
             return supported;
         }
-
-        internal static void DisableTimedTrafficLightsFeature(string reason)
-        {
-            if (!HasRealTmpe)
-                return;
-
-            if (TimedLightsEnabledOptionField == null || TimedLightsInvokeOnValueChangedMethod == null)
-            {
-                Log.Debug(LogCategory.Configuration, "Timed traffic lights disable skipped | reason={0} detail=missing_option_binding", NormalizeDisableReason(reason));
-                return;
-            }
-
-            if (SavedGameOptionsAvailableProperty == null)
-            {
-                Log.Debug(LogCategory.Configuration, "Timed traffic lights disable skipped | reason={0} detail=missing_savedgameoptions_property", NormalizeDisableReason(reason));
-                return;
-            }
-
-            if (SimulationManager.instance == null)
-            {
-                Log.Debug(LogCategory.Configuration, "Timed traffic lights disable skipped | reason={0} detail=no_simulation_manager", NormalizeDisableReason(reason));
-                return;
-            }
-
-            SimulationManager.instance.AddAction(DisableTimedLightsRoutine(reason, 60));
-        }
-
-        private static IEnumerator DisableTimedLightsRoutine(string reason, int attempts)
-        {
-            while (attempts-- > 0)
-            {
-                if (AreSavedGameOptionsReady())
-                {
-                    ApplyTimedLightsDisable(reason);
-                    yield break;
-                }
-
-                yield return null;
-            }
-
-            Log.Warn(LogCategory.Configuration, "Timed traffic lights disable failed | reason={0} detail=saved_game_options_unavailable", NormalizeDisableReason(reason));
-        }
-
-        private static bool AreSavedGameOptionsReady()
-        {
-            if (SavedGameOptionsAvailableProperty == null)
-                return false;
-
-            try
-            {
-                var value = SavedGameOptionsAvailableProperty.GetValue(null, null);
-                if (value is bool available)
-                {
-                    _loggedSavedGameOptionsAvailabilityError = false;
-                    return available;
-                }
-            }
-            catch (Exception ex)
-            {
-                if (!_loggedSavedGameOptionsAvailabilityError)
-                {
-                    _loggedSavedGameOptionsAvailabilityError = true;
-                    Log.Debug(LogCategory.Diagnostics, "Unable to query TM:PE SavedGameOptions availability | error={0}", ex);
-                }
-            }
-
-            return false;
-        }
-
-        private static void ApplyTimedLightsDisable(string reason)
-        {
-            try
-            {
-                var option = TimedLightsEnabledOptionField?.GetValue(null);
-                if (option == null)
-                {
-                    Log.Debug(LogCategory.Configuration, "Timed traffic lights disable skipped | reason={0} detail=option_instance_null", NormalizeDisableReason(reason));
-                    return;
-                }
-
-                var previousValue = false;
-                if (TimedLightsValueProperty != null)
-                {
-                    try
-                    {
-                        if (TimedLightsValueProperty.GetValue(option, null) is bool current)
-                            previousValue = current;
-                    }
-                    catch
-                    {
-                        // Ignore value inspection errors and continue with disable attempt.
-                    }
-                }
-
-                TimedLightsInvokeOnValueChangedMethod.Invoke(option, new object[] { false });
-
-                if (previousValue)
-                    Log.Info(LogCategory.Configuration, "Timed traffic lights disabled via TM:PE options workflow | reason={0}", NormalizeDisableReason(reason));
-                else
-                    Log.Debug(LogCategory.Configuration, "Timed traffic lights already disabled | reason={0}", NormalizeDisableReason(reason));
-            }
-            catch (Exception ex)
-            {
-                Log.Warn(LogCategory.Configuration, "Timed traffic lights disable failed | reason={0} error={1}", NormalizeDisableReason(reason), ex);
-            }
-        }
-
-        private static string NormalizeDisableReason(string reason) => string.IsNullOrEmpty(reason) ? "<unspecified>" : reason;
 
         private static bool InitialiseUtilityBridge(Assembly tmpeAssembly)
         {
