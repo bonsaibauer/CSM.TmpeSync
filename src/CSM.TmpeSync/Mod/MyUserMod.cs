@@ -14,9 +14,6 @@ namespace CSM.TmpeSync.Mod
 
         public string Description => "Synchronizes TM:PE by bonsaibauer";
 
-        private static TmpeSyncConnection _connection;
-        private static bool _connectionRegistered;
-
         public void OnEnabled()
         {
             Log.Info(LogCategory.Lifecycle, "Mod enabled | action=validate_dependencies");
@@ -30,40 +27,22 @@ namespace CSM.TmpeSync.Mod
                 return;
             }
 
-            Log.Info(LogCategory.Network, "Registering TM:PE synchronization connection with CSM.");
-            var connection = new TmpeSyncConnection();
-            var registration = CsmCompat.RegisterConnection(connection);
-            switch (registration)
+            Log.Info(LogCategory.Network, "Awaiting CSM to activate TM:PE synchronization support.");
+
+            MultiplayerStateObserver.RoleChanged += Log.HandleRoleChanged;
+            try
             {
-                case CsmCompat.ConnectionRegistrationResult.Registered:
-                    _connection = connection;
-                    _connectionRegistered = true;
-                    Log.Info(LogCategory.Network, "CSM connection established | channel=TM:PE sync");
-                    MultiplayerStateObserver.RoleChanged += Log.HandleRoleChanged;
-                    try
-                    {
-                        Log.HandleRoleChanged(CsmCompat.DescribeCurrentRole());
-                    }
-                    catch (Exception ex)
-                    {
-                        Log.Warn(LogCategory.Diagnostics, "Unable to initialize session log for current role | error={0}", ex);
-                    }
-                    SnapshotDispatcher.Initialize();
-                    LaneMappingTracker.Initialize();
-                    TmpeFeatureReadyNotifier.Initialize();
-                    SnapshotDispatcher.TryExportIfServer("mod_enabled");
-                    break;
-                case CsmCompat.ConnectionRegistrationResult.AlreadyRegistered:
-                    _connection = null;
-                    _connectionRegistered = false;
-                    Log.Info(LogCategory.Network, "CSM already manages TM:PE synchronization | action=skip_manual_registration");
-                    break;
-                default:
-                    _connection = null;
-                    _connectionRegistered = false;
-                    Log.Warn(LogCategory.Network, "TM:PE synchronization connection registration failed | synchronization=inactive");
-                    break;
+                Log.HandleRoleChanged(CsmCompat.DescribeCurrentRole());
             }
+            catch (Exception ex)
+            {
+                Log.Warn(LogCategory.Diagnostics, "Unable to initialize session log for current role | error={0}", ex);
+            }
+
+            SnapshotDispatcher.Initialize();
+            LaneMappingTracker.Initialize();
+            TmpeFeatureReadyNotifier.Initialize();
+            SnapshotDispatcher.TryExportIfServer("mod_enabled");
 
             CsmCompat.LogDiagnostics("OnEnabled");
 
@@ -98,20 +77,6 @@ namespace CSM.TmpeSync.Mod
             TmpeFeatureReadyNotifier.Shutdown();
             LaneMappingTracker.Shutdown();
             SnapshotDispatcher.Shutdown();
-            if (_connectionRegistered && _connection != null)
-            {
-                Log.Info(LogCategory.Network, "Unregistering TM:PE synchronization connection from CSM.");
-                if (!CsmCompat.UnregisterConnection(_connection))
-                {
-                    Log.Warn(LogCategory.Network, "TM:PE synchronization connection could not be cleanly unregistered from CSM.");
-                }
-
-                _connection = null;
-                _connectionRegistered = false;
-            }
-
-            _connection = null;
-            _connectionRegistered = false;
 
             CsmCompat.LogDiagnostics("OnDisabled");
             Log.Debug(LogCategory.Lifecycle, "Mod disabled | awaiting_next_enable_cycle");

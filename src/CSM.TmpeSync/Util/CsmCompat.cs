@@ -1,8 +1,9 @@
 using System;
-using System.Linq;
-using CSM.API;
+using System.Collections;
+using System.Reflection;
 using CSM.API.Commands;
 using CSM.API.Helpers;
+using CSM.API.Networking;
 
 namespace CSM.TmpeSync.Util
 {
@@ -11,103 +12,17 @@ namespace CSM.TmpeSync.Util
         private static bool _stubSimulationLogged;
         private static bool _loggedMissingSendToAll;
         private static bool _loggedMissingSendToClients;
-        private static bool _loggedMissingSendToServer;
-        private static bool _loggedMissingSendToClient;
-        private static bool _loggedMissingRegister;
-        private static bool _loggedMissingUnregister;
+        private static bool _loggedSendToClientNotServer;
+        private static bool _loggedSendToClientUnavailable;
 
-        internal enum ConnectionRegistrationResult
-        {
-            Failure,
-            Registered,
-            AlreadyRegistered
-        }
-
-        internal static ConnectionRegistrationResult RegisterConnection(Connection connection)
-        {
-            if (connection == null)
-                return ConnectionRegistrationResult.Failure;
-
-            var register = Command.RegisterConnection;
-            if (register == null)
-            {
-                LogMissingRegister();
-                return ConnectionRegistrationResult.Failure;
-            }
-
-            try
-            {
-                if (IsConnectionPresent(connection))
-                    return ConnectionRegistrationResult.AlreadyRegistered;
-
-                return register(connection)
-                    ? ConnectionRegistrationResult.Registered
-                    : ConnectionRegistrationResult.Failure;
-            }
-            catch (Exception ex)
-            {
-                Log.Warn(LogCategory.Network, "Unable to register CSM connection | error={0}", ex);
-                return ConnectionRegistrationResult.Failure;
-            }
-        }
-
-        internal static bool UnregisterConnection(Connection connection)
-        {
-            if (connection == null)
-                return false;
-
-            var unregister = Command.UnregisterConnection;
-            if (unregister == null)
-            {
-                LogMissingUnregister();
-                return false;
-            }
-
-            try
-            {
-                return unregister(connection);
-            }
-            catch (Exception ex)
-            {
-                Log.Warn(LogCategory.Network, "Unable to unregister CSM connection | error={0}", ex);
-                return false;
-            }
-        }
-
-        private static bool IsConnectionPresent(Connection connection)
-        {
-            var getConnections = Command.GetRegisteredConnections;
-            if (getConnections == null)
-                return false;
-
-            try
-            {
-                var connections = getConnections();
-                if (connections == null)
-                    return false;
-
-                foreach (var existing in connections)
-                {
-                    if (existing == null)
-                        continue;
-
-                    if (ReferenceEquals(existing, connection))
-                        return true;
-
-                    if (existing.GetType() == connection.GetType())
-                        return true;
-
-                    if (existing.ModClass != null && connection.ModClass != null && existing.ModClass == connection.ModClass)
-                        return true;
-                }
-            }
-            catch (Exception ex)
-            {
-                Log.Warn(LogCategory.Diagnostics, "Failed to inspect registered CSM connections | error={0}", ex);
-            }
-
-            return false;
-        }
+        private static readonly object SendToClientReflectionSync = new object();
+        private static bool _sendToClientReflectionInitialized;
+        private static bool _sendToClientReflectionAvailable;
+        private static FieldInfo _commandInternalInstanceField;
+        private static MethodInfo _commandInternalSendToClientMethod;
+        private static PropertyInfo _multiplayerManagerInstanceProperty;
+        private static PropertyInfo _multiplayerManagerCurrentServerProperty;
+        private static PropertyInfo _serverConnectedPlayersProperty;
 
         internal static void SendToAll(CommandBase command)
         {
@@ -189,11 +104,7 @@ namespace CSM.TmpeSync.Util
 
             Log.Debug(LogCategory.Network, "Dispatch delegate missing | direction=server type={0}", commandName);
 
-            if (!_loggedMissingSendToServer)
-            {
-                _loggedMissingSendToServer = true;
-                Log.Warn(LogCategory.Network, "Unable to send command to server | reason=no_send_delegate type={0}", command.GetType().FullName);
-            }
+            Log.Warn(LogCategory.Network, "Unable to send command to server | reason=no_send_delegate type={0}", command.GetType().FullName);
         }
 
         internal static void SendToClient(int clientId, CommandBase command)
@@ -206,9 +117,9 @@ namespace CSM.TmpeSync.Util
 
             if (!IsServerInstance())
             {
-                if (!_loggedMissingSendToClient)
+                if (!_loggedSendToClientNotServer)
                 {
-                    _loggedMissingSendToClient = true;
+                    _loggedSendToClientNotServer = true;
                     Log.Warn(LogCategory.Network, "Ignoring SendToClient call while not acting as server");
                 }
 
@@ -216,30 +127,142 @@ namespace CSM.TmpeSync.Util
                 return;
             }
 
-            var sendToClient = Command.SendToClient;
-            if (sendToClient != null)
+            if (TrySendToClientInternal(clientId, command, out var failureReason))
             {
-                try
-                {
-                    sendToClient(clientId, command);
-                    Log.Debug(LogCategory.Network, "Dispatch complete | direction=client type={0} clientId={1}", commandName, clientId);
-                    return;
-                }
-                catch (Exception ex)
-                {
-                    Log.Warn(LogCategory.Network, "Failed to send command to client | id={0} command={1} error={2}", clientId, command.GetType().Name, ex);
-                }
+                Log.Debug(LogCategory.Network, "Dispatch complete | direction=client type={0} clientId={1}", commandName, clientId);
+                return;
             }
 
-            Log.Debug(LogCategory.Network, "Dispatch delegate missing | direction=client type={0} clientId={1}", commandName, clientId);
-
-            if (!_loggedMissingSendToClient)
+            if (!_loggedSendToClientUnavailable)
             {
-                _loggedMissingSendToClient = true;
-                Log.Warn(LogCategory.Network, "Unable to send command to client | id={0} command={1} reason=no_send_delegate", clientId, command.GetType().Name);
+                _loggedSendToClientUnavailable = true;
+                Log.Warn(LogCategory.Network, "Unable to send command to client | id={0} command={1} reason={2}", clientId, command.GetType().Name, failureReason ?? "unknown");
             }
 
             Log.Debug(LogCategory.Network, "Command not delivered to client | type={0} clientId={1}", commandName, clientId);
+        }
+
+        private static bool TrySendToClientInternal(int clientId, CommandBase command, out string failureReason)
+        {
+            failureReason = null;
+
+            if (!EnsureSendToClientReflection())
+            {
+                failureReason = "reflection_unavailable";
+                return false;
+            }
+
+            try
+            {
+                var commandInternal = _commandInternalInstanceField?.GetValue(null);
+                if (commandInternal == null)
+                {
+                    failureReason = "command_internal_missing";
+                    return false;
+                }
+
+                var multiplayerManager = _multiplayerManagerInstanceProperty?.GetValue(null, null);
+                if (multiplayerManager == null)
+                {
+                    failureReason = "multiplayer_manager_missing";
+                    return false;
+                }
+
+                var server = _multiplayerManagerCurrentServerProperty?.GetValue(multiplayerManager, null);
+                if (server == null)
+                {
+                    failureReason = "server_missing";
+                    return false;
+                }
+
+                var connectedPlayersObj = _serverConnectedPlayersProperty?.GetValue(server, null);
+                if (!(connectedPlayersObj is IDictionary connectedPlayers))
+                {
+                    failureReason = "players_unavailable";
+                    return false;
+                }
+
+                if (!connectedPlayers.Contains(clientId))
+                {
+                    failureReason = "client_not_found";
+                    return false;
+                }
+
+                var player = connectedPlayers[clientId];
+                if (player == null)
+                {
+                    failureReason = "player_null";
+                    return false;
+                }
+
+                _commandInternalSendToClientMethod?.Invoke(commandInternal, new[] { player, command });
+                return true;
+            }
+            catch (Exception ex)
+            {
+                failureReason = "send_failed";
+                Log.Warn(LogCategory.Network, "Failed to send command to client via reflection | clientId={0} command={1} error={2}", clientId, command.GetType().Name, ex);
+                return false;
+            }
+        }
+
+        private static bool EnsureSendToClientReflection()
+        {
+            if (_sendToClientReflectionInitialized)
+                return _sendToClientReflectionAvailable;
+
+            lock (SendToClientReflectionSync)
+            {
+                if (_sendToClientReflectionInitialized)
+                    return _sendToClientReflectionAvailable;
+
+                _sendToClientReflectionInitialized = true;
+
+                try
+                {
+                    var commandInternalType = Type.GetType("CSM.Commands.CommandInternal, CSM");
+                    var multiplayerManagerType = Type.GetType("CSM.Networking.MultiplayerManager, CSM");
+
+                    if (commandInternalType == null || multiplayerManagerType == null)
+                    {
+                        Log.Warn(LogCategory.Network, "SendToClient reflection | missing types commandInternal={0} multiplayerManager={1}", commandInternalType != null, multiplayerManagerType != null);
+                        _sendToClientReflectionAvailable = false;
+                        return false;
+                    }
+
+                    _commandInternalInstanceField = commandInternalType.GetField("Instance", BindingFlags.Public | BindingFlags.Static);
+                    _commandInternalSendToClientMethod = commandInternalType.GetMethod("SendToClient", BindingFlags.Public | BindingFlags.Instance, null, new[] { typeof(Player), typeof(CommandBase) }, null);
+                    _multiplayerManagerInstanceProperty = multiplayerManagerType.GetProperty("Instance", BindingFlags.Public | BindingFlags.Static);
+                    _multiplayerManagerCurrentServerProperty = multiplayerManagerType.GetProperty("CurrentServer", BindingFlags.Public | BindingFlags.Instance);
+
+                    var serverType = _multiplayerManagerCurrentServerProperty?.PropertyType;
+                    _serverConnectedPlayersProperty = serverType?.GetProperty("ConnectedPlayers", BindingFlags.Public | BindingFlags.Instance);
+
+                    _sendToClientReflectionAvailable =
+                        _commandInternalInstanceField != null &&
+                        _commandInternalSendToClientMethod != null &&
+                        _multiplayerManagerInstanceProperty != null &&
+                        _multiplayerManagerCurrentServerProperty != null &&
+                        _serverConnectedPlayersProperty != null;
+
+                    if (!_sendToClientReflectionAvailable)
+                    {
+                        Log.Warn(LogCategory.Network, "SendToClient reflection setup incomplete | instanceField={0} method={1} managerProp={2} serverProp={3} playersProp={4}",
+                            _commandInternalInstanceField != null,
+                            _commandInternalSendToClientMethod != null,
+                            _multiplayerManagerInstanceProperty != null,
+                            _multiplayerManagerCurrentServerProperty != null,
+                            _serverConnectedPlayersProperty != null);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Log.Warn(LogCategory.Network, "SendToClient reflection setup failed | error={0}", ex);
+                    _sendToClientReflectionAvailable = false;
+                }
+
+                return _sendToClientReflectionAvailable;
+            }
         }
 
         private static bool Invoke(Action<CommandBase> action, CommandBase command)
@@ -257,24 +280,6 @@ namespace CSM.TmpeSync.Util
                 Log.Warn(LogCategory.Network, "Failed to invoke CSM delegate {0} | error={1}", DescribeDelegate(action), ex);
                 return false;
             }
-        }
-
-        private static void LogMissingRegister()
-        {
-            if (_loggedMissingRegister)
-                return;
-
-            _loggedMissingRegister = true;
-            Log.Warn(LogCategory.Network, "CSM.API register hook missing");
-        }
-
-        private static void LogMissingUnregister()
-        {
-            if (_loggedMissingUnregister)
-                return;
-
-            _loggedMissingUnregister = true;
-            Log.Warn(LogCategory.Network, "CSM.API unregister hook missing");
         }
 
         internal static int GetSenderId(CommandBase command) => command?.SenderId ?? -1;
@@ -324,26 +329,8 @@ namespace CSM.TmpeSync.Util
                 Log.Info(LogCategory.Diagnostics, "Command.SendToAll delegate | value={0}", DescribeDelegate(Command.SendToAll));
                 Log.Info(LogCategory.Diagnostics, "Command.SendToServer delegate | value={0}", DescribeDelegate(Command.SendToServer));
                 Log.Info(LogCategory.Diagnostics, "Command.SendToClients delegate | value={0}", DescribeDelegate(Command.SendToClients));
-                Log.Info(LogCategory.Diagnostics, "Command.SendToClient delegate | value={0}", DescribeDelegate(Command.SendToClient));
-                Log.Info(LogCategory.Diagnostics, "Command.RegisterConnection hook | value={0}", DescribeDelegate(Command.RegisterConnection));
-                Log.Info(LogCategory.Diagnostics, "Command.UnregisterConnection hook | value={0}", DescribeDelegate(Command.UnregisterConnection));
-
-                var getConnections = Command.GetRegisteredConnections;
-                var connections = getConnections != null ? getConnections() : null;
-                if (connections != null)
-                {
-                    var summary = connections
-                        .Where(c => c != null)
-                        .Select(c => c.Name ?? c.GetType().Name)
-                        .ToArray();
-                    Log.Info(LogCategory.Diagnostics, "Registered connections | count={0} items={1}",
-                        summary.Length,
-                        summary.Length == 0 ? "<empty>" : string.Join(", ", summary));
-                }
-                else
-                {
-                    Log.Info(LogCategory.Diagnostics, "Registered connections | value=<unavailable>");
-                }
+                Log.Info(LogCategory.Diagnostics, "Command.GetCommandHandler delegate | value={0}", DescribeDelegate(Command.GetCommandHandler));
+                Log.Info(LogCategory.Diagnostics, "SendToClient reflection | initialized={0} available={1}", _sendToClientReflectionInitialized, _sendToClientReflectionAvailable);
             }
             catch (Exception ex)
             {
