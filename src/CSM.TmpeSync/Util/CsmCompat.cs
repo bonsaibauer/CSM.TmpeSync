@@ -20,6 +20,11 @@ namespace CSM.TmpeSync.Util
         private static bool _loggedMissingUnregister;
 
         private const BindingFlags PublicStatic = BindingFlags.Public | BindingFlags.Static;
+        private const BindingFlags NonPublicStatic = BindingFlags.NonPublic | BindingFlags.Static;
+        private const BindingFlags PublicInstance = BindingFlags.Public | BindingFlags.Instance;
+        private const BindingFlags NonPublicInstance = BindingFlags.NonPublic | BindingFlags.Instance;
+        private const BindingFlags AnyStatic = PublicStatic | NonPublicStatic;
+        private const BindingFlags AnyInstance = PublicInstance | NonPublicInstance;
 
         private static readonly FieldInfo RegisterConnectionField = typeof(Command).GetField("RegisterConnection", PublicStatic);
         private static readonly PropertyInfo RegisterConnectionProperty = typeof(Command).GetProperty("RegisterConnection", PublicStatic);
@@ -54,6 +59,36 @@ namespace CSM.TmpeSync.Util
             });
         private static readonly Action<int, CommandBase> SendToClientMethodDelegate = CreateSendToClientMethodDelegate();
 
+        private static readonly Type CommandInternalType = Type.GetType("CSM.Commands.CommandInternal, CSM");
+        private static readonly FieldInfo CommandInternalInstanceField = CommandInternalType?.GetField("Instance", AnyStatic);
+        private static readonly MethodInfo CommandInternalRefreshModelMethod = CommandInternalType?.GetMethod("RefreshModel", PublicInstance);
+        private static readonly MethodInfo CommandInternalSendToClientMethod = CommandInternalType?
+            .GetMethods(AnyInstance)
+            .FirstOrDefault(m =>
+            {
+                if (m.Name != "SendToClient")
+                    return false;
+
+                var parameters = m.GetParameters();
+                if (parameters.Length != 2)
+                    return false;
+
+                var parameterType = parameters[0].ParameterType;
+                return string.Equals(parameterType.FullName, "CSM.Models.Player", StringComparison.Ordinal) &&
+                       typeof(CommandBase).IsAssignableFrom(parameters[1].ParameterType);
+            });
+
+        private static readonly Type ModSupportType = Type.GetType("CSM.Mods.ModSupport, CSM");
+        private static readonly PropertyInfo ModSupportInstanceProperty = ModSupportType?.GetProperty("Instance", AnyStatic);
+        private static readonly PropertyInfo ModSupportConnectedModsProperty = ModSupportType?.GetProperty("ConnectedMods", AnyInstance);
+
+        private static readonly Type MultiplayerManagerType = Type.GetType("CSM.Networking.MultiplayerManager, CSM");
+        private static readonly PropertyInfo MultiplayerManagerInstanceProperty = MultiplayerManagerType?.GetProperty("Instance", AnyStatic);
+        private static readonly PropertyInfo MultiplayerManagerCurrentServerProperty = MultiplayerManagerType?.GetProperty("CurrentServer", AnyInstance);
+
+        private static readonly Type ServerType = Type.GetType("CSM.Networking.Server, CSM");
+        private static readonly PropertyInfo ServerConnectedPlayersProperty = ServerType?.GetProperty("ConnectedPlayers", AnyInstance);
+
         internal enum ConnectionRegistrationResult
         {
             Failure,
@@ -67,26 +102,26 @@ namespace CSM.TmpeSync.Util
                 return ConnectionRegistrationResult.Failure;
 
             var registerConnection = GetRegisterConnectionDelegate();
-            if (registerConnection == null)
+            if (registerConnection != null)
             {
-                LogMissingRegister();
-                return ConnectionRegistrationResult.Failure;
+                try
+                {
+                    if (IsConnectionPresent(connection))
+                        return ConnectionRegistrationResult.AlreadyRegistered;
+
+                    return registerConnection(connection)
+                        ? ConnectionRegistrationResult.Registered
+                        : ConnectionRegistrationResult.Failure;
+                }
+                catch (Exception ex)
+                {
+                    Log.Warn(LogCategory.Network, "Unable to register CSM connection | error={0}", ex);
+                    return ConnectionRegistrationResult.Failure;
+                }
             }
 
-            try
-            {
-                if (IsConnectionPresent(connection))
-                    return ConnectionRegistrationResult.AlreadyRegistered;
-
-                return registerConnection(connection)
-                    ? ConnectionRegistrationResult.Registered
-                    : ConnectionRegistrationResult.Failure;
-            }
-            catch (Exception ex)
-            {
-                Log.Warn(LogCategory.Network, "Unable to register CSM connection | error={0}", ex);
-                return ConnectionRegistrationResult.Failure;
-            }
+            LogMissingRegister();
+            return LegacyRegisterConnection(connection);
         }
 
         internal static bool UnregisterConnection(Connection connection)
@@ -98,7 +133,7 @@ namespace CSM.TmpeSync.Util
             if (unregisterConnection == null)
             {
                 LogMissingUnregister();
-                return false;
+                return LegacyUnregisterConnection(connection);
             }
 
             try
@@ -116,33 +151,41 @@ namespace CSM.TmpeSync.Util
         {
             var getConnections = GetRegisteredConnectionsDelegate();
             if (getConnections == null)
-                return false;
+            {
+                var legacy = LegacyGetRegisteredConnections();
+                return legacy != null && legacy.Any(existing => ConnectionsMatch(existing, connection));
+            }
 
             try
             {
                 var connections = getConnections();
-                if (connections == null)
-                    return false;
-
-                foreach (var existing in connections)
-                {
-                    if (existing == null)
-                        continue;
-
-                    if (ReferenceEquals(existing, connection))
-                        return true;
-
-                    if (existing.GetType() == connection.GetType())
-                        return true;
-
-                    if (existing.ModClass != null && connection.ModClass != null && existing.ModClass == connection.ModClass)
-                        return true;
-                }
+                return connections != null && connections.Any(existing => ConnectionsMatch(existing, connection));
             }
             catch (Exception ex)
             {
                 Log.Warn(LogCategory.Diagnostics, "Failed to inspect registered CSM connections | error={0}", ex);
             }
+
+            return false;
+        }
+
+        private static bool ConnectionsMatch(Connection existing, Connection candidate)
+        {
+            if (existing == null || candidate == null)
+                return false;
+
+            if (ReferenceEquals(existing, candidate))
+                return true;
+
+            if (existing.GetType() == candidate.GetType())
+                return true;
+
+            if (existing.ModClass != null && candidate.ModClass != null && existing.ModClass == candidate.ModClass)
+                return true;
+
+            if (!string.IsNullOrEmpty(existing.Name) && !string.IsNullOrEmpty(candidate.Name) &&
+                string.Equals(existing.Name, candidate.Name, StringComparison.Ordinal))
+                return true;
 
             return false;
         }
@@ -269,6 +312,12 @@ namespace CSM.TmpeSync.Util
                 }
             }
 
+            if (LegacySendToClient(clientId, command))
+            {
+                Log.Debug(LogCategory.Network, "Dispatch complete via legacy path | direction=client type={0} clientId={1}", commandName, clientId);
+                return;
+            }
+
             Log.Debug(LogCategory.Network, "Dispatch delegate missing | direction=client type={0} clientId={1}", commandName, clientId);
 
             if (!_loggedMissingSendToClient)
@@ -367,7 +416,7 @@ namespace CSM.TmpeSync.Util
                 Log.Info(LogCategory.Diagnostics, "Command.UnregisterConnection hook | value={0}", DescribeDelegate(GetUnregisterConnectionDelegate()));
 
                 var getConnections = GetRegisteredConnectionsDelegate();
-                var connections = getConnections != null ? getConnections() : null;
+                var connections = getConnections != null ? getConnections() : LegacyGetRegisteredConnections();
                 if (connections != null)
                 {
                     var summary = connections
@@ -437,7 +486,7 @@ namespace CSM.TmpeSync.Util
             if (converted != null)
                 return converted;
 
-            return GetRegisteredConnectionsMethodDelegate;
+            return GetRegisteredConnectionsMethodDelegate ?? LegacyGetRegisteredConnections;
         }
 
         private static Action<int, CommandBase> GetSendToClientDelegate()
@@ -542,6 +591,9 @@ namespace CSM.TmpeSync.Util
             if (value is IEnumerable nonGeneric)
                 return nonGeneric.Cast<object>().OfType<Connection>().ToArray();
 
+            if (value is Connection single)
+                return new[] { single };
+
             return null;
         }
 
@@ -619,6 +671,201 @@ namespace CSM.TmpeSync.Util
             catch
             {
                 return (clientId, command) => SendToClientMethod.Invoke(null, new object[] { clientId, command });
+            }
+        }
+
+        private static ConnectionRegistrationResult LegacyRegisterConnection(Connection connection)
+        {
+            var list = GetLegacyConnectionList();
+            if (list == null)
+                return ConnectionRegistrationResult.Failure;
+
+            if (FindLegacyConnection(list, connection) != null)
+                return ConnectionRegistrationResult.AlreadyRegistered;
+
+            try
+            {
+                list.Add(connection);
+                LegacyRefreshCommandModel();
+                Log.Debug(LogCategory.Network, "Connection registered via legacy ModSupport | type={0}", connection.GetType().FullName);
+                return ConnectionRegistrationResult.Registered;
+            }
+            catch (Exception ex)
+            {
+                Log.Warn(LogCategory.Network, "Unable to register connection via legacy ModSupport | error={0}", ex);
+                return ConnectionRegistrationResult.Failure;
+            }
+        }
+
+        private static bool LegacyUnregisterConnection(Connection connection)
+        {
+            var list = GetLegacyConnectionList();
+            if (list == null)
+                return false;
+
+            var existing = FindLegacyConnection(list, connection);
+            if (existing == null)
+                return true;
+
+            try
+            {
+                list.Remove(existing);
+                LegacyRefreshCommandModel();
+                Log.Debug(LogCategory.Network, "Connection unregistered via legacy ModSupport | type={0}", connection.GetType().FullName);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Log.Warn(LogCategory.Network, "Unable to unregister connection via legacy ModSupport | error={0}", ex);
+                return false;
+            }
+        }
+
+        private static Connection[] LegacyGetRegisteredConnections()
+        {
+            var list = GetLegacyConnectionList();
+            if (list == null || list.Count == 0)
+                return new Connection[0];
+
+            try
+            {
+                return list.Cast<object>().OfType<Connection>().ToArray();
+            }
+            catch
+            {
+                return new Connection[0];
+            }
+        }
+
+        private static IList GetLegacyConnectionList()
+        {
+            if (ModSupportType == null || ModSupportInstanceProperty == null || ModSupportConnectedModsProperty == null)
+                return null;
+
+            var instance = GetPropertyValue(ModSupportInstanceProperty, null);
+            if (instance == null)
+                return null;
+
+            try
+            {
+                var value = GetPropertyValue(ModSupportConnectedModsProperty, instance);
+                return value as IList;
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        private static object FindLegacyConnection(IList list, Connection target)
+        {
+            if (list == null || target == null)
+                return null;
+
+            foreach (var entry in list)
+            {
+                if (entry is Connection existing && ConnectionsMatch(existing, target))
+                    return entry;
+            }
+
+            return null;
+        }
+
+        private static void LegacyRefreshCommandModel()
+        {
+            if (CommandInternalInstanceField == null || CommandInternalRefreshModelMethod == null)
+                return;
+
+            var instance = CommandInternalInstanceField.GetValue(null);
+            if (instance == null)
+                return;
+
+            try
+            {
+                CommandInternalRefreshModelMethod.Invoke(instance, null);
+            }
+            catch (Exception ex)
+            {
+                Log.Debug(LogCategory.Diagnostics, "Legacy command model refresh failed | error={0}", ex);
+            }
+        }
+
+        private static bool LegacySendToClient(int clientId, CommandBase command)
+        {
+            if (CommandInternalInstanceField == null || CommandInternalSendToClientMethod == null)
+                return false;
+
+            var instance = CommandInternalInstanceField.GetValue(null);
+            if (instance == null)
+                return false;
+
+            var player = LegacyFindPlayer(clientId);
+            if (player == null)
+                return false;
+
+            try
+            {
+                CommandInternalSendToClientMethod.Invoke(instance, new[] { player, (object)command });
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Log.Warn(LogCategory.Network, "Legacy SendToClient failed | id={0} command={1} error={2}", clientId, command.GetType().Name, ex);
+                return false;
+            }
+        }
+
+        private static object LegacyFindPlayer(int clientId)
+        {
+            if (MultiplayerManagerInstanceProperty == null || MultiplayerManagerCurrentServerProperty == null || ServerConnectedPlayersProperty == null)
+                return null;
+
+            var manager = GetPropertyValue(MultiplayerManagerInstanceProperty, null);
+            if (manager == null)
+                return null;
+
+            var server = GetPropertyValue(MultiplayerManagerCurrentServerProperty, manager);
+            if (server == null)
+                return null;
+
+            object dictionaryObj;
+            try
+            {
+                dictionaryObj = GetPropertyValue(ServerConnectedPlayersProperty, server);
+            }
+            catch
+            {
+                return null;
+            }
+
+            if (dictionaryObj is IDictionary dictionary)
+            {
+                foreach (DictionaryEntry entry in dictionary)
+                {
+                    if (entry.Key is int id && id == clientId)
+                        return entry.Value;
+                }
+            }
+
+            return null;
+        }
+
+        private static object GetPropertyValue(PropertyInfo property, object instance)
+        {
+            if (property == null)
+                return null;
+
+            try
+            {
+#if NETSTANDARD || NET5_0_OR_GREATER
+                return property.GetValue(instance);
+#else
+                return property.GetValue(instance, null);
+#endif
+            }
+            catch
+            {
+                return null;
             }
         }
 
