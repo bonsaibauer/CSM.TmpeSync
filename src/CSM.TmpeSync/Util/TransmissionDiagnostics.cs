@@ -163,7 +163,12 @@ namespace CSM.TmpeSync.Util
             if (value == null)
                 return null;
 
-            return new SpeedLimitValue { Type = value.Type, Index = value.Index };
+            return new SpeedLimitValue
+            {
+                Type = value.Type,
+                Index = value.Index,
+                RawSpeedKmh = value.RawSpeedKmh
+            };
         }
 
         private static JunctionRestrictionsState Clone(JunctionRestrictionsState state)

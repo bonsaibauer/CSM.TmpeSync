@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using CSM.API.Commands;
 using CSM.TmpeSync.Net.Contracts.States;
+using CSM.TmpeSync.Tmpe;
 using ProtoBuf;
 
 namespace CSM.TmpeSync.Net.Contracts.Applied
@@ -34,6 +35,53 @@ namespace CSM.TmpeSync.Net.Contracts.Applied
             [ProtoMember(3, IsRequired = true)] public ushort SegmentId { get; set; }
             [ProtoMember(4, IsRequired = true)] public int LaneIndex { get; set; } = -1;
             [ProtoMember(5)] public long MappingVersion { get; set; }
+
+            /// <summary>
+            /// Raw km/h payload that mirrors <see cref="Speed"/>. Used when palette encoding collapses.
+            /// </summary>
+            [ProtoMember(100)]
+            public float RawSpeedKmh { get; private set; }
+
+            [ProtoBeforeSerialization]
+            private void OnBeforeSerialize()
+            {
+                RawSpeedKmh = SpeedLimitCodec.DecodeToKmh(Speed);
+            }
+
+            [ProtoAfterSerialization]
+            private void OnAfterSerialize()
+            {
+                RawSpeedKmh = 0f;
+            }
+
+            [ProtoAfterDeserialization]
+            private void OnAfterDeserialize()
+            {
+                NormalizeSpeedFromRaw();
+            }
+
+            private void NormalizeSpeedFromRaw()
+            {
+                if (Speed == null && RawSpeedKmh > 0.05f)
+                {
+                    Speed = SpeedLimitCodec.Encode(RawSpeedKmh);
+                    return;
+                }
+
+                if (Speed == null)
+                    return;
+
+                if (Speed.RawSpeedKmh <= 0.05f && RawSpeedKmh > 0.05f)
+                    Speed.RawSpeedKmh = RawSpeedKmh;
+
+                if (SpeedLimitCodec.IsDefault(Speed) && RawSpeedKmh > 0.05f)
+                {
+                    var rebuilt = SpeedLimitCodec.Encode(RawSpeedKmh);
+                    Speed.Type = rebuilt.Type;
+                    Speed.Index = rebuilt.Index;
+                    Speed.RawSpeedKmh = rebuilt.RawSpeedKmh;
+                }
+            }
         }
     }
 }

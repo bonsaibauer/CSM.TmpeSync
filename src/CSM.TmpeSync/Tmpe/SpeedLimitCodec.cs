@@ -23,31 +23,55 @@ namespace CSM.TmpeSync.Tmpe
 
         internal static SpeedLimitValue Encode(float speedKmh)
         {
-            if (speedKmh <= DefaultTolerance)
+            var sanitized = Math.Max(0f, speedKmh);
+
+            if (sanitized <= DefaultTolerance)
                 return Default();
 
-            if (speedKmh >= UnlimitedKmh - 0.5f)
-                return Unlimited();
+            if (sanitized >= UnlimitedKmh - 0.5f)
+            {
+                var unlimited = Unlimited();
+                unlimited.RawSpeedKmh = sanitized;
+                return unlimited;
+            }
 
             int kmhIndex;
             float kmhDiff;
-            FindNearest(KmphPalette, speedKmh, out kmhIndex, out kmhDiff);
+            FindNearest(KmphPalette, sanitized, out kmhIndex, out kmhDiff);
 
-            var mphValue = speedKmh / KmPerMile;
+            var mphValue = sanitized / KmPerMile;
             int mphIndex;
             float mphDiff;
             FindNearest(MphPalette, mphValue, out mphIndex, out mphDiff);
             var mphDiffKmh = mphDiff * KmPerMile;
 
             if (kmhDiff <= mphDiffKmh + 0.25f)
-                return new SpeedLimitValue { Type = SpeedLimitValueType.KilometresPerHour, Index = (byte)kmhIndex };
+            {
+                return new SpeedLimitValue
+                {
+                    Type = SpeedLimitValueType.KilometresPerHour,
+                    Index = (byte)kmhIndex,
+                    RawSpeedKmh = sanitized
+                };
+            }
 
-            return new SpeedLimitValue { Type = SpeedLimitValueType.MilesPerHour, Index = (byte)mphIndex };
+            return new SpeedLimitValue
+            {
+                Type = SpeedLimitValueType.MilesPerHour,
+                Index = (byte)mphIndex,
+                RawSpeedKmh = sanitized
+            };
         }
 
         internal static float DecodeToKmh(SpeedLimitValue value)
         {
-            if (value == null || value.Type == SpeedLimitValueType.Default)
+            if (value == null)
+                return 0f;
+
+            if (value.RawSpeedKmh > DefaultTolerance)
+                return value.RawSpeedKmh;
+
+            if (value.Type == SpeedLimitValueType.Default)
                 return 0f;
 
             switch (value.Type)
@@ -70,7 +94,7 @@ namespace CSM.TmpeSync.Tmpe
 
         internal static bool IsDefault(SpeedLimitValue value)
         {
-            return value == null || value.Type == SpeedLimitValueType.Default;
+            return value == null || (value.Type == SpeedLimitValueType.Default && value.RawSpeedKmh <= DefaultTolerance);
         }
 
         internal static bool IsUnlimited(SpeedLimitValue value)
@@ -80,12 +104,12 @@ namespace CSM.TmpeSync.Tmpe
 
         internal static SpeedLimitValue Default()
         {
-            return new SpeedLimitValue { Type = SpeedLimitValueType.Default };
+            return new SpeedLimitValue { Type = SpeedLimitValueType.Default, RawSpeedKmh = 0f };
         }
 
         internal static SpeedLimitValue Unlimited()
         {
-            return new SpeedLimitValue { Type = SpeedLimitValueType.Unlimited };
+            return new SpeedLimitValue { Type = SpeedLimitValueType.Unlimited, RawSpeedKmh = UnlimitedKmh };
         }
 
         internal static string Describe(SpeedLimitValue value)
@@ -96,9 +120,13 @@ namespace CSM.TmpeSync.Tmpe
             switch (value.Type)
             {
                 case SpeedLimitValueType.Default:
-                    return "Default";
+                    return value.RawSpeedKmh > DefaultTolerance
+                        ? $"{value.RawSpeedKmh:0.###} km/h (raw)"
+                        : "Default";
                 case SpeedLimitValueType.Unlimited:
-                    return "Unlimited";
+                    return value.RawSpeedKmh > DefaultTolerance
+                        ? $"Unlimited ({value.RawSpeedKmh:0.###} km/h raw)"
+                        : "Unlimited";
                 case SpeedLimitValueType.KilometresPerHour:
                     return value.Index < KmphPalette.Length
                         ? $"{KmphPalette[value.Index]} km/h"
