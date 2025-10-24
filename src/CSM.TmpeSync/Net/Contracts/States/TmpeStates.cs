@@ -43,14 +43,20 @@ namespace CSM.TmpeSync.Net.Contracts.States
     [ProtoContract]
     public class JunctionRestrictionsState
     {
-        [ProtoMember(1)] public bool AllowUTurns { get; set; } = true;
-        [ProtoMember(2)] public bool AllowLaneChangesWhenGoingStraight { get; set; } = true;
-        [ProtoMember(3)] public bool AllowEnterWhenBlocked { get; set; } = true;
-        [ProtoMember(4)] public bool AllowPedestrianCrossing { get; set; } = true;
+        [ProtoMember(1)] public bool? AllowUTurns { get; set; }
+        [ProtoMember(2)] public bool? AllowLaneChangesWhenGoingStraight { get; set; }
+        [ProtoMember(3)] public bool? AllowEnterWhenBlocked { get; set; }
+        [ProtoMember(4)] public bool? AllowPedestrianCrossing { get; set; }
         [ProtoMember(5)]
-        public bool AllowTurningOnRed
+        public bool? AllowTurningOnRed
         {
-            get => AllowNearTurnOnRed && AllowFarTurnOnRed;
+            get
+            {
+                if (!AllowNearTurnOnRed.HasValue || !AllowFarTurnOnRed.HasValue)
+                    return null;
+
+                return AllowNearTurnOnRed.Value && AllowFarTurnOnRed.Value;
+            }
             set
             {
                 AllowNearTurnOnRed = value;
@@ -58,18 +64,18 @@ namespace CSM.TmpeSync.Net.Contracts.States
             }
         }
 
-        private bool _allowNearTurnOnRed = true;
-        private bool _allowFarTurnOnRed = true;
+        private bool? _allowNearTurnOnRed;
+        private bool? _allowFarTurnOnRed;
 
         [ProtoMember(6)]
-        public bool AllowNearTurnOnRed
+        public bool? AllowNearTurnOnRed
         {
             get => _allowNearTurnOnRed;
             set => _allowNearTurnOnRed = value;
         }
 
         [ProtoMember(7)]
-        public bool AllowFarTurnOnRed
+        public bool? AllowFarTurnOnRed
         {
             get => _allowFarTurnOnRed;
             set => _allowFarTurnOnRed = value;
@@ -82,17 +88,37 @@ namespace CSM.TmpeSync.Net.Contracts.States
 
         public bool IsDefault()
         {
-            return AllowUTurns &&
-                   AllowLaneChangesWhenGoingStraight &&
-                   AllowEnterWhenBlocked &&
-                   AllowPedestrianCrossing &&
-                   AllowNearTurnOnRed &&
-                   AllowFarTurnOnRed;
+            return IsDefaultFlag(AllowUTurns) &&
+                   IsDefaultFlag(AllowLaneChangesWhenGoingStraight) &&
+                   IsDefaultFlag(AllowEnterWhenBlocked) &&
+                   IsDefaultFlag(AllowPedestrianCrossing) &&
+                   IsDefaultFlag(AllowNearTurnOnRed) &&
+                   IsDefaultFlag(AllowFarTurnOnRed);
+        }
+
+        private static bool IsDefaultFlag(bool? value)
+        {
+            return !value.HasValue || value.Value;
+        }
+
+        public bool HasAnyValue()
+        {
+            return AllowUTurns.HasValue ||
+                   AllowLaneChangesWhenGoingStraight.HasValue ||
+                   AllowEnterWhenBlocked.HasValue ||
+                   AllowPedestrianCrossing.HasValue ||
+                   AllowNearTurnOnRed.HasValue ||
+                   AllowFarTurnOnRed.HasValue;
         }
 
         public override string ToString()
         {
-            return $"UTurns={AllowUTurns}, LaneChange={AllowLaneChangesWhenGoingStraight}, Blocked={AllowEnterWhenBlocked}, Pedestrians={AllowPedestrianCrossing}, NearTurnOnRed={AllowNearTurnOnRed}, FarTurnOnRed={AllowFarTurnOnRed}";
+            return $"UTurns={Format(AllowUTurns)}, LaneChange={Format(AllowLaneChangesWhenGoingStraight)}, Blocked={Format(AllowEnterWhenBlocked)}, Pedestrians={Format(AllowPedestrianCrossing)}, NearTurnOnRed={Format(AllowNearTurnOnRed)}, FarTurnOnRed={Format(AllowFarTurnOnRed)}";
+        }
+
+        private static string Format(bool? value)
+        {
+            return value.HasValue ? value.Value.ToString() : "<null>";
         }
     }
 
@@ -108,10 +134,25 @@ namespace CSM.TmpeSync.Net.Contracts.States
     [ProtoContract]
     public class ParkingRestrictionState
     {
-        [ProtoMember(1)] public bool AllowParkingForward { get; set; } = true;
-        [ProtoMember(2)] public bool AllowParkingBackward { get; set; } = true;
+        [ProtoMember(1)] public bool? AllowParkingForward { get; set; }
+        [ProtoMember(2)] public bool? AllowParkingBackward { get; set; }
 
-        public bool AllowParkingBothDirections => AllowParkingForward && AllowParkingBackward;
+        public bool AllowParkingBothDirections => IsParkingAllowed(AllowParkingForward) && IsParkingAllowed(AllowParkingBackward);
+
+        private static bool IsParkingAllowed(bool? value)
+        {
+            return !value.HasValue || value.Value;
+        }
+
+        public bool HasAnyValue()
+        {
+            return AllowParkingForward.HasValue || AllowParkingBackward.HasValue;
+        }
+
+        public bool IsDefault()
+        {
+            return AllowParkingBothDirections;
+        }
 
         public ParkingRestrictionState Clone()
         {
@@ -124,7 +165,12 @@ namespace CSM.TmpeSync.Net.Contracts.States
 
         public override string ToString()
         {
-            return $"Forward={AllowParkingForward}, Backward={AllowParkingBackward}";
+            return $"Forward={Format(AllowParkingForward)}, Backward={Format(AllowParkingBackward)}";
+        }
+
+        private static string Format(bool? value)
+        {
+            return value.HasValue ? value.Value.ToString() : "<null>";
         }
     }
 

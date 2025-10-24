@@ -462,6 +462,23 @@ namespace CSM.TmpeSync.Tmpe
         private static readonly Dictionary<uint, VehicleRestrictionFlags> VehicleRestrictions = new Dictionary<uint, VehicleRestrictionFlags>();
         private static readonly Dictionary<uint, uint[]> LaneConnections = new Dictionary<uint, uint[]>();
         private static readonly Dictionary<ushort, JunctionRestrictionsState> JunctionRestrictions = new Dictionary<ushort, JunctionRestrictionsState>();
+        private static readonly Dictionary<ushort, ParkingRestrictionState> ParkingRestrictions = new Dictionary<ushort, ParkingRestrictionState>();
+
+        private enum JunctionRestrictionApplyOutcome
+        {
+            None,
+            Success,
+            Partial,
+            Fatal
+        }
+
+        private enum ParkingRestrictionApplyOutcome
+        {
+            None,
+            Success,
+            Partial,
+            Fatal
+        }
         private struct NodeSegmentKey : IEquatable<NodeSegmentKey>
         {
             public readonly ushort Node;
@@ -520,7 +537,6 @@ namespace CSM.TmpeSync.Tmpe
         }
 
         private static readonly Dictionary<NodeSegmentKey, PrioritySignType> PrioritySigns = new Dictionary<NodeSegmentKey, PrioritySignType>();
-        private static readonly Dictionary<ushort, ParkingRestrictionState> ParkingRestrictions = new Dictionary<ushort, ParkingRestrictionState>();
         private static readonly Dictionary<ushort, TimedTrafficLightState> TimedTrafficLights = new Dictionary<ushort, TimedTrafficLightState>();
         private static readonly HashSet<ushort> ManualTrafficLights = new HashSet<ushort>();
 
@@ -2315,29 +2331,37 @@ namespace CSM.TmpeSync.Tmpe
         {
             try
             {
-                var normalized = state?.Clone() ?? new JunctionRestrictionsState();
+                var desired = state?.Clone() ?? new JunctionRestrictionsState();
+
+                var success = true;
+
                 if (SupportsJunctionRestrictions)
                 {
-                    Log.Debug(LogCategory.Hook, "TM:PE junction restriction request | nodeId={0} state={1}", nodeId, normalized);
-                    if (TryApplyJunctionRestrictionsReal(nodeId, normalized))
-                        return true;
+                    Log.Debug(LogCategory.Hook, "TM:PE junction restriction request | nodeId={0} state={1}", nodeId, desired);
 
-                    Log.Warn(LogCategory.Bridge, "TM:PE junction restriction apply via API failed | nodeId={0} action=fallback_to_stub", nodeId);
+                    var outcome = TryApplyJunctionRestrictionsReal(nodeId, desired, out var appliedFlags, out var rejectedFlags);
+
+                    if (outcome != JunctionRestrictionApplyOutcome.Fatal)
+                    {
+                        UpdateJunctionRestrictionStub(nodeId, rejectedFlags, appliedFlags);
+
+                        if (outcome != JunctionRestrictionApplyOutcome.None)
+                            return true;
+                    }
+                    else
+                    {
+                        Log.Warn(LogCategory.Bridge, "TM:PE junction restriction apply via API failed | nodeId={0} action=fallback_to_stub", nodeId);
+                        success = false;
+                    }
                 }
                 else
                 {
-                    Log.Info(LogCategory.Synchronization, "TM:PE junction restrictions stored in stub | nodeId={0} state={1}", nodeId, normalized);
+                    Log.Info(LogCategory.Synchronization, "TM:PE junction restrictions stored in stub | nodeId={0} state={1}", nodeId, desired);
                 }
 
-                lock (StateLock)
-                {
-                    if (normalized.IsDefault())
-                        JunctionRestrictions.Remove(nodeId);
-                    else
-                        JunctionRestrictions[nodeId] = normalized;
-                }
+                UpdateJunctionRestrictionStub(nodeId, desired, null);
 
-                return true;
+                return success;
             }
             catch (Exception ex)
             {
@@ -2372,6 +2396,102 @@ namespace CSM.TmpeSync.Tmpe
                 state = new JunctionRestrictionsState();
                 return false;
             }
+        }
+
+        private static void UpdateJunctionRestrictionStub(ushort nodeId, JunctionRestrictionsState valuesToStore, JunctionRestrictionsState valuesToClear)
+        {
+            lock (StateLock)
+            {
+                JunctionRestrictionsState existing = null;
+                if (JunctionRestrictions.TryGetValue(nodeId, out var stored) && stored != null)
+                    existing = stored.Clone();
+
+                var merged = MergeJunctionRestrictionStub(existing, valuesToStore, valuesToClear);
+
+                if (merged == null || !merged.HasAnyValue() || merged.IsDefault())
+                    JunctionRestrictions.Remove(nodeId);
+                else
+                    JunctionRestrictions[nodeId] = merged;
+            }
+        }
+
+        private static JunctionRestrictionsState MergeJunctionRestrictionStub(JunctionRestrictionsState existing, JunctionRestrictionsState valuesToStore, JunctionRestrictionsState valuesToClear)
+        {
+            var result = existing?.Clone() ?? new JunctionRestrictionsState();
+
+            if (valuesToClear != null)
+            {
+                if (valuesToClear.AllowUTurns.HasValue)
+                    result.AllowUTurns = null;
+                if (valuesToClear.AllowLaneChangesWhenGoingStraight.HasValue)
+                    result.AllowLaneChangesWhenGoingStraight = null;
+                if (valuesToClear.AllowEnterWhenBlocked.HasValue)
+                    result.AllowEnterWhenBlocked = null;
+                if (valuesToClear.AllowPedestrianCrossing.HasValue)
+                    result.AllowPedestrianCrossing = null;
+                if (valuesToClear.AllowNearTurnOnRed.HasValue)
+                    result.AllowNearTurnOnRed = null;
+                if (valuesToClear.AllowFarTurnOnRed.HasValue)
+                    result.AllowFarTurnOnRed = null;
+            }
+
+            if (valuesToStore != null)
+            {
+                if (valuesToStore.AllowUTurns.HasValue)
+                    result.AllowUTurns = valuesToStore.AllowUTurns;
+                if (valuesToStore.AllowLaneChangesWhenGoingStraight.HasValue)
+                    result.AllowLaneChangesWhenGoingStraight = valuesToStore.AllowLaneChangesWhenGoingStraight;
+                if (valuesToStore.AllowEnterWhenBlocked.HasValue)
+                    result.AllowEnterWhenBlocked = valuesToStore.AllowEnterWhenBlocked;
+                if (valuesToStore.AllowPedestrianCrossing.HasValue)
+                    result.AllowPedestrianCrossing = valuesToStore.AllowPedestrianCrossing;
+                if (valuesToStore.AllowNearTurnOnRed.HasValue)
+                    result.AllowNearTurnOnRed = valuesToStore.AllowNearTurnOnRed;
+                if (valuesToStore.AllowFarTurnOnRed.HasValue)
+                    result.AllowFarTurnOnRed = valuesToStore.AllowFarTurnOnRed;
+            }
+
+            return result.HasAnyValue() ? result : null;
+        }
+
+        private static void UpdateParkingRestrictionStub(ushort segmentId, ParkingRestrictionState valuesToStore, ParkingRestrictionState valuesToClear)
+        {
+            lock (StateLock)
+            {
+                ParkingRestrictionState existing = null;
+                if (ParkingRestrictions.TryGetValue(segmentId, out var stored) && stored != null)
+                    existing = stored.Clone();
+
+                var merged = MergeParkingRestrictionStub(existing, valuesToStore, valuesToClear);
+
+                if (merged == null || !merged.HasAnyValue() || merged.IsDefault())
+                    ParkingRestrictions.Remove(segmentId);
+                else
+                    ParkingRestrictions[segmentId] = merged;
+            }
+        }
+
+        private static ParkingRestrictionState MergeParkingRestrictionStub(ParkingRestrictionState existing, ParkingRestrictionState valuesToStore, ParkingRestrictionState valuesToClear)
+        {
+            var result = existing?.Clone() ?? new ParkingRestrictionState();
+
+            if (valuesToClear != null)
+            {
+                if (valuesToClear.AllowParkingForward.HasValue)
+                    result.AllowParkingForward = null;
+                if (valuesToClear.AllowParkingBackward.HasValue)
+                    result.AllowParkingBackward = null;
+            }
+
+            if (valuesToStore != null)
+            {
+                if (valuesToStore.AllowParkingForward.HasValue)
+                    result.AllowParkingForward = valuesToStore.AllowParkingForward;
+                if (valuesToStore.AllowParkingBackward.HasValue)
+                    result.AllowParkingBackward = valuesToStore.AllowParkingBackward;
+            }
+
+            return result.HasAnyValue() ? result : null;
         }
 
         internal static bool ApplyPrioritySign(ushort nodeId, ushort segmentId, PrioritySignType signType)
@@ -2455,30 +2575,35 @@ namespace CSM.TmpeSync.Tmpe
         {
             try
             {
-                var normalized = state ?? new ParkingRestrictionState();
+                var desired = state?.Clone() ?? new ParkingRestrictionState();
+                var success = true;
+
                 if (SupportsParkingRestrictions)
                 {
-                    Log.Debug(LogCategory.Hook, "TM:PE parking restriction request | segmentId={0} state={1}", segmentId, normalized);
-                    if (TryApplyParkingRestrictionReal(segmentId, normalized))
-                        return true;
+                    Log.Debug(LogCategory.Hook, "TM:PE parking restriction request | segmentId={0} state={1}", segmentId, desired);
+                    var outcome = TryApplyParkingRestrictionReal(segmentId, desired, out var appliedDirections, out var rejectedDirections);
 
-                    Log.Warn(LogCategory.Bridge, "TM:PE parking restriction apply via API failed | segmentId={0}", segmentId);
-                    return false;
+                    if (outcome != ParkingRestrictionApplyOutcome.Fatal)
+                    {
+                        UpdateParkingRestrictionStub(segmentId, rejectedDirections, appliedDirections);
+
+                        if (outcome != ParkingRestrictionApplyOutcome.None)
+                            return true;
+                    }
+                    else
+                    {
+                        Log.Warn(LogCategory.Bridge, "TM:PE parking restriction apply via API failed | segmentId={0} action=fallback_to_stub", segmentId);
+                        success = false;
+                    }
                 }
                 else
                 {
-                    Log.Info(LogCategory.Synchronization, "TM:PE parking restriction stored in stub | segmentId={0} state={1}", segmentId, normalized);
+                    Log.Info(LogCategory.Synchronization, "TM:PE parking restriction stored in stub | segmentId={0} state={1}", segmentId, desired);
                 }
 
-                lock (StateLock)
-                {
-                    if (normalized.AllowParkingBothDirections)
-                        ParkingRestrictions.Remove(segmentId);
-                    else
-                        ParkingRestrictions[segmentId] = normalized.Clone();
-                }
+                UpdateParkingRestrictionStub(segmentId, desired, null);
 
-                return true;
+                return success;
             }
             catch (Exception ex)
             {
@@ -2500,7 +2625,7 @@ namespace CSM.TmpeSync.Tmpe
                 lock (StateLock)
                 {
                     if (!ParkingRestrictions.TryGetValue(segmentId, out var stored))
-                        state = new ParkingRestrictionState { AllowParkingForward = true, AllowParkingBackward = true };
+                        state = new ParkingRestrictionState();
                     else
                         state = stored.Clone();
                 }
@@ -2510,7 +2635,7 @@ namespace CSM.TmpeSync.Tmpe
             catch (Exception ex)
             {
                 Log.Error(LogCategory.Synchronization, "TM:PE TryGetParkingRestriction failed | error={0}", ex);
-                state = new ParkingRestrictionState { AllowParkingForward = true, AllowParkingBackward = true };
+                state = new ParkingRestrictionState();
                 return false;
             }
         }
@@ -3704,8 +3829,18 @@ namespace CSM.TmpeSync.Tmpe
             return segmentId != 0;
         }
 
-        private static bool TryApplyJunctionRestrictionsReal(ushort nodeId, JunctionRestrictionsState state)
+        private static JunctionRestrictionApplyOutcome TryApplyJunctionRestrictionsReal(
+            ushort nodeId,
+            JunctionRestrictionsState state,
+            out JunctionRestrictionsState appliedFlags,
+            out JunctionRestrictionsState rejectedFlags)
         {
+            appliedFlags = new JunctionRestrictionsState();
+            rejectedFlags = new JunctionRestrictionsState();
+
+            if (!state.HasAnyValue())
+                return JunctionRestrictionApplyOutcome.None;
+
             if (JunctionRestrictionsManagerInstance == null ||
                 SetUturnAllowedMethod == null ||
                 SetNearTurnOnRedAllowedMethod == null ||
@@ -3714,19 +3849,39 @@ namespace CSM.TmpeSync.Tmpe
                 SetEnteringBlockedMethod == null ||
                 SetPedestrianCrossingMethod == null)
             {
-                return false;
+                return JunctionRestrictionApplyOutcome.Fatal;
             }
 
             if (!NodeSupportsJunctionRestrictions(nodeId, out var rejectionDetail))
             {
                 var detailText = string.IsNullOrEmpty(rejectionDetail) ? "<unspecified>" : rejectionDetail;
                 Log.Warn(LogCategory.Bridge, "TM:PE junction restriction apply aborted | nodeId={0} detail={1}", nodeId, detailText);
-                return false;
+                return JunctionRestrictionApplyOutcome.Fatal;
             }
 
             ref var node = ref NetManager.instance.m_nodes.m_buffer[(int)nodeId];
             var anySegment = false;
-            var allSegmentsSucceeded = true;
+
+            var allowUturnAttempted = state.AllowUTurns.HasValue;
+            var allowLaneChangeAttempted = state.AllowLaneChangesWhenGoingStraight.HasValue;
+            var allowEnterBlockedAttempted = state.AllowEnterWhenBlocked.HasValue;
+            var allowPedestrianAttempted = state.AllowPedestrianCrossing.HasValue;
+            var allowNearTurnAttempted = state.AllowNearTurnOnRed.HasValue;
+            var allowFarTurnAttempted = state.AllowFarTurnOnRed.HasValue;
+
+            var allowUturnFailed = false;
+            var allowLaneChangeFailed = false;
+            var allowEnterBlockedFailed = false;
+            var allowPedestrianFailed = false;
+            var allowNearTurnFailed = false;
+            var allowFarTurnFailed = false;
+
+            var allowUturnApplied = false;
+            var allowLaneChangeApplied = false;
+            var allowEnterBlockedApplied = false;
+            var allowPedestrianApplied = false;
+            var allowNearTurnApplied = false;
+            var allowFarTurnApplied = false;
 
             for (int i = 0; i < 8; i++)
             {
@@ -3741,28 +3896,123 @@ namespace CSM.TmpeSync.Tmpe
                 var startNode = segment.m_startNode == nodeId;
                 anySegment = true;
 
-                if (!ApplyJunctionRestrictionSetters(segmentId, startNode, state))
-                    allSegmentsSucceeded = false;
-            }
-
-            if (!anySegment || !allSegmentsSucceeded)
-                return false;
-
-            if (TryGetJunctionRestrictionsReal(nodeId, out var liveState))
-            {
-                if (!JunctionRestrictionStatesMatch(state, liveState))
+                if (allowUturnAttempted)
                 {
-                    Log.Warn(LogCategory.Bridge, "TM:PE junction restriction verification failed | nodeId={0} requested={1} actual={2}", nodeId, state, liveState);
-                    return false;
+                    var success = InvokeJunctionRestrictionSetter(
+                        SetUturnAllowedMethod,
+                        "AllowUTurns",
+                        segmentId,
+                        startNode,
+                        state.AllowUTurns.Value);
+                    allowUturnFailed |= !success;
+                    allowUturnApplied |= success;
+                }
+
+                if (allowNearTurnAttempted)
+                {
+                    var success = InvokeJunctionRestrictionSetter(
+                        SetNearTurnOnRedAllowedMethod,
+                        "AllowNearTurnOnRed",
+                        segmentId,
+                        startNode,
+                        state.AllowNearTurnOnRed.Value);
+                    allowNearTurnFailed |= !success;
+                    allowNearTurnApplied |= success;
+                }
+
+                if (allowFarTurnAttempted)
+                {
+                    var success = InvokeJunctionRestrictionSetter(
+                        SetFarTurnOnRedAllowedMethod,
+                        "AllowFarTurnOnRed",
+                        segmentId,
+                        startNode,
+                        state.AllowFarTurnOnRed.Value);
+                    allowFarTurnFailed |= !success;
+                    allowFarTurnApplied |= success;
+                }
+
+                if (allowLaneChangeAttempted)
+                {
+                    var success = InvokeJunctionRestrictionSetter(
+                        SetLaneChangingAllowedMethod,
+                        "AllowLaneChangesWhenGoingStraight",
+                        segmentId,
+                        startNode,
+                        state.AllowLaneChangesWhenGoingStraight.Value);
+                    allowLaneChangeFailed |= !success;
+                    allowLaneChangeApplied |= success;
+                }
+
+                if (allowEnterBlockedAttempted)
+                {
+                    var success = InvokeJunctionRestrictionSetter(
+                        SetEnteringBlockedMethod,
+                        "AllowEnterWhenBlocked",
+                        segmentId,
+                        startNode,
+                        state.AllowEnterWhenBlocked.Value);
+                    allowEnterBlockedFailed |= !success;
+                    allowEnterBlockedApplied |= success;
+                }
+
+                if (allowPedestrianAttempted)
+                {
+                    var success = InvokeJunctionRestrictionSetter(
+                        SetPedestrianCrossingMethod,
+                        "AllowPedestrianCrossing",
+                        segmentId,
+                        startNode,
+                        state.AllowPedestrianCrossing.Value);
+                    allowPedestrianFailed |= !success;
+                    allowPedestrianApplied |= success;
                 }
             }
-            else
+
+            if (!anySegment)
+                return JunctionRestrictionApplyOutcome.Fatal;
+
+            void FinalizeFlag(bool attempted, bool failed, bool applied, Action<bool?> setApplied, Action<bool?> setRejected, bool? value)
             {
-                Log.Warn(LogCategory.Bridge, "TM:PE junction restriction verification unavailable | nodeId={0}", nodeId);
-                return false;
+                if (!attempted)
+                    return;
+
+                if (!failed && applied)
+                    setApplied(value);
+                else
+                    setRejected(value);
             }
 
-            return true;
+            FinalizeFlag(allowUturnAttempted, allowUturnFailed, allowUturnApplied, v => appliedFlags.AllowUTurns = v, v => rejectedFlags.AllowUTurns = v, state.AllowUTurns);
+            FinalizeFlag(allowLaneChangeAttempted, allowLaneChangeFailed, allowLaneChangeApplied, v => appliedFlags.AllowLaneChangesWhenGoingStraight = v, v => rejectedFlags.AllowLaneChangesWhenGoingStraight = v, state.AllowLaneChangesWhenGoingStraight);
+            FinalizeFlag(allowEnterBlockedAttempted, allowEnterBlockedFailed, allowEnterBlockedApplied, v => appliedFlags.AllowEnterWhenBlocked = v, v => rejectedFlags.AllowEnterWhenBlocked = v, state.AllowEnterWhenBlocked);
+            FinalizeFlag(allowPedestrianAttempted, allowPedestrianFailed, allowPedestrianApplied, v => appliedFlags.AllowPedestrianCrossing = v, v => rejectedFlags.AllowPedestrianCrossing = v, state.AllowPedestrianCrossing);
+            FinalizeFlag(allowNearTurnAttempted, allowNearTurnFailed, allowNearTurnApplied, v => appliedFlags.AllowNearTurnOnRed = v, v => rejectedFlags.AllowNearTurnOnRed = v, state.AllowNearTurnOnRed);
+            FinalizeFlag(allowFarTurnAttempted, allowFarTurnFailed, allowFarTurnApplied, v => appliedFlags.AllowFarTurnOnRed = v, v => rejectedFlags.AllowFarTurnOnRed = v, state.AllowFarTurnOnRed);
+
+            if (appliedFlags.HasAnyValue())
+            {
+                if (TryGetJunctionRestrictionsReal(nodeId, out var liveState))
+                {
+                    ValidateAppliedJunctionRestrictions(state, liveState, appliedFlags, rejectedFlags);
+                }
+                else
+                {
+                    Log.Warn(LogCategory.Bridge, "TM:PE junction restriction verification unavailable | nodeId={0}", nodeId);
+                    MoveAppliedToRejected(appliedFlags, rejectedFlags);
+                }
+            }
+
+            var anyAppliedFlags = appliedFlags.HasAnyValue();
+            var anyRejectedFlags = rejectedFlags.HasAnyValue();
+
+            if (!anyAppliedFlags && !anyRejectedFlags)
+                return JunctionRestrictionApplyOutcome.None;
+
+            if (anyAppliedFlags && !anyRejectedFlags)
+                return JunctionRestrictionApplyOutcome.Success;
+
+            return JunctionRestrictionApplyOutcome.Partial;
         }
 
         private static bool TryGetJunctionRestrictionsReal(ushort nodeId, out JunctionRestrictionsState state)
@@ -3857,20 +4107,6 @@ namespace CSM.TmpeSync.Tmpe
             return true;
         }
 
-        private static bool ApplyJunctionRestrictionSetters(ushort segmentId, bool startNode, JunctionRestrictionsState state)
-        {
-            var segmentSucceeded = true;
-
-            segmentSucceeded &= InvokeJunctionRestrictionSetter(SetUturnAllowedMethod, "AllowUTurns", segmentId, startNode, state.AllowUTurns);
-            segmentSucceeded &= InvokeJunctionRestrictionSetter(SetNearTurnOnRedAllowedMethod, "AllowNearTurnOnRed", segmentId, startNode, state.AllowNearTurnOnRed);
-            segmentSucceeded &= InvokeJunctionRestrictionSetter(SetFarTurnOnRedAllowedMethod, "AllowFarTurnOnRed", segmentId, startNode, state.AllowFarTurnOnRed);
-            segmentSucceeded &= InvokeJunctionRestrictionSetter(SetLaneChangingAllowedMethod, "AllowLaneChangesWhenGoingStraight", segmentId, startNode, state.AllowLaneChangesWhenGoingStraight);
-            segmentSucceeded &= InvokeJunctionRestrictionSetter(SetEnteringBlockedMethod, "AllowEnterWhenBlocked", segmentId, startNode, state.AllowEnterWhenBlocked);
-            segmentSucceeded &= InvokeJunctionRestrictionSetter(SetPedestrianCrossingMethod, "AllowPedestrianCrossing", segmentId, startNode, state.AllowPedestrianCrossing);
-
-            return segmentSucceeded;
-        }
-
         private static bool InvokeJunctionRestrictionSetter(MethodInfo method, string flagName, ushort segmentId, bool startNode, bool value)
         {
             if (method == null)
@@ -3905,17 +4141,92 @@ namespace CSM.TmpeSync.Tmpe
             return true;
         }
 
-        private static bool JunctionRestrictionStatesMatch(JunctionRestrictionsState expected, JunctionRestrictionsState actual)
+        private static void ValidateAppliedJunctionRestrictions(
+            JunctionRestrictionsState requested,
+            JunctionRestrictionsState live,
+            JunctionRestrictionsState applied,
+            JunctionRestrictionsState rejected)
         {
-            if (expected == null || actual == null)
-                return false;
+            void Validate(Func<JunctionRestrictionsState, bool?> selector, Action<bool?> applySetter, Action<bool?> rejectSetter)
+            {
+                var appliedValue = selector(applied);
+                if (!appliedValue.HasValue)
+                    return;
 
-            return expected.AllowUTurns == actual.AllowUTurns &&
-                   expected.AllowLaneChangesWhenGoingStraight == actual.AllowLaneChangesWhenGoingStraight &&
-                   expected.AllowEnterWhenBlocked == actual.AllowEnterWhenBlocked &&
-                   expected.AllowPedestrianCrossing == actual.AllowPedestrianCrossing &&
-                   expected.AllowNearTurnOnRed == actual.AllowNearTurnOnRed &&
-                   expected.AllowFarTurnOnRed == actual.AllowFarTurnOnRed;
+                var liveValue = selector(live);
+                if (!liveValue.HasValue || liveValue.Value != appliedValue.Value)
+                {
+                    applySetter(null);
+                    rejectSetter(selector(requested));
+                }
+            }
+
+            Validate(s => s.AllowUTurns, v => applied.AllowUTurns = v, v => rejected.AllowUTurns = v);
+            Validate(s => s.AllowLaneChangesWhenGoingStraight, v => applied.AllowLaneChangesWhenGoingStraight = v, v => rejected.AllowLaneChangesWhenGoingStraight = v);
+            Validate(s => s.AllowEnterWhenBlocked, v => applied.AllowEnterWhenBlocked = v, v => rejected.AllowEnterWhenBlocked = v);
+            Validate(s => s.AllowPedestrianCrossing, v => applied.AllowPedestrianCrossing = v, v => rejected.AllowPedestrianCrossing = v);
+            Validate(s => s.AllowNearTurnOnRed, v => applied.AllowNearTurnOnRed = v, v => rejected.AllowNearTurnOnRed = v);
+            Validate(s => s.AllowFarTurnOnRed, v => applied.AllowFarTurnOnRed = v, v => rejected.AllowFarTurnOnRed = v);
+        }
+
+        private static void MoveAppliedToRejected(JunctionRestrictionsState applied, JunctionRestrictionsState rejected)
+        {
+            void Move(Func<JunctionRestrictionsState, bool?> selector, Action<bool?> appliedSetter, Action<bool?> rejectSetter)
+            {
+                var value = selector(applied);
+                if (!value.HasValue)
+                    return;
+
+                appliedSetter(null);
+                rejectSetter(value);
+            }
+
+            Move(s => s.AllowUTurns, v => applied.AllowUTurns = v, v => rejected.AllowUTurns = v);
+            Move(s => s.AllowLaneChangesWhenGoingStraight, v => applied.AllowLaneChangesWhenGoingStraight = v, v => rejected.AllowLaneChangesWhenGoingStraight = v);
+            Move(s => s.AllowEnterWhenBlocked, v => applied.AllowEnterWhenBlocked = v, v => rejected.AllowEnterWhenBlocked = v);
+            Move(s => s.AllowPedestrianCrossing, v => applied.AllowPedestrianCrossing = v, v => rejected.AllowPedestrianCrossing = v);
+            Move(s => s.AllowNearTurnOnRed, v => applied.AllowNearTurnOnRed = v, v => rejected.AllowNearTurnOnRed = v);
+            Move(s => s.AllowFarTurnOnRed, v => applied.AllowFarTurnOnRed = v, v => rejected.AllowFarTurnOnRed = v);
+        }
+
+        private static void ValidateAppliedParkingRestrictions(
+            ParkingRestrictionState requested,
+            ParkingRestrictionState live,
+            ParkingRestrictionState applied,
+            ParkingRestrictionState rejected)
+        {
+            void Validate(Func<ParkingRestrictionState, bool?> selector, Action<bool?> applySetter, Action<bool?> rejectSetter)
+            {
+                var appliedValue = selector(applied);
+                if (!appliedValue.HasValue)
+                    return;
+
+                var liveValue = selector(live);
+                if (!liveValue.HasValue || liveValue.Value != appliedValue.Value)
+                {
+                    applySetter(null);
+                    rejectSetter(selector(requested));
+                }
+            }
+
+            Validate(s => s.AllowParkingForward, v => applied.AllowParkingForward = v, v => rejected.AllowParkingForward = v);
+            Validate(s => s.AllowParkingBackward, v => applied.AllowParkingBackward = v, v => rejected.AllowParkingBackward = v);
+        }
+
+        private static void MoveAppliedParkingToRejected(ParkingRestrictionState applied, ParkingRestrictionState rejected)
+        {
+            void Move(Func<ParkingRestrictionState, bool?> selector, Action<bool?> appliedSetter, Action<bool?> rejectSetter)
+            {
+                var value = selector(applied);
+                if (!value.HasValue)
+                    return;
+
+                appliedSetter(null);
+                rejectSetter(value);
+            }
+
+            Move(s => s.AllowParkingForward, v => applied.AllowParkingForward = v, v => rejected.AllowParkingForward = v);
+            Move(s => s.AllowParkingBackward, v => applied.AllowParkingBackward = v, v => rejected.AllowParkingBackward = v);
         }
 
         private static bool TryResolvePrioritySegmentOrientation(ushort nodeId, ushort segmentId, out bool startNode)
@@ -4024,15 +4335,25 @@ namespace CSM.TmpeSync.Tmpe
             return true;
         }
 
-        private static bool TryApplyParkingRestrictionReal(ushort segmentId, ParkingRestrictionState state)
+        private static ParkingRestrictionApplyOutcome TryApplyParkingRestrictionReal(
+            ushort segmentId,
+            ParkingRestrictionState state,
+            out ParkingRestrictionState appliedDirections,
+            out ParkingRestrictionState rejectedDirections)
         {
+            appliedDirections = new ParkingRestrictionState();
+            rejectedDirections = new ParkingRestrictionState();
+
+            if (!state.HasAnyValue())
+                return ParkingRestrictionApplyOutcome.None;
+
             if (ParkingRestrictionsManagerInstance == null || ParkingAllowedSetMethod == null)
-                return false;
+                return ParkingRestrictionApplyOutcome.Fatal;
 
             if (!TryDescribeParkingLanes(segmentId, out var hasForwardLane, out var hasBackwardLane))
             {
                 Log.Warn(LogCategory.Bridge, "TM:PE parking restriction rejected – segment missing | segmentId={0}", segmentId);
-                return false;
+                return ParkingRestrictionApplyOutcome.Fatal;
             }
 
             bool? segmentSupportsRestrictions = null;
@@ -4040,24 +4361,6 @@ namespace CSM.TmpeSync.Tmpe
             {
                 segmentSupportsRestrictions = Convert.ToBoolean(
                     ParkingMayHaveMethod.Invoke(ParkingRestrictionsManagerInstance, new object[] { segmentId }));
-
-                if (segmentSupportsRestrictions == false)
-                {
-                    if (state.AllowParkingBothDirections)
-                        return true;
-
-                    Log.Warn(LogCategory.Bridge, "TM:PE parking restriction rejected – segment has no configurable parking | segmentId={0}", segmentId);
-                    return false;
-                }
-            }
-
-            if (!hasForwardLane && !hasBackwardLane)
-            {
-                if (state.AllowParkingBothDirections)
-                    return true;
-
-                Log.Warn(LogCategory.Bridge, "TM:PE parking restriction rejected – segment has no parking lanes | segmentId={0}", segmentId);
-                return false;
             }
 
             bool? forwardConfigurable = null;
@@ -4076,66 +4379,109 @@ namespace CSM.TmpeSync.Tmpe
                         new object[] { segmentId, NetInfo.Direction.Backward }));
             }
 
-            bool ApplyDirection(NetInfo.Direction direction, bool allowParking, bool? configurable, bool hasLane)
+            var forwardAttempted = state.AllowParkingForward.HasValue;
+            var backwardAttempted = state.AllowParkingBackward.HasValue;
+
+            var forwardFailed = false;
+            var backwardFailed = false;
+            var forwardApplied = false;
+            var backwardApplied = false;
+
+            bool EvaluateDirection(NetInfo.Direction direction, bool desired, bool hasLane, bool? configurable)
             {
-                if (!hasLane)
+                if (segmentSupportsRestrictions == false)
                 {
-                    if (allowParking)
+                    if (desired)
                         return true;
 
-                    Log.Warn(
-                        LogCategory.Bridge,
-                        "TM:PE parking restriction rejected – no parking lane for direction | segmentId={0} direction={1}",
-                        segmentId,
-                        direction);
+                    Log.Warn(LogCategory.Bridge, "TM:PE parking restriction rejected – segment has no configurable parking | segmentId={0} direction={1}", segmentId, direction);
+                    return false;
+                }
+
+                if (!hasLane)
+                {
+                    if (desired)
+                        return true;
+
+                    Log.Warn(LogCategory.Bridge, "TM:PE parking restriction rejected – no parking lane for direction | segmentId={0} direction={1}", segmentId, direction);
                     return false;
                 }
 
                 if (configurable == false)
                 {
-                    if (allowParking)
+                    if (desired)
                         return true;
 
-                    Log.Warn(
-                        LogCategory.Bridge,
-                        "TM:PE parking restriction rejected – direction unsupported | segmentId={0} direction={1}",
-                        segmentId,
-                        direction);
+                    Log.Warn(LogCategory.Bridge, "TM:PE parking restriction rejected – direction unsupported | segmentId={0} direction={1}", segmentId, direction);
                     return false;
                 }
 
                 var result = Convert.ToBoolean(
                     ParkingAllowedSetMethod.Invoke(
                         ParkingRestrictionsManagerInstance,
-                        new object[] { segmentId, direction, allowParking }));
+                        new object[] { segmentId, direction, desired }));
 
                 if (!result)
                 {
-                    Log.Warn(
-                        LogCategory.Bridge,
-                        "TM:PE parking restriction apply returned false | segmentId={0} direction={1}",
-                        segmentId,
-                        direction);
+                    Log.Warn(LogCategory.Bridge, "TM:PE parking restriction apply returned false | segmentId={0} direction={1}", segmentId, direction);
                 }
 
                 return result;
             }
 
-            var forwardResult = ApplyDirection(NetInfo.Direction.Forward, state.AllowParkingForward, forwardConfigurable, hasForwardLane);
-            var backwardResult = ApplyDirection(NetInfo.Direction.Backward, state.AllowParkingBackward, backwardConfigurable, hasBackwardLane);
-
-            if (forwardResult && backwardResult)
-                return true;
-
-            if (TryGetParkingRestrictionReal(segmentId, out var appliedState) &&
-                appliedState != null &&
-                appliedState.AllowParkingForward == state.AllowParkingForward &&
-                appliedState.AllowParkingBackward == state.AllowParkingBackward)
+            if (forwardAttempted)
             {
-                return true;
+                var desired = state.AllowParkingForward.Value;
+                var success = EvaluateDirection(NetInfo.Direction.Forward, desired, hasForwardLane, forwardConfigurable);
+                forwardFailed = !success;
+                forwardApplied = success;
             }
 
-            return false;
+            if (backwardAttempted)
+            {
+                var desired = state.AllowParkingBackward.Value;
+                var success = EvaluateDirection(NetInfo.Direction.Backward, desired, hasBackwardLane, backwardConfigurable);
+                backwardFailed = !success;
+                backwardApplied = success;
+            }
+
+            void Finalize(bool attempted, bool failed, bool applied, Action<bool?> applySetter, Action<bool?> rejectSetter, bool? value)
+            {
+                if (!attempted)
+                    return;
+
+                if (!failed && applied)
+                    applySetter(value);
+                else
+                    rejectSetter(value);
+            }
+
+            Finalize(forwardAttempted, forwardFailed, forwardApplied, v => appliedDirections.AllowParkingForward = v, v => rejectedDirections.AllowParkingForward = v, state.AllowParkingForward);
+            Finalize(backwardAttempted, backwardFailed, backwardApplied, v => appliedDirections.AllowParkingBackward = v, v => rejectedDirections.AllowParkingBackward = v, state.AllowParkingBackward);
+
+            if (appliedDirections.HasAnyValue())
+            {
+                if (TryGetParkingRestrictionReal(segmentId, out var liveState))
+                {
+                    ValidateAppliedParkingRestrictions(state, liveState, appliedDirections, rejectedDirections);
+                }
+                else
+                {
+                    Log.Warn(LogCategory.Bridge, "TM:PE parking restriction verification unavailable | segmentId={0}", segmentId);
+                    MoveAppliedParkingToRejected(appliedDirections, rejectedDirections);
+                }
+            }
+
+            var anyApplied = appliedDirections.HasAnyValue();
+            var anyRejected = rejectedDirections.HasAnyValue();
+
+            if (!anyApplied && !anyRejected)
+                return ParkingRestrictionApplyOutcome.None;
+
+            if (anyApplied && !anyRejected)
+                return ParkingRestrictionApplyOutcome.Success;
+
+            return ParkingRestrictionApplyOutcome.Partial;
         }
 
         private static bool TryGetParkingRestrictionReal(ushort segmentId, out ParkingRestrictionState state)
