@@ -92,6 +92,14 @@ namespace CSM.TmpeSync.Net.Handlers
                             currentLaneIndex,
                             SpeedLimitCodec.Describe(resultingValue),
                             SpeedLimitCodec.DecodeToKmh(resultingValue));
+
+                        TransmissionDiagnostics.LogOutgoingSpeedLimit(
+                            lockedLaneId,
+                            SpeedLimitCodec.DecodeToKmh(resultingValue),
+                            resultingValue,
+                            null,
+                            "request_handler");
+
                         CsmCompat.SendToAll(new SpeedLimitApplied
                         {
                             LaneId = lockedLaneId,

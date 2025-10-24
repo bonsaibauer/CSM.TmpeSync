@@ -10,6 +10,8 @@ namespace CSM.TmpeSync.Net.Handlers
         {
             Log.Info("Received JunctionRestrictionsApplied node={0} state={1}", cmd.NodeId, cmd.State);
 
+            TransmissionDiagnostics.LogIncomingJunctionRestrictions(cmd.NodeId, cmd.State, "applied_handler");
+
             if (NetUtil.NodeExists(cmd.NodeId))
             {
                 using (CsmCompat.StartIgnore())

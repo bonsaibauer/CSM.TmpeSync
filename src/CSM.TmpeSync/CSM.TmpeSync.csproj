@@ -106,6 +106,7 @@
     <Compile Include="Util\EntityLocks.cs" />
     <Compile Include="Util\DeferredApply.cs" />
     <Compile Include="Util\CsmCompat.cs" />
+    <Compile Include="Util\TransmissionDiagnostics.cs" />
     <Compile Include="Util\LockRegistry.cs" />
     <Compile Include="Util\LaneGuidRegistry.cs" />
     <Compile Include="Util\LaneAssignmentRetryBuffer.cs" />
