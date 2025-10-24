@@ -4,86 +4,825 @@ param(
     [switch]$Build = $false,
     [switch]$Install = $false,
     [switch]$Configure = $false,
-    [switch]$CSM = $false,
     [string]$Configuration = "Release",
+    [string]$Profile = "",
     [string]$GameDirectory = "",
+    [string]$SteamModsDir = "",
     [string]$CitiesSkylinesDir = "",
     [string]$HarmonyDllDir = "",
     [string]$CsmApiDllPath = "",
     [string]$TmpeDir = "",
-    [string]$SteamModsDir = "",
-    [string]$ModDirectory = "Default",
-    [string]$CsmModDirectory = "Default",
-    [switch]$SkipCsmUpdate = $false,
-    [switch]$SkipCsmBuild = $false,
-    [switch]$SkipCsmInstall = $false
+    [string]$ModDirectory = "",
+    [string]$ModRootDirectory = "",
+    [string]$HarmonySourceDir = "",
+    [string]$CsmSourceDir = "",
+    [string]$TmpeSourceDir = ""
 )
 
 $ErrorActionPreference = "Stop"
 
-. "$PSScriptRoot\common.ps1"
+$script:RepoRoot = Split-Path -Parent $PSScriptRoot
+$script:ProjectPath = Join-Path $script:RepoRoot "src/CSM.TmpeSync/CSM.TmpeSync.csproj"
+$script:LibRoot = Join-Path $script:RepoRoot "lib"
+$script:ConfigPath = Join-Path $PSScriptRoot "build-settings.json"
+$script:SettingsChanged = $false
+$script:IsWindows = [System.Runtime.InteropServices.RuntimeInformation]::IsOSPlatform([System.Runtime.InteropServices.OSPlatform]::Windows)
+$script:MsBuildPath = $null
 
-$projectPath = Get-ProjectPath
-if (-not (Test-Path $projectPath)) {
-    throw "CSM.TmpeSync project not found under $projectPath."
+function Resolve-MsBuildPath {
+    if (-not $script:IsWindows) {
+        return $null
+    }
+
+    if ($script:MsBuildPath -and (Test-Path $script:MsBuildPath)) {
+        return $script:MsBuildPath
+    }
+
+    $candidatePaths = @(
+        "$Env:ProgramFiles\Microsoft Visual Studio\2022\BuildTools\MSBuild\Current\Bin\MSBuild.exe",
+        "$Env:ProgramFiles\Microsoft Visual Studio\2022\Community\MSBuild\Current\Bin\MSBuild.exe",
+        "$Env:ProgramFiles\Microsoft Visual Studio\2022\Professional\MSBuild\Current\Bin\MSBuild.exe",
+        "$Env:ProgramFiles\Microsoft Visual Studio\2022\Enterprise\MSBuild\Current\Bin\MSBuild.exe",
+        "$Env:ProgramFiles(x86)\Microsoft Visual Studio\2019\BuildTools\MSBuild\Current\Bin\MSBuild.exe",
+        "$Env:ProgramFiles(x86)\Microsoft Visual Studio\2019\Community\MSBuild\Current\Bin\MSBuild.exe",
+        "$Env:ProgramFiles(x86)\Microsoft Visual Studio\2019\Professional\MSBuild\Current\Bin\MSBuild.exe",
+        "$Env:ProgramFiles(x86)\Microsoft Visual Studio\2019\Enterprise\MSBuild\Current\Bin\MSBuild.exe"
+    )
+
+    $msbuildCommand = Get-Command "msbuild" -ErrorAction SilentlyContinue
+    if ($msbuildCommand) {
+        $candidatePaths += $msbuildCommand.Source
+    }
+
+    foreach ($candidate in ($candidatePaths | Where-Object { $_ } | Select-Object -Unique)) {
+        if (Test-Path $candidate) {
+            $script:MsBuildPath = $candidate
+            break
+        }
+    }
+
+    if (-not $script:MsBuildPath) {
+        throw "MSBuild.exe not found. Install Visual Studio Build Tools 2019 or newer."
+    }
+
+    return $script:MsBuildPath
+}
+
+function Resolve-Net35ReferenceInfo {
+    if (-not $script:IsWindows) {
+        return $null
+    }
+
+    $version = "1.0.3"
+    $candidateRoots = @(
+        (Join-Path $env:UserProfile ".nuget\packages\microsoft.netframework.referenceassemblies.net35\$version"),
+        "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages\\microsoft.netframework.referenceassemblies.net35\\$version",
+        "C:\\Program Files\\dotnet\\library-packs\\microsoft.netframework.referenceassemblies.net35\\$version",
+        "C:\\Program Files\\dotnet\\packs\\Microsoft.NETFramework.ReferenceAssemblies.net35\\$version"
+    )
+
+    foreach ($root in $candidateRoots) {
+        if (-not (Test-Path $root)) {
+            continue
+        }
+
+        $frameworkCandidates = @(
+            (Join-Path $root "build\\.NETFramework\\v3.5"),
+            (Join-Path $root "ref\\.NETFramework\\v3.5")
+        )
+
+        foreach ($frameworkDir in $frameworkCandidates) {
+            if (-not (Test-Path $frameworkDir)) {
+                continue
+            }
+
+            $mscorlibPath = Join-Path $frameworkDir "mscorlib.dll"
+            if (-not (Test-Path $mscorlibPath)) {
+                continue
+            }
+
+            $tfDir = Split-Path $frameworkDir -Parent
+            $rootPath = Split-Path $tfDir -Parent
+
+            return [pscustomobject]@{
+                RootPath = $rootPath
+                FrameworkPath = $frameworkDir
+            }
+        }
+    }
+
+    $fallbacks = @(
+        "$env:WINDIR\\Microsoft.NET\\Framework\\v2.0.50727",
+        "$env:WINDIR\\Microsoft.NET\\Framework64\\v2.0.50727"
+    )
+
+    foreach ($fallback in $fallbacks) {
+        if (-not (Test-Path (Join-Path $fallback "mscorlib.dll"))) {
+            continue
+        }
+
+        return [pscustomobject]@{
+            RootPath = Split-Path $fallback
+            FrameworkPath = $fallback
+        }
+    }
+
+    return $null
+}
+
+function Format-MsBuildProperty {
+    param(
+        [string]$Name,
+        [string]$Value
+    )
+
+    if ([string]::IsNullOrWhiteSpace($Value)) {
+        return $null
+    }
+
+    $escaped = $Value.Replace('"', '\"')
+    return "/p:{0}=\"{1}\"" -f $Name, $escaped
+}
+
+function Format-DotnetProperty {
+    param(
+        [string]$Name,
+        [string]$Value
+    )
+
+    if ([string]::IsNullOrWhiteSpace($Value)) {
+        return $null
+    }
+
+    $escaped = $Value.Replace('"', '\"')
+    return "-p:{0}=\"{1}\"" -f $Name, $escaped
+}
+
+function Ensure-Hashtable {
+    param([object]$Value)
+
+    if ($Value -is [System.Collections.Hashtable]) {
+        return $Value
+    }
+
+    if ($null -eq $Value) {
+        return @{}
+    }
+
+    $table = @{}
+    $Value.GetEnumerator() | ForEach-Object { $table[$_.Key] = $_.Value }
+    return $table
+}
+
+function Load-BuildSettings {
+    if (-not (Test-Path $script:ConfigPath)) {
+        return @{ ActiveProfile = ""; Profiles = @{} }
+    }
+
+    try {
+        $raw = Get-Content -LiteralPath $script:ConfigPath -Raw -ErrorAction Stop
+        if ([string]::IsNullOrWhiteSpace($raw)) {
+            return @{ ActiveProfile = ""; Profiles = @{} }
+        }
+
+        $data = $raw | ConvertFrom-Json -AsHashtable
+        if ($null -eq $data) {
+            return @{ ActiveProfile = ""; Profiles = @{} }
+        }
+
+        if (-not $data.ContainsKey('Profiles') -or $null -eq $data.Profiles) {
+            $data.Profiles = @{}
+            $script:SettingsChanged = $true
+        }
+        else {
+            $data.Profiles = Ensure-Hashtable $data.Profiles
+            foreach ($key in @($data.Profiles.Keys)) {
+                $data.Profiles[$key] = Ensure-Hashtable $data.Profiles[$key]
+            }
+        }
+
+        if (-not $data.ContainsKey('ActiveProfile')) {
+            $data.ActiveProfile = ""
+            $script:SettingsChanged = $true
+        }
+
+        return $data
+    }
+    catch {
+        Write-Warning "[CSM.TmpeSync] Failed to read build-settings.json. A new configuration will be created."
+        return @{ ActiveProfile = ""; Profiles = @{} }
+    }
+}
+
+function Save-BuildSettings {
+    param([hashtable]$Settings)
+
+    if (-not $script:SettingsChanged) {
+        return
+    }
+
+    $directory = Split-Path -Parent $script:ConfigPath
+    if (-not (Test-Path $directory)) {
+        New-Item -ItemType Directory -Path $directory -Force | Out-Null
+    }
+
+    $Settings | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath $script:ConfigPath -Encoding UTF8
+    $script:SettingsChanged = $false
+}
+
+function Set-ProfileValue {
+    param(
+        [hashtable]$Profile,
+        [string]$Key,
+        [object]$Value
+    )
+
+    if ($null -eq $Profile) {
+        return
+    }
+
+    $current = $null
+    if ($Profile.ContainsKey($Key)) {
+        $current = $Profile[$Key]
+    }
+
+    if ($current -ne $Value) {
+        $Profile[$Key] = $Value
+        $script:SettingsChanged = $true
+    }
+}
+
+function Resolve-AbsolutePath {
+    param([string]$Path)
+
+    if ([string]::IsNullOrWhiteSpace($Path)) {
+        return $Path
+    }
+
+    if ([System.IO.Path]::IsPathRooted($Path)) {
+        return $Path
+    }
+
+    return (Join-Path $script:RepoRoot $Path)
+}
+
+function Get-DefaultProfileName {
+    return "Steam"
+}
+
+function Get-AvailableProfiles {
+    return @("Steam")
+}
+
+function Prompt-ForProfileSelection {
+    param(
+        [string[]]$AvailableProfiles,
+        [string]$CurrentProfile
+    )
+
+    if ($AvailableProfiles.Count -eq 0) {
+        throw "No profiles are available."
+    }
+
+    if (-not $Host.UI -or -not $Host.UI.RawUI) {
+        if ($AvailableProfiles -contains $CurrentProfile) {
+            return $CurrentProfile
+        }
+
+        return $AvailableProfiles[0]
+    }
+
+    Write-Host "Select Cities: Skylines game version:" -ForegroundColor Cyan
+    for ($i = 0; $i -lt $AvailableProfiles.Count; $i++) {
+        Write-Host ("[{0}] {1}" -f ($i + 1), $AvailableProfiles[$i])
+    }
+
+    $currentIndex = [Array]::IndexOf($AvailableProfiles, $CurrentProfile)
+    if ($currentIndex -lt 0) {
+        $currentIndex = 0
+    }
+
+    $defaultChoice = ($currentIndex + 1).ToString()
+    $selection = Prompt-ForInput -Message "Enter the desired option" -DefaultValue $defaultChoice
+
+    [int]$choice = 0
+    if ([int]::TryParse($selection, [ref]$choice)) {
+        if ($choice -ge 1 -and $choice -le $AvailableProfiles.Count) {
+            return $AvailableProfiles[$choice - 1]
+        }
+    }
+
+    return $AvailableProfiles[$currentIndex]
+}
+
+function Ensure-Profile {
+    param(
+        [hashtable]$Settings,
+        [string]$ProfileName
+    )
+
+    $profiles = Ensure-Hashtable $Settings.Profiles
+    $Settings.Profiles = $profiles
+
+    if (-not $profiles.ContainsKey($ProfileName)) {
+        $profiles[$ProfileName] = @{}
+        $script:SettingsChanged = $true
+    }
+
+    $profile = Ensure-Hashtable $profiles[$ProfileName]
+    $profiles[$ProfileName] = $profile
+    return $profile
+}
+
+function Prompt-ForInput {
+    param(
+        [string]$Message,
+        [string]$DefaultValue
+    )
+
+    if (-not $Host.UI -or -not $Host.UI.RawUI) {
+        return if ([string]::IsNullOrWhiteSpace($DefaultValue)) { "" } else { $DefaultValue }
+    }
+
+    $prompt = if ([string]::IsNullOrWhiteSpace($DefaultValue)) { $Message } else { "$Message [`$DefaultValue`]" }
+    $response = Read-Host $prompt
+    if ([string]::IsNullOrWhiteSpace($response)) {
+        return $DefaultValue
+    }
+
+    return $response
+}
+
+function Prompt-ForConfirmation {
+    param(
+        [string]$Message,
+        [bool]$Default = $true
+    )
+
+    if (-not $Host.UI -or -not $Host.UI.RawUI) {
+        return $Default
+    }
+
+    $suffix = if ($Default) { "[Y/n]" } else { "[y/N]" }
+
+    while ($true) {
+        $response = Read-Host "$Message $suffix"
+
+        if ([string]::IsNullOrWhiteSpace($response)) {
+            return $Default
+        }
+
+        switch ($response.Trim().ToLowerInvariant()) {
+            'y' { return $true }
+            'yes' { return $true }
+            'n' { return $false }
+            'no' { return $false }
+        }
+
+        Write-Host "Please answer with yes or no." -ForegroundColor Yellow
+    }
+}
+
+function Get-SteamDefaults {
+    $steamGameDir = 'C:\\Program Files (x86)\\Steam\\steamapps\\common\\Cities_Skylines'
+    $steamWorkshopBase = 'C:\\Program Files (x86)\\Steam\\steamapps\\workshop\\content\\255710'
+    $steamHarmony = Join-Path $steamWorkshopBase '2040656402'
+    $steamCsm = Join-Path $steamWorkshopBase '1558438291'
+    $steamTmpe = Join-Path $steamWorkshopBase '1637663252'
+    $modRoot = 'C:\\Users\\mail\\AppData\\Local\\Colossal Order\\Cities_Skylines\\Addons\\Mods'
+
+    return @{
+        GameDirectory      = $steamGameDir
+        CitiesSkylinesDir  = $steamGameDir
+        SteamModsDir       = $steamWorkshopBase
+        HarmonySourceDir   = $steamHarmony
+        CsmSourceDir       = $steamCsm
+        TmpeSourceDir      = $steamTmpe
+        ModRootDirectory   = $modRoot
+    }
+}
+
+function Configure-Profile {
+    param(
+        [hashtable]$Settings,
+        [string]$ProfileName,
+        [string]$ParameterGameDir,
+        [string]$ParameterModRoot
+    )
+
+    $defaults = Get-SteamDefaults
+    $profile = Ensure-Profile -Settings $Settings -ProfileName $ProfileName
+
+    $currentGameDir = if ($ParameterGameDir) { $ParameterGameDir } elseif ($profile.ContainsKey('GameDirectory')) { [string]$profile.GameDirectory } else { $defaults.GameDirectory }
+    $gameDir = Prompt-ForInput -Message "Path to Cities: Skylines game directory" -DefaultValue $currentGameDir
+    if ([string]::IsNullOrWhiteSpace($gameDir)) {
+        throw "Cities: Skylines game directory is required."
+    }
+
+    $currentModRoot = if ($ParameterModRoot) { $ParameterModRoot } elseif ($profile.ContainsKey('ModRootDirectory')) { [string]$profile.ModRootDirectory } else { $defaults.ModRootDirectory }
+    $modRoot = Prompt-ForInput -Message "Path where the mod should be installed" -DefaultValue $currentModRoot
+    if ([string]::IsNullOrWhiteSpace($modRoot)) {
+        throw "Mod installation directory is required."
+    }
+
+    $modDirectory = Join-Path $modRoot 'CSM.TmpeSync'
+
+    if ($ProfileName -eq 'Steam') {
+        $confirmed = Prompt-ForConfirmation -Message "Have you subscribed to the latest Harmony, TM:PE, and CSM workshop items?" -Default $true
+        if (-not $confirmed) {
+            throw "Subscribe to Harmony, TM:PE, and CSM on the Steam Workshop before continuing."
+        }
+    }
+
+    Set-ProfileValue -Profile $profile -Key 'GameDirectory' -Value $gameDir
+    Set-ProfileValue -Profile $profile -Key 'CitiesSkylinesDir' -Value $gameDir
+    Set-ProfileValue -Profile $profile -Key 'ModRootDirectory' -Value $modRoot
+    Set-ProfileValue -Profile $profile -Key 'ModDirectory' -Value $modDirectory
+    Set-ProfileValue -Profile $profile -Key 'SteamModsDir' -Value $defaults.SteamModsDir
+    Set-ProfileValue -Profile $profile -Key 'HarmonySourceDir' -Value $defaults.HarmonySourceDir
+    Set-ProfileValue -Profile $profile -Key 'CsmSourceDir' -Value $defaults.CsmSourceDir
+    Set-ProfileValue -Profile $profile -Key 'TmpeSourceDir' -Value $defaults.TmpeSourceDir
+
+    $harmonyLibDir = Join-Path $script:LibRoot 'Harmony'
+    $csmLibDir = Join-Path $script:LibRoot 'CSM'
+    $tmpeLibDir = Join-Path $script:LibRoot 'TMPE'
+    Set-ProfileValue -Profile $profile -Key 'HarmonyDllDir' -Value $harmonyLibDir
+    Set-ProfileValue -Profile $profile -Key 'TmpeDir' -Value $tmpeLibDir
+    $csmApiPath = Join-Path $csmLibDir 'CSM.API.dll'
+    Set-ProfileValue -Profile $profile -Key 'CsmApiDllPath' -Value $csmApiPath
+    Set-ProfileValue -Profile $profile -Key 'CsmLibDir' -Value $csmLibDir
+
+    $available = Get-AvailableProfiles
+    if ($available -notcontains $ProfileName) {
+        throw "Unsupported profile: $ProfileName"
+    }
+
+    if ($Settings.ActiveProfile -ne $ProfileName) {
+        $Settings.ActiveProfile = $ProfileName
+        $script:SettingsChanged = $true
+    }
+
+    Write-Host "[CSM.TmpeSync] Profile '$ProfileName' configured." -ForegroundColor Cyan
+}
+
+function Determine-ActiveProfile {
+    param(
+        [hashtable]$Settings,
+        [string]$RequestedProfile
+    )
+
+    $available = Get-AvailableProfiles
+    if (-not [string]::IsNullOrWhiteSpace($RequestedProfile)) {
+        if ($available -notcontains $RequestedProfile) {
+            throw "Unknown profile '$RequestedProfile'. Available profiles: $($available -join ', ')"
+        }
+        return $RequestedProfile
+    }
+
+    if (-not [string]::IsNullOrWhiteSpace($Settings.ActiveProfile)) {
+        return $Settings.ActiveProfile
+    }
+
+    return (Get-DefaultProfileName)
+}
+
+function Ensure-ConfiguredProfile {
+    param(
+        [hashtable]$Settings,
+        [string]$ProfileName
+    )
+
+    $profile = Ensure-Profile -Settings $Settings -ProfileName $ProfileName
+
+    if (-not $profile.ContainsKey('GameDirectory') -or [string]::IsNullOrWhiteSpace($profile.GameDirectory)) {
+        throw "Profile '$ProfileName' is not configured. Run build.ps1 -Configure first."
+    }
+
+    return $profile
+}
+
+function Reset-Directory {
+    param([string]$Path)
+
+    if ([string]::IsNullOrWhiteSpace($Path)) {
+        throw "Destination path is required."
+    }
+
+    if (Test-Path $Path) {
+        Remove-Item -Path $Path -Recurse -Force -ErrorAction Stop
+    }
+
+    New-Item -ItemType Directory -Path $Path -Force | Out-Null
+}
+
+function Copy-DirectoryContents {
+    param(
+        [string]$Source,
+        [string]$Destination
+    )
+
+    if (-not (Test-Path $Source)) {
+        throw "Source directory not found: $Source"
+    }
+
+    Reset-Directory -Path $Destination
+
+    Get-ChildItem -LiteralPath $Source -Force | ForEach-Object {
+        $target = Join-Path $Destination $_.Name
+        if ($_.PSIsContainer) {
+            Copy-Item -LiteralPath $_.FullName -Destination $target -Recurse -Force
+        }
+        else {
+            Copy-Item -LiteralPath $_.FullName -Destination $Destination -Force
+        }
+    }
+}
+
+function Ensure-DirectoryExists {
+    param(
+        [string]$Path,
+        [string]$Description
+    )
+
+    if ([string]::IsNullOrWhiteSpace($Path)) {
+        throw "$Description is required."
+    }
+
+    if (-not (Test-Path $Path)) {
+        throw "$Description not found: $Path"
+    }
+}
+
+function Update-Dependencies {
+    param([hashtable]$Profile)
+
+    $gameDir = [string]$Profile.GameDirectory
+    Ensure-DirectoryExists -Path $gameDir -Description "Cities: Skylines game directory"
+
+    $managedSource = Join-Path (Join-Path $gameDir 'Cities_Data') 'Managed'
+    Ensure-DirectoryExists -Path $managedSource -Description "Cities: Skylines managed assemblies"
+
+    foreach ($file in @('ICities.dll', 'ColossalManaged.dll', 'UnityEngine.dll', 'UnityEngine.UI.dll', 'Assembly-CSharp.dll')) {
+        $sourcePath = Join-Path $managedSource $file
+        if (-not (Test-Path $sourcePath)) {
+            throw "Missing required Cities: Skylines assembly: $sourcePath"
+        }
+    }
+
+    $harmonySource = if ($Profile.ContainsKey('HarmonySourceDir')) { [string]$Profile.HarmonySourceDir } else { '' }
+    if (-not [string]::IsNullOrWhiteSpace($harmonySource)) {
+        Copy-DirectoryContents -Source $harmonySource -Destination (Join-Path $script:LibRoot 'Harmony')
+    }
+
+    $csmSource = if ($Profile.ContainsKey('CsmSourceDir')) { [string]$Profile.CsmSourceDir } else { '' }
+    if (-not [string]::IsNullOrWhiteSpace($csmSource)) {
+        Copy-DirectoryContents -Source $csmSource -Destination (Join-Path $script:LibRoot 'CSM')
+    }
+
+    $tmpeSource = if ($Profile.ContainsKey('TmpeSourceDir')) { [string]$Profile.TmpeSourceDir } else { '' }
+    if (-not [string]::IsNullOrWhiteSpace($tmpeSource)) {
+        Copy-DirectoryContents -Source $tmpeSource -Destination (Join-Path $script:LibRoot 'TMPE')
+    }
+
+    $csmLibDir = Join-Path $script:LibRoot 'CSM'
+    $csmApiPath = Join-Path $csmLibDir 'CSM.API.dll'
+    if (-not (Test-Path $csmApiPath)) {
+        $fallbackManaged = Join-Path (Join-Path $csmLibDir 'Cities_Data') 'Managed'
+        $fallbackPath = Join-Path $fallbackManaged 'CSM.API.dll'
+        if (Test-Path $fallbackPath) {
+            Copy-Item -LiteralPath $fallbackPath -Destination $csmApiPath -Force
+        }
+    }
+
+    if (-not (Test-Path $csmApiPath)) {
+        throw "CSM.API.dll not found after dependency sync: $csmApiPath"
+    }
+
+    Set-ProfileValue -Profile $Profile -Key 'CsmApiDllPath' -Value $csmApiPath
+    Set-ProfileValue -Profile $Profile -Key 'HarmonyDllDir' -Value (Join-Path $script:LibRoot 'Harmony')
+    Set-ProfileValue -Profile $Profile -Key 'TmpeDir' -Value (Join-Path $script:LibRoot 'TMPE')
+    Set-ProfileValue -Profile $Profile -Key 'CsmLibDir' -Value $csmLibDir
+
+    Write-Host "[CSM.TmpeSync] Dependencies copied into lib/." -ForegroundColor Cyan
+}
+
+function Invoke-BuildProject {
+    param(
+        [hashtable]$Profile,
+        [string]$Configuration
+    )
+
+    $citiesDir = Resolve-AbsolutePath -Path ([string]$Profile.CitiesSkylinesDir)
+    $harmonyDir = Resolve-AbsolutePath -Path ([string]$Profile.HarmonyDllDir)
+    $csmApiPath = Resolve-AbsolutePath -Path ([string]$Profile.CsmApiDllPath)
+
+    $propertySpecs = @(
+        @{ Name = 'CitiesSkylinesDir'; Value = $citiesDir },
+        @{ Name = 'HarmonyDllDir'; Value = $harmonyDir },
+        @{ Name = 'CsmApiDllPath'; Value = $csmApiPath }
+    )
+
+    if ($Profile.ContainsKey('TmpeDir') -and -not [string]::IsNullOrWhiteSpace([string]$Profile.TmpeDir)) {
+        $tmpeDir = Resolve-AbsolutePath -Path ([string]$Profile.TmpeDir)
+        $propertySpecs += @{ Name = 'TmpeDir'; Value = $tmpeDir }
+    }
+
+    if ($Profile.ContainsKey('SteamModsDir') -and -not [string]::IsNullOrWhiteSpace([string]$Profile.SteamModsDir)) {
+        $steamMods = Resolve-AbsolutePath -Path ([string]$Profile.SteamModsDir)
+        $propertySpecs += @{ Name = 'SteamModsDir'; Value = $steamMods }
+    }
+
+    if ($Profile.ContainsKey('ModDirectory') -and -not [string]::IsNullOrWhiteSpace([string]$Profile.ModDirectory)) {
+        $modDir = Resolve-AbsolutePath -Path ([string]$Profile.ModDirectory)
+        $propertySpecs += @(
+            @{ Name = 'ModDirectory'; Value = $modDir },
+            @{ Name = 'ModsOutDir'; Value = $modDir }
+        )
+    }
+
+    $net35Info = Resolve-Net35ReferenceInfo
+    if ($net35Info) {
+        $propertySpecs += @(
+            @{ Name = 'TargetFrameworkRootPath'; Value = $net35Info.RootPath },
+            @{ Name = 'FrameworkPathOverride'; Value = $net35Info.FrameworkPath },
+            @{ Name = 'ReferencePath'; Value = $net35Info.FrameworkPath }
+        )
+    }
+
+    $dotnetArguments = @('build', $script:ProjectPath, '-c', $Configuration, '/restore', '--nologo')
+    $msbuildArguments = @()
+
+    foreach ($spec in $propertySpecs) {
+        $dotnetArg = Format-DotnetProperty -Name $spec.Name -Value $spec.Value
+        if ($dotnetArg) {
+            $dotnetArguments += $dotnetArg
+        }
+
+        $msbuildArg = Format-MsBuildProperty -Name $spec.Name -Value $spec.Value
+        if ($msbuildArg) {
+            $msbuildArguments += $msbuildArg
+        }
+    }
+
+    $buildSucceeded = $false
+
+    if ($script:IsWindows) {
+        try {
+            $msbuildPath = Resolve-MsBuildPath
+            $msbuildInvocation = @(
+                $script:ProjectPath,
+                '/restore',
+                '/t:Build',
+                "/p:Configuration=$Configuration",
+                '/nologo'
+            ) + $msbuildArguments
+
+            Write-Host "[CSM.TmpeSync] Building ($Configuration) with MSBuild..." -ForegroundColor Cyan
+            & $msbuildPath @msbuildInvocation
+            if ($LASTEXITCODE -ne 0) {
+                throw "MSBuild failed with exit code $LASTEXITCODE."
+            }
+            $buildSucceeded = $true
+        }
+        catch {
+            if ($_.Exception.Message -notlike '*MSBuild.exe not found*') {
+                throw
+            }
+        }
+    }
+
+    if (-not $buildSucceeded) {
+        $dotnet = Get-Command dotnet -ErrorAction SilentlyContinue
+        if (-not $dotnet) {
+            throw "dotnet CLI not found. Install the .NET SDK."
+        }
+
+        Write-Host "[CSM.TmpeSync] Building ($Configuration) with dotnet..." -ForegroundColor Cyan
+        & $dotnet.Source @dotnetArguments
+        if ($LASTEXITCODE -ne 0) {
+            throw "dotnet build failed with exit code $LASTEXITCODE."
+        }
+    }
+}
+
+function Get-OutputDirectory {
+    param([string]$Configuration)
+    return Join-Path $script:RepoRoot ("src/CSM.TmpeSync/bin/{0}/net35" -f $Configuration)
+}
+
+function Invoke-InstallMod {
+    param(
+        [hashtable]$Profile,
+        [string]$Configuration,
+        [string]$OverrideModDirectory
+    )
+
+    $targetDirectory = if (-not [string]::IsNullOrWhiteSpace($OverrideModDirectory)) { $OverrideModDirectory } elseif ($Profile.ContainsKey('ModDirectory')) { [string]$Profile.ModDirectory } else { '' }
+
+    if ([string]::IsNullOrWhiteSpace($targetDirectory)) {
+        throw "No mod installation directory configured. Run build.ps1 -Configure or pass -ModDirectory."
+    }
+
+    $targetDirectory = Resolve-AbsolutePath -Path $targetDirectory
+
+    $outputDir = Get-OutputDirectory -Configuration $Configuration
+    Ensure-DirectoryExists -Path $outputDir -Description "Build output"
+
+    $assemblies = Get-ChildItem -LiteralPath $outputDir -Filter 'CSM.TmpeSync*.dll' -ErrorAction Stop
+    if (-not $assemblies) {
+        throw "No CSM.TmpeSync assemblies found in $outputDir. Build the project first."
+    }
+
+    Write-Host "[CSM.TmpeSync] Installing build to $targetDirectory" -ForegroundColor Cyan
+    if (Test-Path $targetDirectory) {
+        Remove-Item -Path $targetDirectory -Recurse -Force
+    }
+    New-Item -ItemType Directory -Path $targetDirectory -Force | Out-Null
+
+    foreach ($assembly in $assemblies) {
+        Copy-Item -LiteralPath $assembly.FullName -Destination $targetDirectory -Force
+    }
+
+    $pdbFiles = Get-ChildItem -LiteralPath $outputDir -Filter 'CSM.TmpeSync*.pdb' -ErrorAction SilentlyContinue
+    foreach ($pdb in $pdbFiles) {
+        Copy-Item -LiteralPath $pdb.FullName -Destination $targetDirectory -Force
+    }
+
+    Write-Host "[CSM.TmpeSync] Installation complete." -ForegroundColor Green
 }
 
 if (-not ($Update -or $Build -or $Install -or $Configure)) {
     Write-Host "[CSM.TmpeSync] No action specified. Use -Update, -Build, -Install and/or -Configure." -ForegroundColor Yellow
-    return
+    exit 0
 }
 
-try {
-    if (-not $CSM) {
-        if ($SkipCsmUpdate -or $SkipCsmBuild -or $SkipCsmInstall) {
-            Write-Host "[CSM.TmpeSync] Ignoring -SkipCsm* flags because -CSM is not specified." -ForegroundColor DarkYellow
-        }
-    }
+$settings = Load-BuildSettings
+$availableProfiles = Get-AvailableProfiles
+$profileName = Determine-ActiveProfile -Settings $settings -RequestedProfile $Profile
 
-    if ($Configure) {
-        Configure-Interactive
-        if (-not ($Update -or $Build -or $Install)) {
-            return
-        }
-    }
+if ($Configure -and [string]::IsNullOrWhiteSpace($Profile)) {
+    $profileName = Prompt-ForProfileSelection -AvailableProfiles $availableProfiles -CurrentProfile $profileName
+}
 
-    $modDirectoryParameter = if ($ModDirectory -eq "Default") { "" } else { $ModDirectory }
-    $resolvedModDirectory = Get-ConfigValue -Key "ModDirectory" -ParameterValue $modDirectoryParameter
-    if (-not [string]::IsNullOrWhiteSpace($resolvedModDirectory)) {
-        $ModDirectory = $resolvedModDirectory
-    }
-    elseif ($ModDirectory -eq "Default") {
-        $ModDirectory = Get-DefaultModDirectory -ModName "CSM.TmpeSync"
-    }
+if ($Configure) {
+    Configure-Profile -Settings $settings -ProfileName $profileName -ParameterGameDir $GameDirectory -ParameterModRoot $ModRootDirectory
+}
 
-    if ($Install -and $CSM) {
-        $csmModDirectoryParameter = if ($CsmModDirectory -eq "Default") { "" } else { $CsmModDirectory }
-        $resolvedCsmModDir = Get-ConfigValue -Key "CsmModDirectory" -ParameterValue $csmModDirectoryParameter
-        if (-not [string]::IsNullOrWhiteSpace($resolvedCsmModDir)) {
-            $CsmModDirectory = $resolvedCsmModDir
-        }
-        elseif ($CsmModDirectory -eq "Default") {
-            $CsmModDirectory = Get-DefaultModDirectory -ModName "CSM"
-        }
-    }
-    elseif (-not $CSM) {
-        $CsmModDirectory = ""
-    }
+$profile = Ensure-Profile -Settings $settings -ProfileName $profileName
 
-    if ($Update) {
-        Invoke-TmpeSyncUpdate -CitiesSkylinesDir $CitiesSkylinesDir -GameDirectory $GameDirectory -HarmonyDllDir $HarmonyDllDir -TmpeDir $TmpeDir -SteamModsDir $SteamModsDir -IncludeCsm:$CSM -SkipCsmUpdate:$SkipCsmUpdate | Out-Null
-    }
-
-    if ($Build) {
-        Invoke-TmpeSyncBuild -Configuration $Configuration -CitiesSkylinesDir $CitiesSkylinesDir -HarmonyDllDir $HarmonyDllDir -CsmApiDllPath $CsmApiDllPath -TmpeDir $TmpeDir -SteamModsDir $SteamModsDir -ModDirectory $ModDirectory -IncludeCsm:$CSM -SkipCsmBuild:$SkipCsmBuild
-    }
-
-    if ($Install) {
-        Invoke-TmpeSyncInstall -Configuration $Configuration -ModDirectory $ModDirectory -IncludeCsm:$CSM -SkipCsmInstall:$SkipCsmInstall -CsmModDirectory $CsmModDirectory
+if (-not [string]::IsNullOrWhiteSpace($GameDirectory)) {
+    Set-ProfileValue -Profile $profile -Key 'GameDirectory' -Value $GameDirectory
+    Set-ProfileValue -Profile $profile -Key 'CitiesSkylinesDir' -Value $GameDirectory
+}
+if (-not [string]::IsNullOrWhiteSpace($CitiesSkylinesDir)) {
+    Set-ProfileValue -Profile $profile -Key 'CitiesSkylinesDir' -Value $CitiesSkylinesDir
+}
+if (-not [string]::IsNullOrWhiteSpace($SteamModsDir)) {
+    Set-ProfileValue -Profile $profile -Key 'SteamModsDir' -Value $SteamModsDir
+}
+if (-not [string]::IsNullOrWhiteSpace($HarmonySourceDir)) {
+    Set-ProfileValue -Profile $profile -Key 'HarmonySourceDir' -Value $HarmonySourceDir
+}
+if (-not [string]::IsNullOrWhiteSpace($CsmSourceDir)) {
+    Set-ProfileValue -Profile $profile -Key 'CsmSourceDir' -Value $CsmSourceDir
+}
+if (-not [string]::IsNullOrWhiteSpace($TmpeSourceDir)) {
+    Set-ProfileValue -Profile $profile -Key 'TmpeSourceDir' -Value $TmpeSourceDir
+}
+if (-not [string]::IsNullOrWhiteSpace($HarmonyDllDir)) {
+    Set-ProfileValue -Profile $profile -Key 'HarmonyDllDir' -Value $HarmonyDllDir
+}
+if (-not [string]::IsNullOrWhiteSpace($CsmApiDllPath)) {
+    Set-ProfileValue -Profile $profile -Key 'CsmApiDllPath' -Value $CsmApiDllPath
+}
+if (-not [string]::IsNullOrWhiteSpace($TmpeDir)) {
+    Set-ProfileValue -Profile $profile -Key 'TmpeDir' -Value $TmpeDir
+}
+if (-not [string]::IsNullOrWhiteSpace($ModRootDirectory)) {
+    Set-ProfileValue -Profile $profile -Key 'ModRootDirectory' -Value $ModRootDirectory
+    if ([string]::IsNullOrWhiteSpace($ModDirectory)) {
+        $ModDirectory = Join-Path $ModRootDirectory 'CSM.TmpeSync'
     }
 }
-finally {
-    Save-BuildConfig
+if (-not [string]::IsNullOrWhiteSpace($ModDirectory)) {
+    Set-ProfileValue -Profile $profile -Key 'ModDirectory' -Value $ModDirectory
 }
+
+if ($Update) {
+    $configuredProfile = Ensure-ConfiguredProfile -Settings $settings -ProfileName $profileName
+    Update-Dependencies -Profile $configuredProfile
+}
+
+if ($Build) {
+    $configuredProfile = Ensure-ConfiguredProfile -Settings $settings -ProfileName $profileName
+    Invoke-BuildProject -Profile $configuredProfile -Configuration $Configuration
+}
+
+if ($Install) {
+    $configuredProfile = Ensure-ConfiguredProfile -Settings $settings -ProfileName $profileName
+    Invoke-InstallMod -Profile $configuredProfile -Configuration $Configuration -OverrideModDirectory $ModDirectory
+}
+
+Save-BuildSettings -Settings $settings
 
 Write-Host "[CSM.TmpeSync] Done." -ForegroundColor Green
