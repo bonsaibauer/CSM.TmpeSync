@@ -2755,6 +2755,33 @@ namespace CSM.TmpeSync.Tmpe
             }
         }
 
+        internal static bool ClearTraffic()
+        {
+            try
+            {
+                if (!SupportsClearTraffic || UtilityManagerInstance == null || UtilityManagerClearTrafficMethod == null)
+                {
+                    Log.Warn(
+                        LogCategory.Bridge,
+                        "TM:PE clear traffic unavailable | supported={0} hasInstance={1} hasMethod={2}",
+                        SupportsClearTraffic,
+                        UtilityManagerInstance != null,
+                        UtilityManagerClearTrafficMethod != null);
+                    return false;
+                }
+
+                Log.Debug(LogCategory.Hook, "TM:PE clear traffic request");
+                UtilityManagerClearTrafficMethod.Invoke(UtilityManagerInstance, Array.Empty<object>());
+                Log.Info(LogCategory.Synchronization, "TM:PE clear traffic applied via API");
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Log.Error(LogCategory.Synchronization, "TM:PE ClearTraffic failed | error={0}", ex);
+                return false;
+            }
+        }
+
         private static bool TryApplySpeedLimitReal(uint laneId, float speedKmh)
         {
             if (SpeedLimitManagerInstance == null || (SpeedLimitSetLaneWithInfoMethod == null && SpeedLimitSetLaneMethod == null))
