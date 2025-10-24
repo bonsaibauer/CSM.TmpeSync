@@ -40,13 +40,17 @@ namespace CSM.TmpeSync.Mod
                     _connectionRegistered = true;
                     Log.Info(LogCategory.Network, "CSM connection established | channel=TM:PE sync");
                     MultiplayerStateObserver.RoleChanged += Log.HandleRoleChanged;
+                    TimedTrafficLightServerGuard.Initialize();
                     try
                     {
-                        Log.HandleRoleChanged(CsmCompat.DescribeCurrentRole());
+                        var currentRole = CsmCompat.DescribeCurrentRole();
+                        Log.HandleRoleChanged(currentRole);
+                        TimedTrafficLightServerGuard.EvaluateCurrentRole(currentRole);
                     }
                     catch (Exception ex)
                     {
                         Log.Warn(LogCategory.Diagnostics, "Unable to initialize session log for current role | error={0}", ex);
+                        TimedTrafficLightServerGuard.EvaluateCurrentRole();
                     }
                     SnapshotDispatcher.Initialize();
                     LaneMappingTracker.Initialize();
@@ -96,6 +100,7 @@ namespace CSM.TmpeSync.Mod
             MultiplayerStateObserver.RoleChanged -= Log.HandleRoleChanged;
             Log.EndServerSessionLog();
             TmpeFeatureReadyNotifier.Shutdown();
+            TimedTrafficLightServerGuard.Shutdown();
             LaneMappingTracker.Shutdown();
             SnapshotDispatcher.Shutdown();
             if (_connectionRegistered && _connection != null)
