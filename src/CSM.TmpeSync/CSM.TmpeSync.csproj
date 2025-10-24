@@ -116,6 +116,8 @@
     <Compile Include="Util\TransmissionDiagnostics.cs" />
     <Compile Include="Util\LockRegistry.cs" />
     <Compile Include="Util\LaneGuidRegistry.cs" />
+    <Compile Include="Util\SegmentMappingStore.cs" />
+    <Compile Include="Util\NodeMappingStore.cs" />
     <Compile Include="Util\PendingMap.cs" />
     <Compile Include="Util\MultiplayerStateObserver.cs" />
 
@@ -146,6 +148,8 @@
     <Compile Include="Net\Contracts\Mapping\LaneMappingChanged.cs" />
     <Compile Include="Net\Contracts\Mapping\LaneMappingRemoved.cs" />
     <Compile Include="Net\LaneGuid.cs" />
+    <Compile Include="Net\SegmentGuid.cs" />
+    <Compile Include="Net\NodeGuid.cs" />
     <Compile Include="Net\Contracts\System\RequestRejected.cs" />
     <Compile Include="Net\Contracts\System\TmpeFeatureReady.cs" />
     <Compile Include="Net\Contracts\Locks\BeginEnd.cs" />

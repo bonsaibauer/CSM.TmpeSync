@@ -37,6 +37,8 @@ namespace CSM.TmpeSync.Util
             LaneMappingStore.Clear();
             LaneGuidRegistry.Clear();
             PendingMap.Reset();
+            SegmentMappingStore.Clear();
+            NodeMappingStore.Clear();
             SegmentBuildIndices.Clear();
             ApplyLaneGuidRoleSettings();
             MultiplayerStateObserver.RoleChanged += OnRoleChanged;
@@ -55,6 +57,8 @@ namespace CSM.TmpeSync.Util
             LaneMappingStore.Clear();
             LaneGuidRegistry.Clear();
             PendingMap.Reset();
+            SegmentMappingStore.Clear();
+            NodeMappingStore.Clear();
             SegmentBuildIndices.Clear();
             _initialized = false;
         }
@@ -67,6 +71,8 @@ namespace CSM.TmpeSync.Util
                 LaneGuidRegistry.SetAutomaticGeneration(false);
                 LaneGuidRegistry.Clear();
                 PendingMap.Reset();
+                SegmentMappingStore.Clear();
+                NodeMappingStore.Clear();
                 SegmentBuildIndices.Clear();
                 DeferredApply.Reset();
                 return;
@@ -77,6 +83,8 @@ namespace CSM.TmpeSync.Util
 
             ApplyLaneGuidRoleSettings();
             SegmentBuildIndices.Clear();
+            SegmentMappingStore.Clear();
+            NodeMappingStore.Clear();
             DeferredApply.Reset();
             SyncAllSegments("role_change");
         }
@@ -144,6 +152,7 @@ namespace CSM.TmpeSync.Util
 
             LaneGuidRegistry.HandleSegmentReleased(segmentId);
             PendingMap.RemoveLaneAssignmentsForSegment(segmentId);
+            SegmentMappingStore.RemoveByHost(segmentId);
             SegmentBuildIndices.Remove(segmentId);
 
             foreach (var entry in removedEntries)
@@ -184,13 +193,33 @@ namespace CSM.TmpeSync.Util
                 return null;
             }
 
-            SegmentBuildIndices[segmentId] = NetManager.instance.m_segments.m_buffer[segmentId].m_buildIndex;
-            var info = NetManager.instance.m_segments.m_buffer[segmentId].Info;
+            var segmentBuffer = NetManager.instance.m_segments.m_buffer;
+            SegmentBuildIndices[segmentId] = segmentBuffer[segmentId].m_buildIndex;
+
+            if (NetUtil.TryGetSegmentGuid(segmentId, out var segmentGuid))
+            {
+                SegmentMappingStore.UpsertHostSegment(segmentGuid, segmentId, out _, out _);
+                SegmentMappingStore.UpdateLocalSegment(segmentGuid, segmentId);
+            }
+
+            if (NetUtil.TryGetNodeGuid(segmentBuffer[segmentId].m_startNode, out var startNodeGuid))
+            {
+                NodeMappingStore.UpsertHostNode(startNodeGuid, segmentBuffer[segmentId].m_startNode, out _, out _);
+                NodeMappingStore.UpdateLocalNode(startNodeGuid, segmentBuffer[segmentId].m_startNode);
+            }
+
+            if (NetUtil.TryGetNodeGuid(segmentBuffer[segmentId].m_endNode, out var endNodeGuid))
+            {
+                NodeMappingStore.UpsertHostNode(endNodeGuid, segmentBuffer[segmentId].m_endNode, out _, out _);
+                NodeMappingStore.UpdateLocalNode(endNodeGuid, segmentBuffer[segmentId].m_endNode);
+            }
+
+            var info = segmentBuffer[segmentId].Info;
             if (info?.m_lanes == null || info.m_lanes.Length == 0)
                 return null;
 
             var updates = new List<LaneMappingUpdate>();
-            var laneId = NetManager.instance.m_segments.m_buffer[segmentId].m_lanes;
+            var laneId = segmentBuffer[segmentId].m_lanes;
             for (var laneIndex = 0; laneId != 0 && laneIndex < info.m_lanes.Length; laneIndex++)
             {
                 ref var lane = ref NetManager.instance.m_lanes.m_buffer[laneId];
@@ -236,7 +265,7 @@ namespace CSM.TmpeSync.Util
 
             // Remove stale mappings
             var currentKeys = new HashSet<int>();
-            var iterLaneId = NetManager.instance.m_segments.m_buffer[segmentId].m_lanes;
+            var iterLaneId = segmentBuffer[segmentId].m_lanes;
             var idx = 0;
             while (iterLaneId != 0 && idx < info.m_lanes.Length)
             {
@@ -274,6 +303,7 @@ namespace CSM.TmpeSync.Util
             }
 
             PendingMap.ProcessLaneAssignments(segmentId);
+            SegmentMappingStore.UpdateLocalSegment(segmentId, segmentId);
             return updates;
         }
 

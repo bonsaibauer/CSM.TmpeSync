@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using CSM.TmpeSync.Net;
 using CSM.TmpeSync.Net.Contracts.Applied;
 using CSM.TmpeSync.Tmpe;
 using CSM.TmpeSync.Util;
@@ -32,13 +33,29 @@ namespace CSM.TmpeSync.Snapshot
                     laneId,
                     SpeedLimitCodec.Describe(encoded));
                 var mappingVersion = LaneMappingStore.Version;
+                var laneGuid = LaneGuidRegistry.GetOrCreateLaneGuid(laneId);
+                LaneGuidRegistry.AssignLaneGuid(laneId, laneGuid, true);
+                LaneMappingStore.UpsertHostLane(laneGuid, laneId, segmentId, laneIndex, out _, out _);
+                LaneMappingStore.UpdateLocalLane(segmentId, laneIndex, laneId);
+
+                var segmentGuid = NetUtil.TryGetSegmentGuid(segmentId, out var builtSegmentGuid)
+                    ? builtSegmentGuid
+                    : default;
+                if (segmentGuid.IsValid)
+                {
+                    SegmentMappingStore.UpsertHostSegment(segmentGuid, segmentId, out _, out _);
+                    SegmentMappingStore.UpdateLocalSegment(segmentGuid, segmentId);
+                }
+
                 buffer.Add(new SpeedLimitBatchApplied.Entry
                 {
                     LaneId = laneId,
                     Speed = encoded,
                     SegmentId = segmentId,
                     LaneIndex = laneIndex,
-                    MappingVersion = mappingVersion
+                    MappingVersion = mappingVersion,
+                    LaneGuid = laneGuid,
+                    SegmentGuid = segmentGuid
                 });
 
                 if (buffer.Count >= BatchSize)
