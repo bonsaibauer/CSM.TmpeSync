@@ -1,4 +1,6 @@
 using System;
+using System.Collections;
+using System.Reflection;
 using CSM.API.Commands;
 using CSM.API.Helpers;
 using CSM.API.Networking;
@@ -12,6 +14,32 @@ namespace CSM.TmpeSync.Util
         private static bool _loggedMissingSendToClients;
         private static bool _loggedSendToClientNotServer;
         private static bool _loggedSendToClientUnavailable;
+        private static readonly object SendToClientReflectionLock = new object();
+        private static bool _sendToClientReflectionInitialised;
+        private static bool _sendToClientReflectionFailed;
+        private static FieldInfo _commandInternalInstanceField;
+        private static MethodInfo _commandInternalSendToClientMethod;
+        private static PropertyInfo _multiplayerManagerInstanceProperty;
+        private static PropertyInfo _multiplayerManagerCurrentServerProperty;
+        private static PropertyInfo _serverConnectedPlayersProperty;
+
+        private static bool Invoke(Action<CommandBase> sendDelegate, CommandBase command)
+        {
+            if (sendDelegate == null)
+                return false;
+
+            try
+            {
+                sendDelegate(command);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                var commandName = command != null ? command.GetType().Name : "<null>";
+                Log.Warn(LogCategory.Network, "Dispatch via CSM delegate failed | delegate={0} type={1} error={2}", DescribeDelegate(sendDelegate), commandName, ex);
+                return false;
+            }
+        }
 
         internal static void SendToAll(CommandBase command)
         {
@@ -109,13 +137,113 @@ namespace CSM.TmpeSync.Util
                 return;
             }
 
+            if (TrySendToClientInternal(clientId, command, out var failureReason))
+            {
+                Log.Debug(LogCategory.Network, "Dispatch complete | direction=client type={0} clientId={1}", commandName, clientId);
+                return;
+            }
+
             if (!_loggedSendToClientUnavailable)
             {
                 _loggedSendToClientUnavailable = true;
-                Log.Warn(LogCategory.Network, "Unable to send command to client | id={0} command={1} reason=api_unavailable", clientId, command.GetType().Name);
+                Log.Warn(LogCategory.Network, "Unable to send command to client | id={0} command={1} reason={2}", clientId, command.GetType().Name, failureReason ?? "api_unavailable");
             }
 
-            Log.Debug(LogCategory.Network, "Command not delivered to client | type={0} clientId={1}", commandName, clientId);
+            Log.Debug(LogCategory.Network, "Command not delivered to client | type={0} clientId={1} reason={2}", commandName, clientId, failureReason ?? "unknown");
+        }
+
+        private static bool EnsureSendToClientReflection()
+        {
+            if (_sendToClientReflectionInitialised)
+                return true;
+
+            if (_sendToClientReflectionFailed)
+                return false;
+
+            lock (SendToClientReflectionLock)
+            {
+                if (_sendToClientReflectionInitialised)
+                    return true;
+
+                if (_sendToClientReflectionFailed)
+                    return false;
+
+                try
+                {
+                    var commandInternalType = ResolveType("CSM.Commands.CommandInternal");
+                    var multiplayerManagerType = ResolveType("CSM.Networking.MultiplayerManager");
+
+                    if (commandInternalType == null || multiplayerManagerType == null)
+                        throw new InvalidOperationException("CSM reflection types unavailable");
+
+                    _commandInternalInstanceField = commandInternalType.GetField("Instance", BindingFlags.Public | BindingFlags.Static);
+                    _commandInternalSendToClientMethod = FindSendToClientMethod(commandInternalType);
+                    _multiplayerManagerInstanceProperty = multiplayerManagerType.GetProperty("Instance", BindingFlags.Public | BindingFlags.Static);
+                    _multiplayerManagerCurrentServerProperty = multiplayerManagerType.GetProperty("CurrentServer", BindingFlags.Public | BindingFlags.Instance);
+
+                    var serverType = _multiplayerManagerCurrentServerProperty != null
+                        ? _multiplayerManagerCurrentServerProperty.PropertyType
+                        : null;
+
+                    _serverConnectedPlayersProperty = serverType?.GetProperty("ConnectedPlayers", BindingFlags.Public | BindingFlags.Instance);
+
+                    if (_commandInternalInstanceField == null ||
+                        _commandInternalSendToClientMethod == null ||
+                        _multiplayerManagerInstanceProperty == null ||
+                        _multiplayerManagerCurrentServerProperty == null ||
+                        _serverConnectedPlayersProperty == null)
+                    {
+                        throw new InvalidOperationException("CSM reflection members unavailable");
+                    }
+
+                    _sendToClientReflectionInitialised = true;
+                    return true;
+                }
+                catch (Exception ex)
+                {
+                    _sendToClientReflectionFailed = true;
+                    Log.Warn(LogCategory.Network, "Failed to initialise CSM reflection for SendToClient | error={0}", ex);
+                    return false;
+                }
+            }
+        }
+
+        private static MethodInfo FindSendToClientMethod(Type commandInternalType)
+        {
+            if (commandInternalType == null)
+                return null;
+
+            var methods = commandInternalType.GetMethods(BindingFlags.Instance | BindingFlags.Public);
+            foreach (var method in methods)
+            {
+                if (!string.Equals(method.Name, "SendToClient", StringComparison.Ordinal))
+                    continue;
+
+                var parameters = method.GetParameters();
+                if (parameters.Length != 2)
+                    continue;
+
+                var commandParameter = parameters[1].ParameterType;
+                if (typeof(CommandBase).IsAssignableFrom(commandParameter))
+                    return method;
+            }
+
+            return null;
+        }
+
+        private static Type ResolveType(string fullName)
+        {
+            if (string.IsNullOrEmpty(fullName))
+                return null;
+
+            foreach (var assembly in AppDomain.CurrentDomain.GetAssemblies())
+            {
+                var type = assembly.GetType(fullName, false);
+                if (type != null)
+                    return type;
+            }
+
+            return null;
         }
 
         private static bool TrySendToClientInternal(int clientId, CommandBase command, out string failureReason)

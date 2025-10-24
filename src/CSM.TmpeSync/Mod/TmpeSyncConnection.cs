@@ -1,6 +1,7 @@
 using CSM.API;
 using CSM.TmpeSync.Tmpe;
 using CSM.TmpeSync.Util;
+using Log = CSM.TmpeSync.Util.Log;
 
 namespace CSM.TmpeSync.Mod
 {
