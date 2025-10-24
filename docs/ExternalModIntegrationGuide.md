@@ -31,7 +31,7 @@ New features must be wired into `TmpeAdapter`. Keep the following rules in mind:
 
 ## 4. Logging
 
-Use `CSM.TmpeSync.Util.Log` if you contribute to this repository. The logger is lightweight and writes to `%LOCALAPPDATA%\Colossal Order\Cities_Skylines\CSM.TmpeSync\csm.tmpe-sync.log`.
+Use `CSM.TmpeSync.Util.Log` if you contribute to this repository. The logger is lightweight and writes to `%LOCALAPPDATA%\Colossal Order\Cities_Skylines\CSM.TmpeSync\log-YYYY-MM-DD.log` (UTC+02:00).
 
 ## 5. TM:PE UI behaviour
 

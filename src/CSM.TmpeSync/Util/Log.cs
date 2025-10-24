@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 
@@ -29,15 +30,12 @@ namespace CSM.TmpeSync.Util
             Error
         }
 
-        private const string DefaultLogFileName = "csm.tmpe-sync.log";
-        private const string SessionLogFilePrefix = "csm.tmpe-sync-server-";
-        private const string SessionLogFileExtension = ".log";
-        private const long MaxFileBytes = 2 * 1024 * 1024; // rotate at 2 MB
-
         private static readonly object SyncRoot = new object();
         private static readonly string LogDirectory;
+        private static readonly TimeSpan LogOffset;
         private static readonly bool DebugEnabled;
         private static bool _initialised;
+        private static string _dailyLogDateStamp = string.Empty;
         private static string _currentLogFilePath;
         private static string _sessionLogFilePath;
         private static bool _sessionActive;
@@ -48,8 +46,15 @@ namespace CSM.TmpeSync.Util
             var colossalOrderDir = Path.Combine(localAppData, "Colossal Order");
             var citiesDir = Path.Combine(colossalOrderDir, "Cities_Skylines");
             LogDirectory = Path.Combine(citiesDir, "CSM.TmpeSync");
-            _currentLogFilePath = Path.Combine(LogDirectory, DefaultLogFileName);
+            LogOffset = TimeSpan.FromHours(2);
+            var now = GetLocalTime();
+            _currentLogFilePath = BuildDailyLogFilePath(now);
+            _dailyLogDateStamp = now.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+#if DEBUG
             DebugEnabled = true;
+#else
+            DebugEnabled = false;
+#endif
         }
 
         internal static bool IsDebugEnabled => DebugEnabled;
@@ -60,14 +65,27 @@ namespace CSM.TmpeSync.Util
             {
                 lock (SyncRoot)
                 {
+                    if (!_sessionActive)
+                    {
+                        var now = GetLocalTime();
+                        var stamp = now.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+                        if (!string.Equals(_dailyLogDateStamp, stamp, StringComparison.Ordinal))
+                        {
+                            _dailyLogDateStamp = stamp;
+                            _currentLogFilePath = BuildDailyLogFilePath(now);
+                        }
+                    }
+
                     return _currentLogFilePath;
                 }
             }
         }
 
+        [Conditional("DEBUG")]
         internal static void Debug(string message, params object[] args) =>
             Write(Level.Debug, LogCategory.General, message, args);
 
+        [Conditional("DEBUG")]
         internal static void Debug(LogCategory category, string message, params object[] args) =>
             Write(Level.Debug, category, message, args);
 
@@ -98,9 +116,14 @@ namespace CSM.TmpeSync.Util
                 if (_sessionActive)
                     return;
 
-                var timestamp = DateTime.UtcNow;
+                var timestamp = GetLocalTime();
                 var stamp = timestamp.ToString("yyyyMMdd-HHmmss", CultureInfo.InvariantCulture);
-                sessionPath = Path.Combine(LogDirectory, SessionLogFilePrefix + stamp + SessionLogFileExtension);
+                sessionPath = Path.Combine(
+                    LogDirectory,
+                    string.Format(
+                        CultureInfo.InvariantCulture,
+                        "csm.tmpe-sync-server-{0}.log",
+                        stamp));
                 var suffix = 1;
                 while (File.Exists(sessionPath))
                 {
@@ -108,17 +131,16 @@ namespace CSM.TmpeSync.Util
                         LogDirectory,
                         string.Format(
                             CultureInfo.InvariantCulture,
-                            "{0}{1}-{2}{3}",
-                            SessionLogFilePrefix,
+                            "csm.tmpe-sync-server-{0}-{1}.log",
                             stamp,
-                            suffix++,
-                            SessionLogFileExtension));
+                            suffix++));
                 }
 
                 _sessionLogFilePath = sessionPath;
                 _currentLogFilePath = sessionPath;
                 _sessionActive = true;
                 _initialised = false;
+                _dailyLogDateStamp = string.Empty;
             }
 
             Info(LogCategory.Lifecycle, "Server session logging started | file={0}", sessionPath);
@@ -142,7 +164,9 @@ namespace CSM.TmpeSync.Util
             {
                 _sessionActive = false;
                 _sessionLogFilePath = null;
-                _currentLogFilePath = Path.Combine(LogDirectory, DefaultLogFileName);
+                var now = GetLocalTime();
+                _currentLogFilePath = BuildDailyLogFilePath(now);
+                _dailyLogDateStamp = now.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
                 _initialised = false;
                 defaultPath = _currentLogFilePath;
             }
@@ -179,10 +203,11 @@ namespace CSM.TmpeSync.Util
                 formattedMessage = message ?? string.Empty;
             }
 
+            var localTime = GetLocalTime();
             var line = string.Format(
                 CultureInfo.InvariantCulture,
                 "{0:yyyy-MM-dd HH:mm:ss.fff} [{1}] [{2}] {3}",
-                DateTime.UtcNow,
+                localTime,
                 level,
                 category,
                 formattedMessage);
@@ -191,7 +216,7 @@ namespace CSM.TmpeSync.Util
             {
                 try
                 {
-                    EnsureTargetReady();
+                    EnsureTargetReady(localTime);
                     File.AppendAllText(_currentLogFilePath, line + Environment.NewLine);
                 }
                 catch
@@ -201,51 +226,36 @@ namespace CSM.TmpeSync.Util
             }
         }
 
-        private static void EnsureTargetReady()
+        private static void EnsureTargetReady(DateTime localTime)
         {
+            if (!_sessionActive)
+            {
+                var currentStamp = localTime.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+                if (!string.Equals(_dailyLogDateStamp, currentStamp, StringComparison.Ordinal))
+                {
+                    _dailyLogDateStamp = currentStamp;
+                    _currentLogFilePath = BuildDailyLogFilePath(localTime);
+                    _initialised = false;
+                }
+            }
+
             if (!_initialised)
             {
                 Directory.CreateDirectory(LogDirectory);
                 _initialised = true;
             }
 
-            try
-            {
-                if (File.Exists(_currentLogFilePath))
-                {
-                    var info = new FileInfo(_currentLogFilePath);
-                    if (info.Length >= MaxFileBytes)
-                    {
-                        var baseName = Path.GetFileNameWithoutExtension(_currentLogFilePath);
-                        if (string.IsNullOrEmpty(baseName))
-                            baseName = "csm.tmpe-sync";
+        }
 
-                        var archiveName = string.Format(
-                            CultureInfo.InvariantCulture,
-                            "{0}-archive-{1:yyyyMMdd-HHmmss}.log",
-                            baseName,
-                            DateTime.UtcNow);
-                        var archivePath = Path.Combine(LogDirectory, archiveName);
-                        if (File.Exists(archivePath))
-                        {
-                            archivePath = Path.Combine(
-                                LogDirectory,
-                                string.Format(
-                                    CultureInfo.InvariantCulture,
-                                    "{0}-archive-{1:yyyyMMdd-HHmmss}-{2}.log",
-                                    baseName,
-                                    DateTime.UtcNow,
-                                    Guid.NewGuid().ToString("N")));
-                        }
+        private static DateTime GetLocalTime() => DateTime.UtcNow + LogOffset;
 
-                        File.Move(_currentLogFilePath, archivePath);
-                    }
-                }
-            }
-            catch
-            {
-                // Rotation failures are non-fatal; next write will continue appending.
-            }
+        private static string BuildDailyLogFilePath(DateTime localTime)
+        {
+            var fileName = string.Format(
+                CultureInfo.InvariantCulture,
+                "log-{0:yyyy-MM-dd}.log",
+                localTime);
+            return Path.Combine(LogDirectory, fileName);
         }
     }
 }

@@ -48,7 +48,14 @@
 
     <!-- ===== Steam installation (optional) ===== -->
     <SteamModsDir Condition="'$(SteamModsDir)'!=''">$(SteamModsDir)</SteamModsDir>
+  </PropertyGroup>
 
+  <PropertyGroup Condition="'$(Configuration)'=='Debug'">
+    <!-- Always compile with the GAME symbol enabled because the project now requires the real game assemblies. -->
+    <DefineConstants>TRACE;DEBUG;GAME</DefineConstants>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)'!='Debug'">
     <!-- Always compile with the GAME symbol enabled because the project now requires the real game assemblies. -->
     <DefineConstants>TRACE;RELEASE;GAME</DefineConstants>
   </PropertyGroup>
