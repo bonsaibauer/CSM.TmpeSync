@@ -19,6 +19,7 @@ namespace CSM.TmpeSync.Util
         private static bool _sendToClientReflectionFailed;
         private static FieldInfo _commandInternalInstanceField;
         private static MethodInfo _commandInternalSendToClientMethod;
+        private static bool _commandInternalSendToClientMethodHasReliabilityParameter;
         private static PropertyInfo _multiplayerManagerInstanceProperty;
         private static PropertyInfo _multiplayerManagerCurrentServerProperty;
         private static PropertyInfo _serverConnectedPlayersProperty;
@@ -177,7 +178,9 @@ namespace CSM.TmpeSync.Util
                         throw new InvalidOperationException("CSM reflection types unavailable");
 
                     _commandInternalInstanceField = commandInternalType.GetField("Instance", BindingFlags.Public | BindingFlags.Static);
-                    _commandInternalSendToClientMethod = FindSendToClientMethod(commandInternalType);
+                    _commandInternalSendToClientMethod = FindSendToClientMethod(
+                        commandInternalType,
+                        out _commandInternalSendToClientMethodHasReliabilityParameter);
                     _multiplayerManagerInstanceProperty = multiplayerManagerType.GetProperty("Instance", BindingFlags.Public | BindingFlags.Static);
                     _multiplayerManagerCurrentServerProperty = multiplayerManagerType.GetProperty("CurrentServer", BindingFlags.Public | BindingFlags.Instance);
 
@@ -208,8 +211,12 @@ namespace CSM.TmpeSync.Util
             }
         }
 
-        private static MethodInfo FindSendToClientMethod(Type commandInternalType)
+        private static MethodInfo FindSendToClientMethod(
+            Type commandInternalType,
+            out bool hasReliabilityParameter)
         {
+            hasReliabilityParameter = false;
+
             if (commandInternalType == null)
                 return null;
 
@@ -220,12 +227,23 @@ namespace CSM.TmpeSync.Util
                     continue;
 
                 var parameters = method.GetParameters();
-                if (parameters.Length != 2)
-                    continue;
+                if (parameters.Length == 2)
+                {
+                    var commandParameter = parameters[1].ParameterType;
+                    if (typeof(CommandBase).IsAssignableFrom(commandParameter))
+                        return method;
+                }
 
-                var commandParameter = parameters[1].ParameterType;
-                if (typeof(CommandBase).IsAssignableFrom(commandParameter))
-                    return method;
+                if (parameters.Length == 3)
+                {
+                    var commandParameter = parameters[1].ParameterType;
+                    var reliabilityParameter = parameters[2].ParameterType;
+                    if (typeof(CommandBase).IsAssignableFrom(commandParameter) && reliabilityParameter == typeof(bool))
+                    {
+                        hasReliabilityParameter = true;
+                        return method;
+                    }
+                }
             }
 
             return null;
@@ -299,7 +317,20 @@ namespace CSM.TmpeSync.Util
                     return false;
                 }
 
-                _commandInternalSendToClientMethod?.Invoke(commandInternal, new[] { player, command });
+                if (_commandInternalSendToClientMethod != null)
+                {
+                    object[] arguments;
+                    if (_commandInternalSendToClientMethodHasReliabilityParameter)
+                    {
+                        arguments = new object[] { player, command, true };
+                    }
+                    else
+                    {
+                        arguments = new object[] { player, command };
+                    }
+
+                    _commandInternalSendToClientMethod.Invoke(commandInternal, arguments);
+                }
                 return true;
             }
             catch (Exception ex)
