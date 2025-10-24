@@ -627,20 +627,23 @@ namespace CSM.TmpeSync.Util
             }
         }
 
+        private static readonly Connection[] EmptyConnectionArray = new Connection[0];
+        private static readonly object[] EmptyObjectArray = new object[0];
+
         private static Connection[] InvokeLegacyConnections(MemberInfo instanceAccessor, MethodInfo method)
         {
             var instance = GetLegacyInstance(instanceAccessor);
             if (instance == null)
-                return Array.Empty<Connection>();
+                return EmptyConnectionArray;
 
             try
             {
-                return method.Invoke(instance, Array.Empty<object>()) as Connection[] ?? Array.Empty<Connection>();
+                return method.Invoke(instance, EmptyObjectArray) as Connection[] ?? EmptyConnectionArray;
             }
             catch (Exception ex)
             {
                 Log.Warn(LogCategory.Network, "Legacy GetRegisteredConnections invocation failed | error={0}", ex);
-                return Array.Empty<Connection>();
+                return EmptyConnectionArray;
             }
         }
 
