@@ -1,6 +1,4 @@
 using System;
-using System.Linq;
-using CSM.API;
 using CSM.API.Commands;
 using CSM.API.Helpers;
 
@@ -11,103 +9,8 @@ namespace CSM.TmpeSync.Util
         private static bool _stubSimulationLogged;
         private static bool _loggedMissingSendToAll;
         private static bool _loggedMissingSendToClients;
-        private static bool _loggedMissingSendToServer;
-        private static bool _loggedMissingSendToClient;
-        private static bool _loggedMissingRegister;
-        private static bool _loggedMissingUnregister;
-
-        internal enum ConnectionRegistrationResult
-        {
-            Failure,
-            Registered,
-            AlreadyRegistered
-        }
-
-        internal static ConnectionRegistrationResult RegisterConnection(Connection connection)
-        {
-            if (connection == null)
-                return ConnectionRegistrationResult.Failure;
-
-            var register = Command.RegisterConnection;
-            if (register == null)
-            {
-                LogMissingRegister();
-                return ConnectionRegistrationResult.Failure;
-            }
-
-            try
-            {
-                if (IsConnectionPresent(connection))
-                    return ConnectionRegistrationResult.AlreadyRegistered;
-
-                return register(connection)
-                    ? ConnectionRegistrationResult.Registered
-                    : ConnectionRegistrationResult.Failure;
-            }
-            catch (Exception ex)
-            {
-                Log.Warn(LogCategory.Network, "Unable to register CSM connection | error={0}", ex);
-                return ConnectionRegistrationResult.Failure;
-            }
-        }
-
-        internal static bool UnregisterConnection(Connection connection)
-        {
-            if (connection == null)
-                return false;
-
-            var unregister = Command.UnregisterConnection;
-            if (unregister == null)
-            {
-                LogMissingUnregister();
-                return false;
-            }
-
-            try
-            {
-                return unregister(connection);
-            }
-            catch (Exception ex)
-            {
-                Log.Warn(LogCategory.Network, "Unable to unregister CSM connection | error={0}", ex);
-                return false;
-            }
-        }
-
-        private static bool IsConnectionPresent(Connection connection)
-        {
-            var getConnections = Command.GetRegisteredConnections;
-            if (getConnections == null)
-                return false;
-
-            try
-            {
-                var connections = getConnections();
-                if (connections == null)
-                    return false;
-
-                foreach (var existing in connections)
-                {
-                    if (existing == null)
-                        continue;
-
-                    if (ReferenceEquals(existing, connection))
-                        return true;
-
-                    if (existing.GetType() == connection.GetType())
-                        return true;
-
-                    if (existing.ModClass != null && connection.ModClass != null && existing.ModClass == connection.ModClass)
-                        return true;
-                }
-            }
-            catch (Exception ex)
-            {
-                Log.Warn(LogCategory.Diagnostics, "Failed to inspect registered CSM connections | error={0}", ex);
-            }
-
-            return false;
-        }
+        private static bool _loggedSendToClientNotServer;
+        private static bool _loggedSendToClientUnavailable;
 
         internal static void SendToAll(CommandBase command)
         {
@@ -123,24 +26,13 @@ namespace CSM.TmpeSync.Util
                 return;
             }
 
-            Log.Debug(LogCategory.Network, "Dispatch delegate missing | direction=all type={0} action=fallback", commandName);
-
             if (!_loggedMissingSendToAll)
             {
                 _loggedMissingSendToAll = true;
                 Log.Warn(LogCategory.Network, "Unable to broadcast command | reason=no_send_delegate type={0}", command.GetType().FullName);
             }
 
-            if (IsServerInstance())
-            {
-                Log.Debug(LogCategory.Network, "Fallback via SendToClients | type={0}", commandName);
-                SendToClients(command);
-            }
-            else
-            {
-                Log.Debug(LogCategory.Network, "Fallback via SendToServer | type={0}", commandName);
-                SendToServer(command);
-            }
+            Log.Debug(LogCategory.Network, "Dispatch delegate missing | direction=all type={0}", commandName);
         }
 
         internal static void SendToClients(CommandBase command)
@@ -153,8 +45,13 @@ namespace CSM.TmpeSync.Util
 
             if (!IsServerInstance())
             {
-                Log.Debug(LogCategory.Network, "Forwarding client-bound command to server | type={0}", commandName);
-                SendToServer(command);
+                if (!_loggedSendToClientNotServer)
+                {
+                    _loggedSendToClientNotServer = true;
+                    Log.Warn(LogCategory.Network, "Ignoring SendToClients call while not acting as server");
+                }
+
+                Log.Debug(LogCategory.Network, "SendToClients ignored on non-server instance | type={0}", commandName);
                 return;
             }
 
@@ -164,13 +61,13 @@ namespace CSM.TmpeSync.Util
                 return;
             }
 
-            Log.Debug(LogCategory.Network, "Dispatch delegate missing | direction=clients type={0}", commandName);
-
             if (!_loggedMissingSendToClients)
             {
                 _loggedMissingSendToClients = true;
                 Log.Warn(LogCategory.Network, "Unable to send command to connected clients | reason=no_send_delegate type={0}", command.GetType().FullName);
             }
+
+            Log.Debug(LogCategory.Network, "Dispatch delegate missing | direction=clients type={0}", commandName);
         }
 
         internal static void SendToServer(CommandBase command)
@@ -187,13 +84,8 @@ namespace CSM.TmpeSync.Util
                 return;
             }
 
+            Log.Warn(LogCategory.Network, "Unable to send command to server | reason=no_send_delegate type={0}", command.GetType().FullName);
             Log.Debug(LogCategory.Network, "Dispatch delegate missing | direction=server type={0}", commandName);
-
-            if (!_loggedMissingSendToServer)
-            {
-                _loggedMissingSendToServer = true;
-                Log.Warn(LogCategory.Network, "Unable to send command to server | reason=no_send_delegate type={0}", command.GetType().FullName);
-            }
         }
 
         internal static void SendToClient(int clientId, CommandBase command)
@@ -206,9 +98,9 @@ namespace CSM.TmpeSync.Util
 
             if (!IsServerInstance())
             {
-                if (!_loggedMissingSendToClient)
+                if (!_loggedSendToClientNotServer)
                 {
-                    _loggedMissingSendToClient = true;
+                    _loggedSendToClientNotServer = true;
                     Log.Warn(LogCategory.Network, "Ignoring SendToClient call while not acting as server");
                 }
 
@@ -216,27 +108,10 @@ namespace CSM.TmpeSync.Util
                 return;
             }
 
-            var sendToClient = Command.SendToClient;
-            if (sendToClient != null)
+            if (!_loggedSendToClientUnavailable)
             {
-                try
-                {
-                    sendToClient(clientId, command);
-                    Log.Debug(LogCategory.Network, "Dispatch complete | direction=client type={0} clientId={1}", commandName, clientId);
-                    return;
-                }
-                catch (Exception ex)
-                {
-                    Log.Warn(LogCategory.Network, "Failed to send command to client | id={0} command={1} error={2}", clientId, command.GetType().Name, ex);
-                }
-            }
-
-            Log.Debug(LogCategory.Network, "Dispatch delegate missing | direction=client type={0} clientId={1}", commandName, clientId);
-
-            if (!_loggedMissingSendToClient)
-            {
-                _loggedMissingSendToClient = true;
-                Log.Warn(LogCategory.Network, "Unable to send command to client | id={0} command={1} reason=no_send_delegate", clientId, command.GetType().Name);
+                _loggedSendToClientUnavailable = true;
+                Log.Warn(LogCategory.Network, "Unable to send command to client | id={0} command={1} reason=api_unavailable", clientId, command.GetType().Name);
             }
 
             Log.Debug(LogCategory.Network, "Command not delivered to client | type={0} clientId={1}", commandName, clientId);
@@ -257,24 +132,6 @@ namespace CSM.TmpeSync.Util
                 Log.Warn(LogCategory.Network, "Failed to invoke CSM delegate {0} | error={1}", DescribeDelegate(action), ex);
                 return false;
             }
-        }
-
-        private static void LogMissingRegister()
-        {
-            if (_loggedMissingRegister)
-                return;
-
-            _loggedMissingRegister = true;
-            Log.Warn(LogCategory.Network, "CSM.API register hook missing");
-        }
-
-        private static void LogMissingUnregister()
-        {
-            if (_loggedMissingUnregister)
-                return;
-
-            _loggedMissingUnregister = true;
-            Log.Warn(LogCategory.Network, "CSM.API unregister hook missing");
         }
 
         internal static int GetSenderId(CommandBase command) => command?.SenderId ?? -1;
@@ -324,26 +181,8 @@ namespace CSM.TmpeSync.Util
                 Log.Info(LogCategory.Diagnostics, "Command.SendToAll delegate | value={0}", DescribeDelegate(Command.SendToAll));
                 Log.Info(LogCategory.Diagnostics, "Command.SendToServer delegate | value={0}", DescribeDelegate(Command.SendToServer));
                 Log.Info(LogCategory.Diagnostics, "Command.SendToClients delegate | value={0}", DescribeDelegate(Command.SendToClients));
-                Log.Info(LogCategory.Diagnostics, "Command.SendToClient delegate | value={0}", DescribeDelegate(Command.SendToClient));
-                Log.Info(LogCategory.Diagnostics, "Command.RegisterConnection hook | value={0}", DescribeDelegate(Command.RegisterConnection));
-                Log.Info(LogCategory.Diagnostics, "Command.UnregisterConnection hook | value={0}", DescribeDelegate(Command.UnregisterConnection));
-
-                var getConnections = Command.GetRegisteredConnections;
-                var connections = getConnections != null ? getConnections() : null;
-                if (connections != null)
-                {
-                    var summary = connections
-                        .Where(c => c != null)
-                        .Select(c => c.Name ?? c.GetType().Name)
-                        .ToArray();
-                    Log.Info(LogCategory.Diagnostics, "Registered connections | count={0} items={1}",
-                        summary.Length,
-                        summary.Length == 0 ? "<empty>" : string.Join(", ", summary));
-                }
-                else
-                {
-                    Log.Info(LogCategory.Diagnostics, "Registered connections | value=<unavailable>");
-                }
+                Log.Info(LogCategory.Diagnostics, "Command.GetCommandHandler delegate | value={0}", DescribeDelegate(Command.GetCommandHandler));
+                Log.Info(LogCategory.Diagnostics, "Command.SendToClient delegate | value=<unsupported>");
             }
             catch (Exception ex)
             {
