@@ -1,28 +1,39 @@
 #!/bin/pwsh
 param(
-    [switch]$CSM = $false,
     [switch]$Configure = $false,
+    [string]$Profile = "",
     [string]$GameDirectory = "",
-    [string]$CitiesSkylinesDir = "",
-    [string]$HarmonyDllDir = "",
-    [string]$TmpeDir = "",
     [string]$SteamModsDir = "",
-    [switch]$SkipCsmUpdate = $false
+    [string]$HarmonySourceDir = "",
+    [string]$CsmSourceDir = "",
+    [string]$TmpeSourceDir = "",
+    [string]$HarmonyDllDir = "",
+    [string]$CsmApiDllPath = "",
+    [string]$TmpeDir = "",
+    [string]$ModDirectory = "",
+    [string]$ModRootDirectory = ""
 )
 
 $ErrorActionPreference = "Stop"
 
-. "$PSScriptRoot\common.ps1"
-
-try {
-    if ($Configure) {
-        Configure-Interactive
-    }
-
-    Invoke-TmpeSyncUpdate -CitiesSkylinesDir $CitiesSkylinesDir -GameDirectory $GameDirectory -HarmonyDllDir $HarmonyDllDir -TmpeDir $TmpeDir -SteamModsDir $SteamModsDir -IncludeCsm:$CSM -SkipCsmUpdate:$SkipCsmUpdate | Out-Null
-}
-finally {
-    Save-BuildConfig
+$buildScript = Join-Path $PSScriptRoot 'build.ps1'
+if (-not (Test-Path $buildScript)) {
+    throw "build.ps1 not found next to update.ps1"
 }
 
-Write-Host "[CSM.TmpeSync] Update completed." -ForegroundColor Green
+$arguments = @('-Update')
+if ($Configure) { $arguments += '-Configure' }
+if (-not [string]::IsNullOrWhiteSpace($Profile)) { $arguments += @('-Profile', $Profile) }
+if (-not [string]::IsNullOrWhiteSpace($GameDirectory)) { $arguments += @('-GameDirectory', $GameDirectory) }
+if (-not [string]::IsNullOrWhiteSpace($SteamModsDir)) { $arguments += @('-SteamModsDir', $SteamModsDir) }
+if (-not [string]::IsNullOrWhiteSpace($HarmonySourceDir)) { $arguments += @('-HarmonySourceDir', $HarmonySourceDir) }
+if (-not [string]::IsNullOrWhiteSpace($CsmSourceDir)) { $arguments += @('-CsmSourceDir', $CsmSourceDir) }
+if (-not [string]::IsNullOrWhiteSpace($TmpeSourceDir)) { $arguments += @('-TmpeSourceDir', $TmpeSourceDir) }
+if (-not [string]::IsNullOrWhiteSpace($HarmonyDllDir)) { $arguments += @('-HarmonyDllDir', $HarmonyDllDir) }
+if (-not [string]::IsNullOrWhiteSpace($CsmApiDllPath)) { $arguments += @('-CsmApiDllPath', $CsmApiDllPath) }
+if (-not [string]::IsNullOrWhiteSpace($TmpeDir)) { $arguments += @('-TmpeDir', $TmpeDir) }
+if (-not [string]::IsNullOrWhiteSpace($ModDirectory)) { $arguments += @('-ModDirectory', $ModDirectory) }
+if (-not [string]::IsNullOrWhiteSpace($ModRootDirectory)) { $arguments += @('-ModRootDirectory', $ModRootDirectory) }
+
+& $buildScript @arguments
+exit $LASTEXITCODE
