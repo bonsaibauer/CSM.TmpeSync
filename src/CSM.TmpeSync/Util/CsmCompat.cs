@@ -18,6 +18,12 @@ namespace CSM.TmpeSync.Util
         private static bool _loggedMissingRegister;
         private static bool _loggedMissingUnregister;
 
+        private static readonly object LegacySync = new object();
+        private static Func<Connection, bool> _legacyRegisterConnection;
+        private static Func<Connection, bool> _legacyUnregisterConnection;
+        private static Func<Connection[]> _legacyGetRegisteredConnections;
+        private static Action<int, CommandBase> _legacySendToClient;
+
         internal enum ConnectionRegistrationResult
         {
             Failure,
@@ -365,22 +371,42 @@ namespace CSM.TmpeSync.Util
 
         private static Func<Connection, bool> GetRegisterConnectionHook()
         {
-            return GetCommandDelegate("RegisterConnection") as Func<Connection, bool>;
+            var hook = GetCommandDelegate("RegisterConnection") as Func<Connection, bool>;
+            if (hook != null)
+                return hook;
+
+            EnsureLegacyHooks();
+            return _legacyRegisterConnection;
         }
 
         private static Func<Connection, bool> GetUnregisterConnectionHook()
         {
-            return GetCommandDelegate("UnregisterConnection") as Func<Connection, bool>;
+            var hook = GetCommandDelegate("UnregisterConnection") as Func<Connection, bool>;
+            if (hook != null)
+                return hook;
+
+            EnsureLegacyHooks();
+            return _legacyUnregisterConnection;
         }
 
         private static Func<Connection[]> GetRegisteredConnectionsHook()
         {
-            return GetCommandDelegate("GetRegisteredConnections") as Func<Connection[]>;
+            var hook = GetCommandDelegate("GetRegisteredConnections") as Func<Connection[]>;
+            if (hook != null)
+                return hook;
+
+            EnsureLegacyHooks();
+            return _legacyGetRegisteredConnections;
         }
 
         private static Action<int, CommandBase> GetSendToClientDelegate()
         {
-            return GetCommandDelegate("SendToClient") as Action<int, CommandBase>;
+            var hook = GetCommandDelegate("SendToClient") as Action<int, CommandBase>;
+            if (hook != null)
+                return hook;
+
+            EnsureLegacyHooks();
+            return _legacySendToClient;
         }
 
         private static Delegate GetCommandDelegate(string memberName)
@@ -407,6 +433,215 @@ namespace CSM.TmpeSync.Util
             }
 
             return null;
+        }
+
+        private static void EnsureLegacyHooks()
+        {
+            if (_legacyRegisterConnection != null &&
+                _legacyUnregisterConnection != null &&
+                _legacyGetRegisteredConnections != null &&
+                _legacySendToClient != null)
+            {
+                return;
+            }
+
+            lock (LegacySync)
+            {
+                if (_legacyRegisterConnection != null &&
+                    _legacyUnregisterConnection != null &&
+                    _legacyGetRegisteredConnections != null &&
+                    _legacySendToClient != null)
+                {
+                    return;
+                }
+
+                var csmAssembly = FindCsmAssembly();
+                if (csmAssembly == null)
+                    return;
+
+                ResolveLegacyModSupportHooks(csmAssembly);
+                ResolveLegacyCommandInternalHooks(csmAssembly);
+            }
+        }
+
+        private static Assembly FindCsmAssembly()
+        {
+            try
+            {
+                foreach (var assembly in AppDomain.CurrentDomain.GetAssemblies())
+                {
+                    if (assembly == null)
+                        continue;
+
+                    if (assembly.GetType("CSM.Mods.ModSupport") != null ||
+                        assembly.GetType("CSM.Commands.CommandInternal") != null)
+                    {
+                        return assembly;
+                    }
+                }
+
+                // Try to resolve by name if the assembly was not yet loaded into the AppDomain.
+                var knownNames = new[]
+                {
+                    "CSM",
+                    "CSM.Mods",
+                    "CitiesSkylinesMultiplayer"
+                };
+
+                foreach (var name in knownNames)
+                {
+                    try
+                    {
+                        var candidate = Assembly.Load(name);
+                        if (candidate != null &&
+                            (candidate.GetType("CSM.Mods.ModSupport") != null ||
+                             candidate.GetType("CSM.Commands.CommandInternal") != null))
+                        {
+                            return candidate;
+                        }
+                    }
+                    catch
+                    {
+                        // Ignored — assembly might not exist under this name.
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Warn(LogCategory.Diagnostics, "Failed to probe CSM assembly for legacy hooks | error={0}", ex);
+            }
+
+            return null;
+        }
+
+        private static void ResolveLegacyModSupportHooks(Assembly csmAssembly)
+        {
+            var modSupportType = csmAssembly.GetType("CSM.Mods.ModSupport");
+            if (modSupportType == null)
+                return;
+
+            const BindingFlags methodFlags = BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance;
+            const BindingFlags instanceFlags = BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static;
+
+            var instanceAccessor = modSupportType.GetProperty("Instance", instanceFlags)
+                ?? (MemberInfo)modSupportType.GetField("Instance", instanceFlags);
+            if (instanceAccessor == null)
+                return;
+
+            var registerMethod = modSupportType.GetMethod("RegisterConnection", methodFlags, null, new[] { typeof(Connection) }, null);
+            if (registerMethod != null)
+            {
+                _legacyRegisterConnection = connection => InvokeLegacyBool(instanceAccessor, registerMethod, connection);
+            }
+
+            var unregisterMethod = modSupportType.GetMethod("UnregisterConnection", methodFlags, null, new[] { typeof(Connection) }, null);
+            if (unregisterMethod != null)
+            {
+                _legacyUnregisterConnection = connection => InvokeLegacyBool(instanceAccessor, unregisterMethod, connection);
+            }
+
+            var getConnectionsMethod = modSupportType.GetMethod("GetRegisteredConnections", methodFlags, null, Type.EmptyTypes, null);
+            if (getConnectionsMethod != null)
+            {
+                _legacyGetRegisteredConnections = () => InvokeLegacyConnections(instanceAccessor, getConnectionsMethod);
+            }
+        }
+
+        private static void ResolveLegacyCommandInternalHooks(Assembly csmAssembly)
+        {
+            var commandInternalType = csmAssembly.GetType("CSM.Commands.CommandInternal");
+            if (commandInternalType == null)
+                return;
+
+            var instanceField = commandInternalType.GetField("Instance", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static)
+                ?? commandInternalType.GetField("s_instance", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static);
+            var sendToClientMethod = commandInternalType.GetMethod(
+                "SendToClient",
+                BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance,
+                null,
+                new[] { typeof(int), typeof(CommandBase) },
+                null);
+
+            if (sendToClientMethod != null)
+            {
+                _legacySendToClient = (clientId, command) =>
+                {
+                    object target = null;
+                    if (!sendToClientMethod.IsStatic)
+                    {
+                        var field = instanceField;
+                        if (field == null)
+                            return;
+
+                        target = field.GetValue(null);
+                        if (target == null)
+                            return;
+                    }
+
+                    try
+                    {
+                        sendToClientMethod.Invoke(target, new object[] { clientId, command });
+                    }
+                    catch (Exception ex)
+                    {
+                        Log.Warn(LogCategory.Network, "Legacy SendToClient invocation failed | clientId={0} command={1} error={2}",
+                            clientId,
+                            command?.GetType().Name ?? "<null>",
+                            ex);
+                    }
+                };
+            }
+        }
+
+        private static object GetLegacyInstance(MemberInfo accessor)
+        {
+            switch (accessor)
+            {
+                case PropertyInfo property:
+                    return property.GetValue(null, null);
+                case FieldInfo field:
+                    return field.GetValue(null);
+                default:
+                    return null;
+            }
+        }
+
+        private static bool InvokeLegacyBool(MemberInfo instanceAccessor, MethodInfo method, Connection argument)
+        {
+            var instance = GetLegacyInstance(instanceAccessor);
+            if (instance == null)
+                return false;
+
+            try
+            {
+                var result = method.Invoke(instance, new object[] { argument });
+                return result is bool success && success;
+            }
+            catch (Exception ex)
+            {
+                Log.Warn(LogCategory.Network, "Legacy {0} invocation failed | connection={1} error={2}",
+                    method.Name,
+                    argument?.Name ?? argument?.GetType().Name ?? "<null>",
+                    ex);
+                return false;
+            }
+        }
+
+        private static Connection[] InvokeLegacyConnections(MemberInfo instanceAccessor, MethodInfo method)
+        {
+            var instance = GetLegacyInstance(instanceAccessor);
+            if (instance == null)
+                return Array.Empty<Connection>();
+
+            try
+            {
+                return method.Invoke(instance, Array.Empty<object>()) as Connection[] ?? Array.Empty<Connection>();
+            }
+            catch (Exception ex)
+            {
+                Log.Warn(LogCategory.Network, "Legacy GetRegisteredConnections invocation failed | error={0}", ex);
+                return Array.Empty<Connection>();
+            }
         }
 
         private sealed class IgnoreScope : IDisposable
