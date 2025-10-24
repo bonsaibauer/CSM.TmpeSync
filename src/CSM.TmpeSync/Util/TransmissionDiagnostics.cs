@@ -13,6 +13,8 @@ namespace CSM.TmpeSync.Util
         private static readonly object JunctionLock = new object();
         private static readonly Dictionary<ushort, JunctionRestrictionsState> LastReceivedJunctions =
             new Dictionary<ushort, JunctionRestrictionsState>();
+        private static readonly Dictionary<ushort, JunctionRestrictionsState> LastSentJunctions =
+            new Dictionary<ushort, JunctionRestrictionsState>();
 
         internal static void LogOutgoingSpeedLimit(
             uint laneId,
@@ -84,12 +86,16 @@ namespace CSM.TmpeSync.Util
             }
         }
 
-        internal static void LogOutgoingJunctionRestrictions(
+        internal static JunctionRestrictionsState LogOutgoingJunctionRestrictions(
             ushort nodeId,
             JunctionRestrictionsState state,
             string origin)
         {
             var snapshot = Clone(state);
+
+            if (CsmCompat.IsServerInstance())
+                snapshot = PrepareOutgoingJunctionRestrictions(nodeId, snapshot);
+
             Log.Debug(
                 LogCategory.Diagnostics,
                 "Junction restrictions dispatch | origin={0} nodeId={1} state={2}",
@@ -97,16 +103,21 @@ namespace CSM.TmpeSync.Util
                 nodeId,
                 snapshot);
 
-            var missing = DescribeUnsetFlags(snapshot);
-            if (!string.IsNullOrEmpty(missing))
+            if (snapshot.HasAnyValue())
             {
-                Log.Warn(
-                    LogCategory.Diagnostics,
-                    "Junction restrictions dispatch missing values | origin={0} nodeId={1} missing={2}",
-                    origin,
-                    nodeId,
-                    missing);
+                var missing = DescribeUnsetFlags(snapshot);
+                if (!string.IsNullOrEmpty(missing))
+                {
+                    Log.Warn(
+                        LogCategory.Diagnostics,
+                        "Junction restrictions dispatch missing values | origin={0} nodeId={1} missing={2}",
+                        origin,
+                        nodeId,
+                        missing);
+                }
             }
+
+            return snapshot.Clone();
         }
 
         internal static void LogIncomingJunctionRestrictions(
@@ -122,15 +133,18 @@ namespace CSM.TmpeSync.Util
                 nodeId,
                 snapshot);
 
-            var missing = DescribeUnsetFlags(snapshot);
-            if (!string.IsNullOrEmpty(missing))
+            if (snapshot.HasAnyValue())
             {
-                Log.Warn(
-                    LogCategory.Diagnostics,
-                    "Junction restrictions received with missing values | origin={0} nodeId={1} missing={2}",
-                    origin,
-                    nodeId,
-                    missing);
+                var missing = DescribeUnsetFlags(snapshot);
+                if (!string.IsNullOrEmpty(missing))
+                {
+                    Log.Warn(
+                        LogCategory.Diagnostics,
+                        "Junction restrictions received with missing values | origin={0} nodeId={1} missing={2}",
+                        origin,
+                        nodeId,
+                        missing);
+                }
             }
 
             JunctionRestrictionsState previous = null;
@@ -158,6 +172,34 @@ namespace CSM.TmpeSync.Util
             }
         }
 
+        private static JunctionRestrictionsState PrepareOutgoingJunctionRestrictions(
+            ushort nodeId,
+            JunctionRestrictionsState snapshot)
+        {
+            if (snapshot == null)
+                snapshot = new JunctionRestrictionsState();
+
+            if (!snapshot.HasAnyValue())
+            {
+                lock (JunctionLock)
+                {
+                    LastSentJunctions.Remove(nodeId);
+                }
+
+                return snapshot;
+            }
+
+            lock (JunctionLock)
+            {
+                if (LastSentJunctions.TryGetValue(nodeId, out var previous) && previous != null)
+                    MergeMissingFlags(snapshot, previous);
+
+                LastSentJunctions[nodeId] = snapshot.Clone();
+            }
+
+            return snapshot;
+        }
+
         private static SpeedLimitValue Clone(SpeedLimitValue value)
         {
             if (value == null)
@@ -174,6 +216,25 @@ namespace CSM.TmpeSync.Util
         private static JunctionRestrictionsState Clone(JunctionRestrictionsState state)
         {
             return state?.Clone() ?? new JunctionRestrictionsState();
+        }
+
+        private static void MergeMissingFlags(JunctionRestrictionsState target, JunctionRestrictionsState fallback)
+        {
+            if (target == null || fallback == null)
+                return;
+
+            if (!target.AllowUTurns.HasValue && fallback.AllowUTurns.HasValue)
+                target.AllowUTurns = fallback.AllowUTurns;
+            if (!target.AllowLaneChangesWhenGoingStraight.HasValue && fallback.AllowLaneChangesWhenGoingStraight.HasValue)
+                target.AllowLaneChangesWhenGoingStraight = fallback.AllowLaneChangesWhenGoingStraight;
+            if (!target.AllowEnterWhenBlocked.HasValue && fallback.AllowEnterWhenBlocked.HasValue)
+                target.AllowEnterWhenBlocked = fallback.AllowEnterWhenBlocked;
+            if (!target.AllowPedestrianCrossing.HasValue && fallback.AllowPedestrianCrossing.HasValue)
+                target.AllowPedestrianCrossing = fallback.AllowPedestrianCrossing;
+            if (!target.AllowNearTurnOnRed.HasValue && fallback.AllowNearTurnOnRed.HasValue)
+                target.AllowNearTurnOnRed = fallback.AllowNearTurnOnRed;
+            if (!target.AllowFarTurnOnRed.HasValue && fallback.AllowFarTurnOnRed.HasValue)
+                target.AllowFarTurnOnRed = fallback.AllowFarTurnOnRed;
         }
 
         private static string DescribeUnsetFlags(JunctionRestrictionsState state)

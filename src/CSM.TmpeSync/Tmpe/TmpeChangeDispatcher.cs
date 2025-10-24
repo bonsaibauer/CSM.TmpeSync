@@ -221,12 +221,15 @@ namespace CSM.TmpeSync.Tmpe
 
             if (TmpeAdapter.TryGetJunctionRestrictions(nodeId, out var state))
             {
-                TransmissionDiagnostics.LogOutgoingJunctionRestrictions(nodeId, state, "change_dispatcher");
+                var preparedState = TransmissionDiagnostics.LogOutgoingJunctionRestrictions(
+                    nodeId,
+                    state,
+                    "change_dispatcher");
 
                 Broadcast(new JunctionRestrictionsApplied
                 {
                     NodeId = nodeId,
-                    State = state?.Clone() ?? new JunctionRestrictionsState()
+                    State = preparedState?.Clone() ?? new JunctionRestrictionsState()
                 });
             }
         }
