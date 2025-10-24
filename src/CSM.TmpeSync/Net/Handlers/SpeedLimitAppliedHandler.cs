@@ -1,5 +1,6 @@
 using CSM.API.Commands;
 using CSM.TmpeSync.Net.Contracts.Applied;
+using CSM.TmpeSync.Tmpe;
 using CSM.TmpeSync.Util;
 
 namespace CSM.TmpeSync.Net.Handlers

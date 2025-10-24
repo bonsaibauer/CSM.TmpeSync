@@ -141,7 +141,7 @@ namespace CSM.TmpeSync.Util
                 return new LaneConnectionCommand
                 {
                     SourceLaneId = SourceLaneId,
-                    TargetLaneIds = TargetLaneIds?.ToArray() ?? Array.Empty<uint>(),
+                    TargetLaneIds = TargetLaneIds != null ? TargetLaneIds.ToArray() : new uint[0],
                     SegmentId = SegmentId,
                     LaneIndex = LaneIndex,
                     Attempts = Attempts,
@@ -510,12 +510,12 @@ namespace CSM.TmpeSync.Util
 
         internal static void UpsertLane(
             uint laneId,
-            float speedKmh,
-            float? defaultKmh,
             ushort segmentId,
             int laneIndex,
-            string reason,
-            ulong observerHash)
+            float speedKmh,
+            float? defaultKmh,
+            ulong observerHash,
+            string reason)
         {
             if (laneId == 0)
                 return;
@@ -816,7 +816,7 @@ namespace CSM.TmpeSync.Util
             if (sourceLaneId == 0)
                 return;
 
-            var sanitized = (targetLaneIds ?? Array.Empty<uint>())
+            var sanitized = (targetLaneIds ?? new uint[0])
                 .Where(id => id != 0)
                 .Distinct()
                 .ToArray();
@@ -824,7 +824,7 @@ namespace CSM.TmpeSync.Util
             lock (Sync)
             {
                 var key = new PendingKey(PendingKind.LaneConnection, sourceLaneId);
-                var entry = GetOrCreateEntry(key, PendingKind.LaneConnection, () => new LaneConnectionCommand { SourceLaneId = sourceLaneId, TargetLaneIds = Array.Empty<uint>() });
+                var entry = GetOrCreateEntry(key, PendingKind.LaneConnection, () => new LaneConnectionCommand { SourceLaneId = sourceLaneId, TargetLaneIds = new uint[0] });
                 var command = (LaneConnectionCommand)entry.Command;
                 command.SourceLaneId = sourceLaneId;
                 command.TargetLaneIds = sanitized;
@@ -886,11 +886,12 @@ namespace CSM.TmpeSync.Util
                 var key = new PendingKey(PendingKind.LaneConnection, sourceLaneId);
                 if (!PendingTable.TryGetValue(key, out var entry))
                 {
-                    targetLaneIds = Array.Empty<uint>();
+                    targetLaneIds = new uint[0];
                     return false;
                 }
 
-                targetLaneIds = ((LaneConnectionCommand)entry.Command).TargetLaneIds?.ToArray() ?? Array.Empty<uint>();
+                var command = (LaneConnectionCommand)entry.Command;
+                targetLaneIds = command.TargetLaneIds != null ? command.TargetLaneIds.ToArray() : new uint[0];
                 return true;
             }
         }

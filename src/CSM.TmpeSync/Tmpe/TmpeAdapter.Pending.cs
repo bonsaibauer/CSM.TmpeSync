@@ -169,9 +169,11 @@ namespace CSM.TmpeSync.Tmpe
                     return PendingMap.RetryResult.Success;
             }
 
-            if (TryApplyLaneConnectionsReal(command.SourceLaneId, command.TargetLaneIds ?? Array.Empty<uint>()))
+            var targets = command.TargetLaneIds ?? new uint[0];
+
+            if (TryApplyLaneConnectionsReal(command.SourceLaneId, targets))
             {
-                HandleLaneConnectionSideEffects(command.SourceLaneId, command.TargetLaneIds);
+                HandleLaneConnectionSideEffects(command.SourceLaneId, targets);
                 return PendingMap.RetryResult.Success;
             }
 
@@ -288,8 +290,11 @@ namespace CSM.TmpeSync.Tmpe
             if (ReferenceEquals(left, right))
                 return true;
 
-            left ??= Array.Empty<uint>();
-            right ??= Array.Empty<uint>();
+            if (left == null)
+                left = new uint[0];
+
+            if (right == null)
+                right = new uint[0];
 
             if (left.Length != right.Length)
                 return false;
@@ -311,9 +316,8 @@ namespace CSM.TmpeSync.Tmpe
             if (desired == null || live == null)
                 return false;
 
-            return Nullable.Equals(desired.ParkingAllowedForward, live.ParkingAllowedForward) &&
-                   Nullable.Equals(desired.ParkingAllowedBackward, live.ParkingAllowedBackward) &&
-                   Nullable.Equals(desired.ParkingAllowedBoth, live.ParkingAllowedBoth);
+            return Nullable.Equals(desired.AllowParkingForward, live.AllowParkingForward) &&
+                   Nullable.Equals(desired.AllowParkingBackward, live.AllowParkingBackward);
         }
     }
 }

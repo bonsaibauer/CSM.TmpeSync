@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using CSM.TmpeSync.Net.Contracts.Applied;
+using CSM.TmpeSync.Tmpe;
 using CSM.TmpeSync.Util;
 using Log = CSM.TmpeSync.Util.Log;
 
