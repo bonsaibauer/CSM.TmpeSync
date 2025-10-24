@@ -48,8 +48,11 @@ namespace CSM.TmpeSync.Net.Handlers
 
                     if (TmpeAdapter.ApplyParkingRestriction(cmd.SegmentId, state))
                     {
-                        Log.Info("Applied parking restriction segment={0} -> {1}; broadcasting update.", cmd.SegmentId, state);
-                        CsmCompat.SendToAll(new ParkingRestrictionApplied { SegmentId = cmd.SegmentId, State = state });
+                        var resultingState = state?.Clone();
+                        if (TmpeAdapter.TryGetParkingRestriction(cmd.SegmentId, out var appliedState) && appliedState != null)
+                            resultingState = appliedState.Clone();
+                        Log.Info("Applied parking restriction segment={0} -> {1}; broadcasting update.", cmd.SegmentId, resultingState);
+                        CsmCompat.SendToAll(new ParkingRestrictionApplied { SegmentId = cmd.SegmentId, State = resultingState });
                     }
                     else
                     {

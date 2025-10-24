@@ -24,7 +24,7 @@ namespace CSM.TmpeSync.HideCrosswalks
                     });
 
                 if (HasRealHideCrosswalks)
-                    Log.Info(LogCategory.Bridge, "HideCrosswalks API detected | status=crosswalk_synchronization_ready");
+                    Log.Warn(LogCategory.Bridge, "HideCrosswalks API detected but integration is not yet implemented | action=reject_requests");
                 else
                     Log.Warn(LogCategory.Bridge, "HideCrosswalks API not detected | action=fallback_to_stub_storage");
             }
@@ -38,12 +38,14 @@ namespace CSM.TmpeSync.HideCrosswalks
         {
             try
             {
-                var key = new NodeSegmentKey(nodeId, segmentId);
-
                 if (HasRealHideCrosswalks)
-                    Log.Debug(LogCategory.Hook, "HideCrosswalks request | nodeId={0} segmentId={1} hidden={2}", nodeId, segmentId, hidden);
-                else
-                    Log.Info(LogCategory.Synchronization, "HideCrosswalks stored in stub | nodeId={0} segmentId={1} hidden={2}", nodeId, segmentId, hidden);
+                {
+                    Log.Warn(LogCategory.Bridge, "Rejecting HideCrosswalks synchronization request | nodeId={0} segmentId={1} reason=bridge_unavailable", nodeId, segmentId);
+                    return false;
+                }
+
+                var key = new NodeSegmentKey(nodeId, segmentId);
+                Log.Info(LogCategory.Synchronization, "HideCrosswalks stored in stub | nodeId={0} segmentId={1} hidden={2}", nodeId, segmentId, hidden);
 
                 lock (StateLock)
                 {
@@ -67,6 +69,13 @@ namespace CSM.TmpeSync.HideCrosswalks
         {
             try
             {
+                if (HasRealHideCrosswalks)
+                {
+                    hidden = false;
+                    Log.Warn(LogCategory.Bridge, "HideCrosswalks state query rejected | nodeId={0} segmentId={1} reason=bridge_unavailable", nodeId, segmentId);
+                    return false;
+                }
+
                 var key = new NodeSegmentKey(nodeId, segmentId);
 
                 lock (StateLock)

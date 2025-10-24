@@ -54,8 +54,11 @@ namespace CSM.TmpeSync.Net.Handlers
 
                     if (HideCrosswalksAdapter.ApplyCrosswalkHidden(cmd.NodeId, cmd.SegmentId, cmd.Hidden))
                     {
-                        Log.Info("Applied crosswalk hidden={0} node={1} segment={2}; broadcasting update.", cmd.Hidden, cmd.NodeId, cmd.SegmentId);
-                        CsmCompat.SendToAll(new CrosswalkHiddenApplied { NodeId = cmd.NodeId, SegmentId = cmd.SegmentId, Hidden = cmd.Hidden });
+                        var resultingHidden = cmd.Hidden;
+                        if (HideCrosswalksAdapter.TryGetCrosswalkHidden(cmd.NodeId, cmd.SegmentId, out var appliedHidden))
+                            resultingHidden = appliedHidden;
+                        Log.Info("Applied crosswalk hidden={0} node={1} segment={2}; broadcasting update.", resultingHidden, cmd.NodeId, cmd.SegmentId);
+                        CsmCompat.SendToAll(new CrosswalkHiddenApplied { NodeId = cmd.NodeId, SegmentId = cmd.SegmentId, Hidden = resultingHidden });
                     }
                     else
                     {

@@ -106,13 +106,15 @@
     <Compile Include="Util\EntityLocks.cs" />
     <Compile Include="Util\DeferredApply.cs" />
     <Compile Include="Util\CsmCompat.cs" />
+    <Compile Include="Util\TransmissionDiagnostics.cs" />
     <Compile Include="Util\LockRegistry.cs" />
+    <Compile Include="Util\LaneGuidRegistry.cs" />
+    <Compile Include="Util\LaneAssignmentRetryBuffer.cs" />
     <Compile Include="Util\MultiplayerStateObserver.cs" />
 
     <Compile Include="HideCrosswalks\HideCrosswalksAdapter.cs" />
 
     <Compile Include="Tmpe\TmpeAdapter.cs" />
-    <Compile Include="Tmpe\TmpeToolAvailability.cs" />
 
     <Compile Include="Net\Contracts\States\TmpeStates.cs" />
     <Compile Include="Net\Contracts\Requests\SetSpeedLimitRequest.cs" />
@@ -122,24 +124,32 @@
     <Compile Include="Net\Contracts\Requests\SetJunctionRestrictionsRequest.cs" />
     <Compile Include="Net\Contracts\Requests\SetPrioritySignRequest.cs" />
     <Compile Include="Net\Contracts\Requests\SetParkingRestrictionRequest.cs" />
-    <Compile Include="Net\Contracts\Requests\SetTimedTrafficLightRequest.cs" />
     <Compile Include="Net\Contracts\Requests\ToggleTrafficLightRequest.cs" />
     <Compile Include="Net\Contracts\Requests\SetCrosswalkHiddenRequest.cs" />
+    <Compile Include="Net\Contracts\Requests\ClearTrafficRequest.cs" />
     <Compile Include="Net\Contracts\Applied\SpeedLimitApplied.cs" />
+    <Compile Include="Net\Contracts\Applied\SpeedLimitBatchApplied.cs" />
     <Compile Include="Net\Contracts\Applied\LaneArrowApplied.cs" />
     <Compile Include="Net\Contracts\Applied\VehicleRestrictionsApplied.cs" />
     <Compile Include="Net\Contracts\Applied\LaneConnectionsApplied.cs" />
     <Compile Include="Net\Contracts\Applied\JunctionRestrictionsApplied.cs" />
     <Compile Include="Net\Contracts\Applied\PrioritySignApplied.cs" />
     <Compile Include="Net\Contracts\Applied\ParkingRestrictionApplied.cs" />
-    <Compile Include="Net\Contracts\Applied\TimedTrafficLightApplied.cs" />
     <Compile Include="Net\Contracts\Applied\TrafficLightToggledApplied.cs" />
     <Compile Include="Net\Contracts\Applied\CrosswalkHiddenApplied.cs" />
+    <Compile Include="Net\Contracts\Applied\ClearTrafficApplied.cs" />
+    <Compile Include="Net\Contracts\Mapping\LaneMappingBatch.cs" />
+    <Compile Include="Net\Contracts\Mapping\LaneMappingChanged.cs" />
+    <Compile Include="Net\Contracts\Mapping\LaneMappingRemoved.cs" />
+    <Compile Include="Net\LaneGuid.cs" />
     <Compile Include="Net\Contracts\System\RequestRejected.cs" />
+    <Compile Include="Net\Contracts\System\TmpeFeatureReady.cs" />
     <Compile Include="Net\Contracts\Locks\BeginEnd.cs" />
 
     <Compile Include="Net\Handlers\SetSpeedLimitRequestHandler.cs" />
     <Compile Include="Net\Handlers\SpeedLimitAppliedHandler.cs" />
+    <Compile Include="Net\Handlers\SpeedLimitBatchAppliedHandler.cs" />
+    <Compile Include="Net\Handlers\SpeedLimitCommandProcessor.cs" />
     <Compile Include="Net\Handlers\RequestRejectedHandler.cs" />
     <Compile Include="Net\Handlers\SpeedLimitDeferredOp.cs" />
     <Compile Include="Net\Handlers\SetLaneArrowRequestHandler.cs" />
@@ -160,15 +170,18 @@
     <Compile Include="Net\Handlers\SetParkingRestrictionRequestHandler.cs" />
     <Compile Include="Net\Handlers\ParkingRestrictionAppliedHandler.cs" />
     <Compile Include="Net\Handlers\ParkingRestrictionDeferredOp.cs" />
-    <Compile Include="Net\Handlers\SetTimedTrafficLightRequestHandler.cs" />
-    <Compile Include="Net\Handlers\TimedTrafficLightAppliedHandler.cs" />
-    <Compile Include="Net\Handlers\TimedTrafficLightDeferredOp.cs" />
     <Compile Include="Net\Handlers\ToggleTrafficLightRequestHandler.cs" />
     <Compile Include="Net\Handlers\TrafficLightToggledAppliedHandler.cs" />
     <Compile Include="Net\Handlers\TrafficLightToggledDeferredOp.cs" />
     <Compile Include="Net\Handlers\SetCrosswalkHiddenRequestHandler.cs" />
+    <Compile Include="Net\Handlers\ClearTrafficRequestHandler.cs" />
     <Compile Include="Net\Handlers\CrosswalkHiddenAppliedHandler.cs" />
     <Compile Include="Net\Handlers\CrosswalkHiddenDeferredOp.cs" />
+    <Compile Include="Net\Handlers\ClearTrafficAppliedHandler.cs" />
+    <Compile Include="Net\Handlers\LaneMappingBatchHandler.cs" />
+    <Compile Include="Net\Handlers\LaneMappingChangedHandler.cs" />
+    <Compile Include="Net\Handlers\LaneMappingRemovedHandler.cs" />
+    <Compile Include="Net\Handlers\TmpeFeatureReadyHandler.cs" />
     <Compile Include="Net\Handlers\Locks\BeginEndHandlers.cs" />
     <Compile Include="Net\Handlers\Locks\EditLockAppliedHandler.cs" />
     <Compile Include="Net\Handlers\Locks\EditLockClearedHandler.cs" />
@@ -176,16 +189,23 @@
     <Compile Include="Snapshot\ISnapshotProvider.cs" />
     <Compile Include="Snapshot\SpeedLimitSnapshotProvider.cs" />
     <Compile Include="Snapshot\LaneArrowSnapshotProvider.cs" />
+    <Compile Include="Snapshot\LaneMappingSnapshotProvider.cs" />
     <Compile Include="Snapshot\VehicleRestrictionsSnapshotProvider.cs" />
     <Compile Include="Snapshot\LaneConnectionsSnapshotProvider.cs" />
     <Compile Include="Snapshot\JunctionRestrictionsSnapshotProvider.cs" />
     <Compile Include="Snapshot\PrioritySignSnapshotProvider.cs" />
     <Compile Include="Snapshot\ParkingRestrictionSnapshotProvider.cs" />
-    <Compile Include="Snapshot\TimedTrafficLightSnapshotProvider.cs" />
-    <Compile Include="Snapshot\ManualTrafficLightSnapshotProvider.cs" />
+    <Compile Include="Snapshot\ToggleTrafficLightSnapshotProvider.cs" />
     <Compile Include="Snapshot\CrosswalkHiddenSnapshotProvider.cs" />
+    <Compile Include="Snapshot\SnapshotDispatcher.cs" />
+    <Compile Include="Util\LaneMappingStore.cs" />
+    <Compile Include="Util\LaneMappingTracker.cs" />
+    <Compile Include="Util\TmpeFeatureReadyNotifier.cs" />
 
     <Compile Include="Tool\LockOverlay.cs" />
+    <Compile Include="Tmpe\TmpeChangeDispatcher.cs" />
+    <Compile Include="Tmpe\TmpeEventBridge.cs" />
+    <Compile Include="Tmpe\SpeedLimitCodec.cs" />
   </ItemGroup>
 
   <!-- ==== Post-Build: Copy the add-on into the local mod directory ==== -->

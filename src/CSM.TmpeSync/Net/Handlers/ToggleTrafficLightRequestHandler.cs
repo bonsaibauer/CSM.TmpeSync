@@ -28,11 +28,18 @@ namespace CSM.TmpeSync.Net.Handlers
                 return;
             }
 
+            if (!TmpeAdapter.IsFeatureSupported("toggleTrafficLights"))
+            {
+                Log.Warn("Rejecting ToggleTrafficLightRequest node={0} – feature not supported by TM:PE bridge.", cmd.NodeId);
+                CsmCompat.SendToClient(senderId, new RequestRejected { Reason = "feature_disabled", EntityId = cmd.NodeId, EntityType = 3 });
+                return;
+            }
+
             NetUtil.RunOnSimulation(() =>
             {
                 if (!NetUtil.NodeExists(cmd.NodeId))
                 {
-                    Log.Warn("Simulation step aborted – node {0} vanished before manual traffic light apply.", cmd.NodeId);
+                    Log.Warn("Simulation step aborted – node {0} vanished before toggle traffic light apply.", cmd.NodeId);
                     return;
                 }
 
@@ -40,18 +47,21 @@ namespace CSM.TmpeSync.Net.Handlers
                 {
                     if (!NetUtil.NodeExists(cmd.NodeId))
                     {
-                        Log.Warn("Skipping manual traffic light apply – node {0} disappeared while locked.", cmd.NodeId);
+                        Log.Warn("Skipping toggle traffic light apply – node {0} disappeared while locked.", cmd.NodeId);
                         return;
                     }
 
-                    if (TmpeAdapter.ApplyManualTrafficLight(cmd.NodeId, cmd.Enabled))
+                    if (TmpeAdapter.ApplyToggleTrafficLight(cmd.NodeId, cmd.Enabled))
                     {
-                        Log.Info("Applied manual traffic light node={0} -> {1}; broadcasting update.", cmd.NodeId, cmd.Enabled);
-                        CsmCompat.SendToAll(new TrafficLightToggledApplied { NodeId = cmd.NodeId, Enabled = cmd.Enabled });
+                        var resultingEnabled = cmd.Enabled;
+                        if (TmpeAdapter.TryGetToggleTrafficLight(cmd.NodeId, out var appliedEnabled))
+                            resultingEnabled = appliedEnabled;
+                        Log.Info("Applied toggle traffic light node={0} -> {1}; broadcasting update.", cmd.NodeId, resultingEnabled);
+                        CsmCompat.SendToAll(new TrafficLightToggledApplied { NodeId = cmd.NodeId, Enabled = resultingEnabled });
                     }
                     else
                     {
-                        Log.Error("Failed to apply manual traffic light node={0} -> {1}; notifying client {2}.", cmd.NodeId, cmd.Enabled, senderId);
+                        Log.Error("Failed to apply toggle traffic light node={0} -> {1}; notifying client {2}.", cmd.NodeId, cmd.Enabled, senderId);
                         CsmCompat.SendToClient(senderId, new RequestRejected { Reason = "tmpe_apply_failed", EntityId = cmd.NodeId, EntityType = 3 });
                     }
                 }

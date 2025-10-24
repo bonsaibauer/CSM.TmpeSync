@@ -14,6 +14,39 @@ namespace CSM.TmpeSync.Net.Contracts.States
     }
 
     [ProtoContract]
+    public enum SpeedLimitValueType
+    {
+        [ProtoEnum(Value = 0)] Default = 0,
+        [ProtoEnum(Value = 1)] KilometresPerHour = 1,
+        [ProtoEnum(Value = 2)] MilesPerHour = 2,
+        [ProtoEnum(Value = 3)] Unlimited = 3
+    }
+
+    [ProtoContract]
+    public class SpeedLimitValue
+    {
+        [ProtoMember(1)] public SpeedLimitValueType Type { get; set; }
+
+        /// <summary>
+        /// Index into the TM:PE speed-limit palette for the corresponding unit.
+        /// </summary>
+        [ProtoMember(2)] public byte Index { get; set; }
+
+        /// <summary>
+        /// Raw kilometres-per-hour representation of the intended limit. Acts as a
+        /// resilience channel when the encoded type/index degrade in transit.
+        /// </summary>
+        [ProtoMember(3)] public float RawSpeedKmh { get; set; }
+
+        public override string ToString()
+        {
+            return RawSpeedKmh > 0.01f
+                ? $"Type={Type} Index={Index} Raw={RawSpeedKmh:0.###} km/h"
+                : $"Type={Type} Index={Index}";
+        }
+    }
+
+    [ProtoContract]
     [Flags]
     public enum VehicleRestrictionFlags
     {
@@ -43,14 +76,20 @@ namespace CSM.TmpeSync.Net.Contracts.States
     [ProtoContract]
     public class JunctionRestrictionsState
     {
-        [ProtoMember(1)] public bool AllowUTurns { get; set; } = true;
-        [ProtoMember(2)] public bool AllowLaneChangesWhenGoingStraight { get; set; } = true;
-        [ProtoMember(3)] public bool AllowEnterWhenBlocked { get; set; } = true;
-        [ProtoMember(4)] public bool AllowPedestrianCrossing { get; set; } = true;
+        [ProtoMember(1)] public bool? AllowUTurns { get; set; }
+        [ProtoMember(2)] public bool? AllowLaneChangesWhenGoingStraight { get; set; }
+        [ProtoMember(3)] public bool? AllowEnterWhenBlocked { get; set; }
+        [ProtoMember(4)] public bool? AllowPedestrianCrossing { get; set; }
         [ProtoMember(5)]
-        public bool AllowTurningOnRed
+        public bool? AllowTurningOnRed
         {
-            get => AllowNearTurnOnRed && AllowFarTurnOnRed;
+            get
+            {
+                if (!AllowNearTurnOnRed.HasValue || !AllowFarTurnOnRed.HasValue)
+                    return null;
+
+                return AllowNearTurnOnRed.Value && AllowFarTurnOnRed.Value;
+            }
             set
             {
                 AllowNearTurnOnRed = value;
@@ -58,41 +97,183 @@ namespace CSM.TmpeSync.Net.Contracts.States
             }
         }
 
-        private bool _allowNearTurnOnRed = true;
-        private bool _allowFarTurnOnRed = true;
+        private bool? _allowNearTurnOnRed;
+        private bool? _allowFarTurnOnRed;
 
         [ProtoMember(6)]
-        public bool AllowNearTurnOnRed
+        public bool? AllowNearTurnOnRed
         {
             get => _allowNearTurnOnRed;
             set => _allowNearTurnOnRed = value;
         }
 
         [ProtoMember(7)]
-        public bool AllowFarTurnOnRed
+        public bool? AllowFarTurnOnRed
         {
             get => _allowFarTurnOnRed;
             set => _allowFarTurnOnRed = value;
         }
 
+        public bool ShouldSerializeAllowUTurns() => AllowUTurns.HasValue;
+
+        public bool ShouldSerializeAllowLaneChangesWhenGoingStraight()
+        {
+            return AllowLaneChangesWhenGoingStraight.HasValue;
+        }
+
+        public bool ShouldSerializeAllowEnterWhenBlocked() => AllowEnterWhenBlocked.HasValue;
+
+        public bool ShouldSerializeAllowPedestrianCrossing() => AllowPedestrianCrossing.HasValue;
+
+        public bool ShouldSerializeAllowTurningOnRed()
+        {
+            return AllowNearTurnOnRed.HasValue && AllowFarTurnOnRed.HasValue;
+        }
+
+        public bool ShouldSerializeAllowNearTurnOnRed() => AllowNearTurnOnRed.HasValue;
+
+        public bool ShouldSerializeAllowFarTurnOnRed() => AllowFarTurnOnRed.HasValue;
+
         public JunctionRestrictionsState Clone()
         {
-            return (JunctionRestrictionsState) MemberwiseClone();
+            var clone = (JunctionRestrictionsState) MemberwiseClone();
+            clone.WireSnapshot = null;
+            return clone;
         }
 
         public bool IsDefault()
         {
-            return AllowUTurns &&
-                   AllowLaneChangesWhenGoingStraight &&
-                   AllowEnterWhenBlocked &&
-                   AllowPedestrianCrossing &&
-                   AllowNearTurnOnRed &&
-                   AllowFarTurnOnRed;
+            return IsDefaultFlag(AllowUTurns) &&
+                   IsDefaultFlag(AllowLaneChangesWhenGoingStraight) &&
+                   IsDefaultFlag(AllowEnterWhenBlocked) &&
+                   IsDefaultFlag(AllowPedestrianCrossing) &&
+                   IsDefaultFlag(AllowNearTurnOnRed) &&
+                   IsDefaultFlag(AllowFarTurnOnRed);
+        }
+
+        private static bool IsDefaultFlag(bool? value)
+        {
+            return !value.HasValue || value.Value;
+        }
+
+        public bool HasAnyValue()
+        {
+            return AllowUTurns.HasValue ||
+                   AllowLaneChangesWhenGoingStraight.HasValue ||
+                   AllowEnterWhenBlocked.HasValue ||
+                   AllowPedestrianCrossing.HasValue ||
+                   AllowNearTurnOnRed.HasValue ||
+                   AllowFarTurnOnRed.HasValue;
         }
 
         public override string ToString()
         {
-            return $"UTurns={AllowUTurns}, LaneChange={AllowLaneChangesWhenGoingStraight}, Blocked={AllowEnterWhenBlocked}, Pedestrians={AllowPedestrianCrossing}, NearTurnOnRed={AllowNearTurnOnRed}, FarTurnOnRed={AllowFarTurnOnRed}";
+            return $"UTurns={Format(AllowUTurns)}, LaneChange={Format(AllowLaneChangesWhenGoingStraight)}, Blocked={Format(AllowEnterWhenBlocked)}, Pedestrians={Format(AllowPedestrianCrossing)}, NearTurnOnRed={Format(AllowNearTurnOnRed)}, FarTurnOnRed={Format(AllowFarTurnOnRed)}";
+        }
+
+        private static string Format(bool? value)
+        {
+            return value.HasValue ? value.Value.ToString() : "<null>";
+        }
+
+        [ProtoMember(100)]
+        internal JunctionRestrictionWireSnapshot WireSnapshot { get; private set; }
+
+        [ProtoBeforeSerialization]
+        private void OnBeforeSerialize()
+        {
+            WireSnapshot = JunctionRestrictionWireSnapshot.Create(this);
+        }
+
+        [ProtoAfterDeserialization]
+        private void OnAfterDeserialize()
+        {
+            JunctionRestrictionWireSnapshot.Apply(WireSnapshot, this);
+            WireSnapshot = null;
+        }
+
+        [ProtoAfterSerialization]
+        private void OnAfterSerialize()
+        {
+            WireSnapshot = null;
+        }
+
+        [ProtoContract]
+        internal sealed class JunctionRestrictionWireSnapshot
+        {
+            [ProtoMember(1)] public byte SetMask { get; set; }
+            [ProtoMember(2)] public byte ValueMask { get; set; }
+
+            private const byte UTurn = 1 << 0;
+            private const byte LaneChange = 1 << 1;
+            private const byte EnterBlocked = 1 << 2;
+            private const byte Pedestrians = 1 << 3;
+            private const byte NearTurnOnRed = 1 << 4;
+            private const byte FarTurnOnRed = 1 << 5;
+
+            internal static JunctionRestrictionWireSnapshot Create(JunctionRestrictionsState state)
+            {
+                if (state == null)
+                    return null;
+
+                byte setMask = 0;
+                byte valueMask = 0;
+
+                Append(ref setMask, ref valueMask, UTurn, state.AllowUTurns);
+                Append(ref setMask, ref valueMask, LaneChange, state.AllowLaneChangesWhenGoingStraight);
+                Append(ref setMask, ref valueMask, EnterBlocked, state.AllowEnterWhenBlocked);
+                Append(ref setMask, ref valueMask, Pedestrians, state.AllowPedestrianCrossing);
+                Append(ref setMask, ref valueMask, NearTurnOnRed, state.AllowNearTurnOnRed);
+                Append(ref setMask, ref valueMask, FarTurnOnRed, state.AllowFarTurnOnRed);
+
+                if (setMask == 0)
+                    return null;
+
+                return new JunctionRestrictionWireSnapshot
+                {
+                    SetMask = setMask,
+                    ValueMask = valueMask
+                };
+            }
+
+            private static void Append(ref byte setMask, ref byte valueMask, byte flag, bool? value)
+            {
+                if (!value.HasValue)
+                    return;
+
+                setMask |= flag;
+                if (value.Value)
+                    valueMask |= flag;
+            }
+
+            internal static void Apply(JunctionRestrictionWireSnapshot snapshot, JunctionRestrictionsState state)
+            {
+                if (snapshot == null || state == null)
+                    return;
+
+                ApplyFlag(snapshot, state, UTurn, value => state.AllowUTurns = value);
+                ApplyFlag(snapshot, state, LaneChange, value => state.AllowLaneChangesWhenGoingStraight = value);
+                ApplyFlag(snapshot, state, EnterBlocked, value => state.AllowEnterWhenBlocked = value);
+                ApplyFlag(snapshot, state, Pedestrians, value => state.AllowPedestrianCrossing = value);
+                ApplyFlag(snapshot, state, NearTurnOnRed, value => state.AllowNearTurnOnRed = value);
+                ApplyFlag(snapshot, state, FarTurnOnRed, value => state.AllowFarTurnOnRed = value);
+            }
+
+            private static void ApplyFlag(
+                JunctionRestrictionWireSnapshot snapshot,
+                JunctionRestrictionsState state,
+                byte flag,
+                Action<bool?> setter)
+            {
+                if ((snapshot.SetMask & flag) == 0)
+                {
+                    setter(null);
+                    return;
+                }
+
+                var value = (snapshot.ValueMask & flag) != 0;
+                setter(value);
+            }
         }
     }
 
@@ -108,10 +289,25 @@ namespace CSM.TmpeSync.Net.Contracts.States
     [ProtoContract]
     public class ParkingRestrictionState
     {
-        [ProtoMember(1)] public bool AllowParkingForward { get; set; } = true;
-        [ProtoMember(2)] public bool AllowParkingBackward { get; set; } = true;
+        [ProtoMember(1)] public bool? AllowParkingForward { get; set; }
+        [ProtoMember(2)] public bool? AllowParkingBackward { get; set; }
 
-        public bool AllowParkingBothDirections => AllowParkingForward && AllowParkingBackward;
+        public bool AllowParkingBothDirections => IsParkingAllowed(AllowParkingForward) && IsParkingAllowed(AllowParkingBackward);
+
+        private static bool IsParkingAllowed(bool? value)
+        {
+            return !value.HasValue || value.Value;
+        }
+
+        public bool HasAnyValue()
+        {
+            return AllowParkingForward.HasValue || AllowParkingBackward.HasValue;
+        }
+
+        public bool IsDefault()
+        {
+            return AllowParkingBothDirections;
+        }
 
         public ParkingRestrictionState Clone()
         {
@@ -124,30 +320,14 @@ namespace CSM.TmpeSync.Net.Contracts.States
 
         public override string ToString()
         {
-            return $"Forward={AllowParkingForward}, Backward={AllowParkingBackward}";
+            return $"Forward={Format(AllowParkingForward)}, Backward={Format(AllowParkingBackward)}";
+        }
+
+        private static string Format(bool? value)
+        {
+            return value.HasValue ? value.Value.ToString() : "<null>";
         }
     }
 
-    [ProtoContract]
-    public class TimedTrafficLightState
-    {
-        [ProtoMember(1)] public bool Enabled { get; set; }
-        [ProtoMember(2)] public int StepCount { get; set; }
-        [ProtoMember(3)] public float CycleLengthSeconds { get; set; }
 
-        public TimedTrafficLightState Clone()
-        {
-            return new TimedTrafficLightState
-            {
-                Enabled = Enabled,
-                StepCount = StepCount,
-                CycleLengthSeconds = CycleLengthSeconds
-            };
-        }
-
-        public override string ToString()
-        {
-            return Enabled ? $"Enabled Steps={StepCount} Cycle={CycleLengthSeconds}s" : "Disabled";
-        }
-    }
 }

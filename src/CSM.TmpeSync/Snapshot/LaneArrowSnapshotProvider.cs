@@ -18,7 +18,17 @@ namespace CSM.TmpeSync.Snapshot
                 if (arrows == LaneArrowFlags.None)
                     return;
 
-                CsmCompat.SendToAll(new LaneArrowApplied { LaneId = laneId, Arrows = arrows });
+                if (!NetUtil.TryGetLaneLocation(laneId, out var segmentId, out var laneIndex))
+                    return;
+
+                SnapshotDispatcher.Dispatch(new LaneArrowApplied
+                {
+                    LaneId = laneId,
+                    Arrows = arrows,
+                    SegmentId = segmentId,
+                    LaneIndex = laneIndex,
+                    MappingVersion = LaneMappingStore.Version
+                });
             });
         }
 

@@ -1,5 +1,8 @@
+using System;
+using System.Linq;
 using ICities;
 using CSM.TmpeSync.Tmpe;
+using CSM.TmpeSync.Snapshot;
 using CSM.TmpeSync.Util;
 using Log = CSM.TmpeSync.Util.Log;
 
@@ -7,9 +10,9 @@ namespace CSM.TmpeSync.Mod
 {
     public class MyUserMod : IUserMod
     {
-        public string Name => "CSM TM:PE Sync (Host-Authoritative)";
+        public string Name => "CSM TM:PE Sync";
 
-        public string Description => "Synchronizes TM:PE settings and Hide Crosswalks. Requires CSM and Harmony.";
+        public string Description => "Synchronizes TM:PE by bonsaibauer";
 
         private static TmpeSyncConnection _connection;
         private static bool _connectionRegistered;
@@ -17,8 +20,7 @@ namespace CSM.TmpeSync.Mod
         public void OnEnabled()
         {
             Log.Info(LogCategory.Lifecycle, "Mod enabled | action=validate_dependencies");
-            var debugEnabled = Log.IsDebugEnabled;
-            Log.Info(LogCategory.Configuration, "Runtime logging configuration | debug={0} path={1}", debugEnabled ? "ENABLED" : "disabled", Log.ConfigurationFilePath ?? "<unavailable>");
+            Log.Info(LogCategory.Configuration, "Logging initialized | debug={0} path={1}", Log.IsDebugEnabled ? "ENABLED" : "disabled", Log.LogFilePath);
 
             var missing = Deps.GetMissingDependencies();
             if (missing.Length > 0)
@@ -37,28 +39,65 @@ namespace CSM.TmpeSync.Mod
                     _connection = connection;
                     _connectionRegistered = true;
                     Log.Info(LogCategory.Network, "CSM connection established | channel=TM:PE sync");
-                    TmpeToolAvailability.OverrideRestriction(null);
+                    MultiplayerStateObserver.RoleChanged += Log.HandleRoleChanged;
+                    try
+                    {
+                        Log.HandleRoleChanged(CsmCompat.DescribeCurrentRole());
+                    }
+                    catch (Exception ex)
+                    {
+                        Log.Warn(LogCategory.Diagnostics, "Unable to initialize session log for current role | error={0}", ex);
+                    }
+                    SnapshotDispatcher.Initialize();
+                    LaneMappingTracker.Initialize();
+                    TmpeFeatureReadyNotifier.Initialize();
+                    SnapshotDispatcher.TryExportIfServer("mod_enabled");
                     break;
                 case CsmCompat.ConnectionRegistrationResult.AlreadyRegistered:
                     _connection = null;
                     _connectionRegistered = false;
                     Log.Info(LogCategory.Network, "CSM already manages TM:PE synchronization | action=skip_manual_registration");
-                    TmpeToolAvailability.OverrideRestriction(null);
                     break;
                 default:
                     _connection = null;
                     _connectionRegistered = false;
                     Log.Warn(LogCategory.Network, "TM:PE synchronization connection registration failed | synchronization=inactive");
-                    TmpeToolAvailability.OverrideRestriction(true);
                     break;
             }
 
             CsmCompat.LogDiagnostics("OnEnabled");
+
+            var featureSupport = TmpeAdapter.GetFeatureSupportMatrix();
+            var supported = featureSupport
+                .Where(pair => pair.Value)
+                .Select(pair => pair.Key)
+                .OrderBy(name => name, System.StringComparer.OrdinalIgnoreCase)
+                .ToArray();
+            var unsupported = featureSupport
+                .Where(pair => !pair.Value)
+                .Select(pair =>
+                {
+                    var reason = TmpeAdapter.GetUnsupportedReason(pair.Key) ?? "unknown";
+                    return pair.Key + "(" + reason + ")";
+                })
+                .OrderBy(entry => entry, System.StringComparer.OrdinalIgnoreCase)
+                .ToArray();
+
+            Log.Info(
+                LogCategory.Bridge,
+                "TM:PE feature support | supported={0} unsupported={1}",
+                supported.Length == 0 ? "<none>" : string.Join(", ", supported),
+                unsupported.Length == 0 ? "<none>" : string.Join(", ", unsupported));
         }
 
         public void OnDisabled()
         {
             Log.Info(LogCategory.Lifecycle, "Mod disabled | begin_cleanup");
+            MultiplayerStateObserver.RoleChanged -= Log.HandleRoleChanged;
+            Log.EndServerSessionLog();
+            TmpeFeatureReadyNotifier.Shutdown();
+            LaneMappingTracker.Shutdown();
+            SnapshotDispatcher.Shutdown();
             if (_connectionRegistered && _connection != null)
             {
                 Log.Info(LogCategory.Network, "Unregistering TM:PE synchronization connection from CSM.");
@@ -74,7 +113,6 @@ namespace CSM.TmpeSync.Mod
             _connection = null;
             _connectionRegistered = false;
 
-            TmpeToolAvailability.OverrideRestriction(null);
             CsmCompat.LogDiagnostics("OnDisabled");
             Log.Debug(LogCategory.Lifecycle, "Mod disabled | awaiting_next_enable_cycle");
         }

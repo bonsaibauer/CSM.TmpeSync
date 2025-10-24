@@ -1,80 +1,23 @@
-# Integration overview: CSM.TmpeSync vs. TM:PE & CSM
+# Integration Overview
 
-This note summarises how the **CSM.TmpeSync** add-on is structured, which
-interfaces it uses from [Traffic Manager: President Edition (TM:PE)] and
-[Cities: Skylines Multiplayer (CSM)], and how the current architecture differs
-from earlier integration attempts.
+CSM TM:PE Sync keeps a Cities: Skylines Multiplayer (CSM) lobby authoritative for the most commonly used Traffic Manager: President Edition (TM:PE) features. The implementation is split across three layers:
 
-## Project layout inside CSM.TmpeSync
+| Area | Purpose | Entry Points |
+|------|---------|--------------|
+| Mod lifecycle | Registers a dedicated CSM connection when the mod is enabled and ensures required dependencies are loaded. | `src/CSM.TmpeSync/Mod/MyUserMod.cs` |
+| Net handlers | React to CSM requests/applied events, perform validation on the simulation thread, and broadcast authoritative results. | `src/CSM.TmpeSync/Net/Handlers` |
+| TM:PE bridge | Uses TM:PE's public API to translate between CSM wire formats and TM:PE data structures, keeping cached state for replay. | `src/CSM.TmpeSync/Tmpe/TmpeAdapter.cs` |
 
-The add-on is organised as a standalone .NET 3.5 class library. The project file
-`src/CSM.TmpeSync/CSM.TmpeSync.csproj` targets the real Cities: Skylines
-assemblies, Harmony, `CSM.API.dll` and – if available – `TrafficManager.dll` and
-expects those DLLs to be present during every build.【F:src/CSM.TmpeSync/CSM.TmpeSync.csproj†L1-L198】
+Key characteristics:
 
-Source folders are grouped by responsibility:
+- **Host authoritative**: The server validates and applies every TM:PE change, then rebroadcasts the outcome so all clients converge.
+- **State capture**: Features such as Hide Crosswalks are mirrored using local caches, allowing the host to share the resulting layout during the session.
+- **File-based diagnostics**: Operational logs are written to `%LOCALAPPDATA%\Colossal Order\Cities_Skylines\CSM.TmpeSync\csm.tmpe-sync.log` for later inspection.
+- **Full TM:PE access**: TM:PE tools remain available in multiplayer, matching the single-player user experience.
 
-- `Mod/` contains the CSM mod entry point and the connection to the multiplayer
-  service.【F:src/CSM.TmpeSync/CSM.TmpeSync.csproj†L118-L135】
-- `Net/` encapsulates all network contracts (requests, applied events, locks) and
-  their handlers for host-authoritative execution and deferred operations.【F:src/CSM.TmpeSync/CSM.TmpeSync.csproj†L143-L180】
-- `Snapshot/` exports the current TM:PE state when a player connects to
-  synchronise newcomers.【F:src/CSM.TmpeSync/CSM.TmpeSync.csproj†L182-L190】
-- `Tmpe/` and `HideCrosswalks/` provide adapters that either call the actual mod
-  APIs or gracefully skip behaviour when the mods are missing.【F:src/CSM.TmpeSync/CSM.TmpeSync.csproj†L136-L141】【F:src/Tmpe/TmpeAdapter.cs†L9-L368】
-- `Util/` bundles infrastructure such as logging, entity locks and, most
-  importantly, the compatibility layer for the CSM API.【F:src/CSM.TmpeSync/CSM.TmpeSync.csproj†L136-L149】【F:src/Util/CsmCompat.cs†L1-L409】
+When adding new synchronised features, follow the existing pattern:
 
-## TM:PE integration
-
-`TmpeAdapter` discovers at runtime whether the real TM:PE assembly is loaded and
-logs a warning otherwise. Every synchronisation command (speed limits, lane
-arrows, vehicle restrictions, lane connector etc.) is received by the adapter,
-stored internally and – if TM:PE is present – passed through to the respective
-managers.【F:src/Tmpe/TmpeAdapter.cs†L9-L368】 The adapter now mirrors the full
-`ExtVehicleType` enumeration (trains, ships, aircraft, pedestrians and more) and
-keeps near-/far-side turn-on-red toggles separate so TM:PE junction restriction
-behaviour is preserved exactly.【F:src/Net/Contracts/States/TmpeStates.cs†L16-L95】【F:src/Tmpe/TmpeAdapter.cs†L1370-L1677】 The
-snapshot export uses the same adapter state so the behaviour is identical
-between single- and multiplayer sessions.【F:docs/TmpeFeatureSyncChecklist.md†L9-L190】 No separate "TM:PE API" is
-required; reflection is used to access the existing assembly.
-
-Unlike the historical `CSM-API-Implementation` branch inside TM:PE (which tried
-embedding multiplayer features into the main mod), CSM.TmpeSync keeps all
-multiplayer-specific classes inside this add-on. Upstream TM:PE updates remain
-independent, while the add-on connects via clearly defined adapter points.【F:src/Tmpe/TmpeAdapter.cs†L51-L60】
-
-## Using the CSM API
-
-The add-on relies on static methods in `CSM.API.Command` to send data to clients
-(`SendToClient`, `SendToClients`, `SendToAll`) and on registration hooks to mount
-a dedicated message type. `CsmCompat` resolves these methods via reflection and
-logs which signatures were found.【F:src/Util/CsmCompat.cs†L12-L104】 If hooks are
-missing the log will contain entries such as "Unable to register connection –
-CSM.API register hook missing" and no TM:PE data is exchanged.【F:src/Util/CsmCompat.cs†L297-L409】
-
-The multiplayer flow looks as follows:
-
-1. `TmpeSyncConnection` registers a new channel with the CSM API during startup
-   and wires up request/applied handlers.【F:src/Mod/TmpeSyncConnection.cs†L1-L111】【F:src/Util/CsmCompat.cs†L297-L409】
-2. Clients send changes through `CSM.API.Command.SendToServer`; the server
-   validates them, applies the result in the simulation and broadcasts the
-   confirmed change via `SendToClients/SendToAll`.【F:src/Net/Handlers/SetSpeedLimitRequestHandler.cs†L14-L66】
-3. Snapshots and deferred operations ensure that late joiners receive the full
-   TM:PE configuration.【F:docs/TmpeFeatureSyncChecklist.md†L9-L186】
-
-## Debugging implications
-
-- **TM:PE does not need to be modified** as long as `TrafficManager.dll` exposes
-  the known manager types – the adapter handles optional functionality itself.【F:src/Tmpe/TmpeAdapter.cs†L9-L66】
-- **CSM must export the expected API hooks.** Consult the log reference
-  (`docs/LogReference.md`) to verify that `CsmCompat` finds `SendToClient` and
-  `RegisterConnection`. If they are missing, rebuild CSM with the full API.【F:docs/LogReference.md†L23-L38】
-- **Repository structure:** CSM.TmpeSync focuses on the multiplayer glue and the
-  adapter layer, whereas the official TM:PE repository retains the full traffic
-  logic. The responsibilities stay cleanly separated and upstream updates are
-  easier to adopt.【F:src/Tmpe/TmpeAdapter.cs†L51-L60】
-
-This overview should help you understand the differences between the
-repositories, the required integration hooks and the expected data flow so you
-can diagnose hook issues quickly.
+1. Define request/applied contracts under `src/CSM.TmpeSync/Net/Contracts`.
+2. Implement an authoritative request handler under `src/CSM.TmpeSync/Net/Handlers` that validates entity existence, acquires the appropriate locks and invokes the bridge.
+3. Teach `TmpeAdapter` how to read/write the feature using TM:PE types (with a stub fallback).
+4. Emit a broadcast with the resulting state so all clients converge.

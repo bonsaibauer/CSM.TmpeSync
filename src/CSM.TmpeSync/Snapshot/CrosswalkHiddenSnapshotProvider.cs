@@ -15,7 +15,7 @@ namespace CSM.TmpeSync.Snapshot
                 if (!NetUtil.NodeExists(entry.Node) || !NetUtil.SegmentExists(entry.Segment))
                     continue;
 
-                CsmCompat.SendToAll(new CrosswalkHiddenApplied
+                SnapshotDispatcher.Dispatch(new CrosswalkHiddenApplied
                 {
                     NodeId = entry.Node,
                     SegmentId = entry.Segment,

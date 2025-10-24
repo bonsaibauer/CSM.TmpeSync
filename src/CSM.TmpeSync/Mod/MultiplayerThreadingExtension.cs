@@ -9,13 +9,14 @@ namespace CSM.TmpeSync.Mod
         public override void OnUpdate(float realTimeDelta, float simulationTimeDelta)
         {
             MultiplayerStateObserver.Update();
-            TmpeToolAvailability.Tick(MultiplayerStateObserver.ShouldRestrictTools);
+            LockRegistry.Tick();
         }
 
         public override void OnReleased()
         {
-            TmpeToolAvailability.Reset();
             MultiplayerStateObserver.Reset();
+            DeferredApply.Reset();
+            LockRegistry.Reset();
         }
     }
 }

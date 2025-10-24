@@ -1,62 +1,20 @@
-# Log reference for CSM.TmpeSync
+# Log Reference
 
-This document summarises the most common log lines that appear when the mod starts and how to interpret them.
+CSM TM:PE Sync writes all diagnostics to a single rotating log file to keep the mod deterministic in multiplayer sessions.
 
-## Startup sequence
-
-During `OnEnabled` the mod will:
-
-1. Log that it is checking dependencies.
-2. Report whether required mods (CSM and Harmony) were found.
-3. Attempt to register the TM:PE connection with CSM.
+## Location
 
 ```
-[INFO] [CSM.TmpeSync] Enable... checking deps
-[DEBUG] [CSM.TmpeSync] Dependency check -> CSM: True, Harmony: True
-[INFO]  [CSM.TmpeSync] Dependencies available. Registering TM:PE sync connection with CSM.
+%LOCALAPPDATA%\Colossal Order\Cities_Skylines\CSM.TmpeSync\csm.tmpe-sync.log
 ```
 
-These entries indicate that the dependency probe ran successfully and the registration step is starting.
+The file rolls over at 2 MB. Archived logs live next to the active file and use the pattern `csm.tmpe-sync-YYYYMMDD-HHMMSS[[-GUID]].log`.
 
-## CSM compatibility reflection
+## Levels
 
-When the compatibility helper initialises, it reflects the `CSM.API` assembly to find the communication hooks it needs. A healthy setup will log the resolved method names:
+- `DEBUG` – Verbose bridge tracing and network chatter. These entries are always emitted to aid troubleshooting.
+- `INFO` – Lifecycle events, dependency checks, and successful synchronisation operations.
+- `WARN` – Missing dependencies, TM:PE features that could not be resolved, or recoverable network issues.
+- `ERROR` – Exceptions thrown while applying or exporting state. These indicate the host rejected an operation.
 
-```
-[DEBUG] [CSM.TmpeSync] CSM compat initialised. SendToClient=CSM.API.Command.SendToClient(...); SendToAll=...; Register=CSM.API.Helper.RegisterConnection(...); Unregister=...
-```
-
-If you instead see `<missing method>` in the debug line, or follow-up warnings such as:
-
-```
-[WARN] [CSM.TmpeSync] Unable to register connection – CSM.API register hook missing
-[WARN] [CSM.TmpeSync] TM:PE sync connection could not be registered with CSM. Synchronisation remains inactive.
-```
-
-it means the current CSM installation does not expose the expected `SendToClient`/`SendToAll` methods on `CSM.API.Command` or the `RegisterConnection` hook in the API. Without those hooks, the sync channel cannot be registered and no TM:PE data will be exchanged. Update to a CSM build that includes these APIs (or ensure the real game libraries are available) before continuing tests. When using the Steam Workshop release you can verify the file directly at `C:\Program Files (x86)\Steam\steamapps\workshop\content\255710\1558438291\CSM.API.dll`; copy it next to the mod (e.g. `lib/CSM.API.dll`) if your build environment cannot resolve it automatically.
-
-## Multiplayer role detection
-
-If the mod cannot read the multiplayer role from the CSM API it logs:
-
-```
-[WARN] [CSM.TmpeSync] Unable to query current CSM multiplayer role: ... CurrentRole property is unavailable.
-```
-
-This happens when the properties probed in `CsmCompat` (`Command.CurrentRole`, `Command.Role`, `Command.IsServer`, etc.) are missing. The mod will fall back to treating the environment as unknown and will not synchronise TM:PE changes until the role can be resolved.
-
-## Expected next steps
-
-As long as the warnings persist, TM:PE synchronisation stays inactive. Verify that:
-
-- You are running against a CSM version that contains the reflective hooks.
-- The game is started so the real CSM API assembly is loaded.
-- Harmony and TM:PE are enabled so the mod can complete the registration path once the hooks are present.
-
-Once the hooks are available the warnings disappear and the log ends with:
-
-```
-[INFO] [CSM.TmpeSync] CSM connection ready – TM:PE synchronisation active.
-```
-
-At that point the log output matches the expected plan.
+Because logging is file-based only, there are no in-game windows or chat commands to toggle verbosity. Adjust the environment variable and restart the game if you need extra detail.

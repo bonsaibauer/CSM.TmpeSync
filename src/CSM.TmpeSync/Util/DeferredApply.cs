@@ -1,58 +1,160 @@
 using System;
 using System.Collections.Generic;
-using CSM.TmpeSync.Util;
+using System.Linq;
 
 namespace CSM.TmpeSync.Util
 {
+    /// <summary>
+    /// Central queue for retrying TM:PE operations once their targets exist.
+    /// </summary>
     internal static class DeferredApply
     {
-        private const int MAX_RETRIES=20, DELAY_FRAMES=8;
-        private static readonly List<Entry> _queue=new List<Entry>();
+        private const int MaxRetries = 20;
+        private const int DelayFramesWhenWaiting = 8;
+
+        private static readonly Dictionary<string, Entry> Pending = new Dictionary<string, Entry>(StringComparer.Ordinal);
         private static bool _running;
 
-        internal static void Enqueue(IDeferredOp op){
-            lock(_queue){
-                for(int i=_queue.Count-1;i>=0;i--) if(_queue[i].Op.Key==op.Key){ _queue[i]=new Entry(op); Start(); return; }
-                _queue.Add(new Entry(op)); Start();
+        internal static void Enqueue(IDeferredOp op)
+        {
+            if (op == null || string.IsNullOrEmpty(op.Key))
+                return;
+
+            lock (Pending)
+            {
+                // Always overwrite the previous entry so the latest payload wins.
+                Pending[op.Key] = new Entry(op);
+                EnsureWorkerUnlocked();
             }
         }
-        private static void Start(){ if(_running) return; _running=true; NetUtil.StartSimulationCoroutine(Worker()); }
-        private static System.Collections.IEnumerator Worker(){
-            int wait=0;
-            while(true){
-                if(wait>0){ wait--; yield return 0; continue; }
-                Entry[] work; lock(_queue) work=_queue.ToArray();
-                if(work.Length==0){ _running=false; yield break; }
-                for(int i=0;i<work.Length;i++){
-                    var e=work[i];
-                    bool done=false, drop=false;
-                    try{
-                        if(e.Op.Exists()){
+
+        private static void EnsureWorkerUnlocked()
+        {
+            if (_running)
+                return;
+
+            _running = true;
+            NetUtil.StartSimulationCoroutine(Worker());
+        }
+
+        private static System.Collections.IEnumerator Worker()
+        {
+            while (true)
+            {
+                Entry[] snapshot;
+                lock (Pending)
+                {
+                    if (Pending.Count == 0)
+                    {
+                        _running = false;
+                        yield break;
+                    }
+
+                    snapshot = Pending.Values.ToArray();
+                }
+
+                var anySuccess = false;
+
+                foreach (var entry in snapshot)
+                {
+                    var applied = false;
+                    var drop = false;
+                    var waitingForTarget = false;
+
+                    try
+                    {
+                        if (entry.Op.Exists())
+                        {
                             using (CsmCompat.StartIgnore())
                             {
-                                done=e.Op.TryApply();
+                                applied = entry.Op.TryApply();
                             }
-                        }else{
-                            e.Retries++; if(e.Retries>=MAX_RETRIES) drop=true;
                         }
-                    }catch(Exception ex){ Log.Error("DeferredApply err {0}: {1}", e.Op.Key, ex); drop=true; }
-
-                    if(done||drop){
-                        lock(_queue){ for(int j=0;j<_queue.Count;j++) if(object.ReferenceEquals(_queue[j].Op,e.Op)){ _queue.RemoveAt(j); break; } }
-                        if(done) Log.Info("DeferredApply applied {0} after {1} retries", e.Op.Key, e.Retries);
-                        else Log.Warn("DeferredApply dropped {0} after {1} retries", e.Op.Key, e.Retries);
-                    }
-                    else if(!done){
-                        lock(_queue){
-                            for(int j=0;j<_queue.Count;j++) if(object.ReferenceEquals(_queue[j].Op,e.Op)){ var entry=_queue[j]; entry.Retries=e.Retries; _queue[j]=entry; break; }
+                    else
+                    {
+                        waitingForTarget = true;
+                        if (!entry.Op.ShouldWait())
+                        {
+                            entry.Retries++;
+                            entry.WaitCycles = 0;
+                            if (entry.Retries >= MaxRetries)
+                                drop = true;
+                        }
+                        else
+                        {
+                            entry.WaitCycles++;
+                            if (entry.WaitCycles >= MaxRetries)
+                                drop = true;
                         }
                     }
                 }
-                wait=DELAY_FRAMES; yield return 0;
+                catch (Exception ex)
+                    {
+                        Log.Error(LogCategory.Synchronization, "Deferred apply failed | key={0} error={1}", entry.Key, ex);
+                        drop = true;
+                    }
+
+                    if (applied)
+                    {
+                        anySuccess = true;
+                        Log.Info(LogCategory.Synchronization, "Deferred operation applied | key={0} retries={1}", entry.Key, entry.Retries);
+                    }
+                    else if (drop)
+                    {
+                        Log.Warn(LogCategory.Synchronization, "Deferred operation dropped | key={0} retries={1}", entry.Key, entry.Retries);
+                    }
+                    else if (waitingForTarget)
+                    {
+                        Log.Debug(LogCategory.Synchronization, "Deferred operation waiting | key={0} retries={1}", entry.Key, entry.Retries);
+                    }
+
+                    if (applied || drop)
+                    {
+                        lock (Pending)
+                        {
+                            Pending.Remove(entry.Key);
+                        }
+                    }
+                }
+
+                // When we actually progressed we retry next frame, otherwise back off a few frames.
+                var framesToWait = anySuccess ? 1 : DelayFramesWhenWaiting;
+                for (var i = 0; i < framesToWait; i++)
+                    yield return 0;
             }
         }
-        private struct Entry{ internal readonly IDeferredOp Op; internal int Retries; internal Entry(IDeferredOp op){ Op=op; Retries=0; } }
+
+        private sealed class Entry
+        {
+            internal Entry(IDeferredOp op)
+            {
+                Op = op;
+                Key = op.Key;
+                Retries = 0;
+            }
+
+            internal string Key { get; }
+            internal IDeferredOp Op { get; }
+            internal int Retries { get; set; }
+            internal int WaitCycles { get; set; }
+        }
+
+        internal static void Reset()
+        {
+            lock (Pending)
+            {
+                Pending.Clear();
+            }
+
+            _running = false;
+        }
     }
 
-    internal interface IDeferredOp { string Key { get; } bool Exists(); bool TryApply(); }
+    internal interface IDeferredOp
+    {
+        string Key { get; }
+        bool Exists();
+        bool TryApply();
+        bool ShouldWait();
+    }
 }
