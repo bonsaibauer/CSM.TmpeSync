@@ -809,14 +809,17 @@ namespace CSM.TmpeSync.Util
 
         internal static void UpsertLaneConnections(
             uint sourceLaneId,
-            IReadOnlyList<uint> targetLaneIds,
+            uint[] targetLaneIds,
             ushort segmentId,
             int laneIndex)
         {
             if (sourceLaneId == 0)
                 return;
 
-            var sanitized = targetLaneIds?.Where(id => id != 0).Distinct().ToArray() ?? Array.Empty<uint>();
+            var sanitized = (targetLaneIds ?? Array.Empty<uint>())
+                .Where(id => id != 0)
+                .Distinct()
+                .ToArray();
 
             lock (Sync)
             {
