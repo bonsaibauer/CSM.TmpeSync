@@ -17,6 +17,7 @@ namespace CSM.TmpeSync.Mod
         {
             using (CsmCompat.StartIgnore())
             {
+                Log.Info(LogCategory.Network, "Registering TM:PE synchronization handlers via CSM connection.");
                 TmpeEventBridge.Enable();
             }
         }
@@ -25,6 +26,7 @@ namespace CSM.TmpeSync.Mod
         {
             using (CsmCompat.StartIgnore())
             {
+                Log.Info(LogCategory.Network, "Unregistering TM:PE synchronization handlers via CSM connection.");
                 TmpeEventBridge.Disable();
             }
         }
