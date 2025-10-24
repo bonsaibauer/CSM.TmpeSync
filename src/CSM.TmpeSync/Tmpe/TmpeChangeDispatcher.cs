@@ -175,20 +175,9 @@ namespace CSM.TmpeSync.Tmpe
                 ref var lane = ref NetManager.instance.m_lanes.m_buffer[laneId];
                 if ((lane.m_flags & (uint)NetLane.Flags.Created) != 0)
                 {
-                    var laneInfo = info.m_lanes[laneIndex];
-                    if (TmpeAdapter.TryGetSpeedKmh(laneId, out var kmh))
+                    if (TmpeAdapter.TryGetSpeedLimit(laneId, out var kmh, out var defaultKmh, out var hasOverride))
                     {
-                        var encoded = SpeedLimitCodec.Encode(kmh);
-
-                        float? defaultKmh = null;
-
-                        if (TmpeAdapter.TryGetDefaultSpeedKmh(laneId, laneInfo, out var candidateDefault))
-                        {
-                            defaultKmh = candidateDefault;
-
-                            if (Math.Abs(kmh - candidateDefault) < 0.01f)
-                                encoded = SpeedLimitCodec.Default();
-                        }
+                        var encoded = SpeedLimitCodec.Encode(kmh, defaultKmh, hasOverride);
 
                         TransmissionDiagnostics.LogOutgoingSpeedLimit(
                             laneId,
