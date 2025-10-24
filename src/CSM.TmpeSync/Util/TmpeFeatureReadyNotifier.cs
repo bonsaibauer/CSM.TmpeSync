@@ -111,7 +111,7 @@ namespace CSM.TmpeSync.Util
             if (TmpeAdapter.IsFeatureSupported("junctionRestrictions")) mask |= 1UL << 4;
             if (TmpeAdapter.IsFeatureSupported("prioritySigns")) mask |= 1UL << 5;
             if (TmpeAdapter.IsFeatureSupported("parkingRestrictions")) mask |= 1UL << 6;
-            if (TmpeAdapter.IsFeatureSupported("timedTrafficLights")) mask |= 1UL << 7;
+            if (TmpeAdapter.IsFeatureSupported("toggleTrafficLights")) mask |= 1UL << 7;
             return mask;
         }
     }

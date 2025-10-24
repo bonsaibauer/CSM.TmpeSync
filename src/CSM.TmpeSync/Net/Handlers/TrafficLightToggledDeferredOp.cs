@@ -22,7 +22,7 @@ namespace CSM.TmpeSync.Net.Handlers
 
         public bool TryApply()
         {
-            return TmpeAdapter.ApplyManualTrafficLight(_cmd.NodeId, _cmd.Enabled);
+            return TmpeAdapter.ApplyToggleTrafficLight(_cmd.NodeId, _cmd.Enabled);
         }
 
         public bool ShouldWait() => false;

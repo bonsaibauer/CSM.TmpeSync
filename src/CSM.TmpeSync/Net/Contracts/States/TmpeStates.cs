@@ -329,26 +329,5 @@ namespace CSM.TmpeSync.Net.Contracts.States
         }
     }
 
-    [ProtoContract]
-    public class TimedTrafficLightState
-    {
-        [ProtoMember(1)] public bool Enabled { get; set; }
-        [ProtoMember(2)] public int StepCount { get; set; }
-        [ProtoMember(3)] public float CycleLengthSeconds { get; set; }
 
-        public TimedTrafficLightState Clone()
-        {
-            return new TimedTrafficLightState
-            {
-                Enabled = Enabled,
-                StepCount = StepCount,
-                CycleLengthSeconds = CycleLengthSeconds
-            };
-        }
-
-        public override string ToString()
-        {
-            return Enabled ? $"Enabled Steps={StepCount} Cycle={CycleLengthSeconds}s" : "Disabled";
-        }
-    }
 }

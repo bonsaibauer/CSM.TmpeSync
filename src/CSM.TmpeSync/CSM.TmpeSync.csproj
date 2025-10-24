@@ -124,7 +124,6 @@
     <Compile Include="Net\Contracts\Requests\SetJunctionRestrictionsRequest.cs" />
     <Compile Include="Net\Contracts\Requests\SetPrioritySignRequest.cs" />
     <Compile Include="Net\Contracts\Requests\SetParkingRestrictionRequest.cs" />
-    <Compile Include="Net\Contracts\Requests\SetTimedTrafficLightRequest.cs" />
     <Compile Include="Net\Contracts\Requests\ToggleTrafficLightRequest.cs" />
     <Compile Include="Net\Contracts\Requests\SetCrosswalkHiddenRequest.cs" />
     <Compile Include="Net\Contracts\Requests\ClearTrafficRequest.cs" />
@@ -136,7 +135,6 @@
     <Compile Include="Net\Contracts\Applied\JunctionRestrictionsApplied.cs" />
     <Compile Include="Net\Contracts\Applied\PrioritySignApplied.cs" />
     <Compile Include="Net\Contracts\Applied\ParkingRestrictionApplied.cs" />
-    <Compile Include="Net\Contracts\Applied\TimedTrafficLightApplied.cs" />
     <Compile Include="Net\Contracts\Applied\TrafficLightToggledApplied.cs" />
     <Compile Include="Net\Contracts\Applied\CrosswalkHiddenApplied.cs" />
     <Compile Include="Net\Contracts\Applied\ClearTrafficApplied.cs" />
@@ -172,9 +170,6 @@
     <Compile Include="Net\Handlers\SetParkingRestrictionRequestHandler.cs" />
     <Compile Include="Net\Handlers\ParkingRestrictionAppliedHandler.cs" />
     <Compile Include="Net\Handlers\ParkingRestrictionDeferredOp.cs" />
-    <Compile Include="Net\Handlers\SetTimedTrafficLightRequestHandler.cs" />
-    <Compile Include="Net\Handlers\TimedTrafficLightAppliedHandler.cs" />
-    <Compile Include="Net\Handlers\TimedTrafficLightDeferredOp.cs" />
     <Compile Include="Net\Handlers\ToggleTrafficLightRequestHandler.cs" />
     <Compile Include="Net\Handlers\TrafficLightToggledAppliedHandler.cs" />
     <Compile Include="Net\Handlers\TrafficLightToggledDeferredOp.cs" />
@@ -200,8 +195,7 @@
     <Compile Include="Snapshot\JunctionRestrictionsSnapshotProvider.cs" />
     <Compile Include="Snapshot\PrioritySignSnapshotProvider.cs" />
     <Compile Include="Snapshot\ParkingRestrictionSnapshotProvider.cs" />
-    <Compile Include="Snapshot\TimedTrafficLightSnapshotProvider.cs" />
-    <Compile Include="Snapshot\ManualTrafficLightSnapshotProvider.cs" />
+    <Compile Include="Snapshot\ToggleTrafficLightSnapshotProvider.cs" />
     <Compile Include="Snapshot\CrosswalkHiddenSnapshotProvider.cs" />
     <Compile Include="Snapshot\SnapshotDispatcher.cs" />
     <Compile Include="Util\LaneMappingStore.cs" />
