@@ -14,18 +14,18 @@ namespace CSM.TmpeSync.Net.Handlers
 
             if (NetUtil.NodeExists(cmd.NodeId))
             {
-                Log.Debug("Node {0} exists – applying manual traffic light (ignore scope).", cmd.NodeId);
+                Log.Debug("Node {0} exists – applying toggle traffic light (ignore scope).", cmd.NodeId);
                 using (CsmCompat.StartIgnore())
                 {
-                    if (TmpeAdapter.ApplyManualTrafficLight(cmd.NodeId, cmd.Enabled))
-                        Log.Info("Applied remote manual traffic light node={0} -> {1}", cmd.NodeId, cmd.Enabled);
+                    if (TmpeAdapter.ApplyToggleTrafficLight(cmd.NodeId, cmd.Enabled))
+                        Log.Info("Applied remote toggle traffic light node={0} -> {1}", cmd.NodeId, cmd.Enabled);
                     else
-                        Log.Error("Failed to apply remote manual traffic light node={0} -> {1}", cmd.NodeId, cmd.Enabled);
+                        Log.Error("Failed to apply remote toggle traffic light node={0} -> {1}", cmd.NodeId, cmd.Enabled);
                 }
             }
             else
             {
-                Log.Warn("Node {0} missing – queueing deferred manual traffic light apply.", cmd.NodeId);
+                Log.Warn("Node {0} missing – queueing deferred toggle traffic light apply.", cmd.NodeId);
                 DeferredApply.Enqueue(new TrafficLightToggledDeferredOp(cmd));
             }
         }

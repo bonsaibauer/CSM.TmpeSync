@@ -23,8 +23,9 @@ Use this checklist when verifying TM:PE synchronisation in a CSM session.
 - [ ] **Junction restrictions** – Toggle “enter when blocked” and “turn on red” flags. Lights and behaviour stay in sync.
 - [ ] **Priority signs** – Place stop/yield/priority signs. Verify the applied message matches the TM:PE UI on clients.
 - [ ] **Parking restrictions** – Disable parking per direction on a segment; cars disappear on every instance.
-- [ ] **Timed traffic lights** - Create or delete a timed light plan. State should broadcast immediately once the bridge applies it on the host.
-- [ ] **Manual traffic lights** - Toggle manual control. The icon and behaviour stay aligned.
+- [ ] **Toggle traffic lights** - Toggle a vanilla traffic light on the host; every client should see the same icon state.
+- [ ] **Timed traffic lights** - Not supported by TM:PE sync (feature currently unavailable).
+- [ ] **Manual traffic lights** - Not supported by TM:PE sync (feature currently unavailable).
 - [ ] **Hide Crosswalks** - Hide a crosswalk on the host and confirm the visual change persists on every client through the session cache.
 
 ## Failure scenarios

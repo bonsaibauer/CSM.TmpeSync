@@ -275,21 +275,12 @@ namespace CSM.TmpeSync.Tmpe
         {
             SyncSegmentsForNode(nodeId, "traffic_lights");
 
-            if (TmpeAdapter.TryGetManualTrafficLight(nodeId, out var manualEnabled))
+            if (TmpeAdapter.TryGetToggleTrafficLight(nodeId, out var toggleEnabled))
             {
                 Broadcast(new TrafficLightToggledApplied
                 {
                     NodeId = nodeId,
-                    Enabled = manualEnabled
-                });
-            }
-
-            if (TmpeAdapter.TryGetTimedTrafficLight(nodeId, out var timedState))
-            {
-                Broadcast(new TimedTrafficLightApplied
-                {
-                    NodeId = nodeId,
-                    State = timedState?.Clone() ?? new TimedTrafficLightState()
+                    Enabled = toggleEnabled
                 });
             }
         }
