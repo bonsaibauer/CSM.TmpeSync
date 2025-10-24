@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using CSM.API.Commands;
+using CSM.TmpeSync.Net;
 using CSM.TmpeSync.Net.Contracts.States;
 using CSM.TmpeSync.Tmpe;
 using ProtoBuf;
@@ -35,6 +36,59 @@ namespace CSM.TmpeSync.Net.Contracts.Applied
             [ProtoMember(3, IsRequired = true)] public ushort SegmentId { get; set; }
             [ProtoMember(4, IsRequired = true)] public int LaneIndex { get; set; } = -1;
             [ProtoMember(5)] public long MappingVersion { get; set; }
+
+            [ProtoMember(6)] public ushort LaneGuidSegmentId { get; set; }
+            [ProtoMember(7)] public uint LaneGuidSegmentBuildIndex { get; set; }
+            [ProtoMember(8)] public ushort LaneGuidPrefabId { get; set; }
+            [ProtoMember(9)] public byte LaneGuidPrefabLaneIndex { get; set; }
+            [ProtoMember(10)] public uint LaneGuidSequence { get; set; }
+
+            [ProtoIgnore]
+            public LaneGuid LaneGuid
+            {
+                get => new LaneGuid(
+                    LaneGuidSegmentId,
+                    LaneGuidSegmentBuildIndex,
+                    LaneGuidPrefabId,
+                    LaneGuidPrefabLaneIndex,
+                    LaneGuidSequence);
+                set
+                {
+                    LaneGuidSegmentId = value.SegmentId;
+                    LaneGuidSegmentBuildIndex = value.SegmentBuildIndex;
+                    LaneGuidPrefabId = value.PrefabId;
+                    LaneGuidPrefabLaneIndex = value.PrefabLaneIndex;
+                    LaneGuidSequence = value.Sequence;
+                }
+            }
+
+            [ProtoMember(11)] public ushort SegmentGuidSegmentId { get; set; }
+            [ProtoMember(12)] public uint SegmentGuidBuildIndex { get; set; }
+            [ProtoMember(13)] public ushort SegmentGuidPrefabId { get; set; }
+            [ProtoMember(14)] public ushort SegmentGuidStartNodePrefabId { get; set; }
+            [ProtoMember(15)] public ushort SegmentGuidEndNodePrefabId { get; set; }
+            [ProtoMember(16)] public uint SegmentGuidSequence { get; set; }
+
+            [ProtoIgnore]
+            public SegmentGuid SegmentGuid
+            {
+                get => new SegmentGuid(
+                    SegmentGuidSegmentId,
+                    SegmentGuidBuildIndex,
+                    SegmentGuidPrefabId,
+                    SegmentGuidStartNodePrefabId,
+                    SegmentGuidEndNodePrefabId,
+                    SegmentGuidSequence);
+                set
+                {
+                    SegmentGuidSegmentId = value.SegmentId;
+                    SegmentGuidBuildIndex = value.BuildIndex;
+                    SegmentGuidPrefabId = value.PrefabId;
+                    SegmentGuidStartNodePrefabId = value.StartNodePrefabId;
+                    SegmentGuidEndNodePrefabId = value.EndNodePrefabId;
+                    SegmentGuidSequence = value.Sequence;
+                }
+            }
 
             /// <summary>
             /// Raw km/h payload that mirrors <see cref="Speed"/>. Used when palette encoding collapses.

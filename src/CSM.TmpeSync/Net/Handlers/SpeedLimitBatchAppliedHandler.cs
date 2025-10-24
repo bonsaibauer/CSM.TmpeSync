@@ -1,4 +1,5 @@
 using CSM.API.Commands;
+using CSM.TmpeSync.Net;
 using CSM.TmpeSync.Net.Contracts.Applied;
 using CSM.TmpeSync.Tmpe;
 using CSM.TmpeSync.Util;
@@ -24,11 +25,29 @@ namespace CSM.TmpeSync.Net.Handlers
             foreach (var item in command.Items)
             {
                 var effectiveVersion = item.MappingVersion > 0 ? item.MappingVersion : command.MappingVersion;
+                var laneGuid = item.LaneGuid;
+                var segmentGuid = item.SegmentGuid;
+                var segmentId = item.SegmentId != 0 ? item.SegmentId : laneGuid.SegmentId;
+                var laneIndex = item.LaneIndex >= 0 ? item.LaneIndex : laneGuid.PrefabLaneIndex;
+
+                if (laneGuid.IsValid)
+                {
+                    LaneMappingStore.UpsertHostLane(laneGuid, item.LaneId, segmentId, laneIndex, out _, out _);
+                    LaneMappingStore.UpdateLocalLane(segmentId, laneIndex, item.LaneId);
+                    LaneGuidRegistry.AssignLaneGuid(item.LaneId, laneGuid, true);
+                }
+
+                if (segmentGuid.IsValid)
+                {
+                    SegmentMappingStore.UpsertHostSegment(segmentGuid, segmentId, out _, out _);
+                    SegmentMappingStore.UpdateLocalSegment(segmentGuid, segmentId);
+                }
+
                 SpeedLimitCommandProcessor.Apply(
                     item.LaneId,
                     item.Speed,
-                    item.SegmentId,
-                    item.LaneIndex,
+                    segmentId,
+                    laneIndex,
                     effectiveVersion);
             }
         }
