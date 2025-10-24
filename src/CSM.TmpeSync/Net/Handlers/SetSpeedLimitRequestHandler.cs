@@ -79,15 +79,16 @@ namespace CSM.TmpeSync.Net.Handlers
                         float? resultingDefault = null;
                         var resultingSpeedKmh = SpeedLimitCodec.DecodeToKmh(resultingValue);
 
-                        if (TmpeAdapter.TryGetSpeedLimit(lockedLaneId, out var appliedSpeed, out var appliedDefault, out var hasOverride))
+                        if (TmpeAdapter.TryGetSpeedLimit(lockedLaneId, out var appliedSpeed, out var appliedDefault, out var hasOverride, out var pending))
                         {
-                            resultingValue = SpeedLimitCodec.Encode(appliedSpeed, appliedDefault, hasOverride);
+                            resultingValue = SpeedLimitCodec.Encode(appliedSpeed, appliedDefault, hasOverride, pending);
                             resultingDefault = appliedDefault;
                             resultingSpeedKmh = appliedSpeed;
                         }
                         else
                         {
-                            resultingValue = SpeedLimitCodec.Encode(resultingSpeedKmh, null, !SpeedLimitCodec.IsDefault(resultingValue));
+                            var assumeOverride = !SpeedLimitCodec.IsDefault(resultingValue);
+                            resultingValue = SpeedLimitCodec.Encode(resultingSpeedKmh, null, assumeOverride, pending: assumeOverride);
                         }
                         if (!NetUtil.TryGetLaneLocation(lockedLaneId, out var currentSegment, out var currentLaneIndex))
                         {

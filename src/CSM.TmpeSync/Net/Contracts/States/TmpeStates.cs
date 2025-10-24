@@ -38,11 +38,18 @@ namespace CSM.TmpeSync.Net.Contracts.States
         /// </summary>
         [ProtoMember(3)] public float RawSpeedKmh { get; set; }
 
+        /// <summary>
+        /// Indicates whether the encoded value is still pending application on TM:PE.
+        /// </summary>
+        [ProtoMember(4)] public bool Pending { get; set; }
+
         public override string ToString()
         {
-            return RawSpeedKmh > 0.01f
+            var baseText = RawSpeedKmh > 0.01f
                 ? $"Type={Type} Index={Index} Raw={RawSpeedKmh:0.###} km/h"
                 : $"Type={Type} Index={Index}";
+
+            return Pending ? baseText + " Pending=true" : baseText;
         }
     }
 
@@ -138,6 +145,7 @@ namespace CSM.TmpeSync.Net.Contracts.States
         {
             var clone = (JunctionRestrictionsState) MemberwiseClone();
             clone.WireSnapshot = null;
+            clone.Pending = Pending?.Clone();
             return clone;
         }
 
@@ -168,13 +176,25 @@ namespace CSM.TmpeSync.Net.Contracts.States
 
         public override string ToString()
         {
-            return $"UTurns={Format(AllowUTurns)}, LaneChange={Format(AllowLaneChangesWhenGoingStraight)}, Blocked={Format(AllowEnterWhenBlocked)}, Pedestrians={Format(AllowPedestrianCrossing)}, NearTurnOnRed={Format(AllowNearTurnOnRed)}, FarTurnOnRed={Format(AllowFarTurnOnRed)}";
+            var pendingSuffix = Pending != null && Pending.HasAnyValue()
+                ? $" Pending={Pending}"
+                : string.Empty;
+
+            return
+                $"UTurns={Format(AllowUTurns)}, LaneChange={Format(AllowLaneChangesWhenGoingStraight)}, Blocked={Format(AllowEnterWhenBlocked)}, Pedestrians={Format(AllowPedestrianCrossing)}, NearTurnOnRed={Format(AllowNearTurnOnRed)}, FarTurnOnRed={Format(AllowFarTurnOnRed)}" +
+                pendingSuffix;
         }
 
         private static string Format(bool? value)
         {
             return value.HasValue ? value.Value.ToString() : "<null>";
         }
+
+        /// <summary>
+        /// Describes which restriction flags are still pending application.
+        /// </summary>
+        [ProtoMember(200)]
+        public JunctionRestrictionPendingState Pending { get; set; }
 
         [ProtoMember(100)]
         internal JunctionRestrictionWireSnapshot WireSnapshot { get; private set; }
@@ -274,6 +294,43 @@ namespace CSM.TmpeSync.Net.Contracts.States
                 var value = (snapshot.ValueMask & flag) != 0;
                 setter(value);
             }
+        }
+    }
+
+    [ProtoContract]
+    public class JunctionRestrictionPendingState
+    {
+        [ProtoMember(1)] public bool? AllowUTurns { get; set; }
+        [ProtoMember(2)] public bool? AllowLaneChangesWhenGoingStraight { get; set; }
+        [ProtoMember(3)] public bool? AllowEnterWhenBlocked { get; set; }
+        [ProtoMember(4)] public bool? AllowPedestrianCrossing { get; set; }
+        [ProtoMember(5)] public bool? AllowNearTurnOnRed { get; set; }
+        [ProtoMember(6)] public bool? AllowFarTurnOnRed { get; set; }
+
+        internal bool HasAnyValue()
+        {
+            return AllowUTurns.HasValue ||
+                   AllowLaneChangesWhenGoingStraight.HasValue ||
+                   AllowEnterWhenBlocked.HasValue ||
+                   AllowPedestrianCrossing.HasValue ||
+                   AllowNearTurnOnRed.HasValue ||
+                   AllowFarTurnOnRed.HasValue;
+        }
+
+        public JunctionRestrictionPendingState Clone()
+        {
+            return (JunctionRestrictionPendingState)MemberwiseClone();
+        }
+
+        public override string ToString()
+        {
+            return
+                $"UTurns={Format(AllowUTurns)}, LaneChange={Format(AllowLaneChangesWhenGoingStraight)}, Blocked={Format(AllowEnterWhenBlocked)}, Pedestrians={Format(AllowPedestrianCrossing)}, NearTurnOnRed={Format(AllowNearTurnOnRed)}, FarTurnOnRed={Format(AllowFarTurnOnRed)}";
+        }
+
+        private static string Format(bool? value)
+        {
+            return value.HasValue ? value.Value.ToString() : "<null>";
         }
     }
 
