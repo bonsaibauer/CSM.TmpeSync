@@ -43,7 +43,7 @@ namespace CSM.TmpeSync.Net.Handlers
                     "Lane mapping snapshot imported | count={0} version={1}",
                     command.Entries.Count,
                     command.Version);
-                LaneAssignmentRetryBuffer.Process();
+                PendingMap.ProcessLaneAssignments();
                 return;
             }
 
@@ -58,29 +58,12 @@ namespace CSM.TmpeSync.Net.Handlers
                 ResolveLocalLane(entry.SegmentId, entry.LaneIndex, entry.LaneGuid);
             }
 
-            LaneAssignmentRetryBuffer.Process();
+            PendingMap.ProcessLaneAssignments();
         }
 
         internal static bool ResolveLocalLane(ushort segmentId, int laneIndex, LaneGuid laneGuid)
         {
-            if (!laneGuid.IsValid)
-                return false;
-
-            if (!LaneGuidRegistry.TryResolveLane(laneGuid, out var localLaneId))
-            {
-                LaneAssignmentRetryBuffer.Queue(laneGuid, segmentId, laneIndex);
-                return false;
-            }
-
-            if (segmentId == 0 || laneIndex < 0)
-            {
-                if (!NetUtil.TryGetLaneLocation(localLaneId, out segmentId, out laneIndex))
-                    return false;
-            }
-
-            LaneGuidRegistry.AssignLaneGuid(localLaneId, laneGuid, true);
-            LaneMappingStore.UpdateLocalLane(segmentId, laneIndex, localLaneId);
-            return true;
+            return PendingMap.ResolveLaneMapping(laneGuid, segmentId, laneIndex);
         }
     }
 }

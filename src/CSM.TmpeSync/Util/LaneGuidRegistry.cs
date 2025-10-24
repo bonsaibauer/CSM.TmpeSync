@@ -370,9 +370,9 @@ namespace CSM.TmpeSync.Util
             var buildMismatch = actualBuildIndex != laneGuid.SegmentBuildIndex;
             if (buildMismatch)
             {
-                Log.Warn(
+                Log.Debug(
                     LogCategory.Synchronization,
-                    "Lane GUID build index mismatch | segment={0} expectedBuild={1} actualBuild={2} action=attempt_remap",
+                    "Lane GUID build index mismatch detected | segment={0} expectedBuild={1} actualBuild={2} action=remap",
                     laneGuid.SegmentId,
                     laneGuid.SegmentBuildIndex,
                     actualBuildIndex);
@@ -397,9 +397,9 @@ namespace CSM.TmpeSync.Util
                     laneId = currentLaneId;
                     if (buildMismatch)
                     {
-                        Log.Info(
+                        Log.Debug(
                             LogCategory.Synchronization,
-                            "Lane GUID build index remap succeeded | segment={0} previousBuild={1} currentBuild={2} laneId={3}",
+                            "Lane GUID build index remap applied | segment={0} previousBuild={1} currentBuild={2} laneId={3}",
                             laneGuid.SegmentId,
                             laneGuid.SegmentBuildIndex,
                             actualBuildIndex,

@@ -36,7 +36,7 @@ namespace CSM.TmpeSync.Util
 
             LaneMappingStore.Clear();
             LaneGuidRegistry.Clear();
-            LaneAssignmentRetryBuffer.Clear();
+            PendingMap.Reset();
             SegmentBuildIndices.Clear();
             ApplyLaneGuidRoleSettings();
             MultiplayerStateObserver.RoleChanged += OnRoleChanged;
@@ -54,7 +54,7 @@ namespace CSM.TmpeSync.Util
             UnregisterSegmentHooks();
             LaneMappingStore.Clear();
             LaneGuidRegistry.Clear();
-            LaneAssignmentRetryBuffer.Clear();
+            PendingMap.Reset();
             SegmentBuildIndices.Clear();
             _initialized = false;
         }
@@ -66,7 +66,7 @@ namespace CSM.TmpeSync.Util
                 LaneMappingStore.Clear();
                 LaneGuidRegistry.SetAutomaticGeneration(false);
                 LaneGuidRegistry.Clear();
-                LaneAssignmentRetryBuffer.Clear();
+                PendingMap.Reset();
                 SegmentBuildIndices.Clear();
                 DeferredApply.Reset();
                 return;
@@ -143,7 +143,7 @@ namespace CSM.TmpeSync.Util
                 return;
 
             LaneGuidRegistry.HandleSegmentReleased(segmentId);
-            LaneAssignmentRetryBuffer.RemoveForSegment(segmentId);
+            PendingMap.RemoveLaneAssignmentsForSegment(segmentId);
             SegmentBuildIndices.Remove(segmentId);
 
             foreach (var entry in removedEntries)
@@ -273,7 +273,7 @@ namespace CSM.TmpeSync.Util
                 }
             }
 
-            LaneAssignmentRetryBuffer.ProcessForSegment(segmentId);
+            PendingMap.ProcessLaneAssignments(segmentId);
             return updates;
         }
 
@@ -427,7 +427,7 @@ namespace CSM.TmpeSync.Util
 
                 PruneStaleMappings();
                 DetectSegmentLifecycle();
-                LaneAssignmentRetryBuffer.Process();
+                PendingMap.ProcessLaneAssignments();
             }
         }
 
@@ -452,7 +452,7 @@ namespace CSM.TmpeSync.Util
                 if (handledSegments.Add(entry.SegmentId))
                 {
                     LaneGuidRegistry.HandleSegmentReleased(entry.SegmentId);
-                    LaneAssignmentRetryBuffer.RemoveForSegment(entry.SegmentId);
+                    PendingMap.RemoveLaneAssignmentsForSegment(entry.SegmentId);
                     SegmentBuildIndices.Remove(entry.SegmentId);
                 }
 

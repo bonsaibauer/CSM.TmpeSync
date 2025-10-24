@@ -32,7 +32,7 @@ namespace CSM.TmpeSync.Net.Handlers
                 command.Version);
 
             LaneMappingBatchHandler.ResolveLocalLane(command.SegmentId, command.LaneIndex, command.LaneGuid);
-            LaneAssignmentRetryBuffer.ProcessForSegment(command.SegmentId);
+            PendingMap.ProcessLaneAssignments(command.SegmentId);
         }
     }
 }

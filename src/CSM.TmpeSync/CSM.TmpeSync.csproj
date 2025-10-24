@@ -109,11 +109,8 @@
     <Compile Include="Util\TransmissionDiagnostics.cs" />
     <Compile Include="Util\LockRegistry.cs" />
     <Compile Include="Util\LaneGuidRegistry.cs" />
-    <Compile Include="Util\LaneAssignmentRetryBuffer.cs" />
-    <Compile Include="Util\TmpeRetryBuffer.cs" />
+    <Compile Include="Util\PendingMap.cs" />
     <Compile Include="Util\MultiplayerStateObserver.cs" />
-
-    <Compile Include="HideCrosswalks\HideCrosswalksAdapter.cs" />
 
     <Compile Include="Tmpe\TmpeAdapter.cs" />
     <Compile Include="Tmpe\TmpeAdapter.Pending.cs" />
@@ -127,7 +124,6 @@
     <Compile Include="Net\Contracts\Requests\SetPrioritySignRequest.cs" />
     <Compile Include="Net\Contracts\Requests\SetParkingRestrictionRequest.cs" />
     <Compile Include="Net\Contracts\Requests\ToggleTrafficLightRequest.cs" />
-    <Compile Include="Net\Contracts\Requests\SetCrosswalkHiddenRequest.cs" />
     <Compile Include="Net\Contracts\Requests\ClearTrafficRequest.cs" />
     <Compile Include="Net\Contracts\Applied\SpeedLimitApplied.cs" />
     <Compile Include="Net\Contracts\Applied\SpeedLimitBatchApplied.cs" />
@@ -138,7 +134,6 @@
     <Compile Include="Net\Contracts\Applied\PrioritySignApplied.cs" />
     <Compile Include="Net\Contracts\Applied\ParkingRestrictionApplied.cs" />
     <Compile Include="Net\Contracts\Applied\TrafficLightToggledApplied.cs" />
-    <Compile Include="Net\Contracts\Applied\CrosswalkHiddenApplied.cs" />
     <Compile Include="Net\Contracts\Applied\ClearTrafficApplied.cs" />
     <Compile Include="Net\Contracts\Mapping\LaneMappingBatch.cs" />
     <Compile Include="Net\Contracts\Mapping\LaneMappingChanged.cs" />
@@ -175,10 +170,7 @@
     <Compile Include="Net\Handlers\ToggleTrafficLightRequestHandler.cs" />
     <Compile Include="Net\Handlers\TrafficLightToggledAppliedHandler.cs" />
     <Compile Include="Net\Handlers\TrafficLightToggledDeferredOp.cs" />
-    <Compile Include="Net\Handlers\SetCrosswalkHiddenRequestHandler.cs" />
     <Compile Include="Net\Handlers\ClearTrafficRequestHandler.cs" />
-    <Compile Include="Net\Handlers\CrosswalkHiddenAppliedHandler.cs" />
-    <Compile Include="Net\Handlers\CrosswalkHiddenDeferredOp.cs" />
     <Compile Include="Net\Handlers\ClearTrafficAppliedHandler.cs" />
     <Compile Include="Net\Handlers\LaneMappingBatchHandler.cs" />
     <Compile Include="Net\Handlers\LaneMappingChangedHandler.cs" />
@@ -198,7 +190,6 @@
     <Compile Include="Snapshot\PrioritySignSnapshotProvider.cs" />
     <Compile Include="Snapshot\ParkingRestrictionSnapshotProvider.cs" />
     <Compile Include="Snapshot\ToggleTrafficLightSnapshotProvider.cs" />
-    <Compile Include="Snapshot\CrosswalkHiddenSnapshotProvider.cs" />
     <Compile Include="Snapshot\SnapshotDispatcher.cs" />
     <Compile Include="Util\LaneMappingStore.cs" />
     <Compile Include="Util\LaneMappingTracker.cs" />
