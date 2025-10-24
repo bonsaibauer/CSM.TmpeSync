@@ -1,6 +1,7 @@
 using System;
 using CSM.API.Commands;
 using CSM.API.Helpers;
+using CSM.API.Networking;
 
 namespace CSM.TmpeSync.Util
 {
@@ -117,19 +118,66 @@ namespace CSM.TmpeSync.Util
             Log.Debug(LogCategory.Network, "Command not delivered to client | type={0} clientId={1}", commandName, clientId);
         }
 
-        private static bool Invoke(Action<CommandBase> action, CommandBase command)
+        private static bool TrySendToClientInternal(int clientId, CommandBase command, out string failureReason)
         {
-            if (action == null)
+            failureReason = null;
+
+            if (!EnsureSendToClientReflection())
+            {
+                failureReason = "reflection_unavailable";
                 return false;
+            }
 
             try
             {
-                action(command);
+                var commandInternal = _commandInternalInstanceField?.GetValue(null);
+                if (commandInternal == null)
+                {
+                    failureReason = "command_internal_missing";
+                    return false;
+                }
+
+                var multiplayerManager = _multiplayerManagerInstanceProperty?.GetValue(null, null);
+                if (multiplayerManager == null)
+                {
+                    failureReason = "multiplayer_manager_missing";
+                    return false;
+                }
+
+                var server = _multiplayerManagerCurrentServerProperty?.GetValue(multiplayerManager, null);
+                if (server == null)
+                {
+                    failureReason = "server_missing";
+                    return false;
+                }
+
+                var connectedPlayersObj = _serverConnectedPlayersProperty?.GetValue(server, null);
+                if (!(connectedPlayersObj is IDictionary connectedPlayers))
+                {
+                    failureReason = "players_unavailable";
+                    return false;
+                }
+
+                if (!connectedPlayers.Contains(clientId))
+                {
+                    failureReason = "client_not_found";
+                    return false;
+                }
+
+                var player = connectedPlayers[clientId];
+                if (player == null)
+                {
+                    failureReason = "player_null";
+                    return false;
+                }
+
+                _commandInternalSendToClientMethod?.Invoke(commandInternal, new[] { player, command });
                 return true;
             }
             catch (Exception ex)
             {
-                Log.Warn(LogCategory.Network, "Failed to invoke CSM delegate {0} | error={1}", DescribeDelegate(action), ex);
+                failureReason = "send_failed";
+                Log.Warn(LogCategory.Network, "Failed to send command to client via reflection | clientId={0} command={1} error={2}", clientId, command.GetType().Name, ex);
                 return false;
             }
         }

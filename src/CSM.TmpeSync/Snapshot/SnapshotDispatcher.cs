@@ -19,8 +19,7 @@ namespace CSM.TmpeSync.Snapshot
             new PrioritySignSnapshotProvider(),
             new ParkingRestrictionSnapshotProvider(),
             new ToggleTrafficLightSnapshotProvider(),
-            new VehicleRestrictionsSnapshotProvider(),
-            new CrosswalkHiddenSnapshotProvider()
+            new VehicleRestrictionsSnapshotProvider()
         };
 
         private static bool _initialized;

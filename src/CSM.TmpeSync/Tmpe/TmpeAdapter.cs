@@ -579,7 +579,7 @@ namespace CSM.TmpeSync.Tmpe
                 SupportsClearTraffic = false;
                 HasRealTmpe = false;
 
-                TmpeRetryBuffer.ClearAll();
+                PendingMap.ClearAll();
 
                 if (tmpeAssembly == null)
                 {
@@ -2007,7 +2007,7 @@ namespace CSM.TmpeSync.Tmpe
 
                     if (SupportsSpeedLimits)
                     {
-                        TmpeRetryBuffer.UpsertLane(
+                        PendingMap.UpsertLane(
                             laneId,
                             segmentId,
                             laneIndex,
@@ -2028,7 +2028,7 @@ namespace CSM.TmpeSync.Tmpe
                         SpeedLimits.Remove(laneId);
                     }
 
-                    TmpeRetryBuffer.ClearLane(laneId, "clear");
+                    PendingMap.ClearLane(laneId, "clear");
                 }
 
                 var appliedViaApi = false;
@@ -2040,13 +2040,13 @@ namespace CSM.TmpeSync.Tmpe
 
                     if (appliedViaApi)
                     {
-                        TmpeRetryBuffer.MarkLaneApplied(laneId);
+                        PendingMap.MarkLaneApplied(laneId);
                         Log.Info(LogCategory.Synchronization, "TM:PE speed limit applied via API | laneId={0} speedKmh={1}", laneId, speedKmh);
                     }
                     else if (wantsOverride)
                     {
                         Log.Warn(LogCategory.Bridge, "TM:PE speed limit apply via API failed | laneId={0} action=pending", laneId);
-                        TmpeRetryBuffer.ReportLaneFailure(
+                        PendingMap.ReportLaneFailure(
                             laneId,
                             "api_failed",
                             defaultKmh,
@@ -2056,7 +2056,7 @@ namespace CSM.TmpeSync.Tmpe
                     else
                     {
                         Log.Warn(LogCategory.Bridge, "TM:PE speed limit reset via API failed | laneId={0}", laneId);
-                        TmpeRetryBuffer.ClearLane(laneId, "clear");
+                        PendingMap.ClearLane(laneId, "clear");
                     }
                 }
 
@@ -2100,11 +2100,11 @@ namespace CSM.TmpeSync.Tmpe
 
                     if (hasOverride)
                     {
-                        TmpeRetryBuffer.MarkLaneApplied(laneId);
+                        PendingMap.MarkLaneApplied(laneId);
                         return true;
                     }
 
-                    if (TmpeRetryBuffer.TryGetLaneSnapshot(laneId, out var pending))
+                    if (PendingMap.TryGetLaneSnapshot(laneId, out var pending))
                     {
                         speedKmh = pending.DesiredSpeedKmh;
                         defaultKmh = pending.DefaultKmh ?? defaultKmh;
@@ -2117,8 +2117,8 @@ namespace CSM.TmpeSync.Tmpe
                 }
 
                 float? fallbackDefault = TryGetLaneDefaultKmh(laneId);
-                TmpeRetryBuffer.LaneSnapshot pendingSnapshot;
-                var hasPending = TmpeRetryBuffer.TryGetLaneSnapshot(laneId, out pendingSnapshot);
+                PendingMap.LaneSnapshot pendingSnapshot;
+                var hasPending = PendingMap.TryGetLaneSnapshot(laneId, out pendingSnapshot);
 
                 lock (StateLock)
                 {
@@ -2374,7 +2374,7 @@ namespace CSM.TmpeSync.Tmpe
             }
 
             foreach (var nodeId in affectedNodes)
-                TmpeRetryBuffer.TriggerNode(nodeId);
+                PendingMap.TriggerNode(nodeId);
         }
 
         internal static bool TryGetLaneConnections(uint sourceLaneId, out uint[] targetLaneIds)
@@ -2441,13 +2441,13 @@ namespace CSM.TmpeSync.Tmpe
                 {
                     Log.Debug(LogCategory.Hook, "TM:PE junction restriction request | nodeId={0} state={1}", nodeId, desired);
 
-                    TmpeRetryBuffer.UpsertNode(nodeId, desired, observerHash, "apply");
+                    PendingMap.UpsertNode(nodeId, desired, observerHash, "apply");
                     var outcome = TryApplyJunctionRestrictionsReal(nodeId, desired, out var appliedFlags, out var rejectedFlags);
 
                     if (outcome == JunctionRestrictionApplyOutcome.Fatal)
                     {
                         Log.Warn(LogCategory.Bridge, "TM:PE junction restriction apply via API failed | nodeId={0} action=fallback_to_stub", nodeId);
-                        TmpeRetryBuffer.DropNode(nodeId);
+                        PendingMap.DropNode(nodeId);
                         return false;
                     }
 
@@ -2456,27 +2456,27 @@ namespace CSM.TmpeSync.Tmpe
                     if (outcome == JunctionRestrictionApplyOutcome.Success)
                     {
                         if (desired.HasAnyValue())
-                            TmpeRetryBuffer.MarkNodeApplied(nodeId, desired);
+                            PendingMap.MarkNodeApplied(nodeId, desired);
                         else
-                            TmpeRetryBuffer.ClearNode(nodeId, "clear");
+                            PendingMap.ClearNode(nodeId, "clear");
                         return true;
                     }
 
                     if (outcome == JunctionRestrictionApplyOutcome.Partial)
                     {
                         if (appliedFlags != null && appliedFlags.HasAnyValue())
-                            TmpeRetryBuffer.MarkNodeApplied(nodeId, appliedFlags);
+                            PendingMap.MarkNodeApplied(nodeId, appliedFlags);
 
                         if (rejectedFlags != null && rejectedFlags.HasAnyValue())
-                            TmpeRetryBuffer.ReportNodeRejection(nodeId, rejectedFlags, "partial", observerHash);
+                            PendingMap.ReportNodeRejection(nodeId, rejectedFlags, "partial", observerHash);
                         else if (desired.HasAnyValue())
-                            TmpeRetryBuffer.ReportNodeRejection(nodeId, desired, "partial", observerHash);
+                            PendingMap.ReportNodeRejection(nodeId, desired, "partial", observerHash);
 
                         return true;
                     }
 
                     if (desired.HasAnyValue())
-                        TmpeRetryBuffer.ReportNodeRejection(nodeId, desired, "no_effect", observerHash);
+                        PendingMap.ReportNodeRejection(nodeId, desired, "no_effect", observerHash);
 
                     storeDesiredInStub = true;
                 }
@@ -2505,7 +2505,7 @@ namespace CSM.TmpeSync.Tmpe
                 if (SupportsJunctionRestrictions && TryGetJunctionRestrictionsReal(nodeId, out state))
                 {
                     Log.Debug(LogCategory.Hook, "TM:PE junction restriction query | nodeId={0} state={1}", nodeId, state);
-                    TmpeRetryBuffer.OverlayPending(nodeId, state);
+                    PendingMap.OverlayPending(nodeId, state);
                     return true;
                 }
 
@@ -2517,7 +2517,7 @@ namespace CSM.TmpeSync.Tmpe
                         state = stored.Clone();
                 }
 
-                TmpeRetryBuffer.OverlayPending(nodeId, state);
+                PendingMap.OverlayPending(nodeId, state);
 
                 return true;
             }
@@ -2540,7 +2540,7 @@ namespace CSM.TmpeSync.Tmpe
                 var merged = MergeJunctionRestrictionStub(existing, valuesToStore, valuesToClear);
 
                 if (merged != null)
-                    TmpeRetryBuffer.OverlayPending(nodeId, merged);
+                    PendingMap.OverlayPending(nodeId, merged);
 
                 if (merged == null || !merged.HasAnyValue() || merged.IsDefault())
                     JunctionRestrictions.Remove(nodeId);
