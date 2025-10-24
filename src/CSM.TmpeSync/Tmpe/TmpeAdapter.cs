@@ -1024,6 +1024,7 @@ namespace CSM.TmpeSync.Tmpe
         private static MethodInfo IsEnteringBlockedMethod;
         private static MethodInfo IsPedestrianCrossingAllowedMethod;
         private static MethodInfo MayHaveJunctionRestrictionsMethod;
+        private static MethodInfo HasJunctionRestrictionsMethod;
 
         private static object TrafficPriorityManagerInstance;
         private static MethodInfo PrioritySignSetMethod;
@@ -1690,6 +1691,7 @@ namespace CSM.TmpeSync.Tmpe
             IsEnteringBlockedMethod = null;
             IsPedestrianCrossingAllowedMethod = null;
             MayHaveJunctionRestrictionsMethod = null;
+            HasJunctionRestrictionsMethod = null;
 
             try
             {
@@ -1732,6 +1734,15 @@ namespace CSM.TmpeSync.Tmpe
                         null);
                     if (MayHaveJunctionRestrictionsMethod == null)
                         LogBridgeGap("Junction Restrictions", "MayHaveJunctionRestrictions", DescribeMethodOverloads(managerType, "MayHaveJunctionRestrictions"));
+
+                    HasJunctionRestrictionsMethod = managerType.GetMethod(
+                        "HasJunctionRestrictions",
+                        BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic,
+                        null,
+                        new[] { typeof(ushort) },
+                        null);
+                    if (HasJunctionRestrictionsMethod == null)
+                        LogBridgeGap("Junction Restrictions", "HasJunctionRestrictions", DescribeMethodOverloads(managerType, "HasJunctionRestrictions"));
                 }
             }
             catch (Exception ex)
@@ -4152,6 +4163,23 @@ namespace CSM.TmpeSync.Tmpe
             ref var node = ref NetManager.instance.m_nodes.m_buffer[(int)nodeId];
             if ((node.m_flags & NetNode.Flags.Created) == NetNode.Flags.None)
                 return false;
+
+            if (HasJunctionRestrictionsMethod != null)
+            {
+                try
+                {
+                    var hasCustom = (bool)HasJunctionRestrictionsMethod.Invoke(JunctionRestrictionsManagerInstance, new object[] { nodeId });
+                    if (!hasCustom)
+                    {
+                        state = new JunctionRestrictionsState();
+                        return true;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Log.Debug(LogCategory.Diagnostics, "TM:PE HasJunctionRestrictions probe failed | nodeId={0} error={1}", nodeId, ex.GetType().Name);
+                }
+            }
 
             var any = false;
             var allowUTurns = true;

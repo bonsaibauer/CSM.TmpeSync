@@ -1,6 +1,6 @@
 using CSM.API.Commands;
-using CSM.TmpeSync.Net.Contracts.Requests;
 using CSM.TmpeSync.Net.Contracts.Applied;
+using CSM.TmpeSync.Net.Contracts.Requests;
 using CSM.TmpeSync.Net.Contracts.System;
 using CSM.TmpeSync.Tmpe;
 using CSM.TmpeSync.Util;
@@ -22,13 +22,18 @@ namespace CSM.TmpeSync.Net.Handlers
                 laneIndex = locatedIndex;
             }
 
+            var requestedValue = cmd.Speed ?? SpeedLimitCodec.Default();
+            var requestedKmh = SpeedLimitCodec.DecodeToKmh(requestedValue);
+            var requestedDescription = SpeedLimitCodec.Describe(requestedValue);
+
             Log.Info(
                 LogCategory.Network,
-                "SetSpeedLimitRequest received | laneId={0} segmentId={1} laneIndex={2} speedKmh={3} senderId={4} role={5}",
+                "SetSpeedLimitRequest received | laneId={0} segmentId={1} laneIndex={2} value={3} speedKmh={4} senderId={5} role={6}",
                 cmd.LaneId,
                 segmentId,
                 laneIndex,
-                cmd.SpeedKmh,
+                requestedDescription,
+                requestedKmh,
                 senderId,
                 CsmCompat.DescribeCurrentRole());
 
@@ -45,7 +50,12 @@ namespace CSM.TmpeSync.Net.Handlers
                 return;
             }
 
-            Log.Debug(LogCategory.Synchronization, "Queueing speed limit apply | laneId={0} speedKmh={1}", cmd.LaneId, cmd.SpeedKmh);
+            Log.Debug(
+                LogCategory.Synchronization,
+                "Queueing speed limit apply | laneId={0} value={1} speedKmh={2}",
+                cmd.LaneId,
+                requestedDescription,
+                requestedKmh);
             NetUtil.RunOnSimulation(() =>
             {
                 if (!NetUtil.TryResolveLane(resolvedLaneId, segmentId, laneIndex, out var simLaneId))
@@ -62,11 +72,11 @@ namespace CSM.TmpeSync.Net.Handlers
                         return;
                     }
 
-                    if (TmpeAdapter.ApplySpeedLimit(lockedLaneId, cmd.SpeedKmh))
+                    if (TmpeAdapter.ApplySpeedLimit(lockedLaneId, requestedKmh))
                     {
-                        var resultingSpeed = cmd.SpeedKmh;
+                        var resultingValue = requestedValue;
                         if (TmpeAdapter.TryGetSpeedKmh(lockedLaneId, out var appliedSpeed))
-                            resultingSpeed = appliedSpeed;
+                            resultingValue = SpeedLimitCodec.Encode(appliedSpeed);
                         if (!NetUtil.TryGetLaneLocation(lockedLaneId, out var currentSegment, out var currentLaneIndex))
                         {
                             currentSegment = segmentId;
@@ -74,11 +84,18 @@ namespace CSM.TmpeSync.Net.Handlers
                         }
 
                         var mappingVersion = LaneMappingStore.Version;
-                        Log.Info(LogCategory.Synchronization, "Applied speed limit | laneId={0} segmentId={1} laneIndex={2} speedKmh={3} action=broadcast", lockedLaneId, currentSegment, currentLaneIndex, resultingSpeed);
+                        Log.Info(
+                            LogCategory.Synchronization,
+                            "Applied speed limit | laneId={0} segmentId={1} laneIndex={2} value={3} speedKmh={4} action=broadcast",
+                            lockedLaneId,
+                            currentSegment,
+                            currentLaneIndex,
+                            SpeedLimitCodec.Describe(resultingValue),
+                            SpeedLimitCodec.DecodeToKmh(resultingValue));
                         CsmCompat.SendToAll(new SpeedLimitApplied
                         {
                             LaneId = lockedLaneId,
-                            SpeedKmh = resultingSpeed,
+                            Speed = resultingValue,
                             SegmentId = currentSegment,
                             LaneIndex = currentLaneIndex,
                             MappingVersion = mappingVersion
@@ -86,7 +103,15 @@ namespace CSM.TmpeSync.Net.Handlers
                     }
                     else
                     {
-                        Log.Error(LogCategory.Synchronization, "Failed to apply speed limit | laneId={0} segmentId={1} laneIndex={2} speedKmh={3} notifyClient={4}", lockedLaneId, segmentId, laneIndex, cmd.SpeedKmh, senderId);
+                        Log.Error(
+                            LogCategory.Synchronization,
+                            "Failed to apply speed limit | laneId={0} segmentId={1} laneIndex={2} value={3} speedKmh={4} notifyClient={5}",
+                            lockedLaneId,
+                            segmentId,
+                            laneIndex,
+                            requestedDescription,
+                            requestedKmh,
+                            senderId);
                         CsmCompat.SendToClient(senderId, new RequestRejected { Reason = "tmpe_apply_failed", EntityId = lockedLaneId, EntityType = 1 });
                     }
                 }
