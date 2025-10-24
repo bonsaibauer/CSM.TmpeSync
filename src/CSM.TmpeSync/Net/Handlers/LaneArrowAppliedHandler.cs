@@ -41,13 +41,10 @@ namespace CSM.TmpeSync.Net.Handlers
                     laneId,
                     segmentId,
                     laneIndex);
-                using (CsmCompat.StartIgnore())
-                {
-                    if (Tmpe.TmpeAdapter.ApplyLaneArrows(laneId, cmd.Arrows))
-                        Log.Info(LogCategory.Synchronization, "Applied remote lane arrows | laneId={0} segmentId={1} laneIndex={2} arrows={3}", laneId, segmentId, laneIndex, cmd.Arrows);
-                    else
-                        Log.Error(LogCategory.Synchronization, "Failed to apply remote lane arrows | laneId={0} segmentId={1} laneIndex={2} arrows={3}", laneId, segmentId, laneIndex, cmd.Arrows);
-                }
+                if (PendingMap.ApplyLaneArrows(laneId, cmd.Arrows, ignoreScope: true))
+                    Log.Info(LogCategory.Synchronization, "Applied remote lane arrows | laneId={0} segmentId={1} laneIndex={2} arrows={3}", laneId, segmentId, laneIndex, cmd.Arrows);
+                else
+                    Log.Error(LogCategory.Synchronization, "Failed to apply remote lane arrows | laneId={0} segmentId={1} laneIndex={2} arrows={3}", laneId, segmentId, laneIndex, cmd.Arrows);
             }
             else
             {

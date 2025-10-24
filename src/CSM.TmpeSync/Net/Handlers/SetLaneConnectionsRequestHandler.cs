@@ -5,7 +5,6 @@ using CSM.API.Commands;
 using CSM.TmpeSync.Net.Contracts.Applied;
 using CSM.TmpeSync.Net.Contracts.Requests;
 using CSM.TmpeSync.Net.Contracts.System;
-using CSM.TmpeSync.Tmpe;
 using CSM.TmpeSync.Util;
 
 namespace CSM.TmpeSync.Net.Handlers
@@ -93,10 +92,10 @@ namespace CSM.TmpeSync.Net.Handlers
                         return;
                     }
 
-                    if (TmpeAdapter.ApplyLaneConnections(simSourceLaneId, resolvedTargetLaneIds))
+                    if (PendingMap.ApplyLaneConnections(simSourceLaneId, resolvedTargetLaneIds, ignoreScope: false))
                     {
                         var updatedTargets = resolvedTargetLaneIds.ToArray();
-                        if (TmpeAdapter.TryGetLaneConnections(simSourceLaneId, out var appliedTargets) && appliedTargets != null)
+                        if (PendingMap.TryGetLaneConnections(simSourceLaneId, out var appliedTargets) && appliedTargets != null)
                             updatedTargets = appliedTargets.ToArray();
 
                         for (var i = 0; i < updatedTargets.Length; i++)
@@ -119,6 +118,17 @@ namespace CSM.TmpeSync.Net.Handlers
                             simSourceLaneIndex = sourceLaneIndex;
                         }
 
+                        if (simSourceSegmentId != 0)
+                            LaneMappingTracker.SyncSegment(simSourceSegmentId, "lane_connections_request_source");
+                        for (var i = 0; i < resolvedTargetSegments.Length; i++)
+                        {
+                            var targetSegment = resolvedTargetSegments[i];
+                            if (targetSegment != 0)
+                                LaneMappingTracker.SyncSegment(targetSegment, "lane_connections_request_target");
+                        }
+
+                        var mappingVersion = LaneMappingStore.Version;
+
                         resolvedTargetSegments = ResizeArray(resolvedTargetSegments, updatedTargets.Length);
                         resolvedTargetIndexes = ResizeArray(resolvedTargetIndexes, updatedTargets.Length, -1);
 
@@ -130,7 +140,8 @@ namespace CSM.TmpeSync.Net.Handlers
                             SourceLaneIndex = simSourceLaneIndex,
                             TargetLaneIds = updatedTargets,
                             TargetSegmentIds = (ushort[])resolvedTargetSegments.Clone(),
-                            TargetLaneIndexes = (int[])resolvedTargetIndexes.Clone()
+                            TargetLaneIndexes = (int[])resolvedTargetIndexes.Clone(),
+                            MappingVersion = mappingVersion
                         });
                     }
                     else

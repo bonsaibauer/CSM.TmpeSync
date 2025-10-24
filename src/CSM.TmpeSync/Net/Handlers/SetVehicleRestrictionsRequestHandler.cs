@@ -3,7 +3,6 @@ using CSM.TmpeSync.Net.Contracts.Applied;
 using CSM.TmpeSync.Net.Contracts.Requests;
 using CSM.TmpeSync.Net.Contracts.System;
 using CSM.TmpeSync.Net.Contracts.States;
-using CSM.TmpeSync.Tmpe;
 using CSM.TmpeSync.Util;
 
 namespace CSM.TmpeSync.Net.Handlers
@@ -66,10 +65,10 @@ namespace CSM.TmpeSync.Net.Handlers
                         return;
                     }
 
-                    if (TmpeAdapter.ApplyVehicleRestrictions(simLaneId, cmd.Restrictions))
+                    if (PendingMap.ApplyVehicleRestrictions(simLaneId, cmd.Restrictions, ignoreScope: false))
                     {
                         var resultingRestrictions = cmd.Restrictions;
-                        if (TmpeAdapter.TryGetVehicleRestrictions(simLaneId, out var appliedRestrictions))
+                        if (PendingMap.TryGetVehicleRestrictions(simLaneId, out var appliedRestrictions))
                             resultingRestrictions = appliedRestrictions;
 
                         if (!NetUtil.TryGetLaneLocation(simLaneId, out simSegmentId, out simLaneIndex))
@@ -78,13 +77,18 @@ namespace CSM.TmpeSync.Net.Handlers
                             simLaneIndex = laneIndex;
                         }
 
+                        if (simSegmentId != 0)
+                            LaneMappingTracker.SyncSegment(simSegmentId, "vehicle_restrictions_request");
+                        var mappingVersion = LaneMappingStore.Version;
+
                         Log.Info(LogCategory.Synchronization, "Applied vehicle restrictions | laneId={0} segmentId={1} laneIndex={2} restrictions={3} action=broadcast", simLaneId, simSegmentId, simLaneIndex, resultingRestrictions);
                         CsmCompat.SendToAll(new VehicleRestrictionsApplied
                         {
                             LaneId = simLaneId,
                             SegmentId = simSegmentId,
                             LaneIndex = simLaneIndex,
-                            Restrictions = resultingRestrictions
+                            Restrictions = resultingRestrictions,
+                            MappingVersion = mappingVersion
                         });
                     }
                     else

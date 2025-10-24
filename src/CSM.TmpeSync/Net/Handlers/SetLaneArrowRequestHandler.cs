@@ -3,7 +3,6 @@ using CSM.TmpeSync.Net.Contracts.Applied;
 using CSM.TmpeSync.Net.Contracts.Requests;
 using CSM.TmpeSync.Net.Contracts.System;
 using CSM.TmpeSync.Net.Contracts.States;
-using CSM.TmpeSync.Tmpe;
 using CSM.TmpeSync.Util;
 
 namespace CSM.TmpeSync.Net.Handlers
@@ -73,10 +72,10 @@ namespace CSM.TmpeSync.Net.Handlers
                         return;
                     }
 
-                    if (TmpeAdapter.ApplyLaneArrows(simLaneId, cmd.Arrows))
+                    if (PendingMap.ApplyLaneArrows(simLaneId, cmd.Arrows, ignoreScope: false))
                     {
                         var resultingArrows = cmd.Arrows;
-                        if (TmpeAdapter.TryGetLaneArrows(simLaneId, out var appliedArrows))
+                        if (PendingMap.TryGetLaneArrows(simLaneId, out var appliedArrows))
                             resultingArrows = appliedArrows;
 
                         if (!NetUtil.TryGetLaneLocation(simLaneId, out simSegmentId, out simLaneIndex))
