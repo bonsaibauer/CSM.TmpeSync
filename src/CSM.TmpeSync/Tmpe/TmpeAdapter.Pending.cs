@@ -7,7 +7,7 @@ namespace CSM.TmpeSync.Tmpe
 {
     internal static partial class TmpeAdapter
     {
-        static TmpeAdapter()
+        static partial void OnStaticConstructed()
         {
             TmpeRetryBuffer.Configure(ProcessPendingSpeedLimit, ProcessPendingJunctionRestrictions);
         }
