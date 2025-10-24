@@ -111,6 +111,7 @@
     <Compile Include="Util\LaneGuidRegistry.cs" />
     <Compile Include="Util\LaneAssignmentRetryBuffer.cs" />
     <Compile Include="Util\MultiplayerStateObserver.cs" />
+    <Compile Include="Util\TimedTrafficLightOptionGuard.cs" />
 
     <Compile Include="HideCrosswalks\HideCrosswalksAdapter.cs" />
 
