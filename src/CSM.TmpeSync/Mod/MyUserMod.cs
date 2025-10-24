@@ -88,8 +88,6 @@ namespace CSM.TmpeSync.Mod
                 "TM:PE feature support | supported={0} unsupported={1}",
                 supported.Length == 0 ? "<none>" : string.Join(", ", supported),
                 unsupported.Length == 0 ? "<none>" : string.Join(", ", unsupported));
-
-            TimedTrafficLightOptionGuard.Activate();
         }
 
         public void OnDisabled()
@@ -117,8 +115,6 @@ namespace CSM.TmpeSync.Mod
 
             CsmCompat.LogDiagnostics("OnDisabled");
             Log.Debug(LogCategory.Lifecycle, "Mod disabled | awaiting_next_enable_cycle");
-
-            TimedTrafficLightOptionGuard.Deactivate();
         }
     }
 }
