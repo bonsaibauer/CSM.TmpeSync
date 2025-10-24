@@ -216,8 +216,4 @@
     <Copy SourceFiles="$(TargetPath)" DestinationFolder="$(ModsOutDir)" />
   </Target>
 
-  <Target Name="CopyToSteamMods" AfterTargets="Build" Condition="'$(SteamModsDir)'!=''">
-    <MakeDir Directories="$(SteamModsDir)" />
-    <Copy SourceFiles="$(TargetPath)" DestinationFiles="$(SteamModsDir)\$(TargetFileName)" SkipUnchangedFiles="true" />
-  </Target>
 </Project>
