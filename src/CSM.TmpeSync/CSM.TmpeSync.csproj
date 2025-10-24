@@ -74,6 +74,32 @@
     <Error Condition=" !Exists('$(CsmApiDllPath)') " Text="Missing: $(CsmApiDllPath) — verify the CSM.API build path." />
   </Target>
 
+  <Target Name="NormalizeFrameworkReferenceArchitecture" BeforeTargets="ResolveReferences">
+    <!--
+      Visual Studio resolves the .NET 3.5 reference assemblies from the Microsoft.NETFramework.ReferenceAssemblies.net35
+      package with a ProcessorArchitecture of x86. We ship an AnyCPU plugin that must load in a 64-bit Mono runtime,
+      so we explicitly normalise the metadata to match the real (AnyCPU) binaries and avoid architecture mismatch warnings.
+    -->
+    <ItemGroup>
+      <Reference Update="mscorlib">
+        <ProcessorArchitecture>MSIL</ProcessorArchitecture>
+      </Reference>
+      <Reference Update="System.Data">
+        <ProcessorArchitecture>MSIL</ProcessorArchitecture>
+      </Reference>
+    </ItemGroup>
+  </Target>
+
+  <Target Name="VerifyFrameworkReferenceArchitecture" AfterTargets="ResolveReferences">
+    <ItemGroup>
+      <_ArchitectureWarnings Include="@(ReferencePath)"
+                              Condition=" '%(ReferencePath.NuGetPackageId)' == 'Microsoft.NETFramework.ReferenceAssemblies.net35' and '%(ReferencePath.ProcessorArchitecture)' != 'MSIL' " />
+    </ItemGroup>
+
+    <Error Condition=" '@(_ArchitectureWarnings)' != '' "
+           Text="Framework reference %(Identity) resolved with processor architecture '%(ProcessorArchitecture)'. Update NormalizeFrameworkReferenceArchitecture to cover this case." />
+  </Target>
+
   <!-- ==== References ==== -->
   <ItemGroup>
     <!-- Game -->
@@ -151,6 +177,60 @@
     </Reference>
     <Reference Include="System.Xml.Linq">
       <HintPath>$(Net35ReferenceAssemblyDir)\System.Xml.Linq.dll</HintPath>
+      <Private>false</Private>
+      <ProcessorArchitecture>MSIL</ProcessorArchitecture>
+    </Reference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- .NET 3.5 framework (explicit to control ProcessorArchitecture metadata) -->
+    <Reference Include="mscorlib">
+      <HintPath>$(PkgMicrosoft_NETFramework_ReferenceAssemblies_net35)build\.NETFramework\v3.5\mscorlib.dll</HintPath>
+      <Private>false</Private>
+      <ProcessorArchitecture>MSIL</ProcessorArchitecture>
+    </Reference>
+    <Reference Include="System">
+      <HintPath>$(PkgMicrosoft_NETFramework_ReferenceAssemblies_net35)build\.NETFramework\v3.5\System.dll</HintPath>
+      <Private>false</Private>
+      <ProcessorArchitecture>MSIL</ProcessorArchitecture>
+    </Reference>
+    <Reference Include="System.Configuration">
+      <HintPath>$(PkgMicrosoft_NETFramework_ReferenceAssemblies_net35)build\.NETFramework\v3.5\System.Configuration.dll</HintPath>
+      <Private>false</Private>
+      <ProcessorArchitecture>MSIL</ProcessorArchitecture>
+    </Reference>
+    <Reference Include="System.Core">
+      <HintPath>$(PkgMicrosoft_NETFramework_ReferenceAssemblies_net35)build\.NETFramework\v3.5\System.Core.dll</HintPath>
+      <Private>false</Private>
+      <ProcessorArchitecture>MSIL</ProcessorArchitecture>
+    </Reference>
+    <Reference Include="System.Data">
+      <HintPath>$(PkgMicrosoft_NETFramework_ReferenceAssemblies_net35)build\.NETFramework\v3.5\System.Data.dll</HintPath>
+      <Private>false</Private>
+      <ProcessorArchitecture>MSIL</ProcessorArchitecture>
+    </Reference>
+    <Reference Include="System.Drawing">
+      <HintPath>$(PkgMicrosoft_NETFramework_ReferenceAssemblies_net35)build\.NETFramework\v3.5\System.Drawing.dll</HintPath>
+      <Private>false</Private>
+      <ProcessorArchitecture>MSIL</ProcessorArchitecture>
+    </Reference>
+    <Reference Include="System.Runtime.Serialization">
+      <HintPath>$(PkgMicrosoft_NETFramework_ReferenceAssemblies_net35)build\.NETFramework\v3.5\System.Runtime.Serialization.dll</HintPath>
+      <Private>false</Private>
+      <ProcessorArchitecture>MSIL</ProcessorArchitecture>
+    </Reference>
+    <Reference Include="System.ServiceModel">
+      <HintPath>$(PkgMicrosoft_NETFramework_ReferenceAssemblies_net35)build\.NETFramework\v3.5\System.ServiceModel.dll</HintPath>
+      <Private>false</Private>
+      <ProcessorArchitecture>MSIL</ProcessorArchitecture>
+    </Reference>
+    <Reference Include="System.Xml">
+      <HintPath>$(PkgMicrosoft_NETFramework_ReferenceAssemblies_net35)build\.NETFramework\v3.5\System.Xml.dll</HintPath>
+      <Private>false</Private>
+      <ProcessorArchitecture>MSIL</ProcessorArchitecture>
+    </Reference>
+    <Reference Include="System.Xml.Linq">
+      <HintPath>$(PkgMicrosoft_NETFramework_ReferenceAssemblies_net35)build\.NETFramework\v3.5\System.Xml.Linq.dll</HintPath>
       <Private>false</Private>
       <ProcessorArchitecture>MSIL</ProcessorArchitecture>
     </Reference>
