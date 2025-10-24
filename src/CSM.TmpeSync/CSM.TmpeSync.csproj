@@ -211,7 +211,10 @@
   <!-- ==== Post-Build: Copy the add-on into the local mod directory ==== -->
   <Target Name="AfterBuild">
     <MakeDir Directories="$(ModsOutDir)" />
-    <Copy SourceFiles="$(TargetPath)" DestinationFolder="$(ModsOutDir)" />
+    <ItemGroup>
+      <ModFilesToCopy Include="$(TargetDir)*.*" />
+    </ItemGroup>
+    <Copy SourceFiles="@(ModFilesToCopy)" DestinationFolder="$(ModsOutDir)" SkipUnchangedFiles="true" />
   </Target>
 
 </Project>
