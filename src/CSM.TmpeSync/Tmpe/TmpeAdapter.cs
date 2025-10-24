@@ -3972,23 +3972,53 @@ namespace CSM.TmpeSync.Tmpe
             if (!anySegment)
                 return JunctionRestrictionApplyOutcome.Fatal;
 
-            void FinalizeFlag(bool attempted, bool failed, bool applied, Action<bool?> setApplied, Action<bool?> setRejected, bool? value)
+            if (allowUturnAttempted)
             {
-                if (!attempted)
-                    return;
-
-                if (!failed && applied)
-                    setApplied(value);
+                if (!allowUturnFailed && allowUturnApplied)
+                    appliedFlags.AllowUTurns = state.AllowUTurns;
                 else
-                    setRejected(value);
+                    rejectedFlags.AllowUTurns = state.AllowUTurns;
             }
 
-            FinalizeFlag(allowUturnAttempted, allowUturnFailed, allowUturnApplied, v => appliedFlags.AllowUTurns = v, v => rejectedFlags.AllowUTurns = v, state.AllowUTurns);
-            FinalizeFlag(allowLaneChangeAttempted, allowLaneChangeFailed, allowLaneChangeApplied, v => appliedFlags.AllowLaneChangesWhenGoingStraight = v, v => rejectedFlags.AllowLaneChangesWhenGoingStraight = v, state.AllowLaneChangesWhenGoingStraight);
-            FinalizeFlag(allowEnterBlockedAttempted, allowEnterBlockedFailed, allowEnterBlockedApplied, v => appliedFlags.AllowEnterWhenBlocked = v, v => rejectedFlags.AllowEnterWhenBlocked = v, state.AllowEnterWhenBlocked);
-            FinalizeFlag(allowPedestrianAttempted, allowPedestrianFailed, allowPedestrianApplied, v => appliedFlags.AllowPedestrianCrossing = v, v => rejectedFlags.AllowPedestrianCrossing = v, state.AllowPedestrianCrossing);
-            FinalizeFlag(allowNearTurnAttempted, allowNearTurnFailed, allowNearTurnApplied, v => appliedFlags.AllowNearTurnOnRed = v, v => rejectedFlags.AllowNearTurnOnRed = v, state.AllowNearTurnOnRed);
-            FinalizeFlag(allowFarTurnAttempted, allowFarTurnFailed, allowFarTurnApplied, v => appliedFlags.AllowFarTurnOnRed = v, v => rejectedFlags.AllowFarTurnOnRed = v, state.AllowFarTurnOnRed);
+            if (allowLaneChangeAttempted)
+            {
+                if (!allowLaneChangeFailed && allowLaneChangeApplied)
+                    appliedFlags.AllowLaneChangesWhenGoingStraight = state.AllowLaneChangesWhenGoingStraight;
+                else
+                    rejectedFlags.AllowLaneChangesWhenGoingStraight = state.AllowLaneChangesWhenGoingStraight;
+            }
+
+            if (allowEnterBlockedAttempted)
+            {
+                if (!allowEnterBlockedFailed && allowEnterBlockedApplied)
+                    appliedFlags.AllowEnterWhenBlocked = state.AllowEnterWhenBlocked;
+                else
+                    rejectedFlags.AllowEnterWhenBlocked = state.AllowEnterWhenBlocked;
+            }
+
+            if (allowPedestrianAttempted)
+            {
+                if (!allowPedestrianFailed && allowPedestrianApplied)
+                    appliedFlags.AllowPedestrianCrossing = state.AllowPedestrianCrossing;
+                else
+                    rejectedFlags.AllowPedestrianCrossing = state.AllowPedestrianCrossing;
+            }
+
+            if (allowNearTurnAttempted)
+            {
+                if (!allowNearTurnFailed && allowNearTurnApplied)
+                    appliedFlags.AllowNearTurnOnRed = state.AllowNearTurnOnRed;
+                else
+                    rejectedFlags.AllowNearTurnOnRed = state.AllowNearTurnOnRed;
+            }
+
+            if (allowFarTurnAttempted)
+            {
+                if (!allowFarTurnFailed && allowFarTurnApplied)
+                    appliedFlags.AllowFarTurnOnRed = state.AllowFarTurnOnRed;
+                else
+                    rejectedFlags.AllowFarTurnOnRed = state.AllowFarTurnOnRed;
+            }
 
             if (appliedFlags.HasAnyValue())
             {
@@ -4445,19 +4475,21 @@ namespace CSM.TmpeSync.Tmpe
                 backwardApplied = success;
             }
 
-            void Finalize(bool attempted, bool failed, bool applied, Action<bool?> applySetter, Action<bool?> rejectSetter, bool? value)
+            if (forwardAttempted)
             {
-                if (!attempted)
-                    return;
-
-                if (!failed && applied)
-                    applySetter(value);
+                if (!forwardFailed && forwardApplied)
+                    appliedDirections.AllowParkingForward = state.AllowParkingForward;
                 else
-                    rejectSetter(value);
+                    rejectedDirections.AllowParkingForward = state.AllowParkingForward;
             }
 
-            Finalize(forwardAttempted, forwardFailed, forwardApplied, v => appliedDirections.AllowParkingForward = v, v => rejectedDirections.AllowParkingForward = v, state.AllowParkingForward);
-            Finalize(backwardAttempted, backwardFailed, backwardApplied, v => appliedDirections.AllowParkingBackward = v, v => rejectedDirections.AllowParkingBackward = v, state.AllowParkingBackward);
+            if (backwardAttempted)
+            {
+                if (!backwardFailed && backwardApplied)
+                    appliedDirections.AllowParkingBackward = state.AllowParkingBackward;
+                else
+                    rejectedDirections.AllowParkingBackward = state.AllowParkingBackward;
+            }
 
             if (appliedDirections.HasAnyValue())
             {
