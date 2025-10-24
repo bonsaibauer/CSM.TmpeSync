@@ -3,6 +3,7 @@ using CSM.TmpeSync.Net.Contracts.Applied;
 using CSM.TmpeSync.Net.Contracts.Requests;
 using CSM.TmpeSync.Net.Contracts.States;
 using CSM.TmpeSync.Net.Contracts.System;
+using CSM.TmpeSync.Tmpe;
 using CSM.TmpeSync.Util;
 using Log = CSM.TmpeSync.Util.Log;
 

@@ -1,4 +1,5 @@
 using CSM.TmpeSync.Net.Contracts.States;
+using CSM.TmpeSync.Tmpe;
 using CSM.TmpeSync.Util;
 
 namespace CSM.TmpeSync.Net.Handlers
