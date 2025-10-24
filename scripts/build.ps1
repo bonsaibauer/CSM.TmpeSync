@@ -26,6 +26,137 @@ $script:ProjectPath = Join-Path $script:RepoRoot "src/CSM.TmpeSync/CSM.TmpeSync.
 $script:LibRoot = Join-Path $script:RepoRoot "lib"
 $script:ConfigPath = Join-Path $PSScriptRoot "build-settings.json"
 $script:SettingsChanged = $false
+$script:IsWindows = [System.Runtime.InteropServices.RuntimeInformation]::IsOSPlatform([System.Runtime.InteropServices.OSPlatform]::Windows)
+$script:MsBuildPath = $null
+
+function Resolve-MsBuildPath {
+    if (-not $script:IsWindows) {
+        return $null
+    }
+
+    if ($script:MsBuildPath -and (Test-Path $script:MsBuildPath)) {
+        return $script:MsBuildPath
+    }
+
+    $candidatePaths = @(
+        "$Env:ProgramFiles\Microsoft Visual Studio\2022\BuildTools\MSBuild\Current\Bin\MSBuild.exe",
+        "$Env:ProgramFiles\Microsoft Visual Studio\2022\Community\MSBuild\Current\Bin\MSBuild.exe",
+        "$Env:ProgramFiles\Microsoft Visual Studio\2022\Professional\MSBuild\Current\Bin\MSBuild.exe",
+        "$Env:ProgramFiles\Microsoft Visual Studio\2022\Enterprise\MSBuild\Current\Bin\MSBuild.exe",
+        "$Env:ProgramFiles(x86)\Microsoft Visual Studio\2019\BuildTools\MSBuild\Current\Bin\MSBuild.exe",
+        "$Env:ProgramFiles(x86)\Microsoft Visual Studio\2019\Community\MSBuild\Current\Bin\MSBuild.exe",
+        "$Env:ProgramFiles(x86)\Microsoft Visual Studio\2019\Professional\MSBuild\Current\Bin\MSBuild.exe",
+        "$Env:ProgramFiles(x86)\Microsoft Visual Studio\2019\Enterprise\MSBuild\Current\Bin\MSBuild.exe"
+    )
+
+    $msbuildCommand = Get-Command "msbuild" -ErrorAction SilentlyContinue
+    if ($msbuildCommand) {
+        $candidatePaths += $msbuildCommand.Source
+    }
+
+    foreach ($candidate in ($candidatePaths | Where-Object { $_ } | Select-Object -Unique)) {
+        if (Test-Path $candidate) {
+            $script:MsBuildPath = $candidate
+            break
+        }
+    }
+
+    if (-not $script:MsBuildPath) {
+        throw "MSBuild.exe not found. Install Visual Studio Build Tools 2019 or newer."
+    }
+
+    return $script:MsBuildPath
+}
+
+function Resolve-Net35ReferenceInfo {
+    if (-not $script:IsWindows) {
+        return $null
+    }
+
+    $version = "1.0.3"
+    $candidateRoots = @(
+        (Join-Path $env:UserProfile ".nuget\packages\microsoft.netframework.referenceassemblies.net35\$version"),
+        "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages\\microsoft.netframework.referenceassemblies.net35\\$version",
+        "C:\\Program Files\\dotnet\\library-packs\\microsoft.netframework.referenceassemblies.net35\\$version",
+        "C:\\Program Files\\dotnet\\packs\\Microsoft.NETFramework.ReferenceAssemblies.net35\\$version"
+    )
+
+    foreach ($root in $candidateRoots) {
+        if (-not (Test-Path $root)) {
+            continue
+        }
+
+        $frameworkCandidates = @(
+            (Join-Path $root "build\\.NETFramework\\v3.5"),
+            (Join-Path $root "ref\\.NETFramework\\v3.5")
+        )
+
+        foreach ($frameworkDir in $frameworkCandidates) {
+            if (-not (Test-Path $frameworkDir)) {
+                continue
+            }
+
+            $mscorlibPath = Join-Path $frameworkDir "mscorlib.dll"
+            if (-not (Test-Path $mscorlibPath)) {
+                continue
+            }
+
+            $tfDir = Split-Path $frameworkDir -Parent
+            $rootPath = Split-Path $tfDir -Parent
+
+            return [pscustomobject]@{
+                RootPath = $rootPath
+                FrameworkPath = $frameworkDir
+            }
+        }
+    }
+
+    $fallbacks = @(
+        "$env:WINDIR\\Microsoft.NET\\Framework\\v2.0.50727",
+        "$env:WINDIR\\Microsoft.NET\\Framework64\\v2.0.50727"
+    )
+
+    foreach ($fallback in $fallbacks) {
+        if (-not (Test-Path (Join-Path $fallback "mscorlib.dll"))) {
+            continue
+        }
+
+        return [pscustomobject]@{
+            RootPath = Split-Path $fallback
+            FrameworkPath = $fallback
+        }
+    }
+
+    return $null
+}
+
+function Format-MsBuildProperty {
+    param(
+        [string]$Name,
+        [string]$Value
+    )
+
+    if ([string]::IsNullOrWhiteSpace($Value)) {
+        return $null
+    }
+
+    $escaped = $Value.Replace('"', '\"')
+    return "/p:{0}=\"{1}\"" -f $Name, $escaped
+}
+
+function Format-DotnetProperty {
+    param(
+        [string]$Name,
+        [string]$Value
+    )
+
+    if ([string]::IsNullOrWhiteSpace($Value)) {
+        return $null
+    }
+
+    $escaped = $Value.Replace('"', '\"')
+    return "-p:{0}=\"{1}\"" -f $Name, $escaped
+}
 
 function Ensure-Hashtable {
     param([object]$Value)
@@ -180,6 +311,7 @@ function Prompt-ForProfileSelection {
             return $AvailableProfiles[$choice - 1]
         }
     }
+}
 
     return $AvailableProfiles[$currentIndex]
 }
@@ -212,6 +344,16 @@ function Prompt-ForInput {
     if (-not $Host.UI -or -not $Host.UI.RawUI) {
         return if ([string]::IsNullOrWhiteSpace($DefaultValue)) { "" } else { $DefaultValue }
     }
+}
+
+function Update-Dependencies {
+    param([hashtable]$Profile)
+
+    $gameDir = [string]$Profile.GameDirectory
+    Ensure-DirectoryExists -Path $gameDir -Description "Cities: Skylines game directory"
+
+    $managedSource = Join-Path (Join-Path $gameDir 'Cities_Data') 'Managed'
+    Ensure-DirectoryExists -Path $managedSource -Description "Cities: Skylines managed assemblies"
 
     $prompt = if ([string]::IsNullOrWhiteSpace($DefaultValue)) { $Message } else { "$Message [`$DefaultValue`]" }
     $response = Read-Host $prompt
@@ -481,39 +623,96 @@ function Invoke-BuildProject {
         [string]$Configuration
     )
 
-    $dotnet = Get-Command dotnet -ErrorAction SilentlyContinue
-    if (-not $dotnet) {
-        throw "dotnet CLI not found. Install the .NET SDK."
-    }
-
     $citiesDir = Resolve-AbsolutePath -Path ([string]$Profile.CitiesSkylinesDir)
     $harmonyDir = Resolve-AbsolutePath -Path ([string]$Profile.HarmonyDllDir)
     $csmApiPath = Resolve-AbsolutePath -Path ([string]$Profile.CsmApiDllPath)
 
-    $arguments = @(
-        'build',
-        $script:ProjectPath,
-        '-c',
-        $Configuration,
-        "-p:CitiesSkylinesDir=`"$citiesDir`"",
-        "-p:HarmonyDllDir=`"$harmonyDir`"",
-        "-p:CsmApiDllPath=`"$csmApiPath`""
+    $propertySpecs = @(
+        @{ Name = 'CitiesSkylinesDir'; Value = $citiesDir },
+        @{ Name = 'HarmonyDllDir'; Value = $harmonyDir },
+        @{ Name = 'CsmApiDllPath'; Value = $csmApiPath }
     )
 
     if ($Profile.ContainsKey('TmpeDir') -and -not [string]::IsNullOrWhiteSpace([string]$Profile.TmpeDir)) {
         $tmpeDir = Resolve-AbsolutePath -Path ([string]$Profile.TmpeDir)
-        $arguments += "-p:TmpeDir=`"$tmpeDir`""
+        $propertySpecs += @{ Name = 'TmpeDir'; Value = $tmpeDir }
     }
 
     if ($Profile.ContainsKey('SteamModsDir') -and -not [string]::IsNullOrWhiteSpace([string]$Profile.SteamModsDir)) {
         $steamMods = Resolve-AbsolutePath -Path ([string]$Profile.SteamModsDir)
-        $arguments += "-p:SteamModsDir=`"$steamMods`""
+        $propertySpecs += @{ Name = 'SteamModsDir'; Value = $steamMods }
     }
 
-    Write-Host "[CSM.TmpeSync] Building ($Configuration)..." -ForegroundColor Cyan
-    & $dotnet.Source @arguments
-    if ($LASTEXITCODE -ne 0) {
-        throw "dotnet build failed with exit code $LASTEXITCODE."
+    if ($Profile.ContainsKey('ModDirectory') -and -not [string]::IsNullOrWhiteSpace([string]$Profile.ModDirectory)) {
+        $modDir = Resolve-AbsolutePath -Path ([string]$Profile.ModDirectory)
+        $propertySpecs += @(
+            @{ Name = 'ModDirectory'; Value = $modDir },
+            @{ Name = 'ModsOutDir'; Value = $modDir }
+        )
+    }
+
+    $net35Info = Resolve-Net35ReferenceInfo
+    if ($net35Info) {
+        $propertySpecs += @(
+            @{ Name = 'TargetFrameworkRootPath'; Value = $net35Info.RootPath },
+            @{ Name = 'FrameworkPathOverride'; Value = $net35Info.FrameworkPath },
+            @{ Name = 'ReferencePath'; Value = $net35Info.FrameworkPath }
+        )
+    }
+
+    $dotnetArguments = @('build', $script:ProjectPath, '-c', $Configuration, '/restore', '--nologo')
+    $msbuildArguments = @()
+
+    foreach ($spec in $propertySpecs) {
+        $dotnetArg = Format-DotnetProperty -Name $spec.Name -Value $spec.Value
+        if ($dotnetArg) {
+            $dotnetArguments += $dotnetArg
+        }
+
+        $msbuildArg = Format-MsBuildProperty -Name $spec.Name -Value $spec.Value
+        if ($msbuildArg) {
+            $msbuildArguments += $msbuildArg
+        }
+    }
+
+    $buildSucceeded = $false
+
+    if ($script:IsWindows) {
+        try {
+            $msbuildPath = Resolve-MsBuildPath
+            $msbuildInvocation = @(
+                $script:ProjectPath,
+                '/restore',
+                '/t:Build',
+                "/p:Configuration=$Configuration",
+                '/nologo'
+            ) + $msbuildArguments
+
+            Write-Host "[CSM.TmpeSync] Building ($Configuration) with MSBuild..." -ForegroundColor Cyan
+            & $msbuildPath @msbuildInvocation
+            if ($LASTEXITCODE -ne 0) {
+                throw "MSBuild failed with exit code $LASTEXITCODE."
+            }
+            $buildSucceeded = $true
+        }
+        catch {
+            if ($_.Exception.Message -notlike '*MSBuild.exe not found*') {
+                throw
+            }
+        }
+    }
+
+    if (-not $buildSucceeded) {
+        $dotnet = Get-Command dotnet -ErrorAction SilentlyContinue
+        if (-not $dotnet) {
+            throw "dotnet CLI not found. Install the .NET SDK."
+        }
+
+        Write-Host "[CSM.TmpeSync] Building ($Configuration) with dotnet..." -ForegroundColor Cyan
+        & $dotnet.Source @dotnetArguments
+        if ($LASTEXITCODE -ne 0) {
+            throw "dotnet build failed with exit code $LASTEXITCODE."
+        }
     }
 }
 

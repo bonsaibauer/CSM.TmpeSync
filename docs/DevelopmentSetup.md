@@ -7,7 +7,8 @@ This guide walks through configuring the streamlined build pipeline for CSM TM:P
 Install the following components on a Windows machine:
 
 - **PowerShell 7** – the helper scripts target `pwsh`.
-- **.NET SDK 6.0 or later** – provides the `dotnet` CLI that compiles the project.
+- **Visual Studio Build Tools 2019 or later** – supplies MSBuild, the default compiler used by the script.
+- **.NET SDK 6.0 or later (optional)** – provides the `dotnet` CLI fallback when MSBuild is unavailable.
 - **Visual Studio Code** – the repository is maintained in VS Code and includes workspace settings and tasks aligned with the scripts.
 - **Steam edition of Cities: Skylines** – supplies the base game assemblies located under `Cities_Data/Managed`.
 
@@ -56,7 +57,8 @@ Combine switches as needed (for example `-Update -Build -Install` in a single in
 ## Troubleshooting
 
 - **Missing Workshop files** – rerun `-Configure` and confirm that each dependency folder exists under the Steam Workshop path listed above.
-- **`dotnet` not found** – install the .NET SDK and restart PowerShell so the CLI is on `PATH`.
+- **`MSBuild.exe` not found** – install Visual Studio Build Tools 2019+ and restart PowerShell so MSBuild is added to `PATH`.
+- **`dotnet` not found** – install the .NET SDK if you rely on the CLI fallback and restart PowerShell so the command is on `PATH`.
 - **Scripts cannot find the mod directory** – verify the mod root path stored in `scripts/build-settings.json` or pass `-ModDirectory` when running `build.ps1 -Install`.
 
 Need more detail? Check the [README](../README.md) for a high-level overview or open the other documents in `docs/` for architectural guidance.

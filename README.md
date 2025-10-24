@@ -12,6 +12,7 @@ The repository contains the add-on sources, PowerShell helpers, and reference su
 | scripts/ | PowerShell helpers to configure, build, install, and update dependencies. |
 | lib/ | Cached copies of Harmony, TM:PE, and CSM assemblies mirrored from Steam. |
 | docs/ | Reference material (integration guide, logging reference, setup notes). |
+| submodules/ | Upstream repositories retained for reference only. They are no longer part of the build. |
 
 ## Prerequisites
 
@@ -20,7 +21,8 @@ The automation targets Windows with PowerShell 7. Install the following tools:
 | Tool | Purpose |
 | --- | --- |
 | PowerShell 7 | All helper scripts target `pwsh`. |
-| .NET SDK 6.0+ | Provides the `dotnet` CLI for building the add-on. |
+| Visual Studio Build Tools 2019+ (MSBuild) | Provides MSBuild, the default compiler used by the build script. |
+| .NET SDK 6.0+ (optional) | Supplies the `dotnet` CLI fallback when MSBuild is unavailable. |
 | Visual Studio Code | Primary editor and task runner for the project. |
 | Steam edition of Cities: Skylines | Supplies the base game assemblies. |
 
@@ -75,7 +77,7 @@ Key parameters:
 - `-ModDirectory <path>` – override the installation target for a single run.
 - `-GameDirectory`, `-SteamModsDir`, `-HarmonySourceDir`, `-CsmSourceDir`, `-TmpeSourceDir` – override paths captured in the profile when needed.
 
-Dependency updates copy the latest Harmony, TM:PE, and CSM libraries from Steam into `lib/`. Remove that directory to force a clean refresh.
+Dependency updates copy the latest Harmony, TM:PE, and CSM libraries from Steam into `lib/`. Remove that directory to force a clean refresh. The build prefers MSBuild from Visual Studio Build Tools and automatically falls back to the `dotnet` CLI only when MSBuild is unavailable.
 
 ## Manual Installation
 
