@@ -3676,8 +3676,15 @@ namespace CSM.TmpeSync.Tmpe
             if (!nullableType.IsGenericType || nullableType.GetGenericTypeDefinition() != typeof(Nullable<>))
                 return;
 
-            SpeedValueNullableHasValueProperty ??= nullableType.GetProperty("HasValue", BindingFlags.Public | BindingFlags.Instance);
-            SpeedValueNullableValueProperty ??= nullableType.GetProperty("Value", BindingFlags.Public | BindingFlags.Instance);
+            if (SpeedValueNullableHasValueProperty == null)
+            {
+                SpeedValueNullableHasValueProperty = nullableType.GetProperty("HasValue", BindingFlags.Public | BindingFlags.Instance);
+            }
+
+            if (SpeedValueNullableValueProperty == null)
+            {
+                SpeedValueNullableValueProperty = nullableType.GetProperty("Value", BindingFlags.Public | BindingFlags.Instance);
+            }
         }
 
         private static bool TryExtractSpeedValue(object nullable, out float kmh)
