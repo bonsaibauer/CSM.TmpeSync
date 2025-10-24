@@ -3,6 +3,7 @@ using CSM.TmpeSync.Net.Contracts.Applied;
 using CSM.TmpeSync.Net.Contracts.Requests;
 using CSM.TmpeSync.Net.Contracts.System;
 using CSM.TmpeSync.Net.Contracts.States;
+using CSM.TmpeSync.Tmpe;
 using CSM.TmpeSync.Util;
 
 namespace CSM.TmpeSync.Net.Handlers
@@ -38,7 +39,7 @@ namespace CSM.TmpeSync.Net.Handlers
                 return;
             }
 
-            if (!NetUtil.TryResolveLane(ref laneId, ref segmentId, ref laneIndex))
+            if (!NetUtil.TryGetResolvedLaneId(laneId, segmentId, laneIndex, out var resolvedLaneId))
             {
                 Log.Warn(LogCategory.Network, "Rejecting SetVehicleRestrictionsRequest | laneId={0} segmentId={1} laneIndex={2} reason=lane_missing", cmd.LaneId, segmentId, laneIndex);
                 CsmCompat.SendToClient(senderId, new RequestRejected { Reason = "entity_missing", EntityId = cmd.LaneId, EntityType = 1 });
@@ -47,39 +48,33 @@ namespace CSM.TmpeSync.Net.Handlers
 
             NetUtil.RunOnSimulation(() =>
             {
-                var simLaneId = laneId;
                 var simSegmentId = segmentId;
                 var simLaneIndex = laneIndex;
-
-                if (!NetUtil.TryResolveLane(ref simLaneId, ref simSegmentId, ref simLaneIndex))
+                if (!NetUtil.TryGetResolvedLaneId(resolvedLaneId, simSegmentId, simLaneIndex, out var simLaneId))
                 {
-                    Log.Warn(LogCategory.Synchronization, "Simulation step aborted | laneId={0} segmentId={1} laneIndex={2} reason=lane_disappeared_before_vehicle_restriction_apply", laneId, segmentId, laneIndex);
+                    Log.Warn(LogCategory.Synchronization, "Simulation step aborted | laneId={0} segmentId={1} laneIndex={2} reason=lane_disappeared_before_vehicle_restriction_apply", resolvedLaneId, segmentId, laneIndex);
                     return;
                 }
 
                 using (EntityLocks.AcquireLane(simLaneId))
                 {
-                    if (!NetUtil.TryResolveLane(ref simLaneId, ref simSegmentId, ref simLaneIndex))
+                    if (!NetUtil.TryGetResolvedLaneId(simLaneId, simSegmentId, simLaneIndex, out simLaneId))
                     {
-                        Log.Warn(LogCategory.Synchronization, "Skipping vehicle restriction apply | laneId={0} segmentId={1} laneIndex={2} reason=lane_disappeared_while_locked", laneId, segmentId, laneIndex);
+                        Log.Warn(LogCategory.Synchronization, "Skipping vehicle restriction apply | laneId={0} segmentId={1} laneIndex={2} reason=lane_disappeared_while_locked", resolvedLaneId, segmentId, laneIndex);
                         return;
                     }
 
-                    if (PendingMap.ApplyVehicleRestrictions(simLaneId, cmd.Restrictions, ignoreScope: false))
+                    if (TmpeAdapter.ApplyVehicleRestrictions(simLaneId, cmd.Restrictions))
                     {
-                        var resultingRestrictions = cmd.Restrictions;
-                        if (PendingMap.TryGetVehicleRestrictions(simLaneId, out var appliedRestrictions))
-                            resultingRestrictions = appliedRestrictions;
-
                         if (!NetUtil.TryGetLaneLocation(simLaneId, out simSegmentId, out simLaneIndex))
                         {
                             simSegmentId = segmentId;
                             simLaneIndex = laneIndex;
                         }
 
-                        if (simSegmentId != 0)
-                            LaneMappingTracker.SyncSegment(simSegmentId, "vehicle_restrictions_request");
-                        var mappingVersion = LaneMappingStore.Version;
+                        var resultingRestrictions = cmd.Restrictions;
+                        if (TmpeAdapter.TryGetVehicleRestrictions(simLaneId, out var appliedRestrictions))
+                            resultingRestrictions = appliedRestrictions;
 
                         Log.Info(LogCategory.Synchronization, "Applied vehicle restrictions | laneId={0} segmentId={1} laneIndex={2} restrictions={3} action=broadcast", simLaneId, simSegmentId, simLaneIndex, resultingRestrictions);
                         CsmCompat.SendToAll(new VehicleRestrictionsApplied
@@ -87,8 +82,7 @@ namespace CSM.TmpeSync.Net.Handlers
                             LaneId = simLaneId,
                             SegmentId = simSegmentId,
                             LaneIndex = simLaneIndex,
-                            Restrictions = resultingRestrictions,
-                            MappingVersion = mappingVersion
+                            Restrictions = resultingRestrictions
                         });
                     }
                     else

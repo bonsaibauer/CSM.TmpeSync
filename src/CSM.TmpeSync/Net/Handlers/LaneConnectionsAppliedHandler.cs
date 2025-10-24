@@ -2,6 +2,7 @@ using System;
 using System.Linq;
 using CSM.API.Commands;
 using CSM.TmpeSync.Net.Contracts.Applied;
+using CSM.TmpeSync.Tmpe;
 using CSM.TmpeSync.Util;
 
 namespace CSM.TmpeSync.Net.Handlers
@@ -18,32 +19,18 @@ namespace CSM.TmpeSync.Net.Handlers
                 cmd.SourceLaneIndex,
                 FormatLaneIds(cmd.TargetLaneIds));
 
-            var expectedMappingVersion = cmd.MappingVersion;
-            if (expectedMappingVersion > 0 && LaneMappingStore.Version < expectedMappingVersion)
-            {
-                Log.Debug(
-                    LogCategory.Synchronization,
-                    "Lane connections waiting for mapping | laneId={0} expectedVersion={1} currentVersion={2}",
-                    cmd.SourceLaneId,
-                    expectedMappingVersion,
-                    LaneMappingStore.Version);
-                DeferredApply.Enqueue(new LaneConnectionsDeferredOp(CloneCommand(cmd), expectedMappingVersion));
-                return;
-            }
-
             var sourceLaneId = cmd.SourceLaneId;
             var sourceSegmentId = cmd.SourceSegmentId;
             var sourceLaneIndex = cmd.SourceLaneIndex;
 
-            if (!NetUtil.TryResolveLane(ref sourceLaneId, ref sourceSegmentId, ref sourceLaneIndex))
+            if (!NetUtil.TryGetResolvedLaneId(sourceLaneId, sourceSegmentId, sourceLaneIndex, out var resolvedSourceLaneId))
             {
                 Log.Warn(
                     LogCategory.Synchronization,
-                    "Lane missing for lane connection apply | laneId={0} segmentId={1} laneIndex={2} action=queue_deferred",
+                    "Lane missing for lane connection apply | laneId={0} segmentId={1} laneIndex={2} action=skipped",
                     cmd.SourceLaneId,
                     cmd.SourceSegmentId,
                     cmd.SourceLaneIndex);
-                DeferredApply.Enqueue(new LaneConnectionsDeferredOp(CloneCommand(cmd), expectedMappingVersion));
                 return;
             }
 
@@ -54,7 +41,6 @@ namespace CSM.TmpeSync.Net.Handlers
             var resolvedTargetLaneIds = new uint[targetLaneIds.Length];
             var resolvedTargetSegments = new ushort[targetLaneIds.Length];
             var resolvedTargetIndexes = new int[targetLaneIds.Length];
-            var allResolved = true;
 
             for (var i = 0; i < targetLaneIds.Length; i++)
             {
@@ -62,51 +48,47 @@ namespace CSM.TmpeSync.Net.Handlers
                 var segmentId = targetSegmentIds[i];
                 var laneIndex = targetLaneIndexes[i];
 
-                if (!NetUtil.TryResolveLane(ref laneId, ref segmentId, ref laneIndex))
+                if (!NetUtil.TryGetResolvedLaneId(laneId, segmentId, laneIndex, out var resolvedTarget))
                 {
-                    allResolved = false;
+                    Log.Warn(
+                        LogCategory.Synchronization,
+                        "Skipping remote lane connection target | sourceLaneId={0} missingTarget={1}",
+                        cmd.SourceLaneId,
+                        targetLaneIds[i]);
+                    continue;
                 }
-                resolvedTargetLaneIds[i] = laneId;
-                resolvedTargetSegments[i] = segmentId;
-                resolvedTargetIndexes[i] = laneIndex;
-            }
 
-            if (!allResolved)
-            {
-                Log.Warn(
-                    LogCategory.Synchronization,
-                    "Lane connections unresolved | sourceLaneId={0} pendingTargets=[{1}] action=queue_deferred",
-                    cmd.SourceLaneId,
-                    FormatLaneIds(targetLaneIds));
-                DeferredApply.Enqueue(new LaneConnectionsDeferredOp(new LaneConnectionsApplied
+                resolvedTargetLaneIds[i] = resolvedTarget;
+                if (!NetUtil.TryGetLaneLocation(resolvedTarget, out var actualSegment, out var actualIndex))
                 {
-                    SourceLaneId = sourceLaneId,
-                    SourceSegmentId = sourceSegmentId,
-                    SourceLaneIndex = sourceLaneIndex,
-                    TargetLaneIds = (uint[])resolvedTargetLaneIds.Clone(),
-                    TargetSegmentIds = (ushort[])resolvedTargetSegments.Clone(),
-                    TargetLaneIndexes = (int[])resolvedTargetIndexes.Clone(),
-                    MappingVersion = expectedMappingVersion
-                }, expectedMappingVersion));
-                return;
+                    actualSegment = segmentId;
+                    actualIndex = laneIndex;
+                }
+
+                resolvedTargetSegments[i] = actualSegment;
+                resolvedTargetIndexes[i] = actualIndex;
             }
 
-            if (PendingMap.ApplyLaneConnections(sourceLaneId, resolvedTargetLaneIds, ignoreScope: true))
+            var liveTargets = resolvedTargetLaneIds.Where(id => id != 0).ToArray();
+            var liveTargetSegments = resolvedTargetSegments.Where((_, idx) => resolvedTargetLaneIds[idx] != 0).ToArray();
+            var liveTargetIndexes = resolvedTargetIndexes.Where((_, idx) => resolvedTargetLaneIds[idx] != 0).ToArray();
+
+            if (TmpeAdapter.ApplyLaneConnections(resolvedSourceLaneId, liveTargets))
             {
                 Log.Info(
                     LogCategory.Synchronization,
                     "Applied remote lane connections | laneId={0} segmentId={1} laneIndex={2} targets=[{3}]",
-                    sourceLaneId,
+                    resolvedSourceLaneId,
                     sourceSegmentId,
                     sourceLaneIndex,
-                    FormatLaneIds(resolvedTargetLaneIds));
+                    FormatLaneIds(liveTargets));
             }
             else
             {
                 Log.Error(
                     LogCategory.Synchronization,
                     "Failed to apply remote lane connections | laneId={0} segmentId={1} laneIndex={2}",
-                    sourceLaneId,
+                    resolvedSourceLaneId,
                     sourceSegmentId,
                     sourceLaneIndex);
             }
@@ -139,19 +121,5 @@ namespace CSM.TmpeSync.Net.Handlers
             return result;
         }
 
-        private static LaneConnectionsApplied CloneCommand(LaneConnectionsApplied source)
-        {
-            var targetLaneIds = (uint[])(source.TargetLaneIds?.Clone() ?? new uint[0]);
-            return new LaneConnectionsApplied
-            {
-                SourceLaneId = source.SourceLaneId,
-                SourceSegmentId = source.SourceSegmentId,
-                SourceLaneIndex = source.SourceLaneIndex,
-                TargetLaneIds = targetLaneIds,
-                TargetSegmentIds = NormalizeArray(source.TargetSegmentIds, targetLaneIds.Length),
-                TargetLaneIndexes = NormalizeArray(source.TargetLaneIndexes, targetLaneIds.Length),
-                MappingVersion = source?.MappingVersion ?? 0
-            };
-        }
     }
 }

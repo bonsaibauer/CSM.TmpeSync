@@ -1,5 +1,6 @@
 using CSM.API.Commands;
 using CSM.TmpeSync.Net.Contracts.Applied;
+using CSM.TmpeSync.Tmpe;
 using CSM.TmpeSync.Util;
 
 namespace CSM.TmpeSync.Net.Handlers
@@ -16,32 +17,23 @@ namespace CSM.TmpeSync.Net.Handlers
                 cmd.LaneIndex,
                 cmd.Arrows);
 
-            var laneId = cmd.LaneId;
-            var segmentId = cmd.SegmentId;
-            var laneIndex = cmd.LaneIndex;
-
-            if (cmd.MappingVersion > 0 && LaneMappingStore.Version < cmd.MappingVersion)
+            if (NetUtil.TryGetResolvedLaneId(cmd.LaneId, cmd.SegmentId, cmd.LaneIndex, out var laneId))
             {
+                var segmentId = cmd.SegmentId;
+                var laneIndex = cmd.LaneIndex;
+                if (!NetUtil.TryGetLaneLocation(laneId, out segmentId, out laneIndex))
+                {
+                    segmentId = cmd.SegmentId;
+                    laneIndex = cmd.LaneIndex;
+                }
+
                 Log.Debug(
                     LogCategory.Synchronization,
-                    "Lane arrows waiting for mapping version | laneId={0} expectedVersion={1} currentVersion={2} action=queue_deferred",
-                    cmd.LaneId,
-                    cmd.MappingVersion,
-                    LaneMappingStore.Version);
-
-                DeferredApply.Enqueue(new LaneArrowDeferredOp(cmd.LaneId, cmd.SegmentId, cmd.LaneIndex, cmd.Arrows, cmd.MappingVersion));
-                return;
-            }
-
-            if (NetUtil.TryResolveLane(ref laneId, ref segmentId, ref laneIndex))
-            {
-                Log.Debug(
-                    LogCategory.Synchronization,
-                    "Lane resolved locally | laneId={0} segmentId={1} laneIndex={2} action=apply_lane_arrows_ignore_scope",
+                    "Lane resolved locally | laneId={0} segmentId={1} laneIndex={2} action=apply_lane_arrows",
                     laneId,
                     segmentId,
                     laneIndex);
-                if (PendingMap.ApplyLaneArrows(laneId, cmd.Arrows, ignoreScope: true))
+                if (TmpeAdapter.ApplyLaneArrows(laneId, cmd.Arrows))
                     Log.Info(LogCategory.Synchronization, "Applied remote lane arrows | laneId={0} segmentId={1} laneIndex={2} arrows={3}", laneId, segmentId, laneIndex, cmd.Arrows);
                 else
                     Log.Error(LogCategory.Synchronization, "Failed to apply remote lane arrows | laneId={0} segmentId={1} laneIndex={2} arrows={3}", laneId, segmentId, laneIndex, cmd.Arrows);
@@ -50,12 +42,10 @@ namespace CSM.TmpeSync.Net.Handlers
             {
                 Log.Warn(
                     LogCategory.Synchronization,
-                    "Lane missing for lane arrow apply | laneId={0} segmentId={1} laneIndex={2} action=queue_deferred expectedVersion={3}",
+                    "Lane missing for lane arrow apply | laneId={0} segmentId={1} laneIndex={2} action=skipped",
                     cmd.LaneId,
                     cmd.SegmentId,
-                    cmd.LaneIndex,
-                    cmd.MappingVersion);
-                DeferredApply.Enqueue(new LaneArrowDeferredOp(cmd.LaneId, cmd.SegmentId, cmd.LaneIndex, cmd.Arrows, cmd.MappingVersion));
+                    cmd.LaneIndex);
             }
         }
     }

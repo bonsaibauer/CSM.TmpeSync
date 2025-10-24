@@ -9,6 +9,5 @@ namespace CSM.TmpeSync.Net.Contracts.Applied
     {
         [ProtoMember(1)] public ushort SegmentId { get; set; }
         [ProtoMember(2)] public ParkingRestrictionState State { get; set; }
-        [ProtoMember(3)] public long MappingVersion { get; set; }
     }
 }

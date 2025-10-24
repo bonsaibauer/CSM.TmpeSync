@@ -5,6 +5,7 @@ using CSM.API.Commands;
 using CSM.TmpeSync.Net.Contracts.Applied;
 using CSM.TmpeSync.Net.Contracts.Requests;
 using CSM.TmpeSync.Net.Contracts.System;
+using CSM.TmpeSync.Tmpe;
 using CSM.TmpeSync.Util;
 
 namespace CSM.TmpeSync.Net.Handlers
@@ -43,7 +44,7 @@ namespace CSM.TmpeSync.Net.Handlers
                 return;
             }
 
-            if (!NetUtil.TryResolveLane(ref sourceLaneId, ref sourceSegmentId, ref sourceLaneIndex))
+            if (!NetUtil.TryGetResolvedLaneId(sourceLaneId, sourceSegmentId, sourceLaneIndex, out var resolvedSourceLaneId))
             {
                 Log.Warn("Rejecting SetLaneConnectionsRequest lane={0} – source lane missing on server.", cmd.SourceLaneId);
                 CsmCompat.SendToClient(senderId, new RequestRejected { Reason = "entity_missing", EntityId = cmd.SourceLaneId, EntityType = 1 });
@@ -60,25 +61,29 @@ namespace CSM.TmpeSync.Net.Handlers
                 var segmentId = targetSegmentIds[i];
                 var laneIndex = targetLaneIndexes[i];
 
-                if (!NetUtil.TryResolveLane(ref laneId, ref segmentId, ref laneIndex))
+                if (!NetUtil.TryGetResolvedLaneId(laneId, segmentId, laneIndex, out var resolvedTarget))
                 {
                     Log.Warn("Rejecting SetLaneConnectionsRequest lane={0} – target lane {1} missing.", cmd.SourceLaneId, targetLaneIds[i]);
                     CsmCompat.SendToClient(senderId, new RequestRejected { Reason = "entity_missing", EntityId = targetLaneIds[i], EntityType = 1 });
                     return;
                 }
 
-                resolvedTargetLaneIds[i] = laneId;
-                resolvedTargetSegments[i] = segmentId;
-                resolvedTargetIndexes[i] = laneIndex;
+                resolvedTargetLaneIds[i] = resolvedTarget;
+                if (!NetUtil.TryGetLaneLocation(resolvedTarget, out var actualSegment, out var actualIndex))
+                {
+                    actualSegment = segmentId;
+                    actualIndex = laneIndex;
+                }
+
+                resolvedTargetSegments[i] = actualSegment;
+                resolvedTargetIndexes[i] = actualIndex;
             }
 
             NetUtil.RunOnSimulation(() =>
             {
-                var simSourceLaneId = sourceLaneId;
                 var simSourceSegmentId = sourceSegmentId;
                 var simSourceLaneIndex = sourceLaneIndex;
-
-                if (!NetUtil.TryResolveLane(ref simSourceLaneId, ref simSourceSegmentId, ref simSourceLaneIndex))
+                if (!NetUtil.TryGetResolvedLaneId(resolvedSourceLaneId, simSourceSegmentId, simSourceLaneIndex, out var simSourceLaneId))
                 {
                     Log.Warn("Simulation step aborted – lane {0} vanished before lane connection apply.", cmd.SourceLaneId);
                     return;
@@ -86,62 +91,57 @@ namespace CSM.TmpeSync.Net.Handlers
 
                 using (EntityLocks.AcquireLane(simSourceLaneId))
                 {
-                    if (!NetUtil.TryResolveLane(ref simSourceLaneId, ref simSourceSegmentId, ref simSourceLaneIndex))
+                    if (!NetUtil.TryGetResolvedLaneId(simSourceLaneId, simSourceSegmentId, simSourceLaneIndex, out simSourceLaneId))
                     {
                         Log.Warn("Skipping lane connection apply – lane {0} disappeared while locked.", cmd.SourceLaneId);
                         return;
                     }
 
-                    if (PendingMap.ApplyLaneConnections(simSourceLaneId, resolvedTargetLaneIds, ignoreScope: false))
+                    var liveTargets = new uint[resolvedTargetLaneIds.Length];
+                    var liveTargetSegments = new ushort[resolvedTargetLaneIds.Length];
+                    var liveTargetIndexes = new int[resolvedTargetLaneIds.Length];
+                    var liveCount = 0;
+
+                    for (var i = 0; i < resolvedTargetLaneIds.Length; i++)
                     {
-                        var updatedTargets = resolvedTargetLaneIds.ToArray();
-                        if (PendingMap.TryGetLaneConnections(simSourceLaneId, out var appliedTargets) && appliedTargets != null)
-                            updatedTargets = appliedTargets.ToArray();
+                        var targetSegment = resolvedTargetSegments[i];
+                        var targetIndex = resolvedTargetIndexes[i];
+                        if (!NetUtil.TryGetResolvedLaneId(resolvedTargetLaneIds[i], targetSegment, targetIndex, out var liveLaneId))
+                            continue;
 
-                        for (var i = 0; i < updatedTargets.Length; i++)
+                        liveTargets[liveCount] = liveLaneId;
+                        if (!NetUtil.TryGetLaneLocation(liveLaneId, out var actualSegment, out var actualIndex))
                         {
-                            if (!NetUtil.TryGetLaneLocation(updatedTargets[i], out var locSegment, out var locIndex))
-                            {
-                                locSegment = i < resolvedTargetSegments.Length ? resolvedTargetSegments[i] : (ushort)0;
-                                locIndex = i < resolvedTargetIndexes.Length ? resolvedTargetIndexes[i] : -1;
-                            }
-
-                            resolvedTargetSegments = EnsureCapacity(resolvedTargetSegments, i + 1);
-                            resolvedTargetIndexes = EnsureCapacity(resolvedTargetIndexes, i + 1, -1);
-                            resolvedTargetSegments[i] = locSegment;
-                            resolvedTargetIndexes[i] = locIndex;
+                            actualSegment = targetSegment;
+                            actualIndex = targetIndex;
                         }
 
+                        liveTargetSegments[liveCount] = actualSegment;
+                        liveTargetIndexes[liveCount] = actualIndex;
+                        liveCount++;
+                    }
+
+                    Array.Resize(ref liveTargets, liveCount);
+                    Array.Resize(ref liveTargetSegments, liveCount);
+                    Array.Resize(ref liveTargetIndexes, liveCount);
+
+                    if (TmpeAdapter.ApplyLaneConnections(simSourceLaneId, liveTargets))
+                    {
                         if (!NetUtil.TryGetLaneLocation(simSourceLaneId, out simSourceSegmentId, out simSourceLaneIndex))
                         {
                             simSourceSegmentId = sourceSegmentId;
                             simSourceLaneIndex = sourceLaneIndex;
                         }
 
-                        if (simSourceSegmentId != 0)
-                            LaneMappingTracker.SyncSegment(simSourceSegmentId, "lane_connections_request_source");
-                        for (var i = 0; i < resolvedTargetSegments.Length; i++)
-                        {
-                            var targetSegment = resolvedTargetSegments[i];
-                            if (targetSegment != 0)
-                                LaneMappingTracker.SyncSegment(targetSegment, "lane_connections_request_target");
-                        }
-
-                        var mappingVersion = LaneMappingStore.Version;
-
-                        resolvedTargetSegments = ResizeArray(resolvedTargetSegments, updatedTargets.Length);
-                        resolvedTargetIndexes = ResizeArray(resolvedTargetIndexes, updatedTargets.Length, -1);
-
-                        Log.Info("Applied lane connections lane={0} -> [{1}]; broadcasting update.", simSourceLaneId, FormatLaneIds(updatedTargets));
+                        Log.Info("Applied lane connections lane={0} -> [{1}]; broadcasting update.", simSourceLaneId, FormatLaneIds(liveTargets));
                         CsmCompat.SendToAll(new LaneConnectionsApplied
                         {
                             SourceLaneId = simSourceLaneId,
                             SourceSegmentId = simSourceSegmentId,
                             SourceLaneIndex = simSourceLaneIndex,
-                            TargetLaneIds = updatedTargets,
-                            TargetSegmentIds = (ushort[])resolvedTargetSegments.Clone(),
-                            TargetLaneIndexes = (int[])resolvedTargetIndexes.Clone(),
-                            MappingVersion = mappingVersion
+                            TargetLaneIds = liveTargets,
+                            TargetSegmentIds = liveTargetSegments,
+                            TargetLaneIndexes = liveTargetIndexes
                         });
                     }
                     else
@@ -183,48 +183,5 @@ namespace CSM.TmpeSync.Net.Handlers
             return result;
         }
 
-        private static ushort[] EnsureCapacity(ushort[] source, int count)
-        {
-            if (source != null && source.Length >= count)
-                return source;
-
-            var resized = new ushort[count];
-            if (source != null)
-                Array.Copy(source, resized, Math.Min(source.Length, count));
-            return resized;
-        }
-
-        private static ushort[] ResizeArray(ushort[] source, int count)
-        {
-            if (source != null && source.Length == count)
-                return source;
-
-            var resized = new ushort[count];
-            if (source != null)
-                Array.Copy(source, resized, Math.Min(source.Length, count));
-            return resized;
-        }
-
-        private static int[] ResizeArray(int[] source, int count, int defaultValue)
-        {
-            if (source != null && source.Length == count)
-                return source;
-
-            var resized = Enumerable.Repeat(defaultValue, count).ToArray();
-            if (source != null)
-                Array.Copy(source, resized, Math.Min(source.Length, count));
-            return resized;
-        }
-
-        private static int[] EnsureCapacity(int[] source, int count, int defaultValue)
-        {
-            if (source != null && source.Length >= count)
-                return source;
-
-            var resized = Enumerable.Repeat(defaultValue, count).ToArray();
-            if (source != null)
-                Array.Copy(source, resized, Math.Min(source.Length, count));
-            return resized;
-        }
     }
 }

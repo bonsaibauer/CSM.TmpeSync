@@ -111,6 +111,24 @@ namespace CSM.TmpeSync.Util
             return true;
         }
 
+        internal static bool TryGetResolvedLaneId(uint laneId, ushort segmentId, int laneIndex, out uint resolvedLaneId)
+        {
+            if (segmentId != 0 && laneIndex >= 0 && TryGetLaneId(segmentId, laneIndex, out var laneFromLocation))
+            {
+                resolvedLaneId = laneFromLocation;
+                return true;
+            }
+
+            if (laneId != 0 && LaneExists(laneId))
+            {
+                resolvedLaneId = laneId;
+                return true;
+            }
+
+            resolvedLaneId = 0;
+            return false;
+        }
+
         internal static bool TryResolveLane(ref uint laneId, ref ushort segmentId, ref int laneIndex)
         {
             if (!TryGetLaneGuidContext(laneId, segmentId, laneIndex, out var laneGuid, out var contextSegment, out var contextLaneIndex, out var hostLaneId))

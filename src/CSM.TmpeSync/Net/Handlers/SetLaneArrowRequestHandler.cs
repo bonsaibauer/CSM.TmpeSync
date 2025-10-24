@@ -3,6 +3,7 @@ using CSM.TmpeSync.Net.Contracts.Applied;
 using CSM.TmpeSync.Net.Contracts.Requests;
 using CSM.TmpeSync.Net.Contracts.System;
 using CSM.TmpeSync.Net.Contracts.States;
+using CSM.TmpeSync.Tmpe;
 using CSM.TmpeSync.Util;
 
 namespace CSM.TmpeSync.Net.Handlers
@@ -38,7 +39,7 @@ namespace CSM.TmpeSync.Net.Handlers
                 return;
             }
 
-            if (!NetUtil.TryResolveLane(ref laneId, ref segmentId, ref laneIndex))
+            if (!NetUtil.TryGetResolvedLaneId(laneId, segmentId, laneIndex, out var resolvedLaneId))
             {
                 Log.Warn(LogCategory.Network, "Rejecting SetLaneArrowRequest | laneId={0} segmentId={1} laneIndex={2} reason=lane_missing", cmd.LaneId, segmentId, laneIndex);
                 CsmCompat.SendToClient(senderId, new RequestRejected { Reason = "entity_missing", EntityId = cmd.LaneId, EntityType = 1 });
@@ -54,45 +55,41 @@ namespace CSM.TmpeSync.Net.Handlers
 
             NetUtil.RunOnSimulation(() =>
             {
-                var simLaneId = laneId;
                 var simSegmentId = segmentId;
                 var simLaneIndex = laneIndex;
-
-                if (!NetUtil.TryResolveLane(ref simLaneId, ref simSegmentId, ref simLaneIndex))
+                if (!NetUtil.TryGetResolvedLaneId(resolvedLaneId, simSegmentId, simLaneIndex, out var simLaneId))
                 {
-                    Log.Warn(LogCategory.Synchronization, "Simulation step aborted | laneId={0} segmentId={1} laneIndex={2} reason=lane_disappeared_before_lane_arrow_apply", laneId, segmentId, laneIndex);
+                    Log.Warn(LogCategory.Synchronization, "Simulation step aborted | laneId={0} segmentId={1} laneIndex={2} reason=lane_disappeared_before_lane_arrow_apply", resolvedLaneId, segmentId, laneIndex);
                     return;
                 }
 
                 using (EntityLocks.AcquireLane(simLaneId))
                 {
-                    if (!NetUtil.TryResolveLane(ref simLaneId, ref simSegmentId, ref simLaneIndex))
+                    if (!NetUtil.TryGetResolvedLaneId(simLaneId, simSegmentId, simLaneIndex, out simLaneId))
                     {
-                        Log.Warn(LogCategory.Synchronization, "Skipping lane arrow apply | laneId={0} segmentId={1} laneIndex={2} reason=lane_disappeared_while_locked", laneId, segmentId, laneIndex);
+                        Log.Warn(LogCategory.Synchronization, "Skipping lane arrow apply | laneId={0} segmentId={1} laneIndex={2} reason=lane_disappeared_while_locked", resolvedLaneId, segmentId, laneIndex);
                         return;
                     }
 
-                    if (PendingMap.ApplyLaneArrows(simLaneId, cmd.Arrows, ignoreScope: false))
+                    if (TmpeAdapter.ApplyLaneArrows(simLaneId, cmd.Arrows))
                     {
-                        var resultingArrows = cmd.Arrows;
-                        if (PendingMap.TryGetLaneArrows(simLaneId, out var appliedArrows))
-                            resultingArrows = appliedArrows;
-
                         if (!NetUtil.TryGetLaneLocation(simLaneId, out simSegmentId, out simLaneIndex))
                         {
                             simSegmentId = segmentId;
                             simLaneIndex = laneIndex;
                         }
 
-                        var mappingVersion = LaneMappingStore.Version;
+                        var resultingArrows = cmd.Arrows;
+                        if (TmpeAdapter.TryGetLaneArrows(simLaneId, out var appliedArrows))
+                            resultingArrows = appliedArrows;
+
                         Log.Info(LogCategory.Synchronization, "Applied lane arrows | laneId={0} segmentId={1} laneIndex={2} arrows={3} action=broadcast", simLaneId, simSegmentId, simLaneIndex, resultingArrows);
                         CsmCompat.SendToAll(new LaneArrowApplied
                         {
                             LaneId = simLaneId,
                             Arrows = resultingArrows,
                             SegmentId = simSegmentId,
-                            LaneIndex = simLaneIndex,
-                            MappingVersion = mappingVersion
+                            LaneIndex = simLaneIndex
                         });
                     }
                     else

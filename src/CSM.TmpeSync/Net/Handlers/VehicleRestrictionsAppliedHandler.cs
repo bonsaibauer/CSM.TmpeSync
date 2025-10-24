@@ -1,5 +1,6 @@
 using CSM.API.Commands;
 using CSM.TmpeSync.Net.Contracts.Applied;
+using CSM.TmpeSync.Tmpe;
 using CSM.TmpeSync.Util;
 
 namespace CSM.TmpeSync.Net.Handlers
@@ -16,37 +17,23 @@ namespace CSM.TmpeSync.Net.Handlers
                 cmd.LaneIndex,
                 cmd.Restrictions);
 
-            var expectedMappingVersion = cmd.MappingVersion;
-            if (expectedMappingVersion > 0 && LaneMappingStore.Version < expectedMappingVersion)
+            if (NetUtil.TryGetResolvedLaneId(cmd.LaneId, cmd.SegmentId, cmd.LaneIndex, out var laneId))
             {
+                var segmentId = cmd.SegmentId;
+                var laneIndex = cmd.LaneIndex;
+                if (!NetUtil.TryGetLaneLocation(laneId, out segmentId, out laneIndex))
+                {
+                    segmentId = cmd.SegmentId;
+                    laneIndex = cmd.LaneIndex;
+                }
+
                 Log.Debug(
                     LogCategory.Synchronization,
-                    "Vehicle restrictions waiting for mapping | laneId={0} expectedVersion={1} currentVersion={2}",
-                    cmd.LaneId,
-                    expectedMappingVersion,
-                    LaneMappingStore.Version);
-                DeferredApply.Enqueue(new VehicleRestrictionsDeferredOp(
-                    cmd.LaneId,
-                    cmd.SegmentId,
-                    cmd.LaneIndex,
-                    cmd.Restrictions,
-                    expectedMappingVersion));
-                return;
-            }
-
-            var laneId = cmd.LaneId;
-            var segmentId = cmd.SegmentId;
-            var laneIndex = cmd.LaneIndex;
-
-            if (NetUtil.TryResolveLane(ref laneId, ref segmentId, ref laneIndex))
-            {
-                Log.Debug(
-                    LogCategory.Synchronization,
-                    "Lane resolved locally | laneId={0} segmentId={1} laneIndex={2} action=apply_vehicle_restrictions_ignore_scope",
+                    "Lane resolved locally | laneId={0} segmentId={1} laneIndex={2} action=apply_vehicle_restrictions",
                     laneId,
                     segmentId,
                     laneIndex);
-                if (PendingMap.ApplyVehicleRestrictions(laneId, cmd.Restrictions, ignoreScope: true))
+                if (TmpeAdapter.ApplyVehicleRestrictions(laneId, cmd.Restrictions))
                     Log.Info(LogCategory.Synchronization, "Applied remote vehicle restrictions | laneId={0} segmentId={1} laneIndex={2} restrictions={3}", laneId, segmentId, laneIndex, cmd.Restrictions);
                 else
                     Log.Error(LogCategory.Synchronization, "Failed to apply remote vehicle restrictions | laneId={0} segmentId={1} laneIndex={2} restrictions={3}", laneId, segmentId, laneIndex, cmd.Restrictions);
@@ -55,16 +42,10 @@ namespace CSM.TmpeSync.Net.Handlers
             {
                 Log.Warn(
                     LogCategory.Synchronization,
-                    "Lane missing for vehicle restriction apply | laneId={0} segmentId={1} laneIndex={2} action=queue_deferred",
+                    "Lane missing for vehicle restriction apply | laneId={0} segmentId={1} laneIndex={2} action=skipped",
                     cmd.LaneId,
                     cmd.SegmentId,
                     cmd.LaneIndex);
-                DeferredApply.Enqueue(new VehicleRestrictionsDeferredOp(
-                    cmd.LaneId,
-                    cmd.SegmentId,
-                    cmd.LaneIndex,
-                    cmd.Restrictions,
-                    expectedMappingVersion));
             }
         }
     }
