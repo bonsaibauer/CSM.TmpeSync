@@ -92,7 +92,7 @@ namespace CSM.TmpeSync.Util
 
         internal static bool ApplyLaneConnections(
             uint sourceLaneId,
-            IReadOnlyList<uint> targetLaneIds,
+            uint[] targetLaneIds,
             bool ignoreScope)
         {
             if (ignoreScope)
