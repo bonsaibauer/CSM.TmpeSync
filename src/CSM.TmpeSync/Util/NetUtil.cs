@@ -24,45 +24,6 @@ namespace CSM.TmpeSync.Util
             }
         }
 
-        internal static bool TryGetSegmentGuid(ushort segmentId, out SegmentGuid guid)
-        {
-            guid = default;
-            if (!SegmentExists(segmentId))
-                return false;
-
-            ref var segment = ref NetManager.instance.m_segments.m_buffer[segmentId];
-            var info = segment.Info;
-            ushort prefabId = info != null ? (ushort)info.m_prefabDataIndex : (ushort)0;
-            var startNodePrefab = TryGetNodePrefab(segment.m_startNode);
-            var endNodePrefab = TryGetNodePrefab(segment.m_endNode);
-            var sequence = (uint)segmentId;
-            guid = new SegmentGuid(segmentId, segment.m_buildIndex, prefabId, startNodePrefab, endNodePrefab, sequence);
-            return guid.IsValid;
-        }
-
-        internal static bool TryGetNodeGuid(ushort nodeId, out NodeGuid guid)
-        {
-            guid = default;
-            if (!NodeExists(nodeId))
-                return false;
-
-            ref var node = ref NetManager.instance.m_nodes.m_buffer[nodeId];
-            var info = node.Info;
-            ushort prefabId = info != null ? (ushort)info.m_prefabDataIndex : (ushort)0;
-            var sequence = (uint)nodeId;
-            guid = new NodeGuid(nodeId, node.m_buildIndex, prefabId, (ushort)node.m_flags, sequence);
-            return guid.IsValid;
-        }
-
-        private static ushort TryGetNodePrefab(ushort nodeId)
-        {
-            if (!NodeExists(nodeId))
-                return 0;
-
-            var info = NetManager.instance.m_nodes.m_buffer[nodeId].Info;
-            return info != null ? (ushort)info.m_prefabDataIndex : (ushort)0;
-        }
-
         internal static bool TryGetLaneLocation(uint laneId, out ushort segmentId, out int laneIndex)
         {
             segmentId = 0;
