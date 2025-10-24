@@ -125,29 +125,6 @@ namespace CSM.TmpeSync.Tmpe
             }
         }
 
-        internal static void HandleAutomaticDespawningChanged(bool disableValue)
-        {
-            if (!CanDispatch())
-                return;
-
-            var enabled = !disableValue;
-
-            if (CsmCompat.IsServerInstance())
-            {
-                Broadcast(new AutomaticDespawningApplied { Enabled = enabled });
-                return;
-            }
-
-            try
-            {
-                CsmCompat.SendToServer(new SetAutomaticDespawningRequest { Enabled = enabled });
-            }
-            catch (Exception ex)
-            {
-                Log.Warn(LogCategory.Network, "Failed to dispatch automatic despawning request | enabled={0} error={1}", enabled, ex);
-            }
-        }
-
         private static void SyncSegmentsForNode(ushort nodeId, string reason)
         {
             ref var node = ref NetManager.instance.m_nodes.m_buffer[nodeId];
