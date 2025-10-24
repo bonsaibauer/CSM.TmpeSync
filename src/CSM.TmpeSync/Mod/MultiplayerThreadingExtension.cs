@@ -10,7 +10,6 @@ namespace CSM.TmpeSync.Mod
         {
             MultiplayerStateObserver.Update();
             LockRegistry.Tick();
-            TimedTrafficLightOptionGuard.Update();
         }
 
         public override void OnReleased()
