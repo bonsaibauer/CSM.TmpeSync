@@ -2771,7 +2771,7 @@ namespace CSM.TmpeSync.Tmpe
                 }
 
                 Log.Debug(LogCategory.Hook, "TM:PE clear traffic request");
-                UtilityManagerClearTrafficMethod.Invoke(UtilityManagerInstance, Array.Empty<object>());
+                UtilityManagerClearTrafficMethod.Invoke(UtilityManagerInstance, new object[0]);
                 Log.Info(LogCategory.Synchronization, "TM:PE clear traffic applied via API");
                 return true;
             }
