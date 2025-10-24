@@ -49,7 +49,11 @@ namespace CSM.TmpeSync.Util
             var citiesDir = Path.Combine(colossalOrderDir, "Cities_Skylines");
             LogDirectory = Path.Combine(citiesDir, "CSM.TmpeSync");
             _currentLogFilePath = Path.Combine(LogDirectory, DefaultLogFileName);
+#if DEBUG
             DebugEnabled = true;
+#else
+            DebugEnabled = false;
+#endif
         }
 
         internal static bool IsDebugEnabled => DebugEnabled;
