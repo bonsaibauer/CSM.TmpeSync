@@ -17,6 +17,7 @@ namespace CSM.Mods
         public static ModSupport Instance => _instance ?? (_instance = new ModSupport());
 
         public List<Connection> ConnectedMods { get; } = new List<Connection>();
+        private readonly List<Connection> _manualConnections = new List<Connection>();
 
         public List<string> RequiredModsForSync
         {
@@ -81,6 +82,21 @@ namespace CSM.Mods
                 }
             }
 
+            for (int i = _manualConnections.Count - 1; i >= 0; i--)
+            {
+                Connection connection = _manualConnections[i];
+                if (connection == null)
+                {
+                    _manualConnections.RemoveAt(i);
+                    continue;
+                }
+
+                if (!ContainsConnection(connection))
+                {
+                    ConnectedMods.Add(connection);
+                }
+            }
+
             // Refresh data model
             CommandInternal.Instance.RefreshModel();
         }
@@ -106,9 +122,140 @@ namespace CSM.Mods
         {
             ConnectedMods.Clear();
             ConnectedMods.TrimExcess();
+            _manualConnections.Clear();
 
             Singleton<PluginManager>.instance.eventPluginsChanged -= LoadModConnections;
             Singleton<PluginManager>.instance.eventPluginsStateChanged -= LoadModConnections;
+        }
+
+        public bool RegisterConnection(Connection connection)
+        {
+            if (connection == null)
+                return false;
+
+            if (!connection.Enabled)
+            {
+                Log.Debug($"Mod support for {connection.Name ?? connection.GetType().Name} found but not enabled.");
+                return false;
+            }
+
+            if (ContainsConnection(connection))
+                return false;
+
+            _manualConnections.Add(connection);
+            ConnectedMods.Add(connection);
+
+            TryRegisterHandlers(connection);
+
+            CommandInternal.Instance.RefreshModel();
+            return true;
+        }
+
+        public bool UnregisterConnection(Connection connection)
+        {
+            if (connection == null)
+                return false;
+
+            bool removed = RemoveConnection(connection);
+            bool removedManual = RemoveManualConnection(connection) || removed;
+
+            if (!removedManual)
+                return false;
+
+            TryUnregisterHandlers(connection);
+
+            CommandInternal.Instance.RefreshModel();
+            return true;
+        }
+
+        public Connection[] GetRegisteredConnections()
+        {
+            return ConnectedMods.ToArray();
+        }
+
+        private bool ContainsConnection(Connection connection)
+        {
+            return ConnectedMods.Any(existing => AreConnectionsEquivalent(existing, connection));
+        }
+
+        private bool RemoveConnection(Connection connection)
+        {
+            for (int i = ConnectedMods.Count - 1; i >= 0; i--)
+            {
+                if (AreConnectionsEquivalent(ConnectedMods[i], connection))
+                {
+                    ConnectedMods.RemoveAt(i);
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private bool RemoveManualConnection(Connection connection)
+        {
+            for (int i = _manualConnections.Count - 1; i >= 0; i--)
+            {
+                if (AreConnectionsEquivalent(_manualConnections[i], connection))
+                {
+                    _manualConnections.RemoveAt(i);
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private static bool AreConnectionsEquivalent(Connection existing, Connection connection)
+        {
+            if (existing == null || connection == null)
+                return false;
+
+            if (ReferenceEquals(existing, connection))
+                return true;
+
+            if (existing.GetType() == connection.GetType())
+                return true;
+
+            if (existing.ModClass != null && connection.ModClass != null && existing.ModClass == connection.ModClass)
+                return true;
+
+            return false;
+        }
+
+        private void TryRegisterHandlers(Connection connection)
+        {
+            if (!IsLevelLoaded())
+                return;
+
+            try
+            {
+                connection.RegisterHandlers();
+            }
+            catch (Exception ex)
+            {
+                Log.Warn($"Failed to register handlers for {connection?.Name ?? connection?.GetType().Name}: {ex}");
+            }
+        }
+
+        private void TryUnregisterHandlers(Connection connection)
+        {
+            if (!IsLevelLoaded())
+                return;
+
+            try
+            {
+                connection.UnregisterHandlers();
+            }
+            catch (Exception ex)
+            {
+                Log.Warn($"Failed to unregister handlers for {connection?.Name ?? connection?.GetType().Name}: {ex}");
+            }
+        }
+
+        private static bool IsLevelLoaded()
+        {
+            return Singleton<LoadingManager>.exists && Singleton<LoadingManager>.instance.m_loadingComplete;
         }
     }
 }

@@ -62,6 +62,26 @@ namespace CSM.Commands
         }
 
         /// <summary>
+        ///     This method is used to send a command to a connected client by id.
+        ///     Does only work if the current game acts as a server.
+        /// </summary>
+        /// <param name="clientId">The client id to send the command to.</param>
+        /// <param name="command">The command to send.</param>
+        public void SendToClient(int clientId, CommandBase command)
+        {
+            if (MultiplayerManager.Instance.CurrentRole != MultiplayerRole.Server)
+                return;
+
+            if (!MultiplayerManager.Instance.CurrentServer.ConnectedPlayers.TryGetValue(clientId, out CSMPlayer player))
+            {
+                Log.Debug($"Trying to send packet to unknown client {clientId}, ignoring.");
+                return;
+            }
+
+            SendToClient(player, command);
+        }
+
+        /// <summary>
         ///     This method is used to send a command to all connected clients.
         ///     Does only work if the current game acts as a server.
         /// </summary>
@@ -276,7 +296,14 @@ namespace CSM.Commands
 
         public CommandInternal()
         {
-            Command.ConnectToCSM(this.SendToAll, this.SendToServer, this.SendToClients, this.GetCommandHandler);
+            Command.ConnectToCSM(this.SendToAll,
+                this.SendToServer,
+                this.SendToClients,
+                this.SendToClient,
+                this.GetCommandHandler,
+                ModSupport.Instance.RegisterConnection,
+                ModSupport.Instance.UnregisterConnection,
+                ModSupport.Instance.GetRegisteredConnections);
         }
     }
 }
