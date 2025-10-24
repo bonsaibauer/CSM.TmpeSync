@@ -11,6 +11,5 @@ namespace CSM.TmpeSync.Net.Contracts.Applied
         [ProtoMember(2, IsRequired = true)] public VehicleRestrictionFlags Restrictions { get; set; }
         [ProtoMember(3, IsRequired = true)] public ushort SegmentId { get; set; }
         [ProtoMember(4, IsRequired = true)] public int LaneIndex { get; set; } = -1;
-        [ProtoMember(5)] public long MappingVersion { get; set; }
     }
 }

@@ -180,21 +180,18 @@ namespace CSM.TmpeSync.Tmpe
 
         private static void BroadcastVehicleRestrictions(ushort segmentId)
         {
-            LaneMappingTracker.SyncSegment(segmentId, "vehicle_restrictions");
-
             ref var segment = ref NetManager.instance.m_segments.m_buffer[segmentId];
             var info = segment.Info;
             if (info?.m_lanes == null)
                 return;
 
-            var mappingVersion = LaneMappingStore.Version;
             uint laneId = segment.m_lanes;
             for (int laneIndex = 0; laneId != 0 && laneIndex < info.m_lanes.Length; laneIndex++)
             {
                 ref var lane = ref NetManager.instance.m_lanes.m_buffer[laneId];
                 if ((lane.m_flags & (uint)NetLane.Flags.Created) != 0)
                 {
-                    if (PendingMap.TryGetVehicleRestrictions(laneId, out var restrictions))
+                    if (TmpeAdapter.TryGetVehicleRestrictions(laneId, out var restrictions))
                     {
                         if (NetUtil.TryGetLaneLocation(laneId, out var resolvedSegmentId, out var resolvedLaneIndex))
                         {
@@ -203,8 +200,7 @@ namespace CSM.TmpeSync.Tmpe
                                 LaneId = laneId,
                                 SegmentId = resolvedSegmentId,
                                 LaneIndex = resolvedLaneIndex,
-                                Restrictions = restrictions,
-                                MappingVersion = LaneMappingStore.Version
+                                Restrictions = restrictions
                             });
                         }
                     }
@@ -216,15 +212,12 @@ namespace CSM.TmpeSync.Tmpe
 
         private static void BroadcastParkingRestrictions(ushort segmentId)
         {
-            LaneMappingTracker.SyncSegment(segmentId, "parking_restrictions");
-
-            if (PendingMap.TryGetParkingRestriction(segmentId, out var state))
+            if (TmpeAdapter.TryGetParkingRestriction(segmentId, out var state))
             {
                 Broadcast(new ParkingRestrictionApplied
                 {
                     SegmentId = segmentId,
-                    State = state?.Clone() ?? new ParkingRestrictionState(),
-                    MappingVersion = LaneMappingStore.Version
+                    State = state?.Clone() ?? new ParkingRestrictionState()
                 });
             }
         }
@@ -251,8 +244,6 @@ namespace CSM.TmpeSync.Tmpe
 
         private static void BroadcastPrioritySigns(ushort nodeId)
         {
-            SyncSegmentsForNode(nodeId, "priority_signs");
-
             ref var node = ref NetManager.instance.m_nodes.m_buffer[nodeId];
             for (int i = 0; i < 8; i++)
             {
@@ -263,14 +254,13 @@ namespace CSM.TmpeSync.Tmpe
                 if (!NetUtil.SegmentExists(segmentId))
                     continue;
 
-                if (PendingMap.TryGetPrioritySign(nodeId, segmentId, out var signType))
+                if (TmpeAdapter.TryGetPrioritySign(nodeId, segmentId, out var signType))
                 {
                     Broadcast(new PrioritySignApplied
                     {
                         NodeId = nodeId,
                         SegmentId = segmentId,
-                        SignType = signType,
-                        MappingVersion = LaneMappingStore.Version
+                        SignType = signType
                     });
                 }
             }
@@ -295,23 +285,19 @@ namespace CSM.TmpeSync.Tmpe
             if (!CanDispatch() || !NetUtil.LaneExists(laneId))
                 return;
 
-            if (PendingMap.TryGetLaneArrows(laneId, out var arrows))
-            {
-                if (NetUtil.TryGetLaneLocation(laneId, out var segmentId, out var laneIndex))
-                {
-                    LaneMappingTracker.SyncSegment(segmentId, "lane_arrows");
+            if (!TmpeAdapter.TryGetLaneArrows(laneId, out var arrows))
+                return;
 
-                    var mappingVersion = LaneMappingStore.Version;
-                    Broadcast(new LaneArrowApplied
-                    {
-                        LaneId = laneId,
-                        SegmentId = segmentId,
-                        LaneIndex = laneIndex,
-                        Arrows = arrows,
-                        MappingVersion = mappingVersion
-                    });
-                }
-            }
+            if (!NetUtil.TryGetLaneLocation(laneId, out var segmentId, out var laneIndex))
+                return;
+
+            Broadcast(new LaneArrowApplied
+            {
+                LaneId = laneId,
+                SegmentId = segmentId,
+                LaneIndex = laneIndex,
+                Arrows = arrows
+            });
         }
 
         internal static void HandleLaneConnections(uint laneId)
@@ -319,13 +305,11 @@ namespace CSM.TmpeSync.Tmpe
             if (!CanDispatch() || !NetUtil.LaneExists(laneId))
                 return;
 
-            if (!PendingMap.TryGetLaneConnections(laneId, out var targets) || targets == null)
-                targets = new uint[0];
+            if (!TmpeAdapter.TryGetLaneConnections(laneId, out var targets) || targets == null)
+                targets = Array.Empty<uint>();
 
             if (!NetUtil.TryGetLaneLocation(laneId, out var segmentId, out var laneIndex))
                 return;
-
-            LaneMappingTracker.SyncSegment(segmentId, "lane_connections_source");
 
             var targetSegmentIds = new ushort[targets.Length];
             var targetLaneIndexes = new int[targets.Length];
@@ -340,9 +324,6 @@ namespace CSM.TmpeSync.Tmpe
 
                 targetSegmentIds[i] = targetSegment;
                 targetLaneIndexes[i] = targetIndex;
-
-                if (targetSegment != 0)
-                    LaneMappingTracker.SyncSegment(targetSegment, "lane_connections_target");
             }
 
             Broadcast(new LaneConnectionsApplied
@@ -352,8 +333,7 @@ namespace CSM.TmpeSync.Tmpe
                 SourceLaneIndex = laneIndex,
                 TargetLaneIds = targets,
                 TargetSegmentIds = targetSegmentIds,
-                TargetLaneIndexes = targetLaneIndexes,
-                MappingVersion = LaneMappingStore.Version
+                TargetLaneIndexes = targetLaneIndexes
             });
         }
 
@@ -368,8 +348,6 @@ namespace CSM.TmpeSync.Tmpe
                 var segmentId = node.GetSegment(i);
                 if (segmentId == 0 || !NetUtil.SegmentExists(segmentId))
                     continue;
-
-                LaneMappingTracker.SyncSegment(segmentId, "lane_connections_node");
 
                 ref var segment = ref NetManager.instance.m_segments.m_buffer[segmentId];
                 var lanes = segment.Info?.m_lanes;

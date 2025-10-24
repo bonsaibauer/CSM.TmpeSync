@@ -11,12 +11,7 @@ namespace CSM.TmpeSync.Tmpe
         {
             PendingMap.Configure(
                 ProcessPendingSpeedLimit,
-                ProcessPendingJunctionRestrictions,
-                ProcessPendingLaneArrows,
-                ProcessPendingVehicleRestrictions,
-                ProcessPendingLaneConnections,
-                ProcessPendingParkingRestrictions,
-                ProcessPendingPrioritySigns);
+                ProcessPendingJunctionRestrictions);
         }
 
         private static PendingMap.RetryResult ProcessPendingSpeedLimit(PendingMap.LaneCommand command)
@@ -108,134 +103,6 @@ namespace CSM.TmpeSync.Tmpe
             }
         }
 
-        private static PendingMap.RetryResult ProcessPendingLaneArrows(PendingMap.LaneArrowCommand command)
-        {
-            if (command == null)
-                return PendingMap.RetryResult.Drop;
-
-            if (!SupportsLaneArrows)
-                return PendingMap.RetryResult.Drop;
-
-            if (!NetUtil.LaneExists(command.LaneId))
-                return PendingMap.RetryResult.Drop;
-
-            if (TryGetLaneArrowsReal(command.LaneId, out var liveArrows))
-            {
-                if (liveArrows == command.Arrows)
-                    return PendingMap.RetryResult.Success;
-            }
-
-            return TryApplyLaneArrowsReal(command.LaneId, command.Arrows)
-                ? PendingMap.RetryResult.Success
-                : PendingMap.RetryResult.Retry;
-        }
-
-        private static PendingMap.RetryResult ProcessPendingVehicleRestrictions(PendingMap.VehicleRestrictionCommand command)
-        {
-            if (command == null)
-                return PendingMap.RetryResult.Drop;
-
-            if (!SupportsVehicleRestrictions)
-                return PendingMap.RetryResult.Drop;
-
-            if (!NetUtil.LaneExists(command.LaneId))
-                return PendingMap.RetryResult.Drop;
-
-            if (TryGetVehicleRestrictionsReal(command.LaneId, out var liveFlags))
-            {
-                if (liveFlags == command.Restrictions)
-                    return PendingMap.RetryResult.Success;
-            }
-
-            return TryApplyVehicleRestrictionsReal(command.LaneId, command.Restrictions)
-                ? PendingMap.RetryResult.Success
-                : PendingMap.RetryResult.Retry;
-        }
-
-        private static PendingMap.RetryResult ProcessPendingLaneConnections(PendingMap.LaneConnectionCommand command)
-        {
-            if (command == null)
-                return PendingMap.RetryResult.Drop;
-
-            if (!SupportsLaneConnections)
-                return PendingMap.RetryResult.Drop;
-
-            if (!NetUtil.LaneExists(command.SourceLaneId))
-                return PendingMap.RetryResult.Drop;
-
-            if (TryGetLaneConnectionsReal(command.SourceLaneId, out var liveTargets))
-            {
-                if (LaneTargetsEqual(liveTargets, command.TargetLaneIds))
-                    return PendingMap.RetryResult.Success;
-            }
-
-            var targets = command.TargetLaneIds ?? new uint[0];
-
-            if (TryApplyLaneConnectionsReal(command.SourceLaneId, targets))
-            {
-                HandleLaneConnectionSideEffects(command.SourceLaneId, targets);
-                return PendingMap.RetryResult.Success;
-            }
-
-            return PendingMap.RetryResult.Retry;
-        }
-
-        private static PendingMap.RetryResult ProcessPendingParkingRestrictions(PendingMap.ParkingRestrictionCommand command)
-        {
-            if (command == null)
-                return PendingMap.RetryResult.Drop;
-
-            if (!SupportsParkingRestrictions)
-                return PendingMap.RetryResult.Drop;
-
-            if (!NetUtil.SegmentExists(command.SegmentId))
-                return PendingMap.RetryResult.Drop;
-
-            var desired = command.State?.Clone() ?? new ParkingRestrictionState();
-
-            if (TryGetParkingRestrictionReal(command.SegmentId, out var liveState))
-            {
-                if (ParkingRestrictionMatches(desired, liveState))
-                    return PendingMap.RetryResult.Success;
-            }
-
-            var outcome = TryApplyParkingRestrictionReal(
-                command.SegmentId,
-                desired.Clone(),
-                out _,
-                out _);
-
-            if (outcome == ParkingRestrictionApplyOutcome.Fatal)
-                return PendingMap.RetryResult.Drop;
-
-            if (TryGetParkingRestrictionReal(command.SegmentId, out liveState) && ParkingRestrictionMatches(desired, liveState))
-                return PendingMap.RetryResult.Success;
-
-            return PendingMap.RetryResult.Retry;
-        }
-
-        private static PendingMap.RetryResult ProcessPendingPrioritySigns(PendingMap.PrioritySignCommand command)
-        {
-            if (command == null)
-                return PendingMap.RetryResult.Drop;
-
-            if (!SupportsPrioritySigns)
-                return PendingMap.RetryResult.Drop;
-
-            var nodeId = command.Key.NodeId;
-            var segmentId = command.Key.SegmentId;
-
-            if (!NetUtil.NodeExists(nodeId) || !NetUtil.SegmentExists(segmentId))
-                return PendingMap.RetryResult.Drop;
-
-            if (TryGetPrioritySignReal(nodeId, segmentId, out var liveSign) && liveSign == command.SignType)
-                return PendingMap.RetryResult.Success;
-
-            return TryApplyPrioritySignReal(nodeId, segmentId, command.SignType)
-                ? PendingMap.RetryResult.Success
-                : PendingMap.RetryResult.Retry;
-        }
-
         private static ulong ComputeLaneObserverHash(uint laneId)
         {
             if (!NetUtil.LaneExists(laneId))
@@ -283,29 +150,6 @@ namespace CSM.TmpeSync.Tmpe
                    IsMatch(pending.AllowPedestrianCrossing, live.AllowPedestrianCrossing) &&
                    IsMatch(pending.AllowNearTurnOnRed, live.AllowNearTurnOnRed) &&
                    IsMatch(pending.AllowFarTurnOnRed, live.AllowFarTurnOnRed);
-        }
-
-        private static bool LaneTargetsEqual(uint[] left, uint[] right)
-        {
-            if (ReferenceEquals(left, right))
-                return true;
-
-            if (left == null)
-                left = new uint[0];
-
-            if (right == null)
-                right = new uint[0];
-
-            if (left.Length != right.Length)
-                return false;
-
-            for (var i = 0; i < left.Length; i++)
-            {
-                if (left[i] != right[i])
-                    return false;
-            }
-
-            return true;
         }
 
         private static bool ParkingRestrictionMatches(ParkingRestrictionState desired, ParkingRestrictionState live)

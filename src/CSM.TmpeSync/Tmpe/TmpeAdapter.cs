@@ -2181,32 +2181,23 @@ namespace CSM.TmpeSync.Tmpe
         {
             try
             {
-                ushort segmentId = 0;
-                int laneIndex = -1;
-                if (NetUtil.TryGetLaneLocation(laneId, out var resolvedSegment, out var resolvedLaneIndex))
-                {
-                    segmentId = resolvedSegment;
-                    laneIndex = resolvedLaneIndex;
-                }
-
                 if (SupportsLaneArrows)
                 {
                     Log.Debug(LogCategory.Hook, "TM:PE lane arrow request | laneId={0} arrows={1}", laneId, arrows);
-                    PendingMap.UpsertLaneArrows(laneId, arrows, segmentId, laneIndex);
-
                     if (TryApplyLaneArrowsReal(laneId, arrows))
                     {
                         lock (StateLock)
                         {
-                            LaneArrows.Remove(laneId);
+                            if (arrows == LaneArrowFlags.None)
+                                LaneArrows.Remove(laneId);
+                            else
+                                LaneArrows[laneId] = arrows;
                         }
-                        PendingMap.MarkLaneArrowsApplied(laneId);
                         Log.Info(LogCategory.Synchronization, "TM:PE lane arrows applied via API | laneId={0} arrows={1}", laneId, arrows);
                         return true;
                     }
 
-                    PendingMap.ReportLaneArrowFailure(laneId);
-                    Log.Warn(LogCategory.Bridge, "TM:PE lane arrow apply via API failed | laneId={0} arrows={1} action=queued_retry", laneId, arrows);
+                    Log.Warn(LogCategory.Bridge, "TM:PE lane arrow apply via API failed | laneId={0} arrows={1}", laneId, arrows);
                     return false;
                 }
 
@@ -2225,7 +2216,6 @@ namespace CSM.TmpeSync.Tmpe
             catch (Exception ex)
             {
                 Log.Error(LogCategory.Synchronization, "TM:PE ApplyLaneArrows failed | error={0}", ex);
-                PendingMap.ReportLaneArrowFailure(laneId);
                 return false;
             }
         }
@@ -2237,8 +2227,13 @@ namespace CSM.TmpeSync.Tmpe
                 if (SupportsLaneArrows && TryGetLaneArrowsReal(laneId, out arrows))
                 {
                     Log.Debug(LogCategory.Hook, "TM:PE lane arrow query | laneId={0} arrows={1}", laneId, arrows);
-                    if (PendingMap.TryGetLaneArrowSnapshot(laneId, out var pendingArrows))
-                        arrows = pendingArrows;
+                    lock (StateLock)
+                    {
+                        if (arrows == LaneArrowFlags.None)
+                            LaneArrows.Remove(laneId);
+                        else
+                            LaneArrows[laneId] = arrows;
+                    }
                     return true;
                 }
 
@@ -2247,9 +2242,6 @@ namespace CSM.TmpeSync.Tmpe
                     if (!LaneArrows.TryGetValue(laneId, out arrows))
                         arrows = LaneArrowFlags.None;
                 }
-
-                if (SupportsLaneArrows && PendingMap.TryGetLaneArrowSnapshot(laneId, out var pending))
-                    arrows = pending;
 
                 return true;
             }
@@ -2265,19 +2257,9 @@ namespace CSM.TmpeSync.Tmpe
         {
             try
             {
-                ushort segmentId = 0;
-                int laneIndex = -1;
-                if (NetUtil.TryGetLaneLocation(laneId, out var resolvedSegment, out var resolvedLaneIndex))
-                {
-                    segmentId = resolvedSegment;
-                    laneIndex = resolvedLaneIndex;
-                }
-
                 if (SupportsVehicleRestrictions)
                 {
                     Log.Debug(LogCategory.Hook, "TM:PE vehicle restriction request | laneId={0} restrictions={1}", laneId, restrictions);
-                    PendingMap.UpsertVehicleRestrictions(laneId, restrictions, segmentId, laneIndex);
-
                     if (TryApplyVehicleRestrictionsReal(laneId, restrictions))
                     {
                         lock (StateLock)
@@ -2287,13 +2269,11 @@ namespace CSM.TmpeSync.Tmpe
                             else
                                 VehicleRestrictions[laneId] = restrictions;
                         }
-                        PendingMap.MarkVehicleRestrictionsApplied(laneId);
                         Log.Info(LogCategory.Synchronization, "TM:PE vehicle restrictions applied via API | laneId={0} restrictions={1}", laneId, restrictions);
                         return true;
                     }
 
-                    PendingMap.ReportVehicleRestrictionFailure(laneId);
-                    Log.Warn(LogCategory.Bridge, "TM:PE vehicle restriction apply via API failed | laneId={0} action=queued_retry", laneId);
+                    Log.Warn(LogCategory.Bridge, "TM:PE vehicle restriction apply via API failed | laneId={0}", laneId);
                     return false;
                 }
 
@@ -2312,7 +2292,6 @@ namespace CSM.TmpeSync.Tmpe
             catch (Exception ex)
             {
                 Log.Error(LogCategory.Synchronization, "TM:PE ApplyVehicleRestrictions failed | error={0}", ex);
-                PendingMap.ReportVehicleRestrictionFailure(laneId);
                 return false;
             }
         }
@@ -2324,8 +2303,13 @@ namespace CSM.TmpeSync.Tmpe
                 if (SupportsVehicleRestrictions && TryGetVehicleRestrictionsReal(laneId, out restrictions))
                 {
                     Log.Debug(LogCategory.Hook, "TM:PE vehicle restriction query | laneId={0} restrictions={1}", laneId, restrictions);
-                    if (PendingMap.TryGetVehicleRestrictionSnapshot(laneId, out var pending))
-                        restrictions = pending.Restrictions;
+                    lock (StateLock)
+                    {
+                        if (restrictions == VehicleRestrictionFlags.None)
+                            VehicleRestrictions.Remove(laneId);
+                        else
+                            VehicleRestrictions[laneId] = restrictions;
+                    }
                     return true;
                 }
 
@@ -2334,9 +2318,6 @@ namespace CSM.TmpeSync.Tmpe
                     if (!VehicleRestrictions.TryGetValue(laneId, out restrictions))
                         restrictions = VehicleRestrictionFlags.None;
                 }
-
-                if (SupportsVehicleRestrictions && PendingMap.TryGetVehicleRestrictionSnapshot(laneId, out var pendingSnapshot))
-                    restrictions = pendingSnapshot.Restrictions;
 
                 return true;
             }
@@ -2352,33 +2333,28 @@ namespace CSM.TmpeSync.Tmpe
         {
             try
             {
-                var sanitizedTargets = (targetLaneIds ?? new uint[0])
+                var sanitizedTargets = (targetLaneIds ?? Array.Empty<uint>())
                     .Where(id => id != 0)
                     .Distinct()
                     .ToArray();
 
-                ushort sourceSegmentId = 0;
-                int sourceLaneIndex = -1;
-                if (NetUtil.TryGetLaneLocation(sourceLaneId, out var resolvedSegment, out var resolvedIndex))
-                {
-                    sourceSegmentId = resolvedSegment;
-                    sourceLaneIndex = resolvedIndex;
-                }
-
                 if (SupportsLaneConnections)
                 {
                     Log.Debug(LogCategory.Hook, "TM:PE lane connection request | sourceLaneId={0} targets=[{1}]", sourceLaneId, JoinLaneIds(sanitizedTargets));
-                    PendingMap.UpsertLaneConnections(sourceLaneId, sanitizedTargets, sourceSegmentId, sourceLaneIndex);
-
                     if (TryApplyLaneConnectionsReal(sourceLaneId, sanitizedTargets))
                     {
                         HandleLaneConnectionSideEffects(sourceLaneId, sanitizedTargets);
-                        PendingMap.MarkLaneConnectionsApplied(sourceLaneId);
+                        lock (StateLock)
+                        {
+                            if (sanitizedTargets.Length == 0)
+                                LaneConnections.Remove(sourceLaneId);
+                            else
+                                LaneConnections[sourceLaneId] = sanitizedTargets;
+                        }
                         return true;
                     }
 
-                    PendingMap.ReportLaneConnectionFailure(sourceLaneId);
-                    Log.Warn(LogCategory.Bridge, "TM:PE lane connection apply via API failed | sourceLaneId={0} action=queued_retry", sourceLaneId);
+                    Log.Warn(LogCategory.Bridge, "TM:PE lane connection apply via API failed | sourceLaneId={0}", sourceLaneId);
                     return false;
                 }
 
@@ -2397,7 +2373,6 @@ namespace CSM.TmpeSync.Tmpe
             catch (Exception ex)
             {
                 Log.Error(LogCategory.Synchronization, "TM:PE ApplyLaneConnections failed | error={0}", ex);
-                PendingMap.ReportLaneConnectionFailure(sourceLaneId);
                 return false;
             }
         }
@@ -2438,8 +2413,13 @@ namespace CSM.TmpeSync.Tmpe
                 if (SupportsLaneConnections && TryGetLaneConnectionsReal(sourceLaneId, out targetLaneIds))
                 {
                     Log.Debug(LogCategory.Hook, "TM:PE lane connection query | sourceLaneId={0} targets=[{1}]", sourceLaneId, JoinLaneIds(targetLaneIds));
-                    if (PendingMap.TryGetLaneConnectionSnapshot(sourceLaneId, out var pendingTargets) && pendingTargets.Length > 0)
-                        targetLaneIds = pendingTargets;
+                    lock (StateLock)
+                    {
+                        if (targetLaneIds == null || targetLaneIds.Length == 0)
+                            LaneConnections.Remove(sourceLaneId);
+                        else
+                            LaneConnections[sourceLaneId] = targetLaneIds.ToArray();
+                    }
                     return true;
                 }
 
@@ -2454,9 +2434,6 @@ namespace CSM.TmpeSync.Tmpe
                         targetLaneIds = stored.ToArray();
                     }
                 }
-
-                if (SupportsLaneConnections && PendingMap.TryGetLaneConnectionSnapshot(sourceLaneId, out var pendingSnapshot) && pendingSnapshot.Length > 0)
-                    targetLaneIds = pendingSnapshot;
 
                 return true;
             }
@@ -2696,14 +2673,11 @@ namespace CSM.TmpeSync.Tmpe
                 if (SupportsPrioritySigns)
                 {
                     Log.Debug(LogCategory.Hook, "TM:PE priority sign request | nodeId={0} segmentId={1} signType={2}", nodeId, segmentId, signType);
-                    PendingMap.UpsertPrioritySign(nodeId, segmentId, signType);
-
                     appliedViaApi = TryApplyPrioritySignReal(nodeId, segmentId, signType);
 
                     if (!appliedViaApi)
                     {
-                        PendingMap.ReportPrioritySignFailure(nodeId, segmentId);
-                        Log.Warn(LogCategory.Bridge, "TM:PE priority sign apply via API failed | nodeId={0} segmentId={1} action=queued_retry", nodeId, segmentId);
+                        Log.Warn(LogCategory.Bridge, "TM:PE priority sign apply via API failed | nodeId={0} segmentId={1}", nodeId, segmentId);
                         return false;
                     }
                 }
@@ -2722,9 +2696,6 @@ namespace CSM.TmpeSync.Tmpe
                         else
                             PrioritySigns[key] = signType;
                     }
-
-                    if (SupportsPrioritySigns)
-                        PendingMap.MarkPrioritySignApplied(nodeId, segmentId);
                 }
 
                 return appliedViaApi || !SupportsPrioritySigns;
@@ -2732,7 +2703,6 @@ namespace CSM.TmpeSync.Tmpe
             catch (Exception ex)
             {
                 Log.Error(LogCategory.Synchronization, "TM:PE ApplyPrioritySign failed | error={0}", ex);
-                PendingMap.ReportPrioritySignFailure(nodeId, segmentId);
                 return false;
             }
         }
@@ -2755,9 +2725,6 @@ namespace CSM.TmpeSync.Tmpe
                             PrioritySigns[key] = signType;
                     }
 
-                    if (PendingMap.TryGetPrioritySignSnapshot(nodeId, segmentId, out var pendingSign))
-                        signType = pendingSign;
-
                     return true;
                 }
 
@@ -2766,9 +2733,6 @@ namespace CSM.TmpeSync.Tmpe
                     if (!PrioritySigns.TryGetValue(key, out signType))
                         signType = PrioritySignType.None;
                 }
-
-                if (SupportsPrioritySigns && PendingMap.TryGetPrioritySignSnapshot(nodeId, segmentId, out var snapshot))
-                    signType = snapshot;
 
                 return true;
             }
@@ -2789,13 +2753,10 @@ namespace CSM.TmpeSync.Tmpe
                 if (SupportsParkingRestrictions)
                 {
                     Log.Debug(LogCategory.Hook, "TM:PE parking restriction request | segmentId={0} state={1}", segmentId, desired);
-                    PendingMap.UpsertParkingRestriction(segmentId, desired);
-
                     var outcome = TryApplyParkingRestrictionReal(segmentId, desired.Clone(), out var appliedDirections, out var rejectedDirections);
 
                     if (outcome == ParkingRestrictionApplyOutcome.Fatal)
                     {
-                        PendingMap.ReportParkingRestrictionFailure(segmentId);
                         Log.Warn(LogCategory.Bridge, "TM:PE parking restriction apply via API failed | segmentId={0} action=fatal", segmentId);
                         return false;
                     }
@@ -2803,12 +2764,8 @@ namespace CSM.TmpeSync.Tmpe
                     UpdateParkingRestrictionStub(segmentId, rejectedDirections, appliedDirections);
 
                     if (TryGetParkingRestrictionReal(segmentId, out var liveState) && ParkingRestrictionMatches(desired, liveState))
-                    {
-                        PendingMap.MarkParkingRestrictionApplied(segmentId);
                         return true;
-                    }
 
-                    PendingMap.ReportParkingRestrictionFailure(segmentId);
                     return false;
                 }
 
@@ -2819,7 +2776,6 @@ namespace CSM.TmpeSync.Tmpe
             catch (Exception ex)
             {
                 Log.Error(LogCategory.Synchronization, "TM:PE ApplyParkingRestriction failed | error={0}", ex);
-                PendingMap.ReportParkingRestrictionFailure(segmentId);
                 return false;
             }
         }
@@ -2831,8 +2787,7 @@ namespace CSM.TmpeSync.Tmpe
                 if (SupportsParkingRestrictions && TryGetParkingRestrictionReal(segmentId, out state))
                 {
                     Log.Debug(LogCategory.Hook, "TM:PE parking restriction query | segmentId={0} state={1}", segmentId, state);
-                    if (PendingMap.TryGetParkingRestrictionSnapshot(segmentId, out var pendingState) && pendingState != null)
-                        state = pendingState;
+                    UpdateParkingRestrictionStub(segmentId, state, null);
                     return true;
                 }
 
@@ -2843,9 +2798,6 @@ namespace CSM.TmpeSync.Tmpe
                     else
                         state = stored.Clone();
                 }
-
-                if (SupportsParkingRestrictions && PendingMap.TryGetParkingRestrictionSnapshot(segmentId, out var snapshot) && snapshot != null)
-                    state = snapshot;
 
                 return true;
             }

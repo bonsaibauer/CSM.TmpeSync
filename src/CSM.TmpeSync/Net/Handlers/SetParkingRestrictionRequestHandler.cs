@@ -3,6 +3,7 @@ using CSM.TmpeSync.Net.Contracts.Applied;
 using CSM.TmpeSync.Net.Contracts.Requests;
 using CSM.TmpeSync.Net.Contracts.System;
 using CSM.TmpeSync.Net.Contracts.States;
+using CSM.TmpeSync.Tmpe;
 using CSM.TmpeSync.Util;
 
 namespace CSM.TmpeSync.Net.Handlers
@@ -45,20 +46,16 @@ namespace CSM.TmpeSync.Net.Handlers
                         return;
                     }
 
-                    if (PendingMap.ApplyParkingRestriction(cmd.SegmentId, state, ignoreScope: false))
+                    if (TmpeAdapter.ApplyParkingRestriction(cmd.SegmentId, state))
                     {
                         var resultingState = state?.Clone();
-                        if (PendingMap.TryGetParkingRestriction(cmd.SegmentId, out var appliedState) && appliedState != null)
+                        if (TmpeAdapter.TryGetParkingRestriction(cmd.SegmentId, out var appliedState) && appliedState != null)
                             resultingState = appliedState.Clone();
-                        if (cmd.SegmentId != 0)
-                            LaneMappingTracker.SyncSegment(cmd.SegmentId, "parking_restrictions_request");
-                        var mappingVersion = LaneMappingStore.Version;
                         Log.Info("Applied parking restriction segment={0} -> {1}; broadcasting update.", cmd.SegmentId, resultingState);
                         CsmCompat.SendToAll(new ParkingRestrictionApplied
                         {
                             SegmentId = cmd.SegmentId,
-                            State = resultingState,
-                            MappingVersion = mappingVersion
+                            State = resultingState
                         });
                     }
                     else
