@@ -2,15 +2,16 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using ColossalFramework;
+using CSM.TmpeSync.Net;
 using CSM.TmpeSync.Net.Contracts.States;
 
 namespace CSM.TmpeSync.Util
 {
     /// <summary>
-    /// Pending command store that mirrors the GUID retry buffer pattern for TM:PE commands.
-    /// Tracks speed limits (lanes) and junction restrictions (nodes) and retries them with backoff.
+    /// Central pending map for TM:PE integration.
+    /// Tracks lane GUID resolutions and TM:PE command retries to keep both flows coordinated.
     /// </summary>
-    internal static class TmpeRetryBuffer
+    internal static class PendingMap
     {
         internal enum RetryResult
         {
@@ -152,6 +153,22 @@ namespace CSM.TmpeSync.Util
         private static Func<LaneCommand, RetryResult> _laneProcessor;
         private static Func<NodeCommand, RetryResult> _nodeProcessor;
 
+        private sealed class PendingLaneAssignment
+        {
+            internal LaneGuid Guid;
+            internal ushort SegmentId;
+            internal int LaneIndex;
+            internal int Attempts;
+            internal int Cooldown;
+
+            internal bool MatchesSegment(ushort segmentId) =>
+                segmentId != 0 && (SegmentId == segmentId || Guid.SegmentId == segmentId);
+        }
+
+        private const int MaxLaneAssignmentAttempts = 12;
+        private static readonly Dictionary<LaneGuid, PendingLaneAssignment> PendingAssignments = new Dictionary<LaneGuid, PendingLaneAssignment>();
+        private static readonly List<LaneGuid> AssignmentScratch = new List<LaneGuid>();
+
         internal static void Configure(
             Func<LaneCommand, RetryResult> laneProcessor,
             Func<NodeCommand, RetryResult> nodeProcessor)
@@ -161,6 +178,205 @@ namespace CSM.TmpeSync.Util
                 _laneProcessor = laneProcessor;
                 _nodeProcessor = nodeProcessor;
             }
+        }
+
+        internal static void Reset()
+        {
+            ClearAll();
+            ClearLaneAssignments();
+        }
+
+        internal static bool ResolveLaneMapping(LaneGuid laneGuid, ushort segmentId, int laneIndex)
+        {
+            if (!laneGuid.IsValid)
+                return false;
+
+            if (TryResolveLaneMappingInternal(laneGuid, segmentId, laneIndex))
+                return true;
+
+            QueueLaneAssignment(laneGuid, segmentId, laneIndex);
+            return false;
+        }
+
+        internal static void QueueLaneAssignment(LaneGuid laneGuid, ushort segmentId, int laneIndex)
+        {
+            if (!laneGuid.IsValid)
+                return;
+
+            if (PendingAssignments.TryGetValue(laneGuid, out var existing))
+            {
+                if (segmentId != 0)
+                    existing.SegmentId = segmentId;
+
+                if (laneIndex >= 0)
+                    existing.LaneIndex = laneIndex;
+
+                existing.Cooldown = 0;
+                return;
+            }
+
+            PendingAssignments[laneGuid] = new PendingLaneAssignment
+            {
+                Guid = laneGuid,
+                SegmentId = segmentId,
+                LaneIndex = laneIndex,
+                Attempts = 0,
+                Cooldown = 0
+            };
+        }
+
+        internal static void ProcessLaneAssignments()
+        {
+            ProcessLaneAssignmentsInternal(null);
+        }
+
+        internal static void ProcessLaneAssignments(ushort segmentId)
+        {
+            if (segmentId == 0 || PendingAssignments.Count == 0)
+                return;
+
+            AssignmentScratch.Clear();
+            foreach (var kvp in PendingAssignments)
+            {
+                if (kvp.Value.MatchesSegment(segmentId))
+                    AssignmentScratch.Add(kvp.Key);
+            }
+
+            if (AssignmentScratch.Count == 0)
+                return;
+
+            ProcessLaneAssignmentsInternal(AssignmentScratch);
+        }
+
+        internal static void ClearLaneAssignments()
+        {
+            PendingAssignments.Clear();
+            AssignmentScratch.Clear();
+        }
+
+        internal static void RemoveLaneAssignment(LaneGuid laneGuid)
+        {
+            if (!laneGuid.IsValid || PendingAssignments.Count == 0)
+                return;
+
+            PendingAssignments.Remove(laneGuid);
+        }
+
+        internal static void RemoveLaneAssignmentsForSegment(ushort segmentId)
+        {
+            if (segmentId == 0 || PendingAssignments.Count == 0)
+                return;
+
+            AssignmentScratch.Clear();
+            foreach (var kvp in PendingAssignments)
+            {
+                if (kvp.Value.MatchesSegment(segmentId))
+                    AssignmentScratch.Add(kvp.Key);
+            }
+
+            if (AssignmentScratch.Count == 0)
+                return;
+
+            foreach (var guid in AssignmentScratch)
+                PendingAssignments.Remove(guid);
+        }
+
+        private static void ProcessLaneAssignmentsInternal(IList<LaneGuid> subset)
+        {
+            if (PendingAssignments.Count == 0)
+                return;
+
+            if (subset == null)
+            {
+                AssignmentScratch.Clear();
+                foreach (var guid in PendingAssignments.Keys)
+                    AssignmentScratch.Add(guid);
+
+                subset = AssignmentScratch;
+            }
+
+            for (var i = 0; i < subset.Count; i++)
+            {
+                var guid = subset[i];
+                if (!PendingAssignments.TryGetValue(guid, out var pending))
+                    continue;
+
+                if (pending.Cooldown > 0)
+                {
+                    pending.Cooldown--;
+                    continue;
+                }
+
+                ushort segmentId = pending.SegmentId;
+                int laneIndex = pending.LaneIndex;
+                uint laneId = 0;
+
+                if (LaneMappingStore.TryResolveLaneGuid(guid, out var entry))
+                {
+                    if (entry.LocalLaneId != 0 && NetUtil.LaneExists(entry.LocalLaneId))
+                        laneId = entry.LocalLaneId;
+
+                    if (entry.SegmentId != 0)
+                        segmentId = entry.SegmentId;
+
+                    if (entry.LaneIndex >= 0)
+                        laneIndex = entry.LaneIndex;
+                }
+
+                if (laneId != 0)
+                {
+                    if (segmentId == 0 || laneIndex < 0)
+                    {
+                        if (!NetUtil.TryGetLaneLocation(laneId, out segmentId, out laneIndex))
+                        {
+                            PendingAssignments.Remove(guid);
+                            continue;
+                        }
+                    }
+
+                    LaneGuidRegistry.AssignLaneGuid(laneId, guid, true);
+                    LaneMappingStore.UpdateLocalLane(segmentId, laneIndex, laneId);
+                    PendingAssignments.Remove(guid);
+                    continue;
+                }
+
+                if (segmentId == 0)
+                    segmentId = guid.SegmentId;
+
+                if (laneIndex < 0)
+                    laneIndex = guid.PrefabLaneIndex;
+
+                if (TryResolveLaneMappingInternal(guid, segmentId, laneIndex))
+                {
+                    PendingAssignments.Remove(guid);
+                    continue;
+                }
+
+                if (!NetUtil.SegmentExists(segmentId) || pending.Attempts >= MaxLaneAssignmentAttempts)
+                {
+                    PendingAssignments.Remove(guid);
+                    continue;
+                }
+
+                pending.Attempts++;
+                pending.Cooldown = Math.Min(32, 1 << Math.Min(pending.Attempts, 5));
+            }
+        }
+
+        private static bool TryResolveLaneMappingInternal(LaneGuid laneGuid, ushort segmentId, int laneIndex)
+        {
+            if (!LaneGuidRegistry.TryResolveLane(laneGuid, out var laneId))
+                return false;
+
+            if (segmentId == 0 || laneIndex < 0)
+            {
+                if (!NetUtil.TryGetLaneLocation(laneId, out segmentId, out laneIndex))
+                    return false;
+            }
+
+            LaneGuidRegistry.AssignLaneGuid(laneId, laneGuid, true);
+            LaneMappingStore.UpdateLocalLane(segmentId, laneIndex, laneId);
+            return true;
         }
 
         internal static void ClearAll()

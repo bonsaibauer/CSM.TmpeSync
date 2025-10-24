@@ -62,7 +62,7 @@ namespace CSM.TmpeSync.Mod
                 .OrderBy(entry => entry, System.StringComparer.OrdinalIgnoreCase)
                 .ToArray();
 
-            Log.Info(
+            Log.Debug(
                 LogCategory.Bridge,
                 "TM:PE feature support | supported={0} unsupported={1}",
                 supported.Length == 0 ? "<none>" : string.Join(", ", supported),

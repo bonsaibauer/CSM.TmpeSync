@@ -9,68 +9,68 @@ namespace CSM.TmpeSync.Tmpe
     {
         static partial void OnStaticConstructed()
         {
-            TmpeRetryBuffer.Configure(ProcessPendingSpeedLimit, ProcessPendingJunctionRestrictions);
+            PendingMap.Configure(ProcessPendingSpeedLimit, ProcessPendingJunctionRestrictions);
         }
 
-        private static TmpeRetryBuffer.RetryResult ProcessPendingSpeedLimit(TmpeRetryBuffer.LaneCommand command)
+        private static PendingMap.RetryResult ProcessPendingSpeedLimit(PendingMap.LaneCommand command)
         {
             if (command == null)
-                return TmpeRetryBuffer.RetryResult.Drop;
+                return PendingMap.RetryResult.Drop;
 
             if (!SupportsSpeedLimits)
-                return TmpeRetryBuffer.RetryResult.Drop;
+                return PendingMap.RetryResult.Drop;
 
             if (!NetUtil.LaneExists(command.LaneId))
-                return TmpeRetryBuffer.RetryResult.Drop;
+                return PendingMap.RetryResult.Drop;
 
             var observerHash = ComputeLaneObserverHash(command.LaneId);
 
             if (TryGetSpeedLimitReal(command.LaneId, out var liveKmh, out var liveDefault, out var hasOverride))
             {
                 if (hasOverride && Math.Abs(liveKmh - command.DesiredSpeedKmh) <= 0.1f)
-                    return TmpeRetryBuffer.RetryResult.Success;
+                    return PendingMap.RetryResult.Success;
 
                 if (!hasOverride && liveDefault.HasValue && Math.Abs(command.DesiredSpeedKmh - liveDefault.Value) <= 0.1f)
                 {
                     // Live default already matches desired value – consider this satisfied.
-                    return TmpeRetryBuffer.RetryResult.Success;
+                    return PendingMap.RetryResult.Success;
                 }
             }
 
             var applied = TryApplySpeedLimitReal(command.LaneId, command.DesiredSpeedKmh);
             if (applied)
-                return TmpeRetryBuffer.RetryResult.Success;
+                return PendingMap.RetryResult.Success;
 
-            TmpeRetryBuffer.ReportLaneFailure(
+            PendingMap.ReportLaneFailure(
                 command.LaneId,
                 "retry_backoff",
                 liveDefault,
                 hasOverride,
                 observerHash);
 
-            return TmpeRetryBuffer.RetryResult.Retry;
+            return PendingMap.RetryResult.Retry;
         }
 
-        private static TmpeRetryBuffer.RetryResult ProcessPendingJunctionRestrictions(TmpeRetryBuffer.NodeCommand command)
+        private static PendingMap.RetryResult ProcessPendingJunctionRestrictions(PendingMap.NodeCommand command)
         {
             if (command == null)
-                return TmpeRetryBuffer.RetryResult.Drop;
+                return PendingMap.RetryResult.Drop;
 
             if (!SupportsJunctionRestrictions)
-                return TmpeRetryBuffer.RetryResult.Drop;
+                return PendingMap.RetryResult.Drop;
 
             if (!NetUtil.NodeExists(command.NodeId))
-                return TmpeRetryBuffer.RetryResult.Drop;
+                return PendingMap.RetryResult.Drop;
 
             if (command.PendingState == null || !command.PendingState.HasAnyValue())
-                return TmpeRetryBuffer.RetryResult.Success;
+                return PendingMap.RetryResult.Success;
 
             var observerHash = ComputeNodeObserverHash(command.NodeId);
 
             if (TryGetJunctionRestrictionsReal(command.NodeId, out var liveState))
             {
                 if (IsPendingSatisfied(command.PendingState, liveState))
-                    return TmpeRetryBuffer.RetryResult.Success;
+                    return PendingMap.RetryResult.Success;
             }
 
             var desired = command.PendingState.Clone();
@@ -83,21 +83,21 @@ namespace CSM.TmpeSync.Tmpe
             switch (outcome)
             {
                 case JunctionRestrictionApplyOutcome.Fatal:
-                    TmpeRetryBuffer.DropNode(command.NodeId);
-                    return TmpeRetryBuffer.RetryResult.Drop;
+                    PendingMap.DropNode(command.NodeId);
+                    return PendingMap.RetryResult.Drop;
                 case JunctionRestrictionApplyOutcome.Success:
-                    TmpeRetryBuffer.MarkNodeApplied(command.NodeId, desired);
-                    return TmpeRetryBuffer.RetryResult.Success;
+                    PendingMap.MarkNodeApplied(command.NodeId, desired);
+                    return PendingMap.RetryResult.Success;
                 case JunctionRestrictionApplyOutcome.Partial:
                     if (appliedFlags != null && appliedFlags.HasAnyValue())
-                        TmpeRetryBuffer.MarkNodeApplied(command.NodeId, appliedFlags);
+                        PendingMap.MarkNodeApplied(command.NodeId, appliedFlags);
 
                     if (rejectedFlags != null && rejectedFlags.HasAnyValue())
-                        TmpeRetryBuffer.ReportNodeRejection(command.NodeId, rejectedFlags, "retry_backoff", observerHash);
-                    return TmpeRetryBuffer.RetryResult.Retry;
+                        PendingMap.ReportNodeRejection(command.NodeId, rejectedFlags, "retry_backoff", observerHash);
+                    return PendingMap.RetryResult.Retry;
                 default:
-                    TmpeRetryBuffer.ReportNodeRejection(command.NodeId, rejectedFlags, "no_effect", observerHash);
-                    return TmpeRetryBuffer.RetryResult.Retry;
+                    PendingMap.ReportNodeRejection(command.NodeId, rejectedFlags, "no_effect", observerHash);
+                    return PendingMap.RetryResult.Retry;
             }
         }
 

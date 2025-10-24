@@ -46,7 +46,7 @@ namespace CSM.TmpeSync.Net.Handlers
 
             if (removed?.LaneGuid.IsValid == true)
             {
-                LaneAssignmentRetryBuffer.Remove(removed.LaneGuid);
+                PendingMap.RemoveLaneAssignment(removed.LaneGuid);
                 LaneGuidRegistry.InvalidateGuid(removed.LaneGuid);
             }
         }
