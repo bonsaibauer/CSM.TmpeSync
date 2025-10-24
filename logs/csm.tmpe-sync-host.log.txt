@@ -1,0 +1,772 @@
+2025-10-24 07:18:10.093 [Info] [Lifecycle] Mod enabled | action=validate_dependencies
+2025-10-24 07:18:10.093 [Info] [Configuration] Logging initialized | debug=ENABLED path=C:\Users\mail\AppData\Local\Colossal Order\Cities_Skylines\CSM.TmpeSync\csm.tmpe-sync.log
+2025-10-24 07:18:10.093 [Debug] [Dependency] Dependency status | csmEnabled=True harmonyAvailable=True
+2025-10-24 07:18:10.097 [Info] [Network] Registering TM:PE synchronization connection with CSM.
+2025-10-24 07:18:10.097 [Info] [Network] CSM already manages TM:PE synchronization | action=skip_manual_registration
+2025-10-24 07:18:10.100 [Info] [Diagnostics] Diagnostics snapshot | context=OnEnabled
+2025-10-24 07:18:10.100 [Info] [Diagnostics] Command.CurrentRole | value=None
+2025-10-24 07:18:10.100 [Info] [Diagnostics] Command.SendToAll delegate | value=CSM.Commands.CommandInternal.SendToAll
+2025-10-24 07:18:10.100 [Info] [Diagnostics] Command.SendToServer delegate | value=CSM.Commands.CommandInternal.SendToServer
+2025-10-24 07:18:10.100 [Info] [Diagnostics] Command.SendToClients delegate | value=CSM.Commands.CommandInternal.SendToClients
+2025-10-24 07:18:10.103 [Info] [Diagnostics] Command.SendToClient delegate | value=CSM.Commands.CommandInternal.SendToClientById
+2025-10-24 07:18:10.103 [Info] [Diagnostics] Command.RegisterConnection hook | value=CSM.Commands.CommandInternal.RegisterExternalConnection
+2025-10-24 07:18:10.103 [Info] [Diagnostics] Command.UnregisterConnection hook | value=CSM.Commands.CommandInternal.UnregisterExternalConnection
+2025-10-24 07:18:10.103 [Info] [Diagnostics] Registered connections | count=2 items=Cities: Skylines, TM:PE Extended Sync
+2025-10-24 07:18:10.139 [Info] [Bridge] TM:PE API detected | features=Speed Limits, Lane Arrows, Lane Connector, Vehicle Restrictions, Junction Restrictions, Priority Signs, Parking Restrictions, Timed Traffic Lights
+2025-10-24 07:18:10.139 [Info] [Synchronization] TM:PE bridge ready on client | action=notify_server
+2025-10-24 07:18:10.139 [Debug] [Network] Dispatch command | direction=server type=TmpeFeatureReady
+2025-10-24 07:18:10.162 [Debug] [Network] Dispatch complete | direction=server type=TmpeFeatureReady
+2025-10-24 07:18:10.162 [Info] [Bridge] TM:PE feature support | supported=junctionRestrictions, laneArrows, laneConnector, parkingRestrictions, prioritySigns, speedLimits, timedTrafficLights, vehicleRestrictions unsupported=<none>
+2025-10-24 07:18:52.908 [Info] [Diagnostics] TM:PE notifier bridge enabled | segment=True node=True laneArrows=True laneConnAdd=True laneConnRemove=True laneConnClear=True laneConnNode=True
+2025-10-24 07:19:01.417 [Info] [General] CSM multiplayer role changed: None -> Server (raw='Server')
+2025-10-24 07:19:01.418 [Debug] [Diagnostics] Stub simulation hooks unavailable | action=skip_autostart
+2025-10-24 07:20:36.019 [Debug] [Network] Dispatch command | direction=all type=LaneMappingChanged
+2025-10-24 07:20:36.019 [Debug] [Network] Dispatch complete | direction=all type=LaneMappingChanged
+2025-10-24 07:20:36.020 [Debug] [Synchronization] Lane mapping broadcast | segment=399 laneIndex=0 hostLane=120818 guid=LaneGuid(Segment=399, Build=4612, Prefab=0, Lane=0, Seq=1) version=1 reason=priority_signs
+2025-10-24 07:20:36.020 [Debug] [Network] Dispatch command | direction=all type=LaneMappingChanged
+2025-10-24 07:20:36.021 [Debug] [Network] Dispatch complete | direction=all type=LaneMappingChanged
+2025-10-24 07:20:36.021 [Debug] [Synchronization] Lane mapping broadcast | segment=399 laneIndex=1 hostLane=20305 guid=LaneGuid(Segment=399, Build=4612, Prefab=0, Lane=1, Seq=1) version=2 reason=priority_signs
+2025-10-24 07:20:36.021 [Debug] [Network] Dispatch command | direction=all type=LaneMappingChanged
+2025-10-24 07:20:36.021 [Debug] [Network] Dispatch complete | direction=all type=LaneMappingChanged
+2025-10-24 07:20:36.021 [Debug] [Synchronization] Lane mapping broadcast | segment=399 laneIndex=2 hostLane=26172 guid=LaneGuid(Segment=399, Build=4612, Prefab=0, Lane=2, Seq=1) version=3 reason=priority_signs
+2025-10-24 07:20:36.022 [Debug] [Network] Dispatch command | direction=all type=LaneMappingChanged
+2025-10-24 07:20:36.022 [Debug] [Network] Dispatch complete | direction=all type=LaneMappingChanged
+2025-10-24 07:20:36.022 [Debug] [Synchronization] Lane mapping broadcast | segment=399 laneIndex=3 hostLane=169896 guid=LaneGuid(Segment=399, Build=4612, Prefab=0, Lane=3, Seq=1) version=4 reason=priority_signs
+2025-10-24 07:20:36.023 [Debug] [Network] Dispatch command | direction=all type=LaneMappingChanged
+2025-10-24 07:20:36.023 [Debug] [Network] Dispatch complete | direction=all type=LaneMappingChanged
+2025-10-24 07:20:36.023 [Debug] [Synchronization] Lane mapping broadcast | segment=399 laneIndex=4 hostLane=162579 guid=LaneGuid(Segment=399, Build=4612, Prefab=0, Lane=4, Seq=1) version=5 reason=priority_signs
+2025-10-24 07:20:36.024 [Debug] [Network] Dispatch command | direction=all type=LaneMappingChanged
+2025-10-24 07:20:36.024 [Debug] [Network] Dispatch complete | direction=all type=LaneMappingChanged
+2025-10-24 07:20:36.024 [Debug] [Synchronization] Lane mapping broadcast | segment=399 laneIndex=5 hostLane=189390 guid=LaneGuid(Segment=399, Build=4612, Prefab=0, Lane=5, Seq=1) version=6 reason=priority_signs
+2025-10-24 07:20:36.026 [Debug] [Network] Dispatch command | direction=all type=LaneMappingChanged
+2025-10-24 07:20:36.026 [Debug] [Network] Dispatch complete | direction=all type=LaneMappingChanged
+2025-10-24 07:20:36.026 [Debug] [Synchronization] Lane mapping broadcast | segment=8173 laneIndex=0 hostLane=69868 guid=LaneGuid(Segment=8173, Build=4615, Prefab=0, Lane=0, Seq=1) version=7 reason=priority_signs
+2025-10-24 07:20:36.027 [Debug] [Network] Dispatch command | direction=all type=LaneMappingChanged
+2025-10-24 07:20:36.027 [Debug] [Network] Dispatch complete | direction=all type=LaneMappingChanged
+2025-10-24 07:20:36.027 [Debug] [Synchronization] Lane mapping broadcast | segment=8173 laneIndex=1 hostLane=189126 guid=LaneGuid(Segment=8173, Build=4615, Prefab=0, Lane=1, Seq=1) version=8 reason=priority_signs
+2025-10-24 07:20:36.028 [Debug] [Network] Dispatch command | direction=all type=LaneMappingChanged
+2025-10-24 07:20:36.028 [Debug] [Network] Dispatch complete | direction=all type=LaneMappingChanged
+2025-10-24 07:20:36.028 [Debug] [Synchronization] Lane mapping broadcast | segment=8173 laneIndex=2 hostLane=114424 guid=LaneGuid(Segment=8173, Build=4615, Prefab=0, Lane=2, Seq=1) version=9 reason=priority_signs
+2025-10-24 07:20:36.029 [Debug] [Network] Dispatch command | direction=all type=LaneMappingChanged
+2025-10-24 07:20:36.029 [Debug] [Network] Dispatch complete | direction=all type=LaneMappingChanged
+2025-10-24 07:20:36.029 [Debug] [Synchronization] Lane mapping broadcast | segment=8173 laneIndex=3 hostLane=33486 guid=LaneGuid(Segment=8173, Build=4615, Prefab=0, Lane=3, Seq=1) version=10 reason=priority_signs
+2025-10-24 07:20:36.030 [Debug] [Network] Dispatch command | direction=all type=LaneMappingChanged
+2025-10-24 07:20:36.030 [Debug] [Network] Dispatch complete | direction=all type=LaneMappingChanged
+2025-10-24 07:20:36.030 [Debug] [Synchronization] Lane mapping broadcast | segment=8173 laneIndex=4 hostLane=135418 guid=LaneGuid(Segment=8173, Build=4615, Prefab=0, Lane=4, Seq=1) version=11 reason=priority_signs
+2025-10-24 07:20:36.031 [Debug] [Network] Dispatch command | direction=all type=LaneMappingChanged
+2025-10-24 07:20:36.031 [Debug] [Network] Dispatch complete | direction=all type=LaneMappingChanged
+2025-10-24 07:20:36.032 [Debug] [Synchronization] Lane mapping broadcast | segment=8173 laneIndex=5 hostLane=205327 guid=LaneGuid(Segment=8173, Build=4615, Prefab=0, Lane=5, Seq=1) version=12 reason=priority_signs
+2025-10-24 07:20:36.033 [Debug] [Hook] TM:PE priority sign query | nodeId=14256 segmentId=399 signType=None
+2025-10-24 07:20:36.033 [Debug] [Network] Dispatch command | direction=all type=PrioritySignApplied
+2025-10-24 07:20:36.034 [Debug] [Network] Dispatch complete | direction=all type=PrioritySignApplied
+2025-10-24 07:20:36.034 [Debug] [Hook] TM:PE priority sign query | nodeId=14256 segmentId=8173 signType=None
+2025-10-24 07:20:36.034 [Debug] [Network] Dispatch command | direction=all type=PrioritySignApplied
+2025-10-24 07:20:36.034 [Debug] [Network] Dispatch complete | direction=all type=PrioritySignApplied
+2025-10-24 07:20:36.035 [Debug] [Network] Dispatch command | direction=all type=LaneMappingChanged
+2025-10-24 07:20:36.035 [Debug] [Network] Dispatch complete | direction=all type=LaneMappingChanged
+2025-10-24 07:20:36.035 [Debug] [Synchronization] Lane mapping broadcast | segment=27634 laneIndex=0 hostLane=58738 guid=LaneGuid(Segment=27634, Build=1749, Prefab=21, Lane=0, Seq=1) version=13 reason=junction_restrictions
+2025-10-24 07:20:36.036 [Debug] [Network] Dispatch command | direction=all type=LaneMappingChanged
+2025-10-24 07:20:36.036 [Debug] [Network] Dispatch complete | direction=all type=LaneMappingChanged
+2025-10-24 07:20:36.036 [Debug] [Synchronization] Lane mapping broadcast | segment=27634 laneIndex=1 hostLane=189551 guid=LaneGuid(Segment=27634, Build=1749, Prefab=21, Lane=1, Seq=1) version=14 reason=junction_restrictions
+2025-10-24 07:20:36.037 [Debug] [Network] Dispatch command | direction=all type=LaneMappingChanged
+2025-10-24 07:20:36.037 [Debug] [Network] Dispatch complete | direction=all type=LaneMappingChanged
+2025-10-24 07:20:36.037 [Debug] [Synchronization] Lane mapping broadcast | segment=27634 laneIndex=2 hostLane=252385 guid=LaneGuid(Segment=27634, Build=1749, Prefab=21, Lane=2, Seq=1) version=15 reason=junction_restrictions
+2025-10-24 07:20:36.038 [Debug] [Network] Dispatch command | direction=all type=LaneMappingChanged
+2025-10-24 07:20:36.038 [Debug] [Network] Dispatch complete | direction=all type=LaneMappingChanged
+2025-10-24 07:20:36.039 [Debug] [Synchronization] Lane mapping broadcast | segment=27634 laneIndex=3 hostLane=11789 guid=LaneGuid(Segment=27634, Build=1749, Prefab=21, Lane=3, Seq=1) version=16 reason=junction_restrictions
+2025-10-24 07:20:36.039 [Debug] [Network] Dispatch command | direction=all type=LaneMappingChanged
+2025-10-24 07:20:36.039 [Debug] [Network] Dispatch complete | direction=all type=LaneMappingChanged
+2025-10-24 07:20:36.040 [Debug] [Synchronization] Lane mapping broadcast | segment=27634 laneIndex=4 hostLane=113789 guid=LaneGuid(Segment=27634, Build=1749, Prefab=21, Lane=4, Seq=1) version=17 reason=junction_restrictions
+2025-10-24 07:20:36.040 [Debug] [Network] Dispatch command | direction=all type=LaneMappingChanged
+2025-10-24 07:20:36.040 [Debug] [Network] Dispatch complete | direction=all type=LaneMappingChanged
+2025-10-24 07:20:36.041 [Debug] [Synchronization] Lane mapping broadcast | segment=27634 laneIndex=5 hostLane=162103 guid=LaneGuid(Segment=27634, Build=1749, Prefab=21, Lane=5, Seq=1) version=18 reason=junction_restrictions
+2025-10-24 07:20:36.042 [Debug] [Hook] TM:PE junction restriction query | nodeId=30720 state=UTurns=True, LaneChange=False, Blocked=True, Pedestrians=True, NearTurnOnRed=False, FarTurnOnRed=False
+2025-10-24 07:20:36.042 [Debug] [Network] Dispatch command | direction=all type=JunctionRestrictionsApplied
+2025-10-24 07:20:36.043 [Debug] [Network] Dispatch complete | direction=all type=JunctionRestrictionsApplied
+2025-10-24 07:20:36.044 [Debug] [Hook] TM:PE junction restriction query | nodeId=14256 state=UTurns=False, LaneChange=False, Blocked=False, Pedestrians=False, NearTurnOnRed=False, FarTurnOnRed=False
+2025-10-24 07:20:36.044 [Debug] [Network] Dispatch command | direction=all type=JunctionRestrictionsApplied
+2025-10-24 07:20:36.044 [Debug] [Network] Dispatch complete | direction=all type=JunctionRestrictionsApplied
+2025-10-24 07:20:36.045 [Debug] [Hook] TM:PE priority sign query | nodeId=14256 segmentId=399 signType=None
+2025-10-24 07:20:36.046 [Debug] [Network] Dispatch command | direction=all type=PrioritySignApplied
+2025-10-24 07:20:36.046 [Debug] [Network] Dispatch complete | direction=all type=PrioritySignApplied
+2025-10-24 07:20:36.047 [Debug] [Hook] TM:PE priority sign query | nodeId=14256 segmentId=8173 signType=None
+2025-10-24 07:20:36.047 [Debug] [Network] Dispatch command | direction=all type=PrioritySignApplied
+2025-10-24 07:20:36.047 [Debug] [Network] Dispatch complete | direction=all type=PrioritySignApplied
+2025-10-24 07:20:36.048 [Debug] [Network] Dispatch command | direction=all type=LaneMappingChanged
+2025-10-24 07:20:36.048 [Debug] [Network] Dispatch complete | direction=all type=LaneMappingChanged
+2025-10-24 07:20:36.048 [Debug] [Synchronization] Lane mapping broadcast | segment=35241 laneIndex=0 hostLane=116263 guid=LaneGuid(Segment=35241, Build=4618, Prefab=0, Lane=0, Seq=1) version=19 reason=priority_signs
+2025-10-24 07:20:36.049 [Debug] [Network] Dispatch command | direction=all type=LaneMappingChanged
+2025-10-24 07:20:36.049 [Debug] [Network] Dispatch complete | direction=all type=LaneMappingChanged
+2025-10-24 07:20:36.049 [Debug] [Synchronization] Lane mapping broadcast | segment=35241 laneIndex=1 hostLane=212090 guid=LaneGuid(Segment=35241, Build=4618, Prefab=0, Lane=1, Seq=1) version=20 reason=priority_signs
+2025-10-24 07:20:36.050 [Debug] [Network] Dispatch command | direction=all type=LaneMappingChanged
+2025-10-24 07:20:36.050 [Debug] [Network] Dispatch complete | direction=all type=LaneMappingChanged
+2025-10-24 07:20:36.050 [Debug] [Synchronization] Lane mapping broadcast | segment=35241 laneIndex=2 hostLane=170646 guid=LaneGuid(Segment=35241, Build=4618, Prefab=0, Lane=2, Seq=1) version=21 reason=priority_signs
+2025-10-24 07:20:36.051 [Debug] [Network] Dispatch command | direction=all type=LaneMappingChanged
+2025-10-24 07:20:36.051 [Debug] [Network] Dispatch complete | direction=all type=LaneMappingChanged
+2025-10-24 07:20:36.051 [Debug] [Synchronization] Lane mapping broadcast | segment=35241 laneIndex=3 hostLane=73152 guid=LaneGuid(Segment=35241, Build=4618, Prefab=0, Lane=3, Seq=1) version=22 reason=priority_signs
+2025-10-24 07:20:36.052 [Debug] [Network] Dispatch command | direction=all type=LaneMappingChanged
+2025-10-24 07:20:36.052 [Debug] [Network] Dispatch complete | direction=all type=LaneMappingChanged
+2025-10-24 07:20:36.052 [Debug] [Synchronization] Lane mapping broadcast | segment=35241 laneIndex=4 hostLane=179656 guid=LaneGuid(Segment=35241, Build=4618, Prefab=0, Lane=4, Seq=1) version=23 reason=priority_signs
+2025-10-24 07:20:36.053 [Debug] [Network] Dispatch command | direction=all type=LaneMappingChanged
+2025-10-24 07:20:36.053 [Debug] [Network] Dispatch complete | direction=all type=LaneMappingChanged
+2025-10-24 07:20:36.054 [Debug] [Synchronization] Lane mapping broadcast | segment=35241 laneIndex=5 hostLane=49013 guid=LaneGuid(Segment=35241, Build=4618, Prefab=0, Lane=5, Seq=1) version=24 reason=priority_signs
+2025-10-24 07:20:36.054 [Debug] [Hook] TM:PE priority sign query | nodeId=27870 segmentId=8173 signType=None
+2025-10-24 07:20:36.054 [Debug] [Network] Dispatch command | direction=all type=PrioritySignApplied
+2025-10-24 07:20:36.054 [Debug] [Network] Dispatch complete | direction=all type=PrioritySignApplied
+2025-10-24 07:20:36.054 [Debug] [Hook] TM:PE priority sign query | nodeId=27870 segmentId=35241 signType=None
+2025-10-24 07:20:36.056 [Debug] [Network] Dispatch command | direction=all type=PrioritySignApplied
+2025-10-24 07:20:36.056 [Debug] [Network] Dispatch complete | direction=all type=PrioritySignApplied
+2025-10-24 07:20:36.056 [Debug] [Hook] TM:PE junction restriction query | nodeId=14256 state=UTurns=False, LaneChange=False, Blocked=True, Pedestrians=True, NearTurnOnRed=False, FarTurnOnRed=False
+2025-10-24 07:20:36.057 [Debug] [Network] Dispatch command | direction=all type=JunctionRestrictionsApplied
+2025-10-24 07:20:36.057 [Debug] [Network] Dispatch complete | direction=all type=JunctionRestrictionsApplied
+2025-10-24 07:20:36.058 [Debug] [Hook] TM:PE junction restriction query | nodeId=27870 state=UTurns=False, LaneChange=False, Blocked=False, Pedestrians=False, NearTurnOnRed=False, FarTurnOnRed=False
+2025-10-24 07:20:36.058 [Debug] [Network] Dispatch command | direction=all type=JunctionRestrictionsApplied
+2025-10-24 07:20:36.058 [Debug] [Network] Dispatch complete | direction=all type=JunctionRestrictionsApplied
+2025-10-24 07:20:36.059 [Debug] [Network] Dispatch command | direction=all type=LaneMappingChanged
+2025-10-24 07:20:36.059 [Debug] [Network] Dispatch complete | direction=all type=LaneMappingChanged
+2025-10-24 07:20:36.059 [Debug] [Synchronization] Lane mapping broadcast | segment=24388 laneIndex=0 hostLane=21440 guid=LaneGuid(Segment=24388, Build=1746, Prefab=21, Lane=0, Seq=1) version=25 reason=priority_signs
+2025-10-24 07:20:36.060 [Debug] [Network] Dispatch command | direction=all type=LaneMappingChanged
+2025-10-24 07:20:36.060 [Debug] [Network] Dispatch complete | direction=all type=LaneMappingChanged
+2025-10-24 07:20:36.060 [Debug] [Synchronization] Lane mapping broadcast | segment=24388 laneIndex=1 hostLane=8675 guid=LaneGuid(Segment=24388, Build=1746, Prefab=21, Lane=1, Seq=1) version=26 reason=priority_signs
+2025-10-24 07:20:36.061 [Debug] [Network] Dispatch command | direction=all type=LaneMappingChanged
+2025-10-24 07:20:36.061 [Debug] [Network] Dispatch complete | direction=all type=LaneMappingChanged
+2025-10-24 07:20:36.062 [Debug] [Synchronization] Lane mapping broadcast | segment=24388 laneIndex=2 hostLane=31580 guid=LaneGuid(Segment=24388, Build=1746, Prefab=21, Lane=2, Seq=1) version=27 reason=priority_signs
+2025-10-24 07:20:36.062 [Debug] [Network] Dispatch command | direction=all type=LaneMappingChanged
+2025-10-24 07:20:36.062 [Debug] [Network] Dispatch complete | direction=all type=LaneMappingChanged
+2025-10-24 07:20:36.063 [Debug] [Synchronization] Lane mapping broadcast | segment=24388 laneIndex=3 hostLane=29567 guid=LaneGuid(Segment=24388, Build=1746, Prefab=21, Lane=3, Seq=1) version=28 reason=priority_signs
+2025-10-24 07:20:36.063 [Debug] [Network] Dispatch command | direction=all type=LaneMappingChanged
+2025-10-24 07:20:36.063 [Debug] [Network] Dispatch complete | direction=all type=LaneMappingChanged
+2025-10-24 07:20:36.064 [Debug] [Synchronization] Lane mapping broadcast | segment=24388 laneIndex=4 hostLane=16140 guid=LaneGuid(Segment=24388, Build=1746, Prefab=21, Lane=4, Seq=1) version=29 reason=priority_signs
+2025-10-24 07:20:36.064 [Debug] [Network] Dispatch command | direction=all type=LaneMappingChanged
+2025-10-24 07:20:36.064 [Debug] [Network] Dispatch complete | direction=all type=LaneMappingChanged
+2025-10-24 07:20:36.065 [Debug] [Synchronization] Lane mapping broadcast | segment=24388 laneIndex=5 hostLane=192285 guid=LaneGuid(Segment=24388, Build=1746, Prefab=21, Lane=5, Seq=1) version=30 reason=priority_signs
+2025-10-24 07:20:36.065 [Debug] [Hook] TM:PE priority sign query | nodeId=9845 segmentId=24388 signType=None
+2025-10-24 07:20:36.065 [Debug] [Network] Dispatch command | direction=all type=PrioritySignApplied
+2025-10-24 07:20:36.066 [Debug] [Network] Dispatch complete | direction=all type=PrioritySignApplied
+2025-10-24 07:20:36.066 [Debug] [Hook] TM:PE priority sign query | nodeId=9845 segmentId=27634 signType=None
+2025-10-24 07:20:36.066 [Debug] [Network] Dispatch command | direction=all type=PrioritySignApplied
+2025-10-24 07:20:36.066 [Debug] [Network] Dispatch complete | direction=all type=PrioritySignApplied
+2025-10-24 07:20:36.067 [Debug] [Hook] TM:PE junction restriction query | nodeId=30720 state=UTurns=True, LaneChange=False, Blocked=True, Pedestrians=True, NearTurnOnRed=False, FarTurnOnRed=False
+2025-10-24 07:20:36.067 [Debug] [Network] Dispatch command | direction=all type=JunctionRestrictionsApplied
+2025-10-24 07:20:36.067 [Debug] [Network] Dispatch complete | direction=all type=JunctionRestrictionsApplied
+2025-10-24 07:20:36.068 [Debug] [Hook] TM:PE junction restriction query | nodeId=9845 state=UTurns=True, LaneChange=False, Blocked=True, Pedestrians=True, NearTurnOnRed=False, FarTurnOnRed=False
+2025-10-24 07:20:36.068 [Debug] [Network] Dispatch command | direction=all type=JunctionRestrictionsApplied
+2025-10-24 07:20:36.068 [Debug] [Network] Dispatch complete | direction=all type=JunctionRestrictionsApplied
+2025-10-24 07:20:36.069 [Debug] [Hook] TM:PE priority sign query | nodeId=27870 segmentId=8173 signType=None
+2025-10-24 07:20:36.069 [Debug] [Network] Dispatch command | direction=all type=PrioritySignApplied
+2025-10-24 07:20:36.070 [Debug] [Network] Dispatch complete | direction=all type=PrioritySignApplied
+2025-10-24 07:20:36.070 [Debug] [Hook] TM:PE priority sign query | nodeId=27870 segmentId=35241 signType=None
+2025-10-24 07:20:36.070 [Debug] [Network] Dispatch command | direction=all type=PrioritySignApplied
+2025-10-24 07:20:36.071 [Debug] [Network] Dispatch complete | direction=all type=PrioritySignApplied
+2025-10-24 07:20:36.071 [Debug] [Hook] TM:PE priority sign query | nodeId=6913 segmentId=35241 signType=None
+2025-10-24 07:20:36.072 [Debug] [Network] Dispatch command | direction=all type=PrioritySignApplied
+2025-10-24 07:20:36.072 [Debug] [Network] Dispatch complete | direction=all type=PrioritySignApplied
+2025-10-24 07:20:36.072 [Debug] [Hook] TM:PE junction restriction query | nodeId=27870 state=UTurns=False, LaneChange=False, Blocked=True, Pedestrians=True, NearTurnOnRed=False, FarTurnOnRed=False
+2025-10-24 07:20:36.073 [Debug] [Network] Dispatch command | direction=all type=JunctionRestrictionsApplied
+2025-10-24 07:20:36.073 [Debug] [Network] Dispatch complete | direction=all type=JunctionRestrictionsApplied
+2025-10-24 07:20:36.073 [Debug] [Hook] TM:PE junction restriction query | nodeId=6913 state=UTurns=True, LaneChange=False, Blocked=True, Pedestrians=True, NearTurnOnRed=False, FarTurnOnRed=False
+2025-10-24 07:20:36.074 [Debug] [Network] Dispatch command | direction=all type=JunctionRestrictionsApplied
+2025-10-24 07:20:36.074 [Debug] [Network] Dispatch complete | direction=all type=JunctionRestrictionsApplied
+2025-10-24 07:20:36.951 [Info] [General] Received PrioritySignApplied node=14256 segment=399 sign=None
+2025-10-24 07:20:36.952 [Debug] [Hook] TM:PE priority sign request | nodeId=14256 segmentId=399 signType=None
+2025-10-24 07:20:36.952 [Info] [General] Applied remote priority sign node=14256 segment=399 -> None
+2025-10-24 07:20:36.953 [Info] [General] Received PrioritySignApplied node=14256 segment=8173 sign=None
+2025-10-24 07:20:36.953 [Debug] [Hook] TM:PE priority sign request | nodeId=14256 segmentId=8173 signType=None
+2025-10-24 07:20:36.954 [Info] [General] Applied remote priority sign node=14256 segment=8173 -> None
+2025-10-24 07:20:36.954 [Info] [General] Received JunctionRestrictionsApplied node=30720 state=UTurns=True, LaneChange=False, Blocked=True, Pedestrians=True, NearTurnOnRed=False, FarTurnOnRed=False
+2025-10-24 07:20:36.954 [Debug] [Hook] TM:PE junction restriction request | nodeId=30720 state=UTurns=True, LaneChange=False, Blocked=True, Pedestrians=True, NearTurnOnRed=False, FarTurnOnRed=False
+2025-10-24 07:20:36.956 [Warn] [Bridge] TM:PE junction restriction rejected | segmentId=27634 startNode=True flag=AllowUTurns value=True
+2025-10-24 07:20:36.957 [Warn] [Bridge] TM:PE junction restriction rejected | segmentId=27634 startNode=True flag=AllowNearTurnOnRed value=False
+2025-10-24 07:20:36.957 [Warn] [Bridge] TM:PE junction restriction rejected | segmentId=27634 startNode=True flag=AllowFarTurnOnRed value=False
+2025-10-24 07:20:36.958 [Warn] [Bridge] TM:PE junction restriction rejected | segmentId=27634 startNode=True flag=AllowLaneChangesWhenGoingStraight value=False
+2025-10-24 07:20:36.959 [Warn] [Bridge] TM:PE junction restriction rejected | segmentId=399 startNode=True flag=AllowNearTurnOnRed value=False
+2025-10-24 07:20:36.959 [Warn] [Bridge] TM:PE junction restriction rejected | segmentId=399 startNode=True flag=AllowFarTurnOnRed value=False
+2025-10-24 07:20:36.960 [Warn] [Bridge] TM:PE junction restriction rejected | segmentId=399 startNode=True flag=AllowLaneChangesWhenGoingStraight value=False
+2025-10-24 07:20:36.961 [Info] [General] Applied remote junction restrictions node=30720
+2025-10-24 07:20:36.962 [Info] [General] Received JunctionRestrictionsApplied node=14256 state=UTurns=False, LaneChange=False, Blocked=False, Pedestrians=False, NearTurnOnRed=False, FarTurnOnRed=False
+2025-10-24 07:20:36.962 [Debug] [Hook] TM:PE junction restriction request | nodeId=14256 state=UTurns=False, LaneChange=False, Blocked=False, Pedestrians=False, NearTurnOnRed=False, FarTurnOnRed=False
+2025-10-24 07:20:36.962 [Warn] [Bridge] TM:PE junction restriction apply aborted | nodeId=14256 detail=tmpe_may_have_junction_restrictions=false
+2025-10-24 07:20:36.963 [Warn] [Bridge] TM:PE junction restriction apply via API failed | nodeId=14256 action=fallback_to_stub
+2025-10-24 07:20:36.963 [Error] [General] Failed to apply remote junction restrictions node=14256
+2025-10-24 07:20:36.964 [Info] [General] Received PrioritySignApplied node=14256 segment=399 sign=None
+2025-10-24 07:20:36.964 [Debug] [Hook] TM:PE priority sign request | nodeId=14256 segmentId=399 signType=None
+2025-10-24 07:20:36.965 [Info] [General] Applied remote priority sign node=14256 segment=399 -> None
+2025-10-24 07:20:36.965 [Info] [General] Received PrioritySignApplied node=14256 segment=8173 sign=None
+2025-10-24 07:20:36.965 [Debug] [Hook] TM:PE priority sign request | nodeId=14256 segmentId=8173 signType=None
+2025-10-24 07:20:36.967 [Info] [General] Applied remote priority sign node=14256 segment=8173 -> None
+2025-10-24 07:20:36.967 [Info] [General] Received PrioritySignApplied node=27870 segment=8173 sign=None
+2025-10-24 07:20:36.968 [Debug] [Hook] TM:PE priority sign request | nodeId=27870 segmentId=8173 signType=None
+2025-10-24 07:20:36.968 [Info] [General] Applied remote priority sign node=27870 segment=8173 -> None
+2025-10-24 07:20:36.968 [Info] [General] Received PrioritySignApplied node=27870 segment=35241 sign=None
+2025-10-24 07:20:36.969 [Debug] [Hook] TM:PE priority sign request | nodeId=27870 segmentId=35241 signType=None
+2025-10-24 07:20:36.969 [Info] [General] Applied remote priority sign node=27870 segment=35241 -> None
+2025-10-24 07:20:36.969 [Info] [General] Received JunctionRestrictionsApplied node=14256 state=UTurns=False, LaneChange=False, Blocked=True, Pedestrians=True, NearTurnOnRed=False, FarTurnOnRed=False
+2025-10-24 07:20:36.970 [Debug] [Hook] TM:PE junction restriction request | nodeId=14256 state=UTurns=False, LaneChange=False, Blocked=True, Pedestrians=True, NearTurnOnRed=False, FarTurnOnRed=False
+2025-10-24 07:20:36.970 [Warn] [Bridge] TM:PE junction restriction apply aborted | nodeId=14256 detail=tmpe_may_have_junction_restrictions=false
+2025-10-24 07:20:36.970 [Warn] [Bridge] TM:PE junction restriction apply via API failed | nodeId=14256 action=fallback_to_stub
+2025-10-24 07:20:36.971 [Error] [General] Failed to apply remote junction restrictions node=14256
+2025-10-24 07:20:36.971 [Info] [General] Received JunctionRestrictionsApplied node=27870 state=UTurns=False, LaneChange=False, Blocked=False, Pedestrians=False, NearTurnOnRed=False, FarTurnOnRed=False
+2025-10-24 07:20:36.971 [Debug] [Hook] TM:PE junction restriction request | nodeId=27870 state=UTurns=False, LaneChange=False, Blocked=False, Pedestrians=False, NearTurnOnRed=False, FarTurnOnRed=False
+2025-10-24 07:20:36.972 [Warn] [Bridge] TM:PE junction restriction apply aborted | nodeId=27870 detail=tmpe_may_have_junction_restrictions=false
+2025-10-24 07:20:36.972 [Warn] [Bridge] TM:PE junction restriction apply via API failed | nodeId=27870 action=fallback_to_stub
+2025-10-24 07:20:36.972 [Error] [General] Failed to apply remote junction restrictions node=27870
+2025-10-24 07:20:36.973 [Info] [General] Received PrioritySignApplied node=9845 segment=24388 sign=None
+2025-10-24 07:20:36.973 [Debug] [Hook] TM:PE priority sign request | nodeId=9845 segmentId=24388 signType=None
+2025-10-24 07:20:36.973 [Info] [General] Applied remote priority sign node=9845 segment=24388 -> None
+2025-10-24 07:20:36.974 [Info] [General] Received PrioritySignApplied node=9845 segment=27634 sign=None
+2025-10-24 07:20:36.974 [Debug] [Hook] TM:PE priority sign request | nodeId=9845 segmentId=27634 signType=None
+2025-10-24 07:20:36.974 [Info] [General] Applied remote priority sign node=9845 segment=27634 -> None
+2025-10-24 07:20:36.975 [Info] [General] Received JunctionRestrictionsApplied node=30720 state=UTurns=True, LaneChange=False, Blocked=True, Pedestrians=True, NearTurnOnRed=False, FarTurnOnRed=False
+2025-10-24 07:20:36.975 [Debug] [Hook] TM:PE junction restriction request | nodeId=30720 state=UTurns=True, LaneChange=False, Blocked=True, Pedestrians=True, NearTurnOnRed=False, FarTurnOnRed=False
+2025-10-24 07:20:36.976 [Warn] [Bridge] TM:PE junction restriction rejected | segmentId=27634 startNode=True flag=AllowUTurns value=True
+2025-10-24 07:20:36.976 [Warn] [Bridge] TM:PE junction restriction rejected | segmentId=27634 startNode=True flag=AllowNearTurnOnRed value=False
+2025-10-24 07:20:36.976 [Warn] [Bridge] TM:PE junction restriction rejected | segmentId=27634 startNode=True flag=AllowFarTurnOnRed value=False
+2025-10-24 07:20:36.976 [Warn] [Bridge] TM:PE junction restriction rejected | segmentId=27634 startNode=True flag=AllowLaneChangesWhenGoingStraight value=False
+2025-10-24 07:20:36.976 [Warn] [Bridge] TM:PE junction restriction rejected | segmentId=399 startNode=True flag=AllowNearTurnOnRed value=False
+2025-10-24 07:20:36.977 [Warn] [Bridge] TM:PE junction restriction rejected | segmentId=399 startNode=True flag=AllowFarTurnOnRed value=False
+2025-10-24 07:20:36.977 [Warn] [Bridge] TM:PE junction restriction rejected | segmentId=399 startNode=True flag=AllowLaneChangesWhenGoingStraight value=False
+2025-10-24 07:20:36.978 [Info] [General] Applied remote junction restrictions node=30720
+2025-10-24 07:20:36.978 [Info] [General] Received JunctionRestrictionsApplied node=9845 state=UTurns=True, LaneChange=False, Blocked=True, Pedestrians=True, NearTurnOnRed=False, FarTurnOnRed=False
+2025-10-24 07:20:36.978 [Debug] [Hook] TM:PE junction restriction request | nodeId=9845 state=UTurns=True, LaneChange=False, Blocked=True, Pedestrians=True, NearTurnOnRed=False, FarTurnOnRed=False
+2025-10-24 07:20:36.979 [Warn] [Bridge] TM:PE junction restriction apply aborted | nodeId=9845 detail=tmpe_may_have_junction_restrictions=false
+2025-10-24 07:20:36.979 [Warn] [Bridge] TM:PE junction restriction apply via API failed | nodeId=9845 action=fallback_to_stub
+2025-10-24 07:20:36.980 [Error] [General] Failed to apply remote junction restrictions node=9845
+2025-10-24 07:20:36.980 [Info] [General] Received PrioritySignApplied node=27870 segment=8173 sign=None
+2025-10-24 07:20:36.981 [Debug] [Hook] TM:PE priority sign request | nodeId=27870 segmentId=8173 signType=None
+2025-10-24 07:20:36.981 [Info] [General] Applied remote priority sign node=27870 segment=8173 -> None
+2025-10-24 07:20:36.981 [Info] [General] Received PrioritySignApplied node=27870 segment=35241 sign=None
+2025-10-24 07:20:36.982 [Debug] [Hook] TM:PE priority sign request | nodeId=27870 segmentId=35241 signType=None
+2025-10-24 07:20:36.982 [Info] [General] Applied remote priority sign node=27870 segment=35241 -> None
+2025-10-24 07:20:36.982 [Info] [General] Received PrioritySignApplied node=6913 segment=35241 sign=None
+2025-10-24 07:20:36.983 [Debug] [Hook] TM:PE priority sign request | nodeId=6913 segmentId=35241 signType=None
+2025-10-24 07:20:36.983 [Info] [General] Applied remote priority sign node=6913 segment=35241 -> None
+2025-10-24 07:20:36.983 [Info] [General] Received JunctionRestrictionsApplied node=27870 state=UTurns=False, LaneChange=False, Blocked=True, Pedestrians=True, NearTurnOnRed=False, FarTurnOnRed=False
+2025-10-24 07:20:36.984 [Debug] [Hook] TM:PE junction restriction request | nodeId=27870 state=UTurns=False, LaneChange=False, Blocked=True, Pedestrians=True, NearTurnOnRed=False, FarTurnOnRed=False
+2025-10-24 07:20:36.984 [Warn] [Bridge] TM:PE junction restriction apply aborted | nodeId=27870 detail=tmpe_may_have_junction_restrictions=false
+2025-10-24 07:20:36.984 [Warn] [Bridge] TM:PE junction restriction apply via API failed | nodeId=27870 action=fallback_to_stub
+2025-10-24 07:20:36.984 [Error] [General] Failed to apply remote junction restrictions node=27870
+2025-10-24 07:20:36.986 [Info] [General] Received JunctionRestrictionsApplied node=6913 state=UTurns=True, LaneChange=False, Blocked=True, Pedestrians=True, NearTurnOnRed=False, FarTurnOnRed=False
+2025-10-24 07:20:36.986 [Debug] [Hook] TM:PE junction restriction request | nodeId=6913 state=UTurns=True, LaneChange=False, Blocked=True, Pedestrians=True, NearTurnOnRed=False, FarTurnOnRed=False
+2025-10-24 07:20:36.986 [Warn] [Bridge] TM:PE junction restriction apply aborted | nodeId=6913 detail=tmpe_may_have_junction_restrictions=false
+2025-10-24 07:20:36.987 [Warn] [Bridge] TM:PE junction restriction apply via API failed | nodeId=6913 action=fallback_to_stub
+2025-10-24 07:20:36.987 [Error] [General] Failed to apply remote junction restrictions node=6913
+2025-10-24 07:20:38.514 [Debug] [Network] Dispatch command | direction=all type=LaneMappingChanged
+2025-10-24 07:20:38.514 [Debug] [Network] Dispatch complete | direction=all type=LaneMappingChanged
+2025-10-24 07:20:38.514 [Debug] [Synchronization] Lane mapping broadcast | segment=15173 laneIndex=0 hostLane=119694 guid=LaneGuid(Segment=15173, Build=4631, Prefab=0, Lane=0, Seq=1) version=31 reason=priority_signs
+2025-10-24 07:20:38.516 [Debug] [Network] Dispatch command | direction=all type=LaneMappingChanged
+2025-10-24 07:20:38.516 [Debug] [Network] Dispatch complete | direction=all type=LaneMappingChanged
+2025-10-24 07:20:38.517 [Debug] [Synchronization] Lane mapping broadcast | segment=15173 laneIndex=1 hostLane=141119 guid=LaneGuid(Segment=15173, Build=4631, Prefab=0, Lane=1, Seq=1) version=32 reason=priority_signs
+2025-10-24 07:20:38.517 [Debug] [Network] Dispatch command | direction=all type=LaneMappingChanged
+2025-10-24 07:20:38.518 [Debug] [Network] Dispatch complete | direction=all type=LaneMappingChanged
+2025-10-24 07:20:38.518 [Debug] [Synchronization] Lane mapping broadcast | segment=15173 laneIndex=2 hostLane=208428 guid=LaneGuid(Segment=15173, Build=4631, Prefab=0, Lane=2, Seq=1) version=33 reason=priority_signs
+2025-10-24 07:20:38.519 [Debug] [Network] Dispatch command | direction=all type=LaneMappingChanged
+2025-10-24 07:20:38.519 [Debug] [Network] Dispatch complete | direction=all type=LaneMappingChanged
+2025-10-24 07:20:38.520 [Debug] [Synchronization] Lane mapping broadcast | segment=15173 laneIndex=3 hostLane=95123 guid=LaneGuid(Segment=15173, Build=4631, Prefab=0, Lane=3, Seq=1) version=34 reason=priority_signs
+2025-10-24 07:20:38.521 [Debug] [Network] Dispatch command | direction=all type=LaneMappingChanged
+2025-10-24 07:20:38.521 [Debug] [Network] Dispatch complete | direction=all type=LaneMappingChanged
+2025-10-24 07:20:38.522 [Debug] [Synchronization] Lane mapping broadcast | segment=15173 laneIndex=4 hostLane=134415 guid=LaneGuid(Segment=15173, Build=4631, Prefab=0, Lane=4, Seq=1) version=35 reason=priority_signs
+2025-10-24 07:20:38.522 [Debug] [Network] Dispatch command | direction=all type=LaneMappingChanged
+2025-10-24 07:20:38.523 [Debug] [Network] Dispatch complete | direction=all type=LaneMappingChanged
+2025-10-24 07:20:38.523 [Debug] [Synchronization] Lane mapping broadcast | segment=15173 laneIndex=5 hostLane=847 guid=LaneGuid(Segment=15173, Build=4631, Prefab=0, Lane=5, Seq=1) version=36 reason=priority_signs
+2025-10-24 07:20:38.524 [Debug] [Hook] TM:PE priority sign query | nodeId=6913 segmentId=35241 signType=None
+2025-10-24 07:20:38.524 [Debug] [Network] Dispatch command | direction=all type=PrioritySignApplied
+2025-10-24 07:20:38.525 [Debug] [Network] Dispatch complete | direction=all type=PrioritySignApplied
+2025-10-24 07:20:38.525 [Debug] [Hook] TM:PE priority sign query | nodeId=6913 segmentId=15173 signType=None
+2025-10-24 07:20:38.526 [Debug] [Network] Dispatch command | direction=all type=PrioritySignApplied
+2025-10-24 07:20:38.526 [Debug] [Network] Dispatch complete | direction=all type=PrioritySignApplied
+2025-10-24 07:20:38.526 [Debug] [Network] Dispatch command | direction=all type=LaneMappingChanged
+2025-10-24 07:20:38.527 [Debug] [Network] Dispatch complete | direction=all type=LaneMappingChanged
+2025-10-24 07:20:38.527 [Debug] [Synchronization] Lane mapping broadcast | segment=24395 laneIndex=0 hostLane=148593 guid=LaneGuid(Segment=24395, Build=4634, Prefab=0, Lane=0, Seq=1) version=37 reason=priority_signs
+2025-10-24 07:20:38.528 [Debug] [Network] Dispatch command | direction=all type=LaneMappingChanged
+2025-10-24 07:20:38.528 [Debug] [Network] Dispatch complete | direction=all type=LaneMappingChanged
+2025-10-24 07:20:38.529 [Debug] [Synchronization] Lane mapping broadcast | segment=24395 laneIndex=1 hostLane=157370 guid=LaneGuid(Segment=24395, Build=4634, Prefab=0, Lane=1, Seq=1) version=38 reason=priority_signs
+2025-10-24 07:20:38.529 [Debug] [Network] Dispatch command | direction=all type=LaneMappingChanged
+2025-10-24 07:20:38.529 [Debug] [Network] Dispatch complete | direction=all type=LaneMappingChanged
+2025-10-24 07:20:38.530 [Debug] [Synchronization] Lane mapping broadcast | segment=24395 laneIndex=2 hostLane=23038 guid=LaneGuid(Segment=24395, Build=4634, Prefab=0, Lane=2, Seq=1) version=39 reason=priority_signs
+2025-10-24 07:20:38.530 [Debug] [Network] Dispatch command | direction=all type=LaneMappingChanged
+2025-10-24 07:20:38.530 [Debug] [Network] Dispatch complete | direction=all type=LaneMappingChanged
+2025-10-24 07:20:38.531 [Debug] [Synchronization] Lane mapping broadcast | segment=24395 laneIndex=3 hostLane=39103 guid=LaneGuid(Segment=24395, Build=4634, Prefab=0, Lane=3, Seq=1) version=40 reason=priority_signs
+2025-10-24 07:20:38.531 [Debug] [Network] Dispatch command | direction=all type=LaneMappingChanged
+2025-10-24 07:20:38.531 [Debug] [Network] Dispatch complete | direction=all type=LaneMappingChanged
+2025-10-24 07:20:38.532 [Debug] [Synchronization] Lane mapping broadcast | segment=24395 laneIndex=4 hostLane=41545 guid=LaneGuid(Segment=24395, Build=4634, Prefab=0, Lane=4, Seq=1) version=41 reason=priority_signs
+2025-10-24 07:20:38.532 [Debug] [Network] Dispatch command | direction=all type=LaneMappingChanged
+2025-10-24 07:20:38.532 [Debug] [Network] Dispatch complete | direction=all type=LaneMappingChanged
+2025-10-24 07:20:38.533 [Debug] [Synchronization] Lane mapping broadcast | segment=24395 laneIndex=5 hostLane=11678 guid=LaneGuid(Segment=24395, Build=4634, Prefab=0, Lane=5, Seq=1) version=42 reason=priority_signs
+2025-10-24 07:20:38.533 [Debug] [Hook] TM:PE priority sign query | nodeId=22078 segmentId=15173 signType=None
+2025-10-24 07:20:38.534 [Debug] [Network] Dispatch command | direction=all type=PrioritySignApplied
+2025-10-24 07:20:38.534 [Debug] [Network] Dispatch complete | direction=all type=PrioritySignApplied
+2025-10-24 07:20:38.534 [Debug] [Hook] TM:PE priority sign query | nodeId=22078 segmentId=24395 signType=None
+2025-10-24 07:20:38.534 [Debug] [Network] Dispatch command | direction=all type=PrioritySignApplied
+2025-10-24 07:20:38.534 [Debug] [Network] Dispatch complete | direction=all type=PrioritySignApplied
+2025-10-24 07:20:38.535 [Debug] [Hook] TM:PE junction restriction query | nodeId=6913 state=UTurns=False, LaneChange=False, Blocked=True, Pedestrians=False, NearTurnOnRed=False, FarTurnOnRed=False
+2025-10-24 07:20:38.535 [Debug] [Network] Dispatch command | direction=all type=JunctionRestrictionsApplied
+2025-10-24 07:20:38.536 [Debug] [Network] Dispatch complete | direction=all type=JunctionRestrictionsApplied
+2025-10-24 07:20:38.536 [Debug] [Hook] TM:PE junction restriction query | nodeId=22078 state=UTurns=False, LaneChange=False, Blocked=False, Pedestrians=False, NearTurnOnRed=False, FarTurnOnRed=False
+2025-10-24 07:20:38.537 [Debug] [Network] Dispatch command | direction=all type=JunctionRestrictionsApplied
+2025-10-24 07:20:38.537 [Debug] [Network] Dispatch complete | direction=all type=JunctionRestrictionsApplied
+2025-10-24 07:20:38.537 [Debug] [Hook] TM:PE priority sign query | nodeId=22078 segmentId=15173 signType=None
+2025-10-24 07:20:38.538 [Debug] [Network] Dispatch command | direction=all type=PrioritySignApplied
+2025-10-24 07:20:38.538 [Debug] [Network] Dispatch complete | direction=all type=PrioritySignApplied
+2025-10-24 07:20:38.539 [Debug] [Hook] TM:PE priority sign query | nodeId=22078 segmentId=24395 signType=None
+2025-10-24 07:20:38.539 [Debug] [Network] Dispatch command | direction=all type=PrioritySignApplied
+2025-10-24 07:20:38.539 [Debug] [Network] Dispatch complete | direction=all type=PrioritySignApplied
+2025-10-24 07:20:38.540 [Debug] [Hook] TM:PE priority sign query | nodeId=9088 segmentId=24395 signType=None
+2025-10-24 07:20:38.540 [Debug] [Network] Dispatch command | direction=all type=PrioritySignApplied
+2025-10-24 07:20:38.541 [Debug] [Network] Dispatch complete | direction=all type=PrioritySignApplied
+2025-10-24 07:20:38.541 [Debug] [Hook] TM:PE junction restriction query | nodeId=22078 state=UTurns=False, LaneChange=False, Blocked=True, Pedestrians=True, NearTurnOnRed=False, FarTurnOnRed=False
+2025-10-24 07:20:38.542 [Debug] [Network] Dispatch command | direction=all type=JunctionRestrictionsApplied
+2025-10-24 07:20:38.542 [Debug] [Network] Dispatch complete | direction=all type=JunctionRestrictionsApplied
+2025-10-24 07:20:38.543 [Debug] [Hook] TM:PE junction restriction query | nodeId=9088 state=UTurns=True, LaneChange=False, Blocked=True, Pedestrians=True, NearTurnOnRed=False, FarTurnOnRed=False
+2025-10-24 07:20:38.543 [Debug] [Network] Dispatch command | direction=all type=JunctionRestrictionsApplied
+2025-10-24 07:20:38.543 [Debug] [Network] Dispatch complete | direction=all type=JunctionRestrictionsApplied
+2025-10-24 07:20:38.544 [Debug] [Hook] TM:PE priority sign query | nodeId=27870 segmentId=8173 signType=None
+2025-10-24 07:20:38.544 [Debug] [Network] Dispatch command | direction=all type=PrioritySignApplied
+2025-10-24 07:20:38.545 [Debug] [Network] Dispatch complete | direction=all type=PrioritySignApplied
+2025-10-24 07:20:38.545 [Debug] [Hook] TM:PE priority sign query | nodeId=27870 segmentId=35241 signType=None
+2025-10-24 07:20:38.545 [Debug] [Network] Dispatch command | direction=all type=PrioritySignApplied
+2025-10-24 07:20:38.547 [Debug] [Network] Dispatch complete | direction=all type=PrioritySignApplied
+2025-10-24 07:20:38.547 [Debug] [Hook] TM:PE priority sign query | nodeId=6913 segmentId=35241 signType=None
+2025-10-24 07:20:38.547 [Debug] [Network] Dispatch command | direction=all type=PrioritySignApplied
+2025-10-24 07:20:38.548 [Debug] [Network] Dispatch complete | direction=all type=PrioritySignApplied
+2025-10-24 07:20:38.548 [Debug] [Hook] TM:PE priority sign query | nodeId=6913 segmentId=15173 signType=None
+2025-10-24 07:20:38.548 [Debug] [Network] Dispatch command | direction=all type=PrioritySignApplied
+2025-10-24 07:20:38.549 [Debug] [Network] Dispatch complete | direction=all type=PrioritySignApplied
+2025-10-24 07:20:38.549 [Debug] [Hook] TM:PE junction restriction query | nodeId=27870 state=UTurns=False, LaneChange=False, Blocked=True, Pedestrians=True, NearTurnOnRed=False, FarTurnOnRed=False
+2025-10-24 07:20:38.550 [Debug] [Network] Dispatch command | direction=all type=JunctionRestrictionsApplied
+2025-10-24 07:20:38.550 [Debug] [Network] Dispatch complete | direction=all type=JunctionRestrictionsApplied
+2025-10-24 07:20:38.550 [Debug] [Hook] TM:PE junction restriction query | nodeId=6913 state=UTurns=False, LaneChange=False, Blocked=True, Pedestrians=False, NearTurnOnRed=False, FarTurnOnRed=False
+2025-10-24 07:20:38.551 [Debug] [Network] Dispatch command | direction=all type=JunctionRestrictionsApplied
+2025-10-24 07:20:38.551 [Debug] [Network] Dispatch complete | direction=all type=JunctionRestrictionsApplied
+2025-10-24 07:20:38.777 [Info] [General] Received PrioritySignApplied node=6913 segment=35241 sign=None
+2025-10-24 07:20:38.778 [Debug] [Hook] TM:PE priority sign request | nodeId=6913 segmentId=35241 signType=None
+2025-10-24 07:20:38.778 [Info] [General] Applied remote priority sign node=6913 segment=35241 -> None
+2025-10-24 07:20:38.778 [Info] [General] Received PrioritySignApplied node=6913 segment=15173 sign=None
+2025-10-24 07:20:38.779 [Debug] [Hook] TM:PE priority sign request | nodeId=6913 segmentId=15173 signType=None
+2025-10-24 07:20:38.779 [Info] [General] Applied remote priority sign node=6913 segment=15173 -> None
+2025-10-24 07:20:38.780 [Info] [General] Received PrioritySignApplied node=22078 segment=15173 sign=None
+2025-10-24 07:20:38.780 [Debug] [Hook] TM:PE priority sign request | nodeId=22078 segmentId=15173 signType=None
+2025-10-24 07:20:38.781 [Info] [General] Applied remote priority sign node=22078 segment=15173 -> None
+2025-10-24 07:20:38.781 [Info] [General] Received PrioritySignApplied node=22078 segment=24395 sign=None
+2025-10-24 07:20:38.781 [Debug] [Hook] TM:PE priority sign request | nodeId=22078 segmentId=24395 signType=None
+2025-10-24 07:20:38.782 [Info] [General] Applied remote priority sign node=22078 segment=24395 -> None
+2025-10-24 07:20:38.782 [Info] [General] Received JunctionRestrictionsApplied node=6913 state=UTurns=False, LaneChange=False, Blocked=True, Pedestrians=False, NearTurnOnRed=False, FarTurnOnRed=False
+2025-10-24 07:20:38.782 [Debug] [Hook] TM:PE junction restriction request | nodeId=6913 state=UTurns=False, LaneChange=False, Blocked=True, Pedestrians=False, NearTurnOnRed=False, FarTurnOnRed=False
+2025-10-24 07:20:38.783 [Warn] [Bridge] TM:PE junction restriction rejected | segmentId=35241 startNode=False flag=AllowNearTurnOnRed value=False
+2025-10-24 07:20:38.784 [Warn] [Bridge] TM:PE junction restriction rejected | segmentId=35241 startNode=False flag=AllowFarTurnOnRed value=False
+2025-10-24 07:20:38.784 [Warn] [Bridge] TM:PE junction restriction rejected | segmentId=35241 startNode=False flag=AllowLaneChangesWhenGoingStraight value=False
+2025-10-24 07:20:38.784 [Warn] [Bridge] TM:PE junction restriction rejected | segmentId=35241 startNode=False flag=AllowEnterWhenBlocked value=True
+2025-10-24 07:20:38.785 [Warn] [Bridge] TM:PE junction restriction rejected | segmentId=15173 startNode=True flag=AllowNearTurnOnRed value=False
+2025-10-24 07:20:38.785 [Warn] [Bridge] TM:PE junction restriction rejected | segmentId=15173 startNode=True flag=AllowFarTurnOnRed value=False
+2025-10-24 07:20:38.785 [Warn] [Bridge] TM:PE junction restriction rejected | segmentId=15173 startNode=True flag=AllowLaneChangesWhenGoingStraight value=False
+2025-10-24 07:20:38.786 [Warn] [Bridge] TM:PE junction restriction rejected | segmentId=15173 startNode=True flag=AllowEnterWhenBlocked value=True
+2025-10-24 07:20:38.786 [Info] [General] Applied remote junction restrictions node=6913
+2025-10-24 07:20:38.786 [Info] [General] Received JunctionRestrictionsApplied node=22078 state=UTurns=False, LaneChange=False, Blocked=False, Pedestrians=False, NearTurnOnRed=False, FarTurnOnRed=False
+2025-10-24 07:20:38.787 [Debug] [Hook] TM:PE junction restriction request | nodeId=22078 state=UTurns=False, LaneChange=False, Blocked=False, Pedestrians=False, NearTurnOnRed=False, FarTurnOnRed=False
+2025-10-24 07:20:38.787 [Warn] [Bridge] TM:PE junction restriction apply aborted | nodeId=22078 detail=tmpe_may_have_junction_restrictions=false
+2025-10-24 07:20:38.787 [Warn] [Bridge] TM:PE junction restriction apply via API failed | nodeId=22078 action=fallback_to_stub
+2025-10-24 07:20:38.788 [Error] [General] Failed to apply remote junction restrictions node=22078
+2025-10-24 07:20:38.788 [Info] [General] Received PrioritySignApplied node=22078 segment=15173 sign=None
+2025-10-24 07:20:38.788 [Debug] [Hook] TM:PE priority sign request | nodeId=22078 segmentId=15173 signType=None
+2025-10-24 07:20:38.789 [Info] [General] Applied remote priority sign node=22078 segment=15173 -> None
+2025-10-24 07:20:38.789 [Info] [General] Received PrioritySignApplied node=22078 segment=24395 sign=None
+2025-10-24 07:20:38.790 [Debug] [Hook] TM:PE priority sign request | nodeId=22078 segmentId=24395 signType=None
+2025-10-24 07:20:38.790 [Info] [General] Applied remote priority sign node=22078 segment=24395 -> None
+2025-10-24 07:20:38.791 [Info] [General] Received PrioritySignApplied node=9088 segment=24395 sign=None
+2025-10-24 07:20:38.791 [Debug] [Hook] TM:PE priority sign request | nodeId=9088 segmentId=24395 signType=None
+2025-10-24 07:20:38.791 [Info] [General] Applied remote priority sign node=9088 segment=24395 -> None
+2025-10-24 07:20:38.792 [Info] [General] Received JunctionRestrictionsApplied node=22078 state=UTurns=False, LaneChange=False, Blocked=True, Pedestrians=True, NearTurnOnRed=False, FarTurnOnRed=False
+2025-10-24 07:20:38.792 [Debug] [Hook] TM:PE junction restriction request | nodeId=22078 state=UTurns=False, LaneChange=False, Blocked=True, Pedestrians=True, NearTurnOnRed=False, FarTurnOnRed=False
+2025-10-24 07:20:38.792 [Warn] [Bridge] TM:PE junction restriction apply aborted | nodeId=22078 detail=tmpe_may_have_junction_restrictions=false
+2025-10-24 07:20:38.793 [Warn] [Bridge] TM:PE junction restriction apply via API failed | nodeId=22078 action=fallback_to_stub
+2025-10-24 07:20:38.794 [Error] [General] Failed to apply remote junction restrictions node=22078
+2025-10-24 07:20:38.794 [Info] [General] Received JunctionRestrictionsApplied node=9088 state=UTurns=True, LaneChange=False, Blocked=True, Pedestrians=True, NearTurnOnRed=False, FarTurnOnRed=False
+2025-10-24 07:20:38.794 [Debug] [Hook] TM:PE junction restriction request | nodeId=9088 state=UTurns=True, LaneChange=False, Blocked=True, Pedestrians=True, NearTurnOnRed=False, FarTurnOnRed=False
+2025-10-24 07:20:38.795 [Warn] [Bridge] TM:PE junction restriction apply aborted | nodeId=9088 detail=tmpe_may_have_junction_restrictions=false
+2025-10-24 07:20:38.795 [Warn] [Bridge] TM:PE junction restriction apply via API failed | nodeId=9088 action=fallback_to_stub
+2025-10-24 07:20:38.796 [Error] [General] Failed to apply remote junction restrictions node=9088
+2025-10-24 07:20:38.796 [Info] [General] Received PrioritySignApplied node=27870 segment=8173 sign=None
+2025-10-24 07:20:38.796 [Debug] [Hook] TM:PE priority sign request | nodeId=27870 segmentId=8173 signType=None
+2025-10-24 07:20:38.796 [Info] [General] Applied remote priority sign node=27870 segment=8173 -> None
+2025-10-24 07:20:38.797 [Info] [General] Received PrioritySignApplied node=27870 segment=35241 sign=None
+2025-10-24 07:20:38.797 [Debug] [Hook] TM:PE priority sign request | nodeId=27870 segmentId=35241 signType=None
+2025-10-24 07:20:38.797 [Info] [General] Applied remote priority sign node=27870 segment=35241 -> None
+2025-10-24 07:20:38.797 [Info] [General] Received PrioritySignApplied node=6913 segment=35241 sign=None
+2025-10-24 07:20:38.798 [Debug] [Hook] TM:PE priority sign request | nodeId=6913 segmentId=35241 signType=None
+2025-10-24 07:20:38.798 [Info] [General] Applied remote priority sign node=6913 segment=35241 -> None
+2025-10-24 07:20:38.799 [Info] [General] Received PrioritySignApplied node=6913 segment=15173 sign=None
+2025-10-24 07:20:38.799 [Debug] [Hook] TM:PE priority sign request | nodeId=6913 segmentId=15173 signType=None
+2025-10-24 07:20:38.799 [Info] [General] Applied remote priority sign node=6913 segment=15173 -> None
+2025-10-24 07:20:38.800 [Info] [General] Received JunctionRestrictionsApplied node=27870 state=UTurns=False, LaneChange=False, Blocked=True, Pedestrians=True, NearTurnOnRed=False, FarTurnOnRed=False
+2025-10-24 07:20:38.800 [Debug] [Hook] TM:PE junction restriction request | nodeId=27870 state=UTurns=False, LaneChange=False, Blocked=True, Pedestrians=True, NearTurnOnRed=False, FarTurnOnRed=False
+2025-10-24 07:20:38.801 [Warn] [Bridge] TM:PE junction restriction apply aborted | nodeId=27870 detail=tmpe_may_have_junction_restrictions=false
+2025-10-24 07:20:38.801 [Warn] [Bridge] TM:PE junction restriction apply via API failed | nodeId=27870 action=fallback_to_stub
+2025-10-24 07:20:38.801 [Error] [General] Failed to apply remote junction restrictions node=27870
+2025-10-24 07:20:38.802 [Info] [General] Received JunctionRestrictionsApplied node=6913 state=UTurns=False, LaneChange=False, Blocked=True, Pedestrians=False, NearTurnOnRed=False, FarTurnOnRed=False
+2025-10-24 07:20:38.802 [Debug] [Hook] TM:PE junction restriction request | nodeId=6913 state=UTurns=False, LaneChange=False, Blocked=True, Pedestrians=False, NearTurnOnRed=False, FarTurnOnRed=False
+2025-10-24 07:20:38.802 [Warn] [Bridge] TM:PE junction restriction rejected | segmentId=35241 startNode=False flag=AllowNearTurnOnRed value=False
+2025-10-24 07:20:38.803 [Warn] [Bridge] TM:PE junction restriction rejected | segmentId=35241 startNode=False flag=AllowFarTurnOnRed value=False
+2025-10-24 07:20:38.803 [Warn] [Bridge] TM:PE junction restriction rejected | segmentId=35241 startNode=False flag=AllowLaneChangesWhenGoingStraight value=False
+2025-10-24 07:20:38.803 [Warn] [Bridge] TM:PE junction restriction rejected | segmentId=35241 startNode=False flag=AllowEnterWhenBlocked value=True
+2025-10-24 07:20:38.804 [Warn] [Bridge] TM:PE junction restriction rejected | segmentId=15173 startNode=True flag=AllowNearTurnOnRed value=False
+2025-10-24 07:20:38.804 [Warn] [Bridge] TM:PE junction restriction rejected | segmentId=15173 startNode=True flag=AllowFarTurnOnRed value=False
+2025-10-24 07:20:38.804 [Warn] [Bridge] TM:PE junction restriction rejected | segmentId=15173 startNode=True flag=AllowLaneChangesWhenGoingStraight value=False
+2025-10-24 07:20:38.804 [Warn] [Bridge] TM:PE junction restriction rejected | segmentId=15173 startNode=True flag=AllowEnterWhenBlocked value=True
+2025-10-24 07:20:38.806 [Info] [General] Applied remote junction restrictions node=6913
+2025-10-24 07:20:40.806 [Debug] [Network] Dispatch command | direction=all type=LaneMappingChanged
+2025-10-24 07:20:40.807 [Debug] [Network] Dispatch complete | direction=all type=LaneMappingChanged
+2025-10-24 07:20:40.808 [Debug] [Synchronization] Lane mapping broadcast | segment=21177 laneIndex=0 hostLane=246043 guid=LaneGuid(Segment=21177, Build=4645, Prefab=0, Lane=0, Seq=1) version=43 reason=priority_signs
+2025-10-24 07:20:40.808 [Debug] [Network] Dispatch command | direction=all type=LaneMappingChanged
+2025-10-24 07:20:40.808 [Debug] [Network] Dispatch complete | direction=all type=LaneMappingChanged
+2025-10-24 07:20:40.809 [Debug] [Synchronization] Lane mapping broadcast | segment=21177 laneIndex=1 hostLane=42473 guid=LaneGuid(Segment=21177, Build=4645, Prefab=0, Lane=1, Seq=1) version=44 reason=priority_signs
+2025-10-24 07:20:40.809 [Debug] [Network] Dispatch command | direction=all type=LaneMappingChanged
+2025-10-24 07:20:40.810 [Debug] [Network] Dispatch complete | direction=all type=LaneMappingChanged
+2025-10-24 07:20:40.810 [Debug] [Synchronization] Lane mapping broadcast | segment=21177 laneIndex=2 hostLane=10297 guid=LaneGuid(Segment=21177, Build=4645, Prefab=0, Lane=2, Seq=1) version=45 reason=priority_signs
+2025-10-24 07:20:40.811 [Debug] [Network] Dispatch command | direction=all type=LaneMappingChanged
+2025-10-24 07:20:40.811 [Debug] [Network] Dispatch complete | direction=all type=LaneMappingChanged
+2025-10-24 07:20:40.811 [Debug] [Synchronization] Lane mapping broadcast | segment=21177 laneIndex=3 hostLane=54081 guid=LaneGuid(Segment=21177, Build=4645, Prefab=0, Lane=3, Seq=1) version=46 reason=priority_signs
+2025-10-24 07:20:40.812 [Debug] [Network] Dispatch command | direction=all type=LaneMappingChanged
+2025-10-24 07:20:40.812 [Debug] [Network] Dispatch complete | direction=all type=LaneMappingChanged
+2025-10-24 07:20:40.812 [Debug] [Synchronization] Lane mapping broadcast | segment=21177 laneIndex=4 hostLane=196609 guid=LaneGuid(Segment=21177, Build=4645, Prefab=0, Lane=4, Seq=1) version=47 reason=priority_signs
+2025-10-24 07:20:40.813 [Debug] [Network] Dispatch command | direction=all type=LaneMappingChanged
+2025-10-24 07:20:40.813 [Debug] [Network] Dispatch complete | direction=all type=LaneMappingChanged
+2025-10-24 07:20:40.813 [Debug] [Synchronization] Lane mapping broadcast | segment=21177 laneIndex=5 hostLane=84345 guid=LaneGuid(Segment=21177, Build=4645, Prefab=0, Lane=5, Seq=1) version=48 reason=priority_signs
+2025-10-24 07:20:40.814 [Debug] [Network] Dispatch command | direction=all type=LaneMappingChanged
+2025-10-24 07:20:40.814 [Debug] [Network] Dispatch complete | direction=all type=LaneMappingChanged
+2025-10-24 07:20:40.814 [Debug] [Synchronization] Lane mapping broadcast | segment=8995 laneIndex=0 hostLane=220072 guid=LaneGuid(Segment=8995, Build=4648, Prefab=0, Lane=0, Seq=1) version=49 reason=priority_signs
+2025-10-24 07:20:40.815 [Debug] [Network] Dispatch command | direction=all type=LaneMappingChanged
+2025-10-24 07:20:40.815 [Debug] [Network] Dispatch complete | direction=all type=LaneMappingChanged
+2025-10-24 07:20:40.815 [Debug] [Synchronization] Lane mapping broadcast | segment=8995 laneIndex=1 hostLane=4590 guid=LaneGuid(Segment=8995, Build=4648, Prefab=0, Lane=1, Seq=1) version=50 reason=priority_signs
+2025-10-24 07:20:40.816 [Debug] [Network] Dispatch command | direction=all type=LaneMappingChanged
+2025-10-24 07:20:40.816 [Debug] [Network] Dispatch complete | direction=all type=LaneMappingChanged
+2025-10-24 07:20:40.816 [Debug] [Synchronization] Lane mapping broadcast | segment=8995 laneIndex=2 hostLane=201380 guid=LaneGuid(Segment=8995, Build=4648, Prefab=0, Lane=2, Seq=1) version=51 reason=priority_signs
+2025-10-24 07:20:40.817 [Debug] [Network] Dispatch command | direction=all type=LaneMappingChanged
+2025-10-24 07:20:40.817 [Debug] [Network] Dispatch complete | direction=all type=LaneMappingChanged
+2025-10-24 07:20:40.817 [Debug] [Synchronization] Lane mapping broadcast | segment=8995 laneIndex=3 hostLane=91568 guid=LaneGuid(Segment=8995, Build=4648, Prefab=0, Lane=3, Seq=1) version=52 reason=priority_signs
+2025-10-24 07:20:40.818 [Debug] [Network] Dispatch command | direction=all type=LaneMappingChanged
+2025-10-24 07:20:40.818 [Debug] [Network] Dispatch complete | direction=all type=LaneMappingChanged
+2025-10-24 07:20:40.818 [Debug] [Synchronization] Lane mapping broadcast | segment=8995 laneIndex=4 hostLane=120107 guid=LaneGuid(Segment=8995, Build=4648, Prefab=0, Lane=4, Seq=1) version=53 reason=priority_signs
+2025-10-24 07:20:40.819 [Debug] [Network] Dispatch command | direction=all type=LaneMappingChanged
+2025-10-24 07:20:40.819 [Debug] [Network] Dispatch complete | direction=all type=LaneMappingChanged
+2025-10-24 07:20:40.819 [Debug] [Synchronization] Lane mapping broadcast | segment=8995 laneIndex=5 hostLane=208612 guid=LaneGuid(Segment=8995, Build=4648, Prefab=0, Lane=5, Seq=1) version=54 reason=priority_signs
+2025-10-24 07:20:40.820 [Debug] [Hook] TM:PE priority sign query | nodeId=12618 segmentId=21177 signType=None
+2025-10-24 07:20:40.820 [Debug] [Network] Dispatch command | direction=all type=PrioritySignApplied
+2025-10-24 07:20:40.821 [Debug] [Network] Dispatch complete | direction=all type=PrioritySignApplied
+2025-10-24 07:20:40.821 [Debug] [Hook] TM:PE priority sign query | nodeId=12618 segmentId=8995 signType=None
+2025-10-24 07:20:40.822 [Debug] [Network] Dispatch command | direction=all type=PrioritySignApplied
+2025-10-24 07:20:40.822 [Debug] [Network] Dispatch complete | direction=all type=PrioritySignApplied
+2025-10-24 07:20:40.822 [Debug] [Hook] TM:PE priority sign query | nodeId=13289 segmentId=8995 signType=None
+2025-10-24 07:20:40.823 [Debug] [Network] Dispatch command | direction=all type=PrioritySignApplied
+2025-10-24 07:20:40.823 [Debug] [Network] Dispatch complete | direction=all type=PrioritySignApplied
+2025-10-24 07:20:40.824 [Debug] [Hook] TM:PE junction restriction query | nodeId=12618 state=UTurns=False, LaneChange=False, Blocked=False, Pedestrians=False, NearTurnOnRed=False, FarTurnOnRed=False
+2025-10-24 07:20:40.824 [Debug] [Network] Dispatch command | direction=all type=JunctionRestrictionsApplied
+2025-10-24 07:20:40.824 [Debug] [Network] Dispatch complete | direction=all type=JunctionRestrictionsApplied
+2025-10-24 07:20:40.824 [Debug] [Hook] TM:PE junction restriction query | nodeId=13289 state=UTurns=True, LaneChange=False, Blocked=True, Pedestrians=True, NearTurnOnRed=False, FarTurnOnRed=False
+2025-10-24 07:20:40.825 [Debug] [Network] Dispatch command | direction=all type=JunctionRestrictionsApplied
+2025-10-24 07:20:40.825 [Debug] [Network] Dispatch complete | direction=all type=JunctionRestrictionsApplied
+2025-10-24 07:20:40.826 [Debug] [Hook] TM:PE priority sign query | nodeId=22078 segmentId=15173 signType=None
+2025-10-24 07:20:40.826 [Debug] [Network] Dispatch command | direction=all type=PrioritySignApplied
+2025-10-24 07:20:40.826 [Debug] [Network] Dispatch complete | direction=all type=PrioritySignApplied
+2025-10-24 07:20:40.827 [Debug] [Hook] TM:PE priority sign query | nodeId=22078 segmentId=24395 signType=None
+2025-10-24 07:20:40.827 [Debug] [Network] Dispatch command | direction=all type=PrioritySignApplied
+2025-10-24 07:20:40.827 [Debug] [Network] Dispatch complete | direction=all type=PrioritySignApplied
+2025-10-24 07:20:40.828 [Debug] [Hook] TM:PE junction restriction query | nodeId=6913 state=UTurns=False, LaneChange=False, Blocked=False, Pedestrians=False, NearTurnOnRed=False, FarTurnOnRed=False
+2025-10-24 07:20:40.828 [Debug] [Network] Dispatch command | direction=all type=JunctionRestrictionsApplied
+2025-10-24 07:20:40.829 [Debug] [Network] Dispatch complete | direction=all type=JunctionRestrictionsApplied
+2025-10-24 07:20:40.829 [Debug] [Hook] TM:PE junction restriction query | nodeId=22078 state=UTurns=False, LaneChange=False, Blocked=True, Pedestrians=True, NearTurnOnRed=False, FarTurnOnRed=False
+2025-10-24 07:20:40.829 [Debug] [Network] Dispatch command | direction=all type=JunctionRestrictionsApplied
+2025-10-24 07:20:40.830 [Debug] [Network] Dispatch complete | direction=all type=JunctionRestrictionsApplied
+2025-10-24 07:20:40.830 [Debug] [Hook] TM:PE priority sign query | nodeId=12618 segmentId=21177 signType=None
+2025-10-24 07:20:40.830 [Debug] [Network] Dispatch command | direction=all type=PrioritySignApplied
+2025-10-24 07:20:40.831 [Debug] [Network] Dispatch complete | direction=all type=PrioritySignApplied
+2025-10-24 07:20:40.831 [Debug] [Hook] TM:PE priority sign query | nodeId=12618 segmentId=8995 signType=None
+2025-10-24 07:20:40.831 [Debug] [Network] Dispatch command | direction=all type=PrioritySignApplied
+2025-10-24 07:20:40.832 [Debug] [Network] Dispatch complete | direction=all type=PrioritySignApplied
+2025-10-24 07:20:40.832 [Debug] [Hook] TM:PE junction restriction query | nodeId=6913 state=UTurns=False, LaneChange=False, Blocked=False, Pedestrians=False, NearTurnOnRed=False, FarTurnOnRed=False
+2025-10-24 07:20:40.833 [Debug] [Network] Dispatch command | direction=all type=JunctionRestrictionsApplied
+2025-10-24 07:20:40.833 [Debug] [Network] Dispatch complete | direction=all type=JunctionRestrictionsApplied
+2025-10-24 07:20:40.833 [Debug] [Hook] TM:PE junction restriction query | nodeId=12618 state=UTurns=False, LaneChange=False, Blocked=True, Pedestrians=True, NearTurnOnRed=False, FarTurnOnRed=False
+2025-10-24 07:20:40.834 [Debug] [Network] Dispatch command | direction=all type=JunctionRestrictionsApplied
+2025-10-24 07:20:40.834 [Debug] [Network] Dispatch complete | direction=all type=JunctionRestrictionsApplied
+2025-10-24 07:20:40.835 [Debug] [Hook] TM:PE priority sign query | nodeId=27870 segmentId=8173 signType=None
+2025-10-24 07:20:40.836 [Debug] [Network] Dispatch command | direction=all type=PrioritySignApplied
+2025-10-24 07:20:40.836 [Debug] [Network] Dispatch complete | direction=all type=PrioritySignApplied
+2025-10-24 07:20:40.837 [Debug] [Hook] TM:PE priority sign query | nodeId=27870 segmentId=35241 signType=None
+2025-10-24 07:20:40.837 [Debug] [Network] Dispatch command | direction=all type=PrioritySignApplied
+2025-10-24 07:20:40.838 [Debug] [Network] Dispatch complete | direction=all type=PrioritySignApplied
+2025-10-24 07:20:40.838 [Debug] [Hook] TM:PE junction restriction query | nodeId=27870 state=UTurns=False, LaneChange=False, Blocked=True, Pedestrians=True, NearTurnOnRed=False, FarTurnOnRed=False
+2025-10-24 07:20:40.839 [Debug] [Network] Dispatch command | direction=all type=JunctionRestrictionsApplied
+2025-10-24 07:20:40.839 [Debug] [Network] Dispatch complete | direction=all type=JunctionRestrictionsApplied
+2025-10-24 07:20:40.840 [Debug] [Hook] TM:PE junction restriction query | nodeId=6913 state=UTurns=False, LaneChange=False, Blocked=False, Pedestrians=False, NearTurnOnRed=False, FarTurnOnRed=False
+2025-10-24 07:20:40.840 [Debug] [Network] Dispatch command | direction=all type=JunctionRestrictionsApplied
+2025-10-24 07:20:40.840 [Debug] [Network] Dispatch complete | direction=all type=JunctionRestrictionsApplied
+2025-10-24 07:20:41.084 [Info] [General] Received PrioritySignApplied node=12618 segment=21177 sign=None
+2025-10-24 07:20:41.085 [Debug] [Hook] TM:PE priority sign request | nodeId=12618 segmentId=21177 signType=None
+2025-10-24 07:20:41.085 [Info] [General] Applied remote priority sign node=12618 segment=21177 -> None
+2025-10-24 07:20:41.086 [Info] [General] Received PrioritySignApplied node=12618 segment=8995 sign=None
+2025-10-24 07:20:41.086 [Debug] [Hook] TM:PE priority sign request | nodeId=12618 segmentId=8995 signType=None
+2025-10-24 07:20:41.087 [Info] [General] Applied remote priority sign node=12618 segment=8995 -> None
+2025-10-24 07:20:41.087 [Info] [General] Received PrioritySignApplied node=13289 segment=8995 sign=None
+2025-10-24 07:20:41.087 [Debug] [Hook] TM:PE priority sign request | nodeId=13289 segmentId=8995 signType=None
+2025-10-24 07:20:41.088 [Info] [General] Applied remote priority sign node=13289 segment=8995 -> None
+2025-10-24 07:20:41.088 [Info] [General] Received JunctionRestrictionsApplied node=12618 state=UTurns=False, LaneChange=False, Blocked=False, Pedestrians=False, NearTurnOnRed=False, FarTurnOnRed=False
+2025-10-24 07:20:41.089 [Debug] [Hook] TM:PE junction restriction request | nodeId=12618 state=UTurns=False, LaneChange=False, Blocked=False, Pedestrians=False, NearTurnOnRed=False, FarTurnOnRed=False
+2025-10-24 07:20:41.089 [Warn] [Bridge] TM:PE junction restriction apply aborted | nodeId=12618 detail=tmpe_may_have_junction_restrictions=false
+2025-10-24 07:20:41.090 [Warn] [Bridge] TM:PE junction restriction apply via API failed | nodeId=12618 action=fallback_to_stub
+2025-10-24 07:20:41.090 [Error] [General] Failed to apply remote junction restrictions node=12618
+2025-10-24 07:20:41.090 [Info] [General] Received JunctionRestrictionsApplied node=13289 state=UTurns=True, LaneChange=False, Blocked=True, Pedestrians=True, NearTurnOnRed=False, FarTurnOnRed=False
+2025-10-24 07:20:41.091 [Debug] [Hook] TM:PE junction restriction request | nodeId=13289 state=UTurns=True, LaneChange=False, Blocked=True, Pedestrians=True, NearTurnOnRed=False, FarTurnOnRed=False
+2025-10-24 07:20:41.091 [Warn] [Bridge] TM:PE junction restriction apply aborted | nodeId=13289 detail=tmpe_may_have_junction_restrictions=false
+2025-10-24 07:20:41.091 [Warn] [Bridge] TM:PE junction restriction apply via API failed | nodeId=13289 action=fallback_to_stub
+2025-10-24 07:20:41.092 [Error] [General] Failed to apply remote junction restrictions node=13289
+2025-10-24 07:20:41.092 [Info] [General] Received PrioritySignApplied node=22078 segment=15173 sign=None
+2025-10-24 07:20:41.093 [Debug] [Hook] TM:PE priority sign request | nodeId=22078 segmentId=15173 signType=None
+2025-10-24 07:20:41.093 [Info] [General] Applied remote priority sign node=22078 segment=15173 -> None
+2025-10-24 07:20:41.094 [Info] [General] Received PrioritySignApplied node=22078 segment=24395 sign=None
+2025-10-24 07:20:41.094 [Debug] [Hook] TM:PE priority sign request | nodeId=22078 segmentId=24395 signType=None
+2025-10-24 07:20:41.094 [Info] [General] Applied remote priority sign node=22078 segment=24395 -> None
+2025-10-24 07:20:41.095 [Info] [General] Received JunctionRestrictionsApplied node=6913 state=UTurns=False, LaneChange=False, Blocked=False, Pedestrians=False, NearTurnOnRed=False, FarTurnOnRed=False
+2025-10-24 07:20:41.096 [Debug] [Hook] TM:PE junction restriction request | nodeId=6913 state=UTurns=False, LaneChange=False, Blocked=False, Pedestrians=False, NearTurnOnRed=False, FarTurnOnRed=False
+2025-10-24 07:20:41.096 [Warn] [Bridge] TM:PE junction restriction rejected | segmentId=35241 startNode=False flag=AllowNearTurnOnRed value=False
+2025-10-24 07:20:41.097 [Warn] [Bridge] TM:PE junction restriction rejected | segmentId=35241 startNode=False flag=AllowFarTurnOnRed value=False
+2025-10-24 07:20:41.097 [Warn] [Bridge] TM:PE junction restriction rejected | segmentId=15173 startNode=True flag=AllowNearTurnOnRed value=False
+2025-10-24 07:20:41.098 [Warn] [Bridge] TM:PE junction restriction rejected | segmentId=15173 startNode=True flag=AllowFarTurnOnRed value=False
+2025-10-24 07:20:41.098 [Warn] [Bridge] TM:PE junction restriction rejected | segmentId=21177 startNode=True flag=AllowNearTurnOnRed value=False
+2025-10-24 07:20:41.099 [Warn] [Bridge] TM:PE junction restriction rejected | segmentId=21177 startNode=True flag=AllowFarTurnOnRed value=False
+2025-10-24 07:20:41.099 [Info] [General] Applied remote junction restrictions node=6913
+2025-10-24 07:20:41.100 [Info] [General] Received JunctionRestrictionsApplied node=22078 state=UTurns=False, LaneChange=False, Blocked=True, Pedestrians=True, NearTurnOnRed=False, FarTurnOnRed=False
+2025-10-24 07:20:41.100 [Debug] [Hook] TM:PE junction restriction request | nodeId=22078 state=UTurns=False, LaneChange=False, Blocked=True, Pedestrians=True, NearTurnOnRed=False, FarTurnOnRed=False
+2025-10-24 07:20:41.101 [Warn] [Bridge] TM:PE junction restriction apply aborted | nodeId=22078 detail=tmpe_may_have_junction_restrictions=false
+2025-10-24 07:20:41.101 [Warn] [Bridge] TM:PE junction restriction apply via API failed | nodeId=22078 action=fallback_to_stub
+2025-10-24 07:20:41.101 [Error] [General] Failed to apply remote junction restrictions node=22078
+2025-10-24 07:20:41.102 [Info] [General] Received PrioritySignApplied node=12618 segment=21177 sign=None
+2025-10-24 07:20:41.102 [Debug] [Hook] TM:PE priority sign request | nodeId=12618 segmentId=21177 signType=None
+2025-10-24 07:20:41.102 [Info] [General] Applied remote priority sign node=12618 segment=21177 -> None
+2025-10-24 07:20:41.103 [Info] [General] Received PrioritySignApplied node=12618 segment=8995 sign=None
+2025-10-24 07:20:41.103 [Debug] [Hook] TM:PE priority sign request | nodeId=12618 segmentId=8995 signType=None
+2025-10-24 07:20:41.103 [Info] [General] Applied remote priority sign node=12618 segment=8995 -> None
+2025-10-24 07:20:41.104 [Info] [General] Received JunctionRestrictionsApplied node=6913 state=UTurns=False, LaneChange=False, Blocked=False, Pedestrians=False, NearTurnOnRed=False, FarTurnOnRed=False
+2025-10-24 07:20:41.104 [Debug] [Hook] TM:PE junction restriction request | nodeId=6913 state=UTurns=False, LaneChange=False, Blocked=False, Pedestrians=False, NearTurnOnRed=False, FarTurnOnRed=False
+2025-10-24 07:20:41.104 [Warn] [Bridge] TM:PE junction restriction rejected | segmentId=35241 startNode=False flag=AllowNearTurnOnRed value=False
+2025-10-24 07:20:41.104 [Warn] [Bridge] TM:PE junction restriction rejected | segmentId=35241 startNode=False flag=AllowFarTurnOnRed value=False
+2025-10-24 07:20:41.105 [Warn] [Bridge] TM:PE junction restriction rejected | segmentId=15173 startNode=True flag=AllowNearTurnOnRed value=False
+2025-10-24 07:20:41.105 [Warn] [Bridge] TM:PE junction restriction rejected | segmentId=15173 startNode=True flag=AllowFarTurnOnRed value=False
+2025-10-24 07:20:41.106 [Warn] [Bridge] TM:PE junction restriction rejected | segmentId=21177 startNode=True flag=AllowNearTurnOnRed value=False
+2025-10-24 07:20:41.106 [Warn] [Bridge] TM:PE junction restriction rejected | segmentId=21177 startNode=True flag=AllowFarTurnOnRed value=False
+2025-10-24 07:20:41.107 [Info] [General] Applied remote junction restrictions node=6913
+2025-10-24 07:20:41.107 [Info] [General] Received JunctionRestrictionsApplied node=12618 state=UTurns=False, LaneChange=False, Blocked=True, Pedestrians=True, NearTurnOnRed=False, FarTurnOnRed=False
+2025-10-24 07:20:41.108 [Debug] [Hook] TM:PE junction restriction request | nodeId=12618 state=UTurns=False, LaneChange=False, Blocked=True, Pedestrians=True, NearTurnOnRed=False, FarTurnOnRed=False
+2025-10-24 07:20:41.108 [Warn] [Bridge] TM:PE junction restriction apply aborted | nodeId=12618 detail=tmpe_may_have_junction_restrictions=false
+2025-10-24 07:20:41.108 [Warn] [Bridge] TM:PE junction restriction apply via API failed | nodeId=12618 action=fallback_to_stub
+2025-10-24 07:20:41.109 [Error] [General] Failed to apply remote junction restrictions node=12618
+2025-10-24 07:20:41.109 [Info] [General] Received PrioritySignApplied node=27870 segment=8173 sign=None
+2025-10-24 07:20:41.110 [Debug] [Hook] TM:PE priority sign request | nodeId=27870 segmentId=8173 signType=None
+2025-10-24 07:20:41.110 [Info] [General] Applied remote priority sign node=27870 segment=8173 -> None
+2025-10-24 07:20:41.110 [Info] [General] Received PrioritySignApplied node=27870 segment=35241 sign=None
+2025-10-24 07:20:41.111 [Debug] [Hook] TM:PE priority sign request | nodeId=27870 segmentId=35241 signType=None
+2025-10-24 07:20:41.111 [Info] [General] Applied remote priority sign node=27870 segment=35241 -> None
+2025-10-24 07:20:41.112 [Info] [General] Received JunctionRestrictionsApplied node=27870 state=UTurns=False, LaneChange=False, Blocked=True, Pedestrians=True, NearTurnOnRed=False, FarTurnOnRed=False
+2025-10-24 07:20:41.112 [Debug] [Hook] TM:PE junction restriction request | nodeId=27870 state=UTurns=False, LaneChange=False, Blocked=True, Pedestrians=True, NearTurnOnRed=False, FarTurnOnRed=False
+2025-10-24 07:20:41.113 [Warn] [Bridge] TM:PE junction restriction apply aborted | nodeId=27870 detail=tmpe_may_have_junction_restrictions=false
+2025-10-24 07:20:41.113 [Warn] [Bridge] TM:PE junction restriction apply via API failed | nodeId=27870 action=fallback_to_stub
+2025-10-24 07:20:41.114 [Error] [General] Failed to apply remote junction restrictions node=27870
+2025-10-24 07:20:41.114 [Info] [General] Received JunctionRestrictionsApplied node=6913 state=UTurns=False, LaneChange=False, Blocked=False, Pedestrians=False, NearTurnOnRed=False, FarTurnOnRed=False
+2025-10-24 07:20:41.115 [Debug] [Hook] TM:PE junction restriction request | nodeId=6913 state=UTurns=False, LaneChange=False, Blocked=False, Pedestrians=False, NearTurnOnRed=False, FarTurnOnRed=False
+2025-10-24 07:20:41.115 [Warn] [Bridge] TM:PE junction restriction rejected | segmentId=35241 startNode=False flag=AllowNearTurnOnRed value=False
+2025-10-24 07:20:41.116 [Warn] [Bridge] TM:PE junction restriction rejected | segmentId=35241 startNode=False flag=AllowFarTurnOnRed value=False
+2025-10-24 07:20:41.116 [Warn] [Bridge] TM:PE junction restriction rejected | segmentId=15173 startNode=True flag=AllowNearTurnOnRed value=False
+2025-10-24 07:20:41.117 [Warn] [Bridge] TM:PE junction restriction rejected | segmentId=15173 startNode=True flag=AllowFarTurnOnRed value=False
+2025-10-24 07:20:41.117 [Warn] [Bridge] TM:PE junction restriction rejected | segmentId=21177 startNode=True flag=AllowNearTurnOnRed value=False
+2025-10-24 07:20:41.118 [Warn] [Bridge] TM:PE junction restriction rejected | segmentId=21177 startNode=True flag=AllowFarTurnOnRed value=False
+2025-10-24 07:20:41.118 [Info] [General] Applied remote junction restrictions node=6913
+2025-10-24 07:20:54.911 [Debug] [Hook] TM:PE speed limit query | laneId=220072 speedKmh=12.5
+2025-10-24 07:20:54.911 [Debug] [Network] Dispatch command | direction=all type=SpeedLimitApplied
+2025-10-24 07:20:54.912 [Debug] [Network] Dispatch complete | direction=all type=SpeedLimitApplied
+2025-10-24 07:20:54.912 [Debug] [Hook] TM:PE speed limit query | laneId=4590 speedKmh=12.5
+2025-10-24 07:20:54.913 [Debug] [Network] Dispatch command | direction=all type=SpeedLimitApplied
+2025-10-24 07:20:54.913 [Debug] [Network] Dispatch complete | direction=all type=SpeedLimitApplied
+2025-10-24 07:20:54.914 [Debug] [Hook] TM:PE speed limit query | laneId=201380 speedKmh=40
+2025-10-24 07:20:54.914 [Debug] [Network] Dispatch command | direction=all type=SpeedLimitApplied
+2025-10-24 07:20:54.914 [Debug] [Network] Dispatch complete | direction=all type=SpeedLimitApplied
+2025-10-24 07:20:54.915 [Debug] [Hook] TM:PE speed limit query | laneId=91568 speedKmh=40
+2025-10-24 07:20:54.915 [Debug] [Network] Dispatch command | direction=all type=SpeedLimitApplied
+2025-10-24 07:20:54.915 [Debug] [Network] Dispatch complete | direction=all type=SpeedLimitApplied
+2025-10-24 07:20:54.917 [Debug] [Hook] TM:PE speed limit query | laneId=120107 speedKmh=80.48938
+2025-10-24 07:20:54.917 [Debug] [Network] Dispatch command | direction=all type=SpeedLimitApplied
+2025-10-24 07:20:54.918 [Debug] [Network] Dispatch complete | direction=all type=SpeedLimitApplied
+2025-10-24 07:20:54.918 [Debug] [Hook] TM:PE speed limit query | laneId=208612 speedKmh=80.48938
+2025-10-24 07:20:54.919 [Debug] [Network] Dispatch command | direction=all type=SpeedLimitApplied
+2025-10-24 07:20:54.919 [Debug] [Network] Dispatch complete | direction=all type=SpeedLimitApplied
+2025-10-24 07:21:10.091 [Debug] [Synchronization] SpeedLimitApplied received | laneId=119697 segmentId=15173 laneIndex=0 speedKmh=0
+2025-10-24 07:21:10.092 [Debug] [Hook] TM:PE speed limit request | laneId=119694 speedKmh=0
+2025-10-24 07:21:10.094 [Info] [Synchronization] TM:PE speed limit applied via API | laneId=119694 speedKmh=0
+2025-10-24 07:21:10.094 [Info] [Synchronization] Applied speed limit | laneId=119694 segmentId=15173 laneIndex=0 speedKmh=0 expectedVersion=54
+2025-10-24 07:21:10.095 [Debug] [Synchronization] SpeedLimitApplied received | laneId=141123 segmentId=15173 laneIndex=1 speedKmh=0
+2025-10-24 07:21:10.096 [Debug] [Hook] TM:PE speed limit request | laneId=141119 speedKmh=0
+2025-10-24 07:21:10.096 [Info] [Synchronization] TM:PE speed limit applied via API | laneId=141119 speedKmh=0
+2025-10-24 07:21:10.097 [Info] [Synchronization] Applied speed limit | laneId=141119 segmentId=15173 laneIndex=1 speedKmh=0 expectedVersion=54
+2025-10-24 07:21:10.097 [Debug] [Synchronization] SpeedLimitApplied received | laneId=208440 segmentId=15173 laneIndex=2 speedKmh=0
+2025-10-24 07:21:10.098 [Debug] [Hook] TM:PE speed limit request | laneId=208428 speedKmh=0
+2025-10-24 07:21:10.098 [Info] [Synchronization] TM:PE speed limit applied via API | laneId=208428 speedKmh=0
+2025-10-24 07:21:10.099 [Info] [Synchronization] Applied speed limit | laneId=208428 segmentId=15173 laneIndex=2 speedKmh=0 expectedVersion=54
+2025-10-24 07:21:10.099 [Debug] [Synchronization] SpeedLimitApplied received | laneId=95126 segmentId=15173 laneIndex=3 speedKmh=0
+2025-10-24 07:21:10.099 [Debug] [Hook] TM:PE speed limit request | laneId=95123 speedKmh=0
+2025-10-24 07:21:10.100 [Info] [Synchronization] TM:PE speed limit applied via API | laneId=95123 speedKmh=0
+2025-10-24 07:21:10.100 [Info] [Synchronization] Applied speed limit | laneId=95123 segmentId=15173 laneIndex=3 speedKmh=0 expectedVersion=54
+2025-10-24 07:21:10.100 [Debug] [Synchronization] SpeedLimitApplied received | laneId=134418 segmentId=15173 laneIndex=4 speedKmh=0
+2025-10-24 07:21:10.101 [Debug] [Hook] TM:PE speed limit request | laneId=134415 speedKmh=0
+2025-10-24 07:21:10.102 [Info] [Synchronization] TM:PE speed limit applied via API | laneId=134415 speedKmh=0
+2025-10-24 07:21:10.102 [Info] [Synchronization] Applied speed limit | laneId=134415 segmentId=15173 laneIndex=4 speedKmh=0 expectedVersion=54
+2025-10-24 07:21:10.102 [Debug] [Synchronization] SpeedLimitApplied received | laneId=847 segmentId=15173 laneIndex=5 speedKmh=0
+2025-10-24 07:21:10.103 [Debug] [Hook] TM:PE speed limit request | laneId=847 speedKmh=0
+2025-10-24 07:21:10.103 [Info] [Synchronization] TM:PE speed limit applied via API | laneId=847 speedKmh=0
+2025-10-24 07:21:10.103 [Info] [Synchronization] Applied speed limit | laneId=847 segmentId=15173 laneIndex=5 speedKmh=0 expectedVersion=54
+2025-10-24 07:21:10.994 [Debug] [Synchronization] SpeedLimitApplied received | laneId=148598 segmentId=24395 laneIndex=0 speedKmh=0
+2025-10-24 07:21:10.994 [Debug] [Hook] TM:PE speed limit request | laneId=148593 speedKmh=0
+2025-10-24 07:21:10.995 [Info] [Synchronization] TM:PE speed limit applied via API | laneId=148593 speedKmh=0
+2025-10-24 07:21:10.996 [Info] [Synchronization] Applied speed limit | laneId=148593 segmentId=24395 laneIndex=0 speedKmh=0 expectedVersion=54
+2025-10-24 07:21:10.996 [Debug] [Synchronization] SpeedLimitApplied received | laneId=157375 segmentId=24395 laneIndex=1 speedKmh=0
+2025-10-24 07:21:10.996 [Debug] [Hook] TM:PE speed limit request | laneId=157370 speedKmh=0
+2025-10-24 07:21:10.997 [Info] [Synchronization] TM:PE speed limit applied via API | laneId=157370 speedKmh=0
+2025-10-24 07:21:10.997 [Info] [Synchronization] Applied speed limit | laneId=157370 segmentId=24395 laneIndex=1 speedKmh=0 expectedVersion=54
+2025-10-24 07:21:10.997 [Debug] [Synchronization] SpeedLimitApplied received | laneId=23039 segmentId=24395 laneIndex=2 speedKmh=0
+2025-10-24 07:21:10.998 [Debug] [Hook] TM:PE speed limit request | laneId=23038 speedKmh=0
+2025-10-24 07:21:10.998 [Info] [Synchronization] TM:PE speed limit applied via API | laneId=23038 speedKmh=0
+2025-10-24 07:21:10.998 [Info] [Synchronization] Applied speed limit | laneId=23038 segmentId=24395 laneIndex=2 speedKmh=0 expectedVersion=54
+2025-10-24 07:21:10.999 [Debug] [Synchronization] SpeedLimitApplied received | laneId=39104 segmentId=24395 laneIndex=3 speedKmh=0
+2025-10-24 07:21:10.999 [Debug] [Hook] TM:PE speed limit request | laneId=39103 speedKmh=0
+2025-10-24 07:21:11.000 [Info] [Synchronization] TM:PE speed limit applied via API | laneId=39103 speedKmh=0
+2025-10-24 07:21:11.000 [Info] [Synchronization] Applied speed limit | laneId=39103 segmentId=24395 laneIndex=3 speedKmh=0 expectedVersion=54
+2025-10-24 07:21:11.000 [Debug] [Synchronization] SpeedLimitApplied received | laneId=41546 segmentId=24395 laneIndex=4 speedKmh=0
+2025-10-24 07:21:11.001 [Debug] [Hook] TM:PE speed limit request | laneId=41545 speedKmh=0
+2025-10-24 07:21:11.001 [Info] [Synchronization] TM:PE speed limit applied via API | laneId=41545 speedKmh=0
+2025-10-24 07:21:11.001 [Info] [Synchronization] Applied speed limit | laneId=41545 segmentId=24395 laneIndex=4 speedKmh=0 expectedVersion=54
+2025-10-24 07:21:11.002 [Debug] [Synchronization] SpeedLimitApplied received | laneId=11678 segmentId=24395 laneIndex=5 speedKmh=0
+2025-10-24 07:21:11.002 [Debug] [Hook] TM:PE speed limit request | laneId=11678 speedKmh=0
+2025-10-24 07:21:11.003 [Info] [Synchronization] TM:PE speed limit applied via API | laneId=11678 speedKmh=0
+2025-10-24 07:21:11.003 [Info] [Synchronization] Applied speed limit | laneId=11678 segmentId=24395 laneIndex=5 speedKmh=0 expectedVersion=54
+2025-10-24 07:21:17.344 [Info] [General] Received JunctionRestrictionsApplied node=27870 state=UTurns=False, LaneChange=False, Blocked=True, Pedestrians=True, NearTurnOnRed=False, FarTurnOnRed=False
+2025-10-24 07:21:17.346 [Debug] [Hook] TM:PE junction restriction request | nodeId=27870 state=UTurns=False, LaneChange=False, Blocked=True, Pedestrians=True, NearTurnOnRed=False, FarTurnOnRed=False
+2025-10-24 07:21:17.346 [Warn] [Bridge] TM:PE junction restriction apply aborted | nodeId=27870 detail=tmpe_may_have_junction_restrictions=false
+2025-10-24 07:21:17.347 [Warn] [Bridge] TM:PE junction restriction apply via API failed | nodeId=27870 action=fallback_to_stub
+2025-10-24 07:21:17.347 [Error] [General] Failed to apply remote junction restrictions node=27870
+2025-10-24 07:21:17.348 [Info] [General] Received JunctionRestrictionsApplied node=6913 state=UTurns=False, LaneChange=False, Blocked=False, Pedestrians=False, NearTurnOnRed=False, FarTurnOnRed=False
+2025-10-24 07:21:17.348 [Debug] [Hook] TM:PE junction restriction request | nodeId=6913 state=UTurns=False, LaneChange=False, Blocked=False, Pedestrians=False, NearTurnOnRed=False, FarTurnOnRed=False
+2025-10-24 07:21:17.348 [Warn] [Bridge] TM:PE junction restriction rejected | segmentId=35241 startNode=False flag=AllowNearTurnOnRed value=False
+2025-10-24 07:21:17.349 [Warn] [Bridge] TM:PE junction restriction rejected | segmentId=35241 startNode=False flag=AllowFarTurnOnRed value=False
+2025-10-24 07:21:17.349 [Warn] [Bridge] TM:PE junction restriction rejected | segmentId=15173 startNode=True flag=AllowNearTurnOnRed value=False
+2025-10-24 07:21:17.349 [Warn] [Bridge] TM:PE junction restriction rejected | segmentId=15173 startNode=True flag=AllowFarTurnOnRed value=False
+2025-10-24 07:21:17.350 [Warn] [Bridge] TM:PE junction restriction rejected | segmentId=21177 startNode=True flag=AllowNearTurnOnRed value=False
+2025-10-24 07:21:17.350 [Warn] [Bridge] TM:PE junction restriction rejected | segmentId=21177 startNode=True flag=AllowFarTurnOnRed value=False
+2025-10-24 07:21:17.351 [Info] [General] Applied remote junction restrictions node=6913
+2025-10-24 07:21:17.351 [Info] [General] Received JunctionRestrictionsApplied node=6913 state=UTurns=False, LaneChange=False, Blocked=False, Pedestrians=False, NearTurnOnRed=False, FarTurnOnRed=False
+2025-10-24 07:21:17.351 [Debug] [Hook] TM:PE junction restriction request | nodeId=6913 state=UTurns=False, LaneChange=False, Blocked=False, Pedestrians=False, NearTurnOnRed=False, FarTurnOnRed=False
+2025-10-24 07:21:17.352 [Warn] [Bridge] TM:PE junction restriction rejected | segmentId=35241 startNode=False flag=AllowNearTurnOnRed value=False
+2025-10-24 07:21:17.352 [Warn] [Bridge] TM:PE junction restriction rejected | segmentId=35241 startNode=False flag=AllowFarTurnOnRed value=False
+2025-10-24 07:21:17.353 [Warn] [Bridge] TM:PE junction restriction rejected | segmentId=15173 startNode=True flag=AllowNearTurnOnRed value=False
+2025-10-24 07:21:17.353 [Warn] [Bridge] TM:PE junction restriction rejected | segmentId=15173 startNode=True flag=AllowFarTurnOnRed value=False
+2025-10-24 07:21:17.353 [Warn] [Bridge] TM:PE junction restriction rejected | segmentId=21177 startNode=True flag=AllowNearTurnOnRed value=False
+2025-10-24 07:21:17.354 [Warn] [Bridge] TM:PE junction restriction rejected | segmentId=21177 startNode=True flag=AllowFarTurnOnRed value=False
+2025-10-24 07:21:17.354 [Info] [General] Applied remote junction restrictions node=6913
+2025-10-24 07:21:17.944 [Info] [General] Received JunctionRestrictionsApplied node=27870 state=UTurns=False, LaneChange=False, Blocked=True, Pedestrians=True, NearTurnOnRed=False, FarTurnOnRed=False
+2025-10-24 07:21:17.945 [Debug] [Hook] TM:PE junction restriction request | nodeId=27870 state=UTurns=False, LaneChange=False, Blocked=True, Pedestrians=True, NearTurnOnRed=False, FarTurnOnRed=False
+2025-10-24 07:21:17.946 [Warn] [Bridge] TM:PE junction restriction apply aborted | nodeId=27870 detail=tmpe_may_have_junction_restrictions=false
+2025-10-24 07:21:17.946 [Warn] [Bridge] TM:PE junction restriction apply via API failed | nodeId=27870 action=fallback_to_stub
+2025-10-24 07:21:17.947 [Error] [General] Failed to apply remote junction restrictions node=27870
+2025-10-24 07:21:17.947 [Info] [General] Received JunctionRestrictionsApplied node=6913 state=UTurns=False, LaneChange=False, Blocked=False, Pedestrians=False, NearTurnOnRed=False, FarTurnOnRed=False
+2025-10-24 07:21:17.948 [Debug] [Hook] TM:PE junction restriction request | nodeId=6913 state=UTurns=False, LaneChange=False, Blocked=False, Pedestrians=False, NearTurnOnRed=False, FarTurnOnRed=False
+2025-10-24 07:21:17.948 [Warn] [Bridge] TM:PE junction restriction rejected | segmentId=35241 startNode=False flag=AllowNearTurnOnRed value=False
+2025-10-24 07:21:17.948 [Warn] [Bridge] TM:PE junction restriction rejected | segmentId=35241 startNode=False flag=AllowFarTurnOnRed value=False
+2025-10-24 07:21:17.949 [Warn] [Bridge] TM:PE junction restriction rejected | segmentId=15173 startNode=True flag=AllowNearTurnOnRed value=False
+2025-10-24 07:21:17.949 [Warn] [Bridge] TM:PE junction restriction rejected | segmentId=15173 startNode=True flag=AllowFarTurnOnRed value=False
+2025-10-24 07:21:17.950 [Warn] [Bridge] TM:PE junction restriction rejected | segmentId=21177 startNode=True flag=AllowNearTurnOnRed value=False
+2025-10-24 07:21:17.950 [Warn] [Bridge] TM:PE junction restriction rejected | segmentId=21177 startNode=True flag=AllowFarTurnOnRed value=False
+2025-10-24 07:21:17.951 [Info] [General] Applied remote junction restrictions node=6913
+2025-10-24 07:21:17.951 [Info] [General] Received JunctionRestrictionsApplied node=6913 state=UTurns=False, LaneChange=False, Blocked=False, Pedestrians=False, NearTurnOnRed=False, FarTurnOnRed=False
+2025-10-24 07:21:17.952 [Debug] [Hook] TM:PE junction restriction request | nodeId=6913 state=UTurns=False, LaneChange=False, Blocked=False, Pedestrians=False, NearTurnOnRed=False, FarTurnOnRed=False
+2025-10-24 07:21:17.952 [Warn] [Bridge] TM:PE junction restriction rejected | segmentId=35241 startNode=False flag=AllowNearTurnOnRed value=False
+2025-10-24 07:21:17.952 [Warn] [Bridge] TM:PE junction restriction rejected | segmentId=35241 startNode=False flag=AllowFarTurnOnRed value=False
+2025-10-24 07:21:17.953 [Warn] [Bridge] TM:PE junction restriction rejected | segmentId=15173 startNode=True flag=AllowNearTurnOnRed value=False
+2025-10-24 07:21:17.953 [Warn] [Bridge] TM:PE junction restriction rejected | segmentId=15173 startNode=True flag=AllowFarTurnOnRed value=False
+2025-10-24 07:21:17.954 [Warn] [Bridge] TM:PE junction restriction rejected | segmentId=21177 startNode=True flag=AllowNearTurnOnRed value=False
+2025-10-24 07:21:17.954 [Warn] [Bridge] TM:PE junction restriction rejected | segmentId=21177 startNode=True flag=AllowFarTurnOnRed value=False
+2025-10-24 07:21:17.954 [Info] [General] Applied remote junction restrictions node=6913
+2025-10-24 07:21:18.489 [Info] [General] Received JunctionRestrictionsApplied node=27870 state=UTurns=False, LaneChange=False, Blocked=True, Pedestrians=True, NearTurnOnRed=False, FarTurnOnRed=False
+2025-10-24 07:21:18.489 [Debug] [Hook] TM:PE junction restriction request | nodeId=27870 state=UTurns=False, LaneChange=False, Blocked=True, Pedestrians=True, NearTurnOnRed=False, FarTurnOnRed=False
+2025-10-24 07:21:18.490 [Warn] [Bridge] TM:PE junction restriction apply aborted | nodeId=27870 detail=tmpe_may_have_junction_restrictions=false
+2025-10-24 07:21:18.490 [Warn] [Bridge] TM:PE junction restriction apply via API failed | nodeId=27870 action=fallback_to_stub
+2025-10-24 07:21:18.490 [Error] [General] Failed to apply remote junction restrictions node=27870
+2025-10-24 07:21:18.491 [Info] [General] Received JunctionRestrictionsApplied node=6913 state=UTurns=False, LaneChange=False, Blocked=False, Pedestrians=False, NearTurnOnRed=False, FarTurnOnRed=False
+2025-10-24 07:21:18.491 [Debug] [Hook] TM:PE junction restriction request | nodeId=6913 state=UTurns=False, LaneChange=False, Blocked=False, Pedestrians=False, NearTurnOnRed=False, FarTurnOnRed=False
+2025-10-24 07:21:18.491 [Warn] [Bridge] TM:PE junction restriction rejected | segmentId=35241 startNode=False flag=AllowNearTurnOnRed value=False
+2025-10-24 07:21:18.492 [Warn] [Bridge] TM:PE junction restriction rejected | segmentId=35241 startNode=False flag=AllowFarTurnOnRed value=False
+2025-10-24 07:21:18.492 [Warn] [Bridge] TM:PE junction restriction rejected | segmentId=15173 startNode=True flag=AllowNearTurnOnRed value=False
+2025-10-24 07:21:18.493 [Warn] [Bridge] TM:PE junction restriction rejected | segmentId=15173 startNode=True flag=AllowFarTurnOnRed value=False
+2025-10-24 07:21:18.493 [Warn] [Bridge] TM:PE junction restriction rejected | segmentId=21177 startNode=True flag=AllowNearTurnOnRed value=False
+2025-10-24 07:21:18.493 [Warn] [Bridge] TM:PE junction restriction rejected | segmentId=21177 startNode=True flag=AllowFarTurnOnRed value=False
+2025-10-24 07:21:18.494 [Info] [General] Applied remote junction restrictions node=6913
+2025-10-24 07:21:18.494 [Info] [General] Received JunctionRestrictionsApplied node=6913 state=UTurns=False, LaneChange=False, Blocked=False, Pedestrians=False, NearTurnOnRed=False, FarTurnOnRed=False
+2025-10-24 07:21:18.494 [Debug] [Hook] TM:PE junction restriction request | nodeId=6913 state=UTurns=False, LaneChange=False, Blocked=False, Pedestrians=False, NearTurnOnRed=False, FarTurnOnRed=False
+2025-10-24 07:21:18.494 [Warn] [Bridge] TM:PE junction restriction rejected | segmentId=35241 startNode=False flag=AllowNearTurnOnRed value=False
+2025-10-24 07:21:18.494 [Warn] [Bridge] TM:PE junction restriction rejected | segmentId=35241 startNode=False flag=AllowFarTurnOnRed value=False
+2025-10-24 07:21:18.496 [Warn] [Bridge] TM:PE junction restriction rejected | segmentId=15173 startNode=True flag=AllowNearTurnOnRed value=False
+2025-10-24 07:21:18.496 [Warn] [Bridge] TM:PE junction restriction rejected | segmentId=15173 startNode=True flag=AllowFarTurnOnRed value=False
+2025-10-24 07:21:18.497 [Warn] [Bridge] TM:PE junction restriction rejected | segmentId=21177 startNode=True flag=AllowNearTurnOnRed value=False
+2025-10-24 07:21:18.497 [Warn] [Bridge] TM:PE junction restriction rejected | segmentId=21177 startNode=True flag=AllowFarTurnOnRed value=False
+2025-10-24 07:21:18.497 [Info] [General] Applied remote junction restrictions node=6913
+2025-10-24 07:21:19.033 [Info] [General] Received JunctionRestrictionsApplied node=27870 state=UTurns=False, LaneChange=False, Blocked=True, Pedestrians=True, NearTurnOnRed=False, FarTurnOnRed=False
+2025-10-24 07:21:19.033 [Debug] [Hook] TM:PE junction restriction request | nodeId=27870 state=UTurns=False, LaneChange=False, Blocked=True, Pedestrians=True, NearTurnOnRed=False, FarTurnOnRed=False
+2025-10-24 07:21:19.034 [Warn] [Bridge] TM:PE junction restriction apply aborted | nodeId=27870 detail=tmpe_may_have_junction_restrictions=false
+2025-10-24 07:21:19.034 [Warn] [Bridge] TM:PE junction restriction apply via API failed | nodeId=27870 action=fallback_to_stub
+2025-10-24 07:21:19.034 [Error] [General] Failed to apply remote junction restrictions node=27870
+2025-10-24 07:21:19.035 [Info] [General] Received JunctionRestrictionsApplied node=6913 state=UTurns=False, LaneChange=False, Blocked=False, Pedestrians=False, NearTurnOnRed=False, FarTurnOnRed=False
+2025-10-24 07:21:19.035 [Debug] [Hook] TM:PE junction restriction request | nodeId=6913 state=UTurns=False, LaneChange=False, Blocked=False, Pedestrians=False, NearTurnOnRed=False, FarTurnOnRed=False
+2025-10-24 07:21:19.036 [Warn] [Bridge] TM:PE junction restriction rejected | segmentId=35241 startNode=False flag=AllowNearTurnOnRed value=False
+2025-10-24 07:21:19.036 [Warn] [Bridge] TM:PE junction restriction rejected | segmentId=35241 startNode=False flag=AllowFarTurnOnRed value=False
+2025-10-24 07:21:19.036 [Warn] [Bridge] TM:PE junction restriction rejected | segmentId=15173 startNode=True flag=AllowNearTurnOnRed value=False
+2025-10-24 07:21:19.037 [Warn] [Bridge] TM:PE junction restriction rejected | segmentId=15173 startNode=True flag=AllowFarTurnOnRed value=False
+2025-10-24 07:21:19.037 [Warn] [Bridge] TM:PE junction restriction rejected | segmentId=21177 startNode=True flag=AllowNearTurnOnRed value=False
+2025-10-24 07:21:19.038 [Warn] [Bridge] TM:PE junction restriction rejected | segmentId=21177 startNode=True flag=AllowFarTurnOnRed value=False
+2025-10-24 07:21:19.038 [Info] [General] Applied remote junction restrictions node=6913
+2025-10-24 07:21:19.038 [Info] [General] Received JunctionRestrictionsApplied node=6913 state=UTurns=False, LaneChange=False, Blocked=False, Pedestrians=False, NearTurnOnRed=False, FarTurnOnRed=False
+2025-10-24 07:21:19.039 [Debug] [Hook] TM:PE junction restriction request | nodeId=6913 state=UTurns=False, LaneChange=False, Blocked=False, Pedestrians=False, NearTurnOnRed=False, FarTurnOnRed=False
+2025-10-24 07:21:19.039 [Warn] [Bridge] TM:PE junction restriction rejected | segmentId=35241 startNode=False flag=AllowNearTurnOnRed value=False
+2025-10-24 07:21:19.039 [Warn] [Bridge] TM:PE junction restriction rejected | segmentId=35241 startNode=False flag=AllowFarTurnOnRed value=False
+2025-10-24 07:21:19.040 [Warn] [Bridge] TM:PE junction restriction rejected | segmentId=15173 startNode=True flag=AllowNearTurnOnRed value=False
+2025-10-24 07:21:19.040 [Warn] [Bridge] TM:PE junction restriction rejected | segmentId=15173 startNode=True flag=AllowFarTurnOnRed value=False
+2025-10-24 07:21:19.040 [Warn] [Bridge] TM:PE junction restriction rejected | segmentId=21177 startNode=True flag=AllowNearTurnOnRed value=False
+2025-10-24 07:21:19.041 [Warn] [Bridge] TM:PE junction restriction rejected | segmentId=21177 startNode=True flag=AllowFarTurnOnRed value=False
+2025-10-24 07:21:19.041 [Info] [General] Applied remote junction restrictions node=6913
+2025-10-24 07:21:32.555 [Debug] [Hook] TM:PE parking restriction query | segmentId=35241 state=Forward=True, Backward=False
+2025-10-24 07:21:32.556 [Debug] [Network] Dispatch command | direction=all type=ParkingRestrictionApplied
+2025-10-24 07:21:32.557 [Debug] [Network] Dispatch complete | direction=all type=ParkingRestrictionApplied
+2025-10-24 07:21:32.885 [Debug] [Hook] TM:PE parking restriction query | segmentId=35241 state=Forward=False, Backward=False
+2025-10-24 07:21:32.885 [Debug] [Network] Dispatch command | direction=all type=ParkingRestrictionApplied
+2025-10-24 07:21:32.886 [Debug] [Network] Dispatch complete | direction=all type=ParkingRestrictionApplied
+2025-10-24 07:21:50.273 [Debug] [Hook] TM:PE parking restriction query | segmentId=24395 state=Forward=False, Backward=True
+2025-10-24 07:21:50.274 [Debug] [Network] Dispatch command | direction=all type=ParkingRestrictionApplied
+2025-10-24 07:21:50.274 [Debug] [Network] Dispatch complete | direction=all type=ParkingRestrictionApplied
+2025-10-24 07:21:50.622 [Debug] [Hook] TM:PE parking restriction query | segmentId=24395 state=Forward=False, Backward=False
+2025-10-24 07:21:50.622 [Debug] [Network] Dispatch command | direction=all type=ParkingRestrictionApplied
+2025-10-24 07:21:50.623 [Debug] [Network] Dispatch complete | direction=all type=ParkingRestrictionApplied
+2025-10-24 07:22:03.958 [Info] [General] Received ParkingRestrictionApplied segment=8995 state=Forward=False, Backward=True
+2025-10-24 07:22:03.959 [Debug] [Hook] TM:PE parking restriction request | segmentId=8995 state=Forward=False, Backward=True
+2025-10-24 07:22:03.961 [Info] [General] Applied remote parking restriction segment=8995
+2025-10-24 07:22:04.593 [Info] [General] Received ParkingRestrictionApplied segment=8995 state=Forward=False, Backward=False
+2025-10-24 07:22:04.593 [Debug] [Hook] TM:PE parking restriction request | segmentId=8995 state=Forward=False, Backward=False
+2025-10-24 07:22:04.594 [Info] [General] Applied remote parking restriction segment=8995
+2025-10-24 07:22:07.096 [Info] [General] Received ParkingRestrictionApplied segment=21177 state=Forward=False, Backward=True
+2025-10-24 07:22:07.096 [Debug] [Hook] TM:PE parking restriction request | segmentId=21177 state=Forward=False, Backward=True
+2025-10-24 07:22:07.097 [Info] [General] Applied remote parking restriction segment=21177
+2025-10-24 07:24:06.671 [Debug] [General] CSM multiplayer role query returned 'None', keeping cached role 'Server' during grace period.
+2025-10-24 07:24:08.646 [Info] [General] CSM multiplayer role changed: Server -> None (raw='None')
+2025-10-24 07:24:18.932 [Info] [Lifecycle] Mod disabled | begin_cleanup
+2025-10-24 07:24:18.933 [Info] [Diagnostics] Diagnostics snapshot | context=OnDisabled
+2025-10-24 07:24:18.933 [Info] [Diagnostics] Command.CurrentRole | value=None
+2025-10-24 07:24:18.934 [Info] [Diagnostics] Command.SendToAll delegate | value=CSM.Commands.CommandInternal.SendToAll
+2025-10-24 07:24:18.934 [Info] [Diagnostics] Command.SendToServer delegate | value=CSM.Commands.CommandInternal.SendToServer
+2025-10-24 07:24:18.935 [Info] [Diagnostics] Command.SendToClients delegate | value=CSM.Commands.CommandInternal.SendToClients
+2025-10-24 07:24:18.935 [Info] [Diagnostics] Command.SendToClient delegate | value=CSM.Commands.CommandInternal.SendToClientById
+2025-10-24 07:24:18.935 [Info] [Diagnostics] Command.RegisterConnection hook | value=CSM.Commands.CommandInternal.RegisterExternalConnection
+2025-10-24 07:24:18.936 [Info] [Diagnostics] Command.UnregisterConnection hook | value=CSM.Commands.CommandInternal.UnregisterExternalConnection
+2025-10-24 07:24:18.936 [Info] [Diagnostics] Registered connections | count=0 items=<empty>
+2025-10-24 07:24:18.936 [Debug] [Lifecycle] Mod disabled | awaiting_next_enable_cycle
