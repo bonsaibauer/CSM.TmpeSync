@@ -734,19 +734,7 @@ function Invoke-InstallMod {
     }
 
     Write-Host "[CSM.TmpeSync] Installing build to $targetDirectory" -ForegroundColor Cyan
-    if (Test-Path $targetDirectory) {
-        Remove-Item -Path $targetDirectory -Recurse -Force
-    }
-    New-Item -ItemType Directory -Path $targetDirectory -Force | Out-Null
-
-    foreach ($assembly in $assemblies) {
-        Copy-Item -LiteralPath $assembly.FullName -Destination $targetDirectory -Force
-    }
-
-    $pdbFiles = Get-ChildItem -LiteralPath $outputDir -Filter 'CSM.TmpeSync*.pdb' -ErrorAction SilentlyContinue
-    foreach ($pdb in $pdbFiles) {
-        Copy-Item -LiteralPath $pdb.FullName -Destination $targetDirectory -Force
-    }
+    Copy-DirectoryContents -Source $outputDir -Destination $targetDirectory
 
     Write-Host "[CSM.TmpeSync] Installation complete." -ForegroundColor Green
 }
