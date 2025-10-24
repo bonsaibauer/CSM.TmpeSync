@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 using CSM.API;
 using CSM.API.Commands;
 using CSM.API.Helpers;
@@ -29,7 +30,8 @@ namespace CSM.TmpeSync.Util
             if (connection == null)
                 return ConnectionRegistrationResult.Failure;
 
-            if (Command.RegisterConnection == null)
+            var register = GetRegisterConnectionHook();
+            if (register == null)
             {
                 LogMissingRegister();
                 return ConnectionRegistrationResult.Failure;
@@ -40,7 +42,7 @@ namespace CSM.TmpeSync.Util
                 if (IsConnectionPresent(connection))
                     return ConnectionRegistrationResult.AlreadyRegistered;
 
-                return Command.RegisterConnection(connection)
+                return register(connection)
                     ? ConnectionRegistrationResult.Registered
                     : ConnectionRegistrationResult.Failure;
             }
@@ -56,7 +58,8 @@ namespace CSM.TmpeSync.Util
             if (connection == null)
                 return false;
 
-            if (Command.UnregisterConnection == null)
+            var unregister = GetUnregisterConnectionHook();
+            if (unregister == null)
             {
                 LogMissingUnregister();
                 return false;
@@ -64,7 +67,7 @@ namespace CSM.TmpeSync.Util
 
             try
             {
-                return Command.UnregisterConnection(connection);
+                return unregister(connection);
             }
             catch (Exception ex)
             {
@@ -75,7 +78,7 @@ namespace CSM.TmpeSync.Util
 
         private static bool IsConnectionPresent(Connection connection)
         {
-            var getConnections = Command.GetRegisteredConnections;
+            var getConnections = GetRegisteredConnectionsHook();
             if (getConnections == null)
                 return false;
 
@@ -215,11 +218,12 @@ namespace CSM.TmpeSync.Util
                 return;
             }
 
-            if (Command.SendToClient != null)
+            var sendToClient = GetSendToClientDelegate();
+            if (sendToClient != null)
             {
                 try
                 {
-                    Command.SendToClient(clientId, command);
+                    sendToClient(clientId, command);
                     Log.Debug(LogCategory.Network, "Dispatch complete | direction=client type={0} clientId={1}", commandName, clientId);
                     return;
                 }
@@ -322,11 +326,12 @@ namespace CSM.TmpeSync.Util
                 Log.Info(LogCategory.Diagnostics, "Command.SendToAll delegate | value={0}", DescribeDelegate(Command.SendToAll));
                 Log.Info(LogCategory.Diagnostics, "Command.SendToServer delegate | value={0}", DescribeDelegate(Command.SendToServer));
                 Log.Info(LogCategory.Diagnostics, "Command.SendToClients delegate | value={0}", DescribeDelegate(Command.SendToClients));
-                Log.Info(LogCategory.Diagnostics, "Command.SendToClient delegate | value={0}", DescribeDelegate(Command.SendToClient));
-                Log.Info(LogCategory.Diagnostics, "Command.RegisterConnection hook | value={0}", DescribeDelegate(Command.RegisterConnection));
-                Log.Info(LogCategory.Diagnostics, "Command.UnregisterConnection hook | value={0}", DescribeDelegate(Command.UnregisterConnection));
+                Log.Info(LogCategory.Diagnostics, "Command.SendToClient delegate | value={0}", DescribeDelegate(GetSendToClientDelegate()));
+                Log.Info(LogCategory.Diagnostics, "Command.RegisterConnection hook | value={0}", DescribeDelegate(GetRegisterConnectionHook()));
+                Log.Info(LogCategory.Diagnostics, "Command.UnregisterConnection hook | value={0}", DescribeDelegate(GetUnregisterConnectionHook()));
 
-                var connections = Command.GetRegisteredConnections != null ? Command.GetRegisteredConnections() : null;
+                var getConnections = GetRegisteredConnectionsHook();
+                var connections = getConnections != null ? getConnections() : null;
                 if (connections != null)
                 {
                     var summary = connections
@@ -356,6 +361,52 @@ namespace CSM.TmpeSync.Util
             var method = del.Method;
             var typeName = method.DeclaringType != null ? method.DeclaringType.FullName : "<unknown>";
             return typeName + "." + method.Name;
+        }
+
+        private static Func<Connection, bool> GetRegisterConnectionHook()
+        {
+            return GetCommandDelegate("RegisterConnection") as Func<Connection, bool>;
+        }
+
+        private static Func<Connection, bool> GetUnregisterConnectionHook()
+        {
+            return GetCommandDelegate("UnregisterConnection") as Func<Connection, bool>;
+        }
+
+        private static Func<Connection[]> GetRegisteredConnectionsHook()
+        {
+            return GetCommandDelegate("GetRegisteredConnections") as Func<Connection[]>;
+        }
+
+        private static Action<int, CommandBase> GetSendToClientDelegate()
+        {
+            return GetCommandDelegate("SendToClient") as Action<int, CommandBase>;
+        }
+
+        private static Delegate GetCommandDelegate(string memberName)
+        {
+            const BindingFlags flags = BindingFlags.Public | BindingFlags.Static;
+
+            try
+            {
+                var field = typeof(Command).GetField(memberName, flags);
+                if (field != null)
+                {
+                    return field.GetValue(null) as Delegate;
+                }
+
+                var property = typeof(Command).GetProperty(memberName, flags);
+                if (property != null)
+                {
+                    return property.GetValue(null, null) as Delegate;
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Warn(LogCategory.Diagnostics, "Failed to inspect CSM command delegate | member={0} error={1}", memberName, ex);
+            }
+
+            return null;
         }
 
         private sealed class IgnoreScope : IDisposable
