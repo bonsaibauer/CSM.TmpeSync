@@ -96,9 +96,76 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- .NET 3.5 framework (explicit to control ProcessorArchitecture metadata) -->
+    <Reference Include="mscorlib">
+      <HintPath>$(PkgMicrosoft_NETFramework_ReferenceAssemblies_net35)build\.NETFramework\v3.5\mscorlib.dll</HintPath>
+      <Private>false</Private>
+      <ProcessorArchitecture>MSIL</ProcessorArchitecture>
+    </Reference>
+    <Reference Include="System">
+      <HintPath>$(PkgMicrosoft_NETFramework_ReferenceAssemblies_net35)build\.NETFramework\v3.5\System.dll</HintPath>
+      <Private>false</Private>
+      <ProcessorArchitecture>MSIL</ProcessorArchitecture>
+    </Reference>
+    <Reference Include="System.Configuration">
+      <HintPath>$(PkgMicrosoft_NETFramework_ReferenceAssemblies_net35)build\.NETFramework\v3.5\System.Configuration.dll</HintPath>
+      <Private>false</Private>
+      <ProcessorArchitecture>MSIL</ProcessorArchitecture>
+    </Reference>
+    <Reference Include="System.Core">
+      <HintPath>$(PkgMicrosoft_NETFramework_ReferenceAssemblies_net35)build\.NETFramework\v3.5\System.Core.dll</HintPath>
+      <Private>false</Private>
+      <ProcessorArchitecture>MSIL</ProcessorArchitecture>
+    </Reference>
+    <Reference Include="System.Data">
+      <HintPath>$(PkgMicrosoft_NETFramework_ReferenceAssemblies_net35)build\.NETFramework\v3.5\System.Data.dll</HintPath>
+      <Private>false</Private>
+      <ProcessorArchitecture>MSIL</ProcessorArchitecture>
+    </Reference>
+    <Reference Include="System.Drawing">
+      <HintPath>$(PkgMicrosoft_NETFramework_ReferenceAssemblies_net35)build\.NETFramework\v3.5\System.Drawing.dll</HintPath>
+      <Private>false</Private>
+      <ProcessorArchitecture>MSIL</ProcessorArchitecture>
+    </Reference>
+    <Reference Include="System.Runtime.Serialization">
+      <HintPath>$(PkgMicrosoft_NETFramework_ReferenceAssemblies_net35)build\.NETFramework\v3.5\System.Runtime.Serialization.dll</HintPath>
+      <Private>false</Private>
+      <ProcessorArchitecture>MSIL</ProcessorArchitecture>
+    </Reference>
+    <Reference Include="System.ServiceModel">
+      <HintPath>$(PkgMicrosoft_NETFramework_ReferenceAssemblies_net35)build\.NETFramework\v3.5\System.ServiceModel.dll</HintPath>
+      <Private>false</Private>
+      <ProcessorArchitecture>MSIL</ProcessorArchitecture>
+    </Reference>
+    <Reference Include="System.Xml">
+      <HintPath>$(PkgMicrosoft_NETFramework_ReferenceAssemblies_net35)build\.NETFramework\v3.5\System.Xml.dll</HintPath>
+      <Private>false</Private>
+      <ProcessorArchitecture>MSIL</ProcessorArchitecture>
+    </Reference>
+    <Reference Include="System.Xml.Linq">
+      <HintPath>$(PkgMicrosoft_NETFramework_ReferenceAssemblies_net35)build\.NETFramework\v3.5\System.Xml.Linq.dll</HintPath>
+      <Private>false</Private>
+      <ProcessorArchitecture>MSIL</ProcessorArchitecture>
+    </Reference>
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="protobuf-net" Version="2.4.6" />
     <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies.net35" Version="1.0.3" PrivateAssets="all" />
   </ItemGroup>
+
+  <PropertyGroup>
+    <!--
+      We explicitly opt out of the SDK's implicit framework references so that we can control the
+      ProcessorArchitecture metadata MSBuild sees. The Microsoft.NETFramework.ReferenceAssemblies
+      package ships CLR 2.0 assemblies that are stamped as x86 even though they contain IL that runs on
+      any architecture, which triggers MSB3270 when the project itself targets AnyCPU. By describing the
+      same references manually and marking them as MSIL we keep ResolveAssemblyReference happy while
+      still compiling against the official .NET 3.5 API surface.
+      See docs/build/msb3270.md for the detailed rationale.
+    -->
+    <DisableImplicitFrameworkReferences>true</DisableImplicitFrameworkReferences>
+  </PropertyGroup>
 
   <!-- ==== Files (EnableDefaultCompileItems=false) ==== -->
   <ItemGroup>
