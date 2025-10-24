@@ -2249,7 +2249,10 @@ namespace CSM.TmpeSync.Tmpe
                 {
                     Log.Debug(LogCategory.Hook, "TM:PE lane connection request | sourceLaneId={0} targets=[{1}]", sourceLaneId, JoinLaneIds(sanitizedTargets));
                     if (TryApplyLaneConnectionsReal(sourceLaneId, sanitizedTargets))
+                    {
+                        HandleLaneConnectionSideEffects(sourceLaneId, sanitizedTargets);
                         return true;
+                    }
 
                     Log.Warn(LogCategory.Bridge, "TM:PE lane connection apply via API failed | sourceLaneId={0} action=fallback_to_stub", sourceLaneId);
                 }
@@ -2273,6 +2276,64 @@ namespace CSM.TmpeSync.Tmpe
                 Log.Error(LogCategory.Synchronization, "TM:PE ApplyLaneConnections failed | error={0}", ex);
                 return false;
             }
+        }
+
+        private static void HandleLaneConnectionSideEffects(uint sourceLaneId, uint[] targetLaneIds)
+        {
+            if (!SupportsJunctionRestrictions)
+                return;
+
+            var affectedNodes = new HashSet<ushort>();
+
+            if (TryGetLaneSegment(sourceLaneId, out var sourceSegmentId))
+            {
+                ref var segment = ref NetManager.instance.m_segments.m_buffer[sourceSegmentId];
+                if (segment.m_startNode != 0)
+                    affectedNodes.Add(segment.m_startNode);
+                if (segment.m_endNode != 0)
+                    affectedNodes.Add(segment.m_endNode);
+            }
+
+            if (targetLaneIds != null)
+            {
+                foreach (var targetLaneId in targetLaneIds)
+                {
+                    if (TryResolveLaneConnection(sourceLaneId, targetLaneId, out var nodeId, out _))
+                        affectedNodes.Add(nodeId);
+                }
+            }
+
+            foreach (var nodeId in affectedNodes)
+                RetryPendingJunctionRestrictions(nodeId);
+        }
+
+        private static void RetryPendingJunctionRestrictions(ushort nodeId)
+        {
+            JunctionRestrictionsState pending;
+
+            lock (StateLock)
+            {
+                if (!JunctionRestrictions.TryGetValue(nodeId, out var stored) || stored == null || !stored.HasAnyValue())
+                    return;
+
+                pending = stored.Clone();
+            }
+
+            SimulationManager.instance.AddAction(() =>
+            {
+                try
+                {
+                    if (!NetUtil.NodeExists(nodeId))
+                        return;
+
+                    Log.Debug(LogCategory.Synchronization, "Retrying junction restrictions after lane connection update | nodeId={0}", nodeId);
+                    ApplyJunctionRestrictions(nodeId, pending);
+                }
+                catch (Exception ex)
+                {
+                    Log.Warn(LogCategory.Synchronization, "Junction restriction retry failed | nodeId={0} error={1}", nodeId, ex);
+                }
+            });
         }
 
         internal static bool TryGetLaneConnections(uint sourceLaneId, out uint[] targetLaneIds)
@@ -2332,8 +2393,7 @@ namespace CSM.TmpeSync.Tmpe
             try
             {
                 var desired = state?.Clone() ?? new JunctionRestrictionsState();
-
-                var success = true;
+                var storeDesiredInStub = false;
 
                 if (SupportsJunctionRestrictions)
                 {
@@ -2341,27 +2401,29 @@ namespace CSM.TmpeSync.Tmpe
 
                     var outcome = TryApplyJunctionRestrictionsReal(nodeId, desired, out var appliedFlags, out var rejectedFlags);
 
-                    if (outcome != JunctionRestrictionApplyOutcome.Fatal)
-                    {
-                        UpdateJunctionRestrictionStub(nodeId, rejectedFlags, appliedFlags);
-
-                        if (outcome != JunctionRestrictionApplyOutcome.None)
-                            return true;
-                    }
-                    else
+                    if (outcome == JunctionRestrictionApplyOutcome.Fatal)
                     {
                         Log.Warn(LogCategory.Bridge, "TM:PE junction restriction apply via API failed | nodeId={0} action=fallback_to_stub", nodeId);
-                        success = false;
+                        return false;
                     }
+
+                    UpdateJunctionRestrictionStub(nodeId, rejectedFlags, appliedFlags);
+
+                    if (outcome != JunctionRestrictionApplyOutcome.None)
+                        return true;
+
+                    storeDesiredInStub = true;
                 }
                 else
                 {
                     Log.Info(LogCategory.Synchronization, "TM:PE junction restrictions stored in stub | nodeId={0} state={1}", nodeId, desired);
+                    storeDesiredInStub = true;
                 }
 
-                UpdateJunctionRestrictionStub(nodeId, desired, null);
+                if (storeDesiredInStub)
+                    UpdateJunctionRestrictionStub(nodeId, desired, null);
 
-                return success;
+                return true;
             }
             catch (Exception ex)
             {
@@ -3277,13 +3339,15 @@ namespace CSM.TmpeSync.Tmpe
             return true;
         }
 
-        private static bool NodeSupportsJunctionRestrictions(ushort nodeId, out string detail)
+        private static bool NodeSupportsJunctionRestrictions(ushort nodeId, out string detail, out bool shouldRetry)
         {
             detail = null;
+            shouldRetry = false;
 
             if (!NetUtil.NodeExists(nodeId))
             {
                 detail = "node_missing";
+                shouldRetry = true;
                 return false;
             }
 
@@ -3291,18 +3355,20 @@ namespace CSM.TmpeSync.Tmpe
             if ((node.m_flags & NetNode.Flags.Created) == NetNode.Flags.None)
             {
                 detail = "node_not_created";
+                shouldRetry = true;
                 return false;
             }
+
+            var tmpeDeniedSupport = false;
 
             if (MayHaveJunctionRestrictionsMethod != null && JunctionRestrictionsManagerInstance != null)
             {
                 try
                 {
                     var result = MayHaveJunctionRestrictionsMethod.Invoke(JunctionRestrictionsManagerInstance, new object[] { nodeId });
-                    if (result is bool allowed && !allowed)
+                    if (result is bool allowed)
                     {
-                        detail = "tmpe_may_have_junction_restrictions=false";
-                        return false;
+                        tmpeDeniedSupport = !allowed;
                     }
                 }
                 catch (Exception ex)
@@ -3311,19 +3377,41 @@ namespace CSM.TmpeSync.Tmpe
                 }
             }
 
-            if ((node.m_flags & (NetNode.Flags.Junction | NetNode.Flags.Bend)) == NetNode.Flags.None)
+            var eligibleFlags = NetNode.Flags.Junction | NetNode.Flags.Bend | NetNode.Flags.Transition;
+            var usedFallback = false;
+
+            if ((node.m_flags & eligibleFlags) == NetNode.Flags.None)
             {
-                detail = "node_not_junction_or_bend";
-                return false;
+                if (!tmpeDeniedSupport)
+                {
+                    detail = "node_not_junction_transition_or_bend";
+                    return false;
+                }
+
+                usedFallback = true;
             }
 
             for (int i = 0; i < 8; i++)
             {
                 if (node.GetSegment(i) != 0)
+                {
+                    if (tmpeDeniedSupport)
+                        Log.Debug(LogCategory.Diagnostics, "TM:PE MayHaveJunctionRestrictions returned false, using fallback heuristics | nodeId={0}", nodeId);
+
                     return true;
+                }
             }
 
-            detail = "node_has_no_segments";
+            if (tmpeDeniedSupport || usedFallback)
+            {
+                detail = "tmpe_may_have_junction_restrictions=false";
+                shouldRetry = true;
+            }
+            else
+            {
+                detail = "node_has_no_segments";
+            }
+
             return false;
         }
 
@@ -3376,9 +3464,10 @@ namespace CSM.TmpeSync.Tmpe
                 return false;
             }
 
-            if ((node.m_flags & NetNode.Flags.Junction) == NetNode.Flags.None)
+            var laneArrowEligibleFlags = NetNode.Flags.Junction | NetNode.Flags.Transition | NetNode.Flags.Bend;
+            if ((node.m_flags & laneArrowEligibleFlags) == NetNode.Flags.None)
             {
-                detail = "node_not_junction";
+                detail = "node_not_junction_transition_or_bend";
                 return false;
             }
 
@@ -3852,11 +3941,11 @@ namespace CSM.TmpeSync.Tmpe
                 return JunctionRestrictionApplyOutcome.Fatal;
             }
 
-            if (!NodeSupportsJunctionRestrictions(nodeId, out var rejectionDetail))
+            if (!NodeSupportsJunctionRestrictions(nodeId, out var rejectionDetail, out var retryableFatal))
             {
                 var detailText = string.IsNullOrEmpty(rejectionDetail) ? "<unspecified>" : rejectionDetail;
                 Log.Warn(LogCategory.Bridge, "TM:PE junction restriction apply aborted | nodeId={0} detail={1}", nodeId, detailText);
-                return JunctionRestrictionApplyOutcome.Fatal;
+                return retryableFatal ? JunctionRestrictionApplyOutcome.None : JunctionRestrictionApplyOutcome.Fatal;
             }
 
             ref var node = ref NetManager.instance.m_nodes.m_buffer[(int)nodeId];
