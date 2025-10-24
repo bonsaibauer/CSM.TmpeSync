@@ -308,6 +308,8 @@ function Prompt-ForProfileSelection {
         if ($choice -ge 1 -and $choice -le $AvailableProfiles.Count) {
             return $AvailableProfiles[$choice - 1]
         }
+
+        return $AvailableProfiles[0]
     }
 
     return $AvailableProfiles[$currentIndex]
