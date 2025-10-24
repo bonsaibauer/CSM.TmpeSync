@@ -311,6 +311,7 @@ function Prompt-ForProfileSelection {
             return $AvailableProfiles[$choice - 1]
         }
     }
+}
 
     return $AvailableProfiles[$currentIndex]
 }
@@ -343,6 +344,16 @@ function Prompt-ForInput {
     if (-not $Host.UI -or -not $Host.UI.RawUI) {
         return if ([string]::IsNullOrWhiteSpace($DefaultValue)) { "" } else { $DefaultValue }
     }
+}
+
+function Update-Dependencies {
+    param([hashtable]$Profile)
+
+    $gameDir = [string]$Profile.GameDirectory
+    Ensure-DirectoryExists -Path $gameDir -Description "Cities: Skylines game directory"
+
+    $managedSource = Join-Path (Join-Path $gameDir 'Cities_Data') 'Managed'
+    Ensure-DirectoryExists -Path $managedSource -Description "Cities: Skylines managed assemblies"
 
     $prompt = if ([string]::IsNullOrWhiteSpace($DefaultValue)) { $Message } else { "$Message [`$DefaultValue`]" }
     $response = Read-Host $prompt
