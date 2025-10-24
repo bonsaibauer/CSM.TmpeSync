@@ -51,12 +51,16 @@ namespace CSM.TmpeSync.Net.Handlers
                         var resultingState = state?.Clone();
                         if (TmpeAdapter.TryGetJunctionRestrictions(cmd.NodeId, out var appliedState) && appliedState != null)
                             resultingState = appliedState.Clone();
-                        TransmissionDiagnostics.LogOutgoingJunctionRestrictions(
+                        resultingState = TransmissionDiagnostics.LogOutgoingJunctionRestrictions(
                             cmd.NodeId,
                             resultingState,
                             "request_handler");
                         Log.Info("Applied junction restrictions node={0}; broadcasting update.", cmd.NodeId);
-                        CsmCompat.SendToAll(new JunctionRestrictionsApplied { NodeId = cmd.NodeId, State = resultingState });
+                        CsmCompat.SendToAll(new JunctionRestrictionsApplied
+                        {
+                            NodeId = cmd.NodeId,
+                            State = resultingState?.Clone() ?? new JunctionRestrictionsState()
+                        });
                     }
                     else
                     {
