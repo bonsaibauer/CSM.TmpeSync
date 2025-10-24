@@ -896,11 +896,6 @@ namespace CSM.TmpeSync.Util
             }
         }
 
-        internal static bool TryGetLaneConnections(uint sourceLaneId, out uint[] targetLaneIds)
-        {
-            return TryGetLaneConnectionSnapshot(sourceLaneId, out targetLaneIds);
-        }
-
         internal static void UpsertParkingRestriction(ushort segmentId, ParkingRestrictionState state)
         {
             if (segmentId == 0)
