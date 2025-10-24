@@ -26,11 +26,11 @@ $script:ProjectPath = Join-Path $script:RepoRoot "src/CSM.TmpeSync/CSM.TmpeSync.
 $script:LibRoot = Join-Path $script:RepoRoot "lib"
 $script:ConfigPath = Join-Path $PSScriptRoot "build-settings.json"
 $script:SettingsChanged = $false
-$script:IsWindows = [System.Runtime.InteropServices.RuntimeInformation]::IsOSPlatform([System.Runtime.InteropServices.OSPlatform]::Windows)
+$script:IsWindowsPlatform = [System.Runtime.InteropServices.RuntimeInformation]::IsOSPlatform([System.Runtime.InteropServices.OSPlatform]::Windows)
 $script:MsBuildPath = $null
 
 function Resolve-MsBuildPath {
-    if (-not $script:IsWindows) {
+    if (-not $script:IsWindowsPlatform) {
         return $null
     }
 
@@ -69,7 +69,7 @@ function Resolve-MsBuildPath {
 }
 
 function Resolve-Net35ReferenceInfo {
-    if (-not $script:IsWindows) {
+    if (-not $script:IsWindowsPlatform) {
         return $null
     }
 
@@ -453,6 +453,24 @@ function Configure-Profile {
     Set-ProfileValue -Profile $profile -Key 'CsmApiDllPath' -Value $csmApiPath
     Set-ProfileValue -Profile $profile -Key 'CsmLibDir' -Value $csmLibDir
 
+    Set-ProfileValue -Profile $profile -Key 'GameDirectory' -Value $gameDir
+    Set-ProfileValue -Profile $profile -Key 'CitiesSkylinesDir' -Value $gameDir
+    Set-ProfileValue -Profile $profile -Key 'ModRootDirectory' -Value $modRoot
+    Set-ProfileValue -Profile $profile -Key 'ModDirectory' -Value $modDirectory
+    Set-ProfileValue -Profile $profile -Key 'SteamModsDir' -Value $defaults.SteamModsDir
+    Set-ProfileValue -Profile $profile -Key 'HarmonySourceDir' -Value $defaults.HarmonySourceDir
+    Set-ProfileValue -Profile $profile -Key 'CsmSourceDir' -Value $defaults.CsmSourceDir
+    Set-ProfileValue -Profile $profile -Key 'TmpeSourceDir' -Value $defaults.TmpeSourceDir
+
+    $harmonyLibDir = Join-Path $script:LibRoot 'Harmony'
+    $csmLibDir = Join-Path $script:LibRoot 'CSM'
+    $tmpeLibDir = Join-Path $script:LibRoot 'TMPE'
+    Set-ProfileValue -Profile $profile -Key 'HarmonyDllDir' -Value $harmonyLibDir
+    Set-ProfileValue -Profile $profile -Key 'TmpeDir' -Value $tmpeLibDir
+    $csmApiPath = Join-Path $csmLibDir 'CSM.API.dll'
+    Set-ProfileValue -Profile $profile -Key 'CsmApiDllPath' -Value $csmApiPath
+    Set-ProfileValue -Profile $profile -Key 'CsmLibDir' -Value $csmLibDir
+
     $available = Get-AvailableProfiles
     if ($available -notcontains $ProfileName) {
         throw "Unsupported profile: $ProfileName"
@@ -667,7 +685,7 @@ function Invoke-BuildProject {
 
     $buildSucceeded = $false
 
-    if ($script:IsWindows) {
+    if ($script:IsWindowsPlatform) {
         try {
             $msbuildPath = Resolve-MsBuildPath
             $msbuildInvocation = @(
