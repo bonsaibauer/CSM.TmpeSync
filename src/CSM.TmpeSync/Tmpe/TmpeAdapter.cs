@@ -59,6 +59,11 @@ namespace CSM.TmpeSync.Tmpe
         private static readonly object StateLock = new object();
         private static readonly Dictionary<string, Type> TypeCache = new Dictionary<string, Type>(StringComparer.Ordinal);
         private static readonly HashSet<string> BridgeGapWarnings = new HashSet<string>(StringComparer.Ordinal);
+        private static Assembly TrafficManagerAssembly;
+        private static object TimedLightsOptionInstance;
+        private static PropertyInfo TimedLightsOptionValueProperty;
+        private static bool TimedLightsOptionResolved;
+        private static bool StubTimedLightsEnabled = true;
 
         private static Assembly FindTrafficManagerAssembly()
         {
@@ -89,6 +94,13 @@ namespace CSM.TmpeSync.Tmpe
 
             RecordFeatureGapDetail(feature, missingPart, detail);
             Log.Warn(LogCategory.Bridge, "TM:PE {0} bridge incomplete | part={1} detail={2}", feature, missingPart, string.IsNullOrEmpty(detail) ? "<unspecified>" : detail);
+        }
+
+        private static void ResetTimedTrafficLightOptionCache()
+        {
+            TimedLightsOptionResolved = false;
+            TimedLightsOptionInstance = null;
+            TimedLightsOptionValueProperty = null;
         }
 
         private static object TryGetStaticInstance(Type type, string featureName, string detailOverride = null)
@@ -465,6 +477,124 @@ namespace CSM.TmpeSync.Tmpe
             return type;
         }
 
+        private static bool EnsureTimedLightsOption()
+        {
+            if (TimedLightsOptionResolved)
+                return TimedLightsOptionInstance != null && TimedLightsOptionValueProperty != null;
+
+            TimedLightsOptionResolved = true;
+            TimedLightsOptionInstance = null;
+            TimedLightsOptionValueProperty = null;
+
+            try
+            {
+                var maintenanceType = ResolveType("TrafficManager.State.MaintenanceTab_FeaturesGroup", TrafficManagerAssembly);
+                if (maintenanceType == null)
+                {
+                    LogBridgeGap("Timed Traffic Lights", "type", "TrafficManager.State.MaintenanceTab_FeaturesGroup");
+                    return false;
+                }
+
+                var optionField = maintenanceType.GetField("TimedLightsEnabled", BindingFlags.Public | BindingFlags.Static);
+                if (optionField == null)
+                {
+                    LogBridgeGap("Timed Traffic Lights", "field", maintenanceType.FullName + ".TimedLightsEnabled");
+                    return false;
+                }
+
+                TimedLightsOptionInstance = optionField.GetValue(null);
+                if (TimedLightsOptionInstance == null)
+                {
+                    LogBridgeGap("Timed Traffic Lights", "fieldValue", maintenanceType.FullName + ".TimedLightsEnabled");
+                    return false;
+                }
+
+                TimedLightsOptionValueProperty = TimedLightsOptionInstance
+                    .GetType()
+                    .GetProperty("Value", BindingFlags.Public | BindingFlags.Instance);
+
+                if (TimedLightsOptionValueProperty == null)
+                {
+                    LogBridgeGap("Timed Traffic Lights", "property", TimedLightsOptionInstance.GetType().FullName + ".Value");
+                    TimedLightsOptionInstance = null;
+                    return false;
+                }
+
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Log.Warn(LogCategory.Menu, "TM:PE timed traffic lights option resolution failed | error={0}", ex);
+                TimedLightsOptionInstance = null;
+                TimedLightsOptionValueProperty = null;
+                return false;
+            }
+        }
+
+        internal static bool TryGetTimedTrafficLightsFeatureEnabled(out bool enabled)
+        {
+            if (!HasRealTmpe)
+            {
+                enabled = StubTimedLightsEnabled;
+                return false;
+            }
+
+            try
+            {
+                if (!EnsureTimedLightsOption())
+                {
+                    enabled = StubTimedLightsEnabled;
+                    return false;
+                }
+
+                var value = TimedLightsOptionValueProperty.GetValue(TimedLightsOptionInstance, null);
+                enabled = value is bool flag && flag;
+                StubTimedLightsEnabled = enabled;
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Log.Warn(LogCategory.Menu, "Failed to query TM:PE timed traffic lights option | error={0}", ex);
+                enabled = StubTimedLightsEnabled;
+                return false;
+            }
+        }
+
+        internal static bool TrySetTimedTrafficLightsFeatureEnabled(bool enabled)
+        {
+            if (!HasRealTmpe)
+            {
+                StubTimedLightsEnabled = enabled;
+                return false;
+            }
+
+            try
+            {
+                if (!EnsureTimedLightsOption())
+                {
+                    StubTimedLightsEnabled = enabled;
+                    return false;
+                }
+
+                var currentValue = TimedLightsOptionValueProperty.GetValue(TimedLightsOptionInstance, null);
+                var current = currentValue is bool flag && flag;
+                if (current != enabled)
+                {
+                    Log.Info(LogCategory.Menu, "Setting TM:PE timed traffic lights option | enabled={0}", enabled);
+                    TimedLightsOptionValueProperty.SetValue(TimedLightsOptionInstance, enabled, null);
+                }
+
+                StubTimedLightsEnabled = enabled;
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Log.Warn(LogCategory.Menu, "Failed to set TM:PE timed traffic lights option | enabled={0} error={1}", enabled, ex);
+                StubTimedLightsEnabled = enabled;
+                return false;
+            }
+        }
+
         private static readonly Dictionary<uint, float> SpeedLimits = new Dictionary<uint, float>();
         private static readonly Dictionary<uint, LaneArrowFlags> LaneArrows = new Dictionary<uint, LaneArrowFlags>();
         private static readonly Dictionary<uint, VehicleRestrictionFlags> VehicleRestrictions = new Dictionary<uint, VehicleRestrictionFlags>();
@@ -553,6 +683,12 @@ namespace CSM.TmpeSync.Tmpe
             lock (InitLock)
             {
                 var tmpeAssembly = FindTrafficManagerAssembly();
+
+                if (!ReferenceEquals(TrafficManagerAssembly, tmpeAssembly))
+                {
+                    TrafficManagerAssembly = tmpeAssembly;
+                    ResetTimedTrafficLightOptionCache();
+                }
 
                 if (!force && _initializationAttempted)
                 {
