@@ -51,7 +51,6 @@ namespace CSM.TmpeSync.Mod
                     SnapshotDispatcher.Initialize();
                     LaneMappingTracker.Initialize();
                     TmpeFeatureReadyNotifier.Initialize();
-                    TimedTrafficLightFeatureController.Initialize();
                     SnapshotDispatcher.TryExportIfServer("mod_enabled");
                     break;
                 case CsmCompat.ConnectionRegistrationResult.AlreadyRegistered:
@@ -96,7 +95,6 @@ namespace CSM.TmpeSync.Mod
             Log.Info(LogCategory.Lifecycle, "Mod disabled | begin_cleanup");
             MultiplayerStateObserver.RoleChanged -= Log.HandleRoleChanged;
             Log.EndServerSessionLog();
-            TimedTrafficLightFeatureController.Shutdown();
             TmpeFeatureReadyNotifier.Shutdown();
             LaneMappingTracker.Shutdown();
             SnapshotDispatcher.Shutdown();
