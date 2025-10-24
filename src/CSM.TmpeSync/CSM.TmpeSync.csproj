@@ -270,6 +270,7 @@
     <Compile Include="Util\LockRegistry.cs" />
     <Compile Include="Util\LaneGuidRegistry.cs" />
     <Compile Include="Util\PendingMap.cs" />
+    <Compile Include="Util\PendingMap.Bridge.cs" />
     <Compile Include="Util\MultiplayerStateObserver.cs" />
 
     <Compile Include="Tmpe\TmpeAdapter.cs" />

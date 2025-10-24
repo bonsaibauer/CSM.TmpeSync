@@ -145,6 +145,7 @@ namespace CSM.TmpeSync.Tmpe
             if (info?.m_lanes == null)
                 return;
 
+            var mappingVersion = LaneMappingStore.Version;
             uint laneId = segment.m_lanes;
             for (int laneIndex = 0; laneId != 0 && laneIndex < info.m_lanes.Length; laneIndex++)
             {
