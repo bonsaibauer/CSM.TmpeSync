@@ -141,7 +141,7 @@ function Format-MsBuildProperty {
     }
 
     $escaped = $Value.Replace('"', '\"')
-    return "/p:{0}=\"{1}\"" -f $Name, $escaped
+    return [string]::Format('/p:{0}="{1}"', $Name, $escaped)
 }
 
 function Format-DotnetProperty {
@@ -155,7 +155,7 @@ function Format-DotnetProperty {
     }
 
     $escaped = $Value.Replace('"', '\"')
-    return "-p:{0}=\"{1}\"" -f $Name, $escaped
+    return [string]::Format('-p:{0}="{1}"', $Name, $escaped)
 }
 
 function Ensure-Hashtable {
@@ -311,7 +311,6 @@ function Prompt-ForProfileSelection {
             return $AvailableProfiles[$choice - 1]
         }
     }
-}
 
     return $AvailableProfiles[$currentIndex]
 }
@@ -344,16 +343,6 @@ function Prompt-ForInput {
     if (-not $Host.UI -or -not $Host.UI.RawUI) {
         return if ([string]::IsNullOrWhiteSpace($DefaultValue)) { "" } else { $DefaultValue }
     }
-}
-
-function Update-Dependencies {
-    param([hashtable]$Profile)
-
-    $gameDir = [string]$Profile.GameDirectory
-    Ensure-DirectoryExists -Path $gameDir -Description "Cities: Skylines game directory"
-
-    $managedSource = Join-Path (Join-Path $gameDir 'Cities_Data') 'Managed'
-    Ensure-DirectoryExists -Path $managedSource -Description "Cities: Skylines managed assemblies"
 
     $prompt = if ([string]::IsNullOrWhiteSpace($DefaultValue)) { $Message } else { "$Message [`$DefaultValue`]" }
     $response = Read-Host $prompt
@@ -444,6 +433,7 @@ function Configure-Profile {
             throw "Subscribe to Harmony, TM:PE, and CSM on the Steam Workshop before continuing."
         }
     }
+    New-Item -ItemType Directory -Path $targetDirectory -Force | Out-Null
 
     Set-ProfileValue -Profile $profile -Key 'GameDirectory' -Value $gameDir
     Set-ProfileValue -Profile $profile -Key 'CitiesSkylinesDir' -Value $gameDir
