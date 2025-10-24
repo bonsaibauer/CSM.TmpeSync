@@ -127,6 +127,8 @@
     <Compile Include="Net\Contracts\Requests\SetTimedTrafficLightRequest.cs" />
     <Compile Include="Net\Contracts\Requests\ToggleTrafficLightRequest.cs" />
     <Compile Include="Net\Contracts\Requests\SetCrosswalkHiddenRequest.cs" />
+    <Compile Include="Net\Contracts\Requests\ClearTrafficRequest.cs" />
+    <Compile Include="Net\Contracts\Requests\SetAutomaticDespawningRequest.cs" />
     <Compile Include="Net\Contracts\Applied\SpeedLimitApplied.cs" />
     <Compile Include="Net\Contracts\Applied\SpeedLimitBatchApplied.cs" />
     <Compile Include="Net\Contracts\Applied\LaneArrowApplied.cs" />
@@ -138,6 +140,8 @@
     <Compile Include="Net\Contracts\Applied\TimedTrafficLightApplied.cs" />
     <Compile Include="Net\Contracts\Applied\TrafficLightToggledApplied.cs" />
     <Compile Include="Net\Contracts\Applied\CrosswalkHiddenApplied.cs" />
+    <Compile Include="Net\Contracts\Applied\ClearTrafficApplied.cs" />
+    <Compile Include="Net\Contracts\Applied\AutomaticDespawningApplied.cs" />
     <Compile Include="Net\Contracts\Mapping\LaneMappingBatch.cs" />
     <Compile Include="Net\Contracts\Mapping\LaneMappingChanged.cs" />
     <Compile Include="Net\Contracts\Mapping\LaneMappingRemoved.cs" />
@@ -177,8 +181,12 @@
     <Compile Include="Net\Handlers\TrafficLightToggledAppliedHandler.cs" />
     <Compile Include="Net\Handlers\TrafficLightToggledDeferredOp.cs" />
     <Compile Include="Net\Handlers\SetCrosswalkHiddenRequestHandler.cs" />
+    <Compile Include="Net\Handlers\ClearTrafficRequestHandler.cs" />
     <Compile Include="Net\Handlers\CrosswalkHiddenAppliedHandler.cs" />
     <Compile Include="Net\Handlers\CrosswalkHiddenDeferredOp.cs" />
+    <Compile Include="Net\Handlers\ClearTrafficAppliedHandler.cs" />
+    <Compile Include="Net\Handlers\SetAutomaticDespawningRequestHandler.cs" />
+    <Compile Include="Net\Handlers\AutomaticDespawningAppliedHandler.cs" />
     <Compile Include="Net\Handlers\LaneMappingBatchHandler.cs" />
     <Compile Include="Net\Handlers\LaneMappingChangedHandler.cs" />
     <Compile Include="Net\Handlers\LaneMappingRemovedHandler.cs" />

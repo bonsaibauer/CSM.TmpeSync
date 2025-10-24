@@ -3,6 +3,7 @@ using ColossalFramework;
 using CSM.API.Commands;
 using CSM.API.Helpers;
 using CSM.TmpeSync.Net.Contracts.Applied;
+using CSM.TmpeSync.Net.Contracts.Requests;
 using CSM.TmpeSync.Net.Contracts.States;
 using CSM.TmpeSync.Util;
 
@@ -84,7 +85,7 @@ namespace CSM.TmpeSync.Tmpe
             }
         }
 
-        private static bool CanDispatch()
+        internal static bool CanDispatch()
         {
             if (!MultiplayerStateObserver.ShouldRestrictTools)
                 return false;
@@ -101,6 +102,50 @@ namespace CSM.TmpeSync.Tmpe
             }
 
             return true;
+        }
+
+        internal static void HandleClearTrafficTriggered()
+        {
+            if (!CanDispatch())
+                return;
+
+            if (CsmCompat.IsServerInstance())
+            {
+                Broadcast(new ClearTrafficApplied());
+                return;
+            }
+
+            try
+            {
+                CsmCompat.SendToServer(new ClearTrafficRequest());
+            }
+            catch (Exception ex)
+            {
+                Log.Warn(LogCategory.Network, "Failed to dispatch clear traffic request | error={0}", ex);
+            }
+        }
+
+        internal static void HandleAutomaticDespawningChanged(bool disableValue)
+        {
+            if (!CanDispatch())
+                return;
+
+            var enabled = !disableValue;
+
+            if (CsmCompat.IsServerInstance())
+            {
+                Broadcast(new AutomaticDespawningApplied { Enabled = enabled });
+                return;
+            }
+
+            try
+            {
+                CsmCompat.SendToServer(new SetAutomaticDespawningRequest { Enabled = enabled });
+            }
+            catch (Exception ex)
+            {
+                Log.Warn(LogCategory.Network, "Failed to dispatch automatic despawning request | enabled={0} error={1}", enabled, ex);
+            }
         }
 
         private static void SyncSegmentsForNode(ushort nodeId, string reason)

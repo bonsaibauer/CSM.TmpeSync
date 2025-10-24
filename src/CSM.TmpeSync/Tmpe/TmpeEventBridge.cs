@@ -1,5 +1,6 @@
 using System;
 using HarmonyLib;
+using CSM.API.Helpers;
 using CSM.TmpeSync.Util;
 
 namespace CSM.TmpeSync.Tmpe
@@ -25,9 +26,12 @@ namespace CSM.TmpeSync.Tmpe
                 var laneConnRemovePatched = LaneConnectionRemovePatch.Apply(_harmony);
                 var laneConnClearPatched = LaneConnectionClearPatch.Apply(_harmony);
                 var laneConnNodePatched = LaneConnectionNodePatch.Apply(_harmony);
+                var clearTrafficPatched = ClearTrafficPatch.Apply(_harmony);
+                var automaticDespawningPatched = AutomaticDespawningPatch.Apply(_harmony);
 
                 if (!segmentPatched && !nodePatched && !laneArrowPatched &&
-                    !laneConnAddPatched && !laneConnRemovePatched && !laneConnClearPatched && !laneConnNodePatched)
+                    !laneConnAddPatched && !laneConnRemovePatched && !laneConnClearPatched && !laneConnNodePatched &&
+                    !clearTrafficPatched && !automaticDespawningPatched)
                 {
                     Log.Warn(LogCategory.Diagnostics, "TM:PE notifier patches unavailable | action=skip_dynamic_sync");
                     _harmony = null;
@@ -37,14 +41,16 @@ namespace CSM.TmpeSync.Tmpe
                 _enabled = true;
                 Log.Info(
                     LogCategory.Diagnostics,
-                    "TM:PE notifier bridge enabled | segment={0} node={1} laneArrows={2} laneConnAdd={3} laneConnRemove={4} laneConnClear={5} laneConnNode={6}",
+                    "TM:PE notifier bridge enabled | segment={0} node={1} laneArrows={2} laneConnAdd={3} laneConnRemove={4} laneConnClear={5} laneConnNode={6} clearTraffic={7} automaticDespawning={8}",
                     segmentPatched,
                     nodePatched,
                     laneArrowPatched,
                     laneConnAddPatched,
                     laneConnRemovePatched,
                     laneConnClearPatched,
-                    laneConnNodePatched);
+                    laneConnNodePatched,
+                    clearTrafficPatched,
+                    automaticDespawningPatched);
             }
             catch (Exception ex)
             {
@@ -263,6 +269,118 @@ namespace CSM.TmpeSync.Tmpe
             private static void Postfix(ushort nodeId)
             {
                 TmpeChangeDispatcher.HandleLaneConnectionsForNode(nodeId);
+            }
+        }
+
+        private static class ClearTrafficPatch
+        {
+            internal static bool Apply(Harmony harmony)
+            {
+                var type = AccessTools.TypeByName("TrafficManager.Manager.Impl.UtilityManager");
+                if (type == null)
+                    return false;
+
+                var target = AccessTools.Method(type, "ClearTraffic", Type.EmptyTypes);
+                if (target == null)
+                    return false;
+
+                harmony.Patch(
+                    target,
+                    prefix: new HarmonyMethod(AccessTools.Method(typeof(ClearTrafficPatch), nameof(Prefix))),
+                    postfix: new HarmonyMethod(AccessTools.Method(typeof(ClearTrafficPatch), nameof(Postfix))));
+                return true;
+            }
+
+            private static bool Prefix()
+            {
+                if (!MultiplayerStateObserver.ShouldRestrictTools)
+                    return true;
+
+                try
+                {
+                    var helper = IgnoreHelper.Instance;
+                    if (helper != null && helper.IsIgnored())
+                        return true;
+                }
+                catch
+                {
+                    // ignored
+                }
+
+                if (CsmCompat.IsServerInstance())
+                    return true;
+
+                TmpeChangeDispatcher.HandleClearTrafficTriggered();
+                return false;
+            }
+
+            private static void Postfix()
+            {
+                if (!CsmCompat.IsServerInstance())
+                    return;
+
+                TmpeChangeDispatcher.HandleClearTrafficTriggered();
+            }
+        }
+
+        private static class AutomaticDespawningPatch
+        {
+            internal static bool Apply(Harmony harmony)
+            {
+                var checkboxType = AccessTools.TypeByName("TrafficManager.UI.Helpers.CheckboxOption");
+                if (checkboxType == null)
+                    return false;
+
+                var setter = AccessTools.PropertySetter(checkboxType, "Value");
+                if (setter == null)
+                    return false;
+
+                harmony.Patch(
+                    setter,
+                    prefix: new HarmonyMethod(AccessTools.Method(typeof(AutomaticDespawningPatch), nameof(Prefix))),
+                    postfix: new HarmonyMethod(AccessTools.Method(typeof(AutomaticDespawningPatch), nameof(Postfix))));
+                return true;
+            }
+
+            private static bool Prefix(object __instance, bool value)
+            {
+                if (!MultiplayerStateObserver.ShouldRestrictTools)
+                    return true;
+
+                if (!TmpeAdapter.IsAutomaticDespawningOption(__instance))
+                    return true;
+
+                try
+                {
+                    var helper = IgnoreHelper.Instance;
+                    if (helper != null && helper.IsIgnored())
+                        return true;
+                }
+                catch
+                {
+                    // ignored
+                }
+
+                if (CsmCompat.IsServerInstance())
+                    return true;
+
+                TmpeChangeDispatcher.HandleAutomaticDespawningChanged(value);
+                return false;
+            }
+
+            private static void Postfix(object __instance)
+            {
+                if (!CsmCompat.IsServerInstance())
+                    return;
+
+                if (!TmpeAdapter.IsAutomaticDespawningOption(__instance))
+                    return;
+
+                if (!TmpeChangeDispatcher.CanDispatch())
+                    return;
+
+                if (TmpeAdapter.TryGetAutomaticDespawning(out var enabled))
+                    TmpeChangeDispatcher.HandleAutomaticDespawningChanged(!enabled);
             }
         }
     }

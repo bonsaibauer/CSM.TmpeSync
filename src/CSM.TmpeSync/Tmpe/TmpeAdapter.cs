@@ -23,6 +23,8 @@ namespace CSM.TmpeSync.Tmpe
         private static bool SupportsPrioritySigns;
         private static bool SupportsParkingRestrictions;
         private static bool SupportsTimedTrafficLights;
+        private static bool SupportsClearTraffic;
+        private static bool SupportsAutomaticDespawning;
         private static readonly object InitLock = new object();
         private static bool _initializationAttempted;
         private static bool _loggedMissingAssembly;
@@ -46,7 +48,13 @@ namespace CSM.TmpeSync.Tmpe
             { "parkingRestrictions", "parkingRestrictions" },
             { "Parking Restrictions", "parkingRestrictions" },
             { "timedTrafficLights", "timedTrafficLights" },
-            { "Timed Traffic Lights", "timedTrafficLights" }
+            { "Timed Traffic Lights", "timedTrafficLights" },
+            { "clearTraffic", "clearTraffic" },
+            { "Clear Traffic", "clearTraffic" },
+            { "automaticDespawning", "automaticDespawning" },
+            { "Automatic Despawning", "automaticDespawning" },
+            { "despawning", "automaticDespawning" },
+            { "Toggle automatic vehicle despawning", "automaticDespawning" }
         };
         private static readonly object StateLock = new object();
         private static readonly Dictionary<string, Type> TypeCache = new Dictionary<string, Type>(StringComparer.Ordinal);
@@ -561,6 +569,8 @@ namespace CSM.TmpeSync.Tmpe
                 var prevSupportsPrioritySigns = SupportsPrioritySigns;
                 var prevSupportsParkingRestrictions = SupportsParkingRestrictions;
                 var prevSupportsTimedTrafficLights = SupportsTimedTrafficLights;
+                var prevSupportsClearTraffic = SupportsClearTraffic;
+                var prevSupportsAutomaticDespawning = SupportsAutomaticDespawning;
 
                 SupportsSpeedLimits = false;
                 SupportsLaneArrows = false;
@@ -570,6 +580,8 @@ namespace CSM.TmpeSync.Tmpe
                 SupportsPrioritySigns = false;
                 SupportsParkingRestrictions = false;
                 SupportsTimedTrafficLights = false;
+                SupportsClearTraffic = false;
+                SupportsAutomaticDespawning = false;
                 HasRealTmpe = false;
 
                 if (tmpeAssembly == null)
@@ -596,9 +608,12 @@ namespace CSM.TmpeSync.Tmpe
                     SupportsPrioritySigns = InitialisePrioritySignBridge(tmpeAssembly);
                     SupportsParkingRestrictions = InitialiseParkingRestrictionBridge(tmpeAssembly);
                     SupportsTimedTrafficLights = InitialiseTimedTrafficLightBridge(tmpeAssembly);
+                    SupportsClearTraffic = InitialiseUtilityBridge(tmpeAssembly);
+                    SupportsAutomaticDespawning = InitialiseAutomaticDespawningBridge(tmpeAssembly);
 
                     HasRealTmpe = SupportsSpeedLimits || SupportsLaneArrows || SupportsVehicleRestrictions || SupportsLaneConnections ||
-                                  SupportsJunctionRestrictions || SupportsPrioritySigns || SupportsParkingRestrictions || SupportsTimedTrafficLights;
+                                  SupportsJunctionRestrictions || SupportsPrioritySigns || SupportsParkingRestrictions || SupportsTimedTrafficLights ||
+                                  SupportsClearTraffic || SupportsAutomaticDespawning;
 
                     _initializationAttempted = true;
 
@@ -617,6 +632,8 @@ namespace CSM.TmpeSync.Tmpe
                     AppendFeatureStatus(SupportsPrioritySigns, supported, missing, "Priority Signs");
                     AppendFeatureStatus(SupportsParkingRestrictions, supported, missing, "Parking Restrictions");
                     AppendFeatureStatus(SupportsTimedTrafficLights, supported, missing, "Timed Traffic Lights");
+                    AppendFeatureStatus(SupportsClearTraffic, supported, missing, "Clear Traffic");
+                    AppendFeatureStatus(SupportsAutomaticDespawning, supported, missing, "Automatic Despawning");
 
                     Log.Info(LogCategory.Bridge, "TM:PE API detected | features={0}", string.Join(", ", supported.ToArray()));
 
@@ -642,6 +659,7 @@ namespace CSM.TmpeSync.Tmpe
                     var gainedPrioritySigns = !prevSupportsPrioritySigns && SupportsPrioritySigns;
                     var gainedParkingRestrictions = !prevSupportsParkingRestrictions && SupportsParkingRestrictions;
                     var gainedTimedTrafficLights = !prevSupportsTimedTrafficLights && SupportsTimedTrafficLights;
+                    var gainedAutomaticDespawning = !prevSupportsAutomaticDespawning && SupportsAutomaticDespawning;
 
                     ReplayCachedState(
                         gainedSpeedLimits,
@@ -652,6 +670,23 @@ namespace CSM.TmpeSync.Tmpe
                         gainedPrioritySigns,
                         gainedParkingRestrictions,
                         gainedTimedTrafficLights);
+
+                    if (gainedAutomaticDespawning)
+                    {
+                        bool enabled;
+                        lock (StateLock)
+                        {
+                            enabled = AutomaticDespawningEnabledStub;
+                        }
+
+                        NetUtil.RunOnSimulation(() =>
+                        {
+                            using (CsmCompat.StartIgnore())
+                            {
+                                SetAutomaticDespawning(enabled);
+                            }
+                        });
+                    }
                 }
                 catch (Exception ex)
                 {
@@ -1059,6 +1094,11 @@ namespace CSM.TmpeSync.Tmpe
         private static object TrafficLightManagerInstance;
         private static MethodInfo GetHasTrafficLightMethod;
         private static MethodInfo SetHasTrafficLightMethod;
+        private static object UtilityManagerInstance;
+        private static MethodInfo UtilityManagerClearTrafficMethod;
+        private static object DisableDespawningOptionInstance;
+        private static PropertyInfo CheckboxOptionValueProperty;
+        private static bool AutomaticDespawningEnabledStub = true;
 
         static TmpeAdapter()
         {
@@ -2016,6 +2056,103 @@ namespace CSM.TmpeSync.Tmpe
             return supported;
         }
 
+        private static bool InitialiseUtilityBridge(Assembly tmpeAssembly)
+        {
+            UtilityManagerInstance = null;
+            UtilityManagerClearTrafficMethod = null;
+
+            try
+            {
+                var managerType = tmpeAssembly?.GetType("TrafficManager.Manager.Impl.UtilityManager");
+                var manager = GetManagerFromFactory("UtilityManager", "Clear Traffic");
+
+                if (manager != null)
+                    managerType = manager.GetType();
+                else if (managerType != null)
+                    manager = TryGetStaticInstance(managerType, "Clear Traffic");
+
+                if (managerType == null)
+                    LogBridgeGap("Clear Traffic", "type", "TrafficManager.Manager.Impl.UtilityManager");
+
+                UtilityManagerInstance = manager;
+
+                if (managerType != null)
+                {
+                    UtilityManagerClearTrafficMethod = managerType.GetMethod(
+                        "ClearTraffic",
+                        BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic,
+                        null,
+                        Type.EmptyTypes,
+                        null);
+
+                    if (UtilityManagerClearTrafficMethod == null)
+                        LogBridgeGap("Clear Traffic", "ClearTraffic()", DescribeMethodOverloads(managerType, "ClearTraffic"));
+                }
+            }
+            catch (Exception ex)
+            {
+                RecordFeatureGapDetail("clearTraffic", "exception", ex.GetType().Name);
+                Log.Warn(LogCategory.Bridge, "TM:PE clear traffic bridge initialization failed | error={0}", ex);
+            }
+
+            var supported = UtilityManagerInstance != null && UtilityManagerClearTrafficMethod != null;
+            SetFeatureStatus("clearTraffic", supported, null);
+            return supported;
+        }
+
+        private static bool InitialiseAutomaticDespawningBridge(Assembly tmpeAssembly)
+        {
+            DisableDespawningOptionInstance = null;
+            CheckboxOptionValueProperty = null;
+
+            try
+            {
+                var groupType = tmpeAssembly?.GetType("TrafficManager.State.GameplayTab_VehicleBehaviourGroup");
+                var optionField = groupType?.GetField(
+                    "DisableDespawning",
+                    BindingFlags.Public | BindingFlags.Static);
+
+                if (optionField == null)
+                    LogBridgeGap("Automatic Despawning", "GameplayTab_VehicleBehaviourGroup.DisableDespawning", "<missing>");
+                else
+                    DisableDespawningOptionInstance = optionField.GetValue(null);
+
+                var checkboxType = tmpeAssembly?.GetType("TrafficManager.UI.Helpers.CheckboxOption");
+                if (checkboxType == null)
+                    LogBridgeGap("Automatic Despawning", "type", "TrafficManager.UI.Helpers.CheckboxOption");
+
+                if (checkboxType != null)
+                {
+                    CheckboxOptionValueProperty = checkboxType.GetProperty(
+                        "Value",
+                        BindingFlags.Instance | BindingFlags.Public);
+
+                    if (CheckboxOptionValueProperty == null)
+                        LogBridgeGap("Automatic Despawning", "CheckboxOption.Value", DescribeMethodOverloads(checkboxType, "set_Value"));
+                }
+
+                if (DisableDespawningOptionInstance != null && CheckboxOptionValueProperty != null)
+                {
+                    if (TryGetAutomaticDespawning(out var enabled))
+                    {
+                        lock (StateLock)
+                        {
+                            AutomaticDespawningEnabledStub = enabled;
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                RecordFeatureGapDetail("automaticDespawning", "exception", ex.GetType().Name);
+                Log.Warn(LogCategory.Bridge, "TM:PE automatic despawning bridge initialization failed | error={0}", ex);
+            }
+
+            var supported = DisableDespawningOptionInstance != null && CheckboxOptionValueProperty != null;
+            SetFeatureStatus("automaticDespawning", supported, null);
+            return supported;
+        }
+
         internal static bool ApplySpeedLimit(uint laneId, float speedKmh)
         {
             try
@@ -2873,6 +3010,107 @@ namespace CSM.TmpeSync.Tmpe
             {
                 Log.Error(LogCategory.Synchronization, "TM:PE TryGetManualTrafficLight failed | error={0}", ex);
                 enabled = false;
+                return false;
+            }
+        }
+
+        internal static bool IsAutomaticDespawningOption(object instance)
+        {
+            if (instance == null || DisableDespawningOptionInstance == null)
+                return false;
+
+            return ReferenceEquals(instance, DisableDespawningOptionInstance);
+        }
+
+        internal static bool ClearTraffic()
+        {
+            try
+            {
+                if (UtilityManagerInstance != null && UtilityManagerClearTrafficMethod != null)
+                {
+                    Log.Debug(LogCategory.Hook, "TM:PE clear traffic request | source=api");
+                    UtilityManagerClearTrafficMethod.Invoke(UtilityManagerInstance, null);
+                    Log.Info(LogCategory.Synchronization, "TM:PE clear traffic executed via API");
+                    return true;
+                }
+
+                Log.Warn(LogCategory.Synchronization, "TM:PE clear traffic bridge unavailable | action=reject_request");
+                return false;
+            }
+            catch (Exception ex)
+            {
+                Log.Error(LogCategory.Synchronization, "TM:PE ClearTraffic failed | error={0}", ex);
+                return false;
+            }
+        }
+
+        internal static bool SetAutomaticDespawning(bool enabled)
+        {
+            var disable = !enabled;
+
+            try
+            {
+                if (DisableDespawningOptionInstance != null && CheckboxOptionValueProperty != null)
+                {
+                    CheckboxOptionValueProperty.SetValue(DisableDespawningOptionInstance, disable, null);
+
+                    lock (StateLock)
+                    {
+                        AutomaticDespawningEnabledStub = enabled;
+                    }
+
+                    Log.Info(LogCategory.Synchronization, "TM:PE automatic despawning applied via API | enabled={0}", enabled);
+                    return true;
+                }
+
+                lock (StateLock)
+                {
+                    AutomaticDespawningEnabledStub = enabled;
+                }
+
+                Log.Info(LogCategory.Synchronization, "TM:PE automatic despawning stored in stub | enabled={0}", enabled);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Log.Error(LogCategory.Synchronization, "TM:PE SetAutomaticDespawning failed | error={0}", ex);
+                return false;
+            }
+        }
+
+        internal static bool TryGetAutomaticDespawning(out bool enabled)
+        {
+            try
+            {
+                if (DisableDespawningOptionInstance != null && CheckboxOptionValueProperty != null)
+                {
+                    var value = CheckboxOptionValueProperty.GetValue(DisableDespawningOptionInstance, null);
+                    var disable = value is bool flag && flag;
+                    enabled = !disable;
+
+                    lock (StateLock)
+                    {
+                        AutomaticDespawningEnabledStub = enabled;
+                    }
+
+                    return true;
+                }
+
+                lock (StateLock)
+                {
+                    enabled = AutomaticDespawningEnabledStub;
+                }
+
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Log.Error(LogCategory.Synchronization, "TM:PE TryGetAutomaticDespawning failed | error={0}", ex);
+                lock (StateLock)
+                {
+                    enabled = AutomaticDespawningEnabledStub;
+                }
+
                 return false;
             }
         }
