@@ -433,6 +433,7 @@ function Configure-Profile {
             throw "Subscribe to Harmony, TM:PE, and CSM on the Steam Workshop before continuing."
         }
     }
+    New-Item -ItemType Directory -Path $targetDirectory -Force | Out-Null
 
     Set-ProfileValue -Profile $profile -Key 'GameDirectory' -Value $gameDir
     Set-ProfileValue -Profile $profile -Key 'CitiesSkylinesDir' -Value $gameDir
