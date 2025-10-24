@@ -16,38 +16,11 @@ namespace CSM.TmpeSync.Net.Handlers
             var senderId = CsmCompat.GetSenderId(cmd);
             var segmentId = cmd.SegmentId;
             var laneIndex = cmd.LaneIndex;
-            var laneGuid = cmd.LaneGuid;
-
-            if (laneGuid.IsValid)
-            {
-                var contextSegment = segmentId != 0 ? segmentId : laneGuid.SegmentId;
-                var contextLaneIndex = laneIndex >= 0 ? laneIndex : laneGuid.PrefabLaneIndex;
-                LaneMappingStore.UpsertHostLane(laneGuid, cmd.LaneId, contextSegment, contextLaneIndex, out _, out _);
-                LaneMappingStore.UpdateLocalLane(contextSegment, contextLaneIndex, cmd.LaneId);
-                LaneGuidRegistry.AssignLaneGuid(cmd.LaneId, laneGuid, true);
-                segmentId = contextSegment;
-                laneIndex = contextLaneIndex;
-            }
-
-            if (cmd.SegmentGuid.IsValid)
-            {
-                SegmentMappingStore.UpsertHostSegment(cmd.SegmentGuid, cmd.SegmentId, out _, out _);
-                SegmentMappingStore.UpdateLocalSegment(cmd.SegmentGuid, cmd.SegmentId);
-            }
 
             if ((segmentId == 0 || laneIndex < 0) && NetUtil.TryGetLaneLocation(cmd.LaneId, out var locatedSegment, out var locatedIndex))
             {
                 segmentId = locatedSegment;
                 laneIndex = locatedIndex;
-            }
-
-            uint resolvedLaneId = cmd.LaneId;
-            if (laneGuid.IsValid && LaneGuidRegistry.TryResolveLane(laneGuid, out var laneFromGuid))
-            {
-                resolvedLaneId = laneFromGuid;
-                segmentId = segmentId != 0 ? segmentId : laneGuid.SegmentId;
-                laneIndex = laneIndex >= 0 ? laneIndex : laneGuid.PrefabLaneIndex;
-                LaneMappingStore.UpdateLocalLane(segmentId, laneIndex, resolvedLaneId);
             }
 
             var requestedValue = cmd.Speed ?? SpeedLimitCodec.Default();
@@ -56,13 +29,12 @@ namespace CSM.TmpeSync.Net.Handlers
 
             Log.Info(
                 LogCategory.Network,
-                "SetSpeedLimitRequest received | laneId={0} segmentId={1} laneIndex={2} value={3} speedKmh={4} laneGuid={5} senderId={6} role={7}",
+                "SetSpeedLimitRequest received | laneId={0} segmentId={1} laneIndex={2} value={3} speedKmh={4} senderId={5} role={6}",
                 cmd.LaneId,
                 segmentId,
                 laneIndex,
                 requestedDescription,
                 requestedKmh,
-                laneGuid,
                 senderId,
                 CsmCompat.DescribeCurrentRole());
 
@@ -72,9 +44,9 @@ namespace CSM.TmpeSync.Net.Handlers
                 return;
             }
 
-            if (!NetUtil.TryResolveLane(resolvedLaneId, segmentId, laneIndex, out resolvedLaneId))
+            if (!NetUtil.TryResolveLane(cmd.LaneId, segmentId, laneIndex, out var resolvedLaneId))
             {
-                Log.Warn(LogCategory.Network, "Rejecting SetSpeedLimitRequest | laneId={0} segmentId={1} laneIndex={2} laneGuid={3} reason=lane_missing", cmd.LaneId, segmentId, laneIndex, laneGuid);
+                Log.Warn(LogCategory.Network, "Rejecting SetSpeedLimitRequest | laneId={0} segmentId={1} laneIndex={2} reason=lane_missing", cmd.LaneId, segmentId, laneIndex);
                 CsmCompat.SendToClient(senderId, new RequestRejected { Reason = "entity_missing", EntityId = cmd.LaneId, EntityType = 1 });
                 return;
             }
@@ -124,24 +96,6 @@ namespace CSM.TmpeSync.Net.Handlers
                             currentLaneIndex = laneIndex;
                         }
 
-                        var broadcastLaneGuid = LaneGuidRegistry.TryGetLaneGuid(lockedLaneId, out var resolvedGuid)
-                            ? resolvedGuid
-                            : laneGuid;
-                        if (broadcastLaneGuid.IsValid)
-                        {
-                            LaneMappingStore.UpsertHostLane(broadcastLaneGuid, lockedLaneId, currentSegment, currentLaneIndex, out _, out _);
-                            LaneMappingStore.UpdateLocalLane(currentSegment, currentLaneIndex, lockedLaneId);
-                        }
-
-                        var broadcastSegmentGuid = NetUtil.TryGetSegmentGuid(currentSegment, out var computedSegmentGuid)
-                            ? computedSegmentGuid
-                            : cmd.SegmentGuid;
-                        if (broadcastSegmentGuid.IsValid)
-                        {
-                            SegmentMappingStore.UpsertHostSegment(broadcastSegmentGuid, currentSegment, out _, out _);
-                            SegmentMappingStore.UpdateLocalSegment(broadcastSegmentGuid, currentSegment);
-                        }
-
                         var mappingVersion = LaneMappingStore.Version;
                         Log.Info(
                             LogCategory.Synchronization,
@@ -165,9 +119,7 @@ namespace CSM.TmpeSync.Net.Handlers
                             Speed = resultingValue,
                             SegmentId = currentSegment,
                             LaneIndex = currentLaneIndex,
-                            MappingVersion = mappingVersion,
-                            LaneGuid = broadcastLaneGuid,
-                            SegmentGuid = broadcastSegmentGuid
+                            MappingVersion = mappingVersion
                         });
                     }
                     else
