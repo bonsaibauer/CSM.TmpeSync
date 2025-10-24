@@ -1,6 +1,8 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 using CSM.API;
 using CSM.API.Commands;
 using CSM.API.Helpers;
@@ -17,6 +19,41 @@ namespace CSM.TmpeSync.Util
         private static bool _loggedMissingRegister;
         private static bool _loggedMissingUnregister;
 
+        private const BindingFlags PublicStatic = BindingFlags.Public | BindingFlags.Static;
+
+        private static readonly FieldInfo RegisterConnectionField = typeof(Command).GetField("RegisterConnection", PublicStatic);
+        private static readonly PropertyInfo RegisterConnectionProperty = typeof(Command).GetProperty("RegisterConnection", PublicStatic);
+        private static readonly MethodInfo RegisterConnectionMethod = ResolveSingleParameterCommandMethod("RegisterConnection", typeof(Connection));
+        private static readonly Func<Connection, bool> RegisterConnectionMethodDelegate = CreateRegisterMethodDelegate();
+
+        private static readonly FieldInfo UnregisterConnectionField = typeof(Command).GetField("UnregisterConnection", PublicStatic);
+        private static readonly PropertyInfo UnregisterConnectionProperty = typeof(Command).GetProperty("UnregisterConnection", PublicStatic);
+        private static readonly MethodInfo UnregisterConnectionMethod = ResolveSingleParameterCommandMethod("UnregisterConnection", typeof(Connection));
+        private static readonly Func<Connection, bool> UnregisterConnectionMethodDelegate = CreateUnregisterMethodDelegate();
+
+        private static readonly FieldInfo GetRegisteredConnectionsField = typeof(Command).GetField("GetRegisteredConnections", PublicStatic);
+        private static readonly PropertyInfo GetRegisteredConnectionsProperty = typeof(Command).GetProperty("GetRegisteredConnections", PublicStatic);
+        private static readonly MethodInfo GetRegisteredConnectionsMethod = typeof(Command).GetMethods(PublicStatic)
+            .FirstOrDefault(m => m.Name == "GetRegisteredConnections" && m.GetParameters().Length == 0);
+        private static readonly Func<Connection[]> GetRegisteredConnectionsMethodDelegate = CreateGetRegisteredConnectionsMethodDelegate();
+
+        private static readonly FieldInfo SendToClientField = typeof(Command).GetField("SendToClient", PublicStatic);
+        private static readonly PropertyInfo SendToClientProperty = typeof(Command).GetProperty("SendToClient", PublicStatic);
+        private static readonly MethodInfo SendToClientMethod = typeof(Command).GetMethods(PublicStatic)
+            .FirstOrDefault(m =>
+            {
+                if (m.Name != "SendToClient")
+                    return false;
+
+                var parameters = m.GetParameters();
+                if (parameters.Length != 2)
+                    return false;
+
+                return parameters[0].ParameterType == typeof(int) &&
+                       parameters[1].ParameterType.IsAssignableFrom(typeof(CommandBase));
+            });
+        private static readonly Action<int, CommandBase> SendToClientMethodDelegate = CreateSendToClientMethodDelegate();
+
         internal enum ConnectionRegistrationResult
         {
             Failure,
@@ -29,7 +66,8 @@ namespace CSM.TmpeSync.Util
             if (connection == null)
                 return ConnectionRegistrationResult.Failure;
 
-            if (Command.RegisterConnection == null)
+            var registerConnection = GetRegisterConnectionDelegate();
+            if (registerConnection == null)
             {
                 LogMissingRegister();
                 return ConnectionRegistrationResult.Failure;
@@ -40,7 +78,7 @@ namespace CSM.TmpeSync.Util
                 if (IsConnectionPresent(connection))
                     return ConnectionRegistrationResult.AlreadyRegistered;
 
-                return Command.RegisterConnection(connection)
+                return registerConnection(connection)
                     ? ConnectionRegistrationResult.Registered
                     : ConnectionRegistrationResult.Failure;
             }
@@ -56,7 +94,8 @@ namespace CSM.TmpeSync.Util
             if (connection == null)
                 return false;
 
-            if (Command.UnregisterConnection == null)
+            var unregisterConnection = GetUnregisterConnectionDelegate();
+            if (unregisterConnection == null)
             {
                 LogMissingUnregister();
                 return false;
@@ -64,7 +103,7 @@ namespace CSM.TmpeSync.Util
 
             try
             {
-                return Command.UnregisterConnection(connection);
+                return unregisterConnection(connection);
             }
             catch (Exception ex)
             {
@@ -75,7 +114,7 @@ namespace CSM.TmpeSync.Util
 
         private static bool IsConnectionPresent(Connection connection)
         {
-            var getConnections = Command.GetRegisteredConnections;
+            var getConnections = GetRegisteredConnectionsDelegate();
             if (getConnections == null)
                 return false;
 
@@ -215,11 +254,12 @@ namespace CSM.TmpeSync.Util
                 return;
             }
 
-            if (Command.SendToClient != null)
+            var sendToClient = GetSendToClientDelegate();
+            if (sendToClient != null)
             {
                 try
                 {
-                    Command.SendToClient(clientId, command);
+                    sendToClient(clientId, command);
                     Log.Debug(LogCategory.Network, "Dispatch complete | direction=client type={0} clientId={1}", commandName, clientId);
                     return;
                 }
@@ -322,11 +362,12 @@ namespace CSM.TmpeSync.Util
                 Log.Info(LogCategory.Diagnostics, "Command.SendToAll delegate | value={0}", DescribeDelegate(Command.SendToAll));
                 Log.Info(LogCategory.Diagnostics, "Command.SendToServer delegate | value={0}", DescribeDelegate(Command.SendToServer));
                 Log.Info(LogCategory.Diagnostics, "Command.SendToClients delegate | value={0}", DescribeDelegate(Command.SendToClients));
-                Log.Info(LogCategory.Diagnostics, "Command.SendToClient delegate | value={0}", DescribeDelegate(Command.SendToClient));
-                Log.Info(LogCategory.Diagnostics, "Command.RegisterConnection hook | value={0}", DescribeDelegate(Command.RegisterConnection));
-                Log.Info(LogCategory.Diagnostics, "Command.UnregisterConnection hook | value={0}", DescribeDelegate(Command.UnregisterConnection));
+                Log.Info(LogCategory.Diagnostics, "Command.SendToClient hook | value={0}", DescribeDelegate(GetSendToClientDelegate()));
+                Log.Info(LogCategory.Diagnostics, "Command.RegisterConnection hook | value={0}", DescribeDelegate(GetRegisterConnectionDelegate()));
+                Log.Info(LogCategory.Diagnostics, "Command.UnregisterConnection hook | value={0}", DescribeDelegate(GetUnregisterConnectionDelegate()));
 
-                var connections = Command.GetRegisteredConnections != null ? Command.GetRegisteredConnections() : null;
+                var getConnections = GetRegisteredConnectionsDelegate();
+                var connections = getConnections != null ? getConnections() : null;
                 if (connections != null)
                 {
                     var summary = connections
@@ -356,6 +397,229 @@ namespace CSM.TmpeSync.Util
             var method = del.Method;
             var typeName = method.DeclaringType != null ? method.DeclaringType.FullName : "<unknown>";
             return typeName + "." + method.Name;
+        }
+
+        private static Func<Connection, bool> GetRegisterConnectionDelegate()
+        {
+            var del = ConvertDelegate<Func<Connection, bool>>(ExtractDelegate(RegisterConnectionField));
+            if (del != null)
+                return del;
+
+            del = ConvertDelegate<Func<Connection, bool>>(ExtractDelegate(RegisterConnectionProperty));
+            if (del != null)
+                return del;
+
+            return RegisterConnectionMethodDelegate;
+        }
+
+        private static Func<Connection, bool> GetUnregisterConnectionDelegate()
+        {
+            var del = ConvertDelegate<Func<Connection, bool>>(ExtractDelegate(UnregisterConnectionField));
+            if (del != null)
+                return del;
+
+            del = ConvertDelegate<Func<Connection, bool>>(ExtractDelegate(UnregisterConnectionProperty));
+            if (del != null)
+                return del;
+
+            return UnregisterConnectionMethodDelegate;
+        }
+
+        private static Func<Connection[]> GetRegisteredConnectionsDelegate()
+        {
+            var del = ExtractDelegate(GetRegisteredConnectionsField);
+            var converted = ConvertConnectionsDelegate(del);
+            if (converted != null)
+                return converted;
+
+            del = ExtractDelegate(GetRegisteredConnectionsProperty);
+            converted = ConvertConnectionsDelegate(del);
+            if (converted != null)
+                return converted;
+
+            return GetRegisteredConnectionsMethodDelegate;
+        }
+
+        private static Action<int, CommandBase> GetSendToClientDelegate()
+        {
+            var del = ConvertDelegate<Action<int, CommandBase>>(ExtractDelegate(SendToClientField));
+            if (del != null)
+                return del;
+
+            del = ConvertDelegate<Action<int, CommandBase>>(ExtractDelegate(SendToClientProperty));
+            if (del != null)
+                return del;
+
+            return SendToClientMethodDelegate;
+        }
+
+        private static Delegate ExtractDelegate(FieldInfo field)
+        {
+            if (field == null)
+                return null;
+
+            try
+            {
+                return field.GetValue(null) as Delegate;
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        private static Delegate ExtractDelegate(PropertyInfo property)
+        {
+            if (property == null)
+                return null;
+
+            try
+            {
+#if NETSTANDARD || NET5_0_OR_GREATER
+                return property.GetValue(null) as Delegate;
+#else
+                return property.GetValue(null, null) as Delegate;
+#endif
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        private static TDelegate ConvertDelegate<TDelegate>(Delegate del)
+            where TDelegate : class, Delegate
+        {
+            if (del == null)
+                return null;
+
+            if (del is TDelegate typed)
+                return typed;
+
+            try
+            {
+                return (TDelegate)Delegate.CreateDelegate(typeof(TDelegate), del.Target, del.Method);
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        private static Func<Connection[]> ConvertConnectionsDelegate(Delegate del)
+        {
+            if (del == null)
+                return null;
+
+            if (del is Func<Connection[]> arrayFunc)
+                return arrayFunc;
+
+            if (del is Func<IEnumerable<Connection>> enumerableFunc)
+                return () => enumerableFunc()?.ToArray();
+
+            if (del is Func<IEnumerable> nonGenericEnumerable)
+                return () => ConvertConnections(nonGenericEnumerable());
+
+            if (del.Method.GetParameters().Length == 0)
+            {
+                return () => ConvertConnections(del.DynamicInvoke());
+            }
+
+            return null;
+        }
+
+        private static Connection[] ConvertConnections(object value)
+        {
+            if (value == null)
+                return null;
+
+            if (value is Connection[] array)
+                return array;
+
+            if (value is IEnumerable<Connection> enumerable)
+                return enumerable.ToArray();
+
+            if (value is IEnumerable nonGeneric)
+                return nonGeneric.Cast<object>().OfType<Connection>().ToArray();
+
+            return null;
+        }
+
+        private static MethodInfo ResolveSingleParameterCommandMethod(string name, Type parameterType)
+        {
+            return typeof(Command).GetMethods(PublicStatic)
+                .FirstOrDefault(m =>
+                {
+                    if (m.Name != name)
+                        return false;
+
+                    var parameters = m.GetParameters();
+                    if (parameters.Length != 1)
+                        return false;
+
+                    return parameters[0].ParameterType.IsAssignableFrom(parameterType) && m.ReturnType == typeof(bool);
+                });
+        }
+
+        private static Func<Connection, bool> CreateRegisterMethodDelegate()
+        {
+            if (RegisterConnectionMethod == null)
+                return null;
+
+            try
+            {
+                return (Func<Connection, bool>)Delegate.CreateDelegate(typeof(Func<Connection, bool>), RegisterConnectionMethod);
+            }
+            catch
+            {
+                return connection =>
+                {
+                    var result = RegisterConnectionMethod.Invoke(null, new object[] { connection });
+                    return result is bool flag && flag;
+                };
+            }
+        }
+
+        private static Func<Connection, bool> CreateUnregisterMethodDelegate()
+        {
+            if (UnregisterConnectionMethod == null)
+                return null;
+
+            try
+            {
+                return (Func<Connection, bool>)Delegate.CreateDelegate(typeof(Func<Connection, bool>), UnregisterConnectionMethod);
+            }
+            catch
+            {
+                return connection =>
+                {
+                    var result = UnregisterConnectionMethod.Invoke(null, new object[] { connection });
+                    return result is bool flag && flag;
+                };
+            }
+        }
+
+        private static Func<Connection[]> CreateGetRegisteredConnectionsMethodDelegate()
+        {
+            if (GetRegisteredConnectionsMethod == null)
+                return null;
+
+            return () => ConvertConnections(GetRegisteredConnectionsMethod.Invoke(null, null));
+        }
+
+        private static Action<int, CommandBase> CreateSendToClientMethodDelegate()
+        {
+            if (SendToClientMethod == null)
+                return null;
+
+            try
+            {
+                return (Action<int, CommandBase>)Delegate.CreateDelegate(typeof(Action<int, CommandBase>), SendToClientMethod);
+            }
+            catch
+            {
+                return (clientId, command) => SendToClientMethod.Invoke(null, new object[] { clientId, command });
+            }
         }
 
         private sealed class IgnoreScope : IDisposable
