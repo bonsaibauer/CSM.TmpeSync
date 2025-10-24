@@ -135,11 +135,22 @@ namespace CSM.TmpeSync.Tmpe
                     {
                         var encoded = SpeedLimitCodec.Encode(kmh);
 
-                        if (TmpeAdapter.TryGetDefaultSpeedKmh(laneId, laneInfo, out var defaultKmh) &&
-                            Math.Abs(kmh - defaultKmh) < 0.01f)
+                        float? defaultKmh = null;
+
+                        if (TmpeAdapter.TryGetDefaultSpeedKmh(laneId, laneInfo, out var candidateDefault))
                         {
-                            encoded = SpeedLimitCodec.Default();
+                            defaultKmh = candidateDefault;
+
+                            if (Math.Abs(kmh - candidateDefault) < 0.01f)
+                                encoded = SpeedLimitCodec.Default();
                         }
+
+                        TransmissionDiagnostics.LogOutgoingSpeedLimit(
+                            laneId,
+                            kmh,
+                            encoded,
+                            defaultKmh,
+                            "change_dispatcher");
 
                         Broadcast(new SpeedLimitApplied
                         {
@@ -210,6 +221,8 @@ namespace CSM.TmpeSync.Tmpe
 
             if (TmpeAdapter.TryGetJunctionRestrictions(nodeId, out var state))
             {
+                TransmissionDiagnostics.LogOutgoingJunctionRestrictions(nodeId, state, "change_dispatcher");
+
                 Broadcast(new JunctionRestrictionsApplied
                 {
                     NodeId = nodeId,

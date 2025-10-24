@@ -12,6 +12,8 @@ namespace CSM.TmpeSync.Net.Handlers
             if (cmd == null)
                 return;
 
+            TransmissionDiagnostics.LogIncomingSpeedLimit(cmd.LaneId, cmd.Speed, "applied_handler");
+
             Log.Debug(
                 LogCategory.Synchronization,
                 "SpeedLimitApplied received | laneId={0} segmentId={1} laneIndex={2} value={3}",
