@@ -32,9 +32,17 @@ namespace CSM.TmpeSync.Net.Contracts.States
         /// </summary>
         [ProtoMember(2)] public byte Index { get; set; }
 
+        /// <summary>
+        /// Raw kilometres-per-hour representation of the intended limit. Acts as a
+        /// resilience channel when the encoded type/index degrade in transit.
+        /// </summary>
+        [ProtoMember(3)] public float RawSpeedKmh { get; set; }
+
         public override string ToString()
         {
-            return $"Type={Type} Index={Index}";
+            return RawSpeedKmh > 0.01f
+                ? $"Type={Type} Index={Index} Raw={RawSpeedKmh:0.###} km/h"
+                : $"Type={Type} Index={Index}";
         }
     }
 
@@ -106,9 +114,31 @@ namespace CSM.TmpeSync.Net.Contracts.States
             set => _allowFarTurnOnRed = value;
         }
 
+        public bool ShouldSerializeAllowUTurns() => AllowUTurns.HasValue;
+
+        public bool ShouldSerializeAllowLaneChangesWhenGoingStraight()
+        {
+            return AllowLaneChangesWhenGoingStraight.HasValue;
+        }
+
+        public bool ShouldSerializeAllowEnterWhenBlocked() => AllowEnterWhenBlocked.HasValue;
+
+        public bool ShouldSerializeAllowPedestrianCrossing() => AllowPedestrianCrossing.HasValue;
+
+        public bool ShouldSerializeAllowTurningOnRed()
+        {
+            return AllowNearTurnOnRed.HasValue && AllowFarTurnOnRed.HasValue;
+        }
+
+        public bool ShouldSerializeAllowNearTurnOnRed() => AllowNearTurnOnRed.HasValue;
+
+        public bool ShouldSerializeAllowFarTurnOnRed() => AllowFarTurnOnRed.HasValue;
+
         public JunctionRestrictionsState Clone()
         {
-            return (JunctionRestrictionsState) MemberwiseClone();
+            var clone = (JunctionRestrictionsState) MemberwiseClone();
+            clone.WireSnapshot = null;
+            return clone;
         }
 
         public bool IsDefault()
@@ -144,6 +174,106 @@ namespace CSM.TmpeSync.Net.Contracts.States
         private static string Format(bool? value)
         {
             return value.HasValue ? value.Value.ToString() : "<null>";
+        }
+
+        [ProtoMember(100)]
+        internal JunctionRestrictionWireSnapshot WireSnapshot { get; private set; }
+
+        [ProtoBeforeSerialization]
+        private void OnBeforeSerialize()
+        {
+            WireSnapshot = JunctionRestrictionWireSnapshot.Create(this);
+        }
+
+        [ProtoAfterDeserialization]
+        private void OnAfterDeserialize()
+        {
+            JunctionRestrictionWireSnapshot.Apply(WireSnapshot, this);
+            WireSnapshot = null;
+        }
+
+        [ProtoAfterSerialization]
+        private void OnAfterSerialize()
+        {
+            WireSnapshot = null;
+        }
+
+        [ProtoContract]
+        internal sealed class JunctionRestrictionWireSnapshot
+        {
+            [ProtoMember(1)] public byte SetMask { get; set; }
+            [ProtoMember(2)] public byte ValueMask { get; set; }
+
+            private const byte UTurn = 1 << 0;
+            private const byte LaneChange = 1 << 1;
+            private const byte EnterBlocked = 1 << 2;
+            private const byte Pedestrians = 1 << 3;
+            private const byte NearTurnOnRed = 1 << 4;
+            private const byte FarTurnOnRed = 1 << 5;
+
+            internal static JunctionRestrictionWireSnapshot Create(JunctionRestrictionsState state)
+            {
+                if (state == null)
+                    return null;
+
+                byte setMask = 0;
+                byte valueMask = 0;
+
+                Append(ref setMask, ref valueMask, UTurn, state.AllowUTurns);
+                Append(ref setMask, ref valueMask, LaneChange, state.AllowLaneChangesWhenGoingStraight);
+                Append(ref setMask, ref valueMask, EnterBlocked, state.AllowEnterWhenBlocked);
+                Append(ref setMask, ref valueMask, Pedestrians, state.AllowPedestrianCrossing);
+                Append(ref setMask, ref valueMask, NearTurnOnRed, state.AllowNearTurnOnRed);
+                Append(ref setMask, ref valueMask, FarTurnOnRed, state.AllowFarTurnOnRed);
+
+                if (setMask == 0)
+                    return null;
+
+                return new JunctionRestrictionWireSnapshot
+                {
+                    SetMask = setMask,
+                    ValueMask = valueMask
+                };
+            }
+
+            private static void Append(ref byte setMask, ref byte valueMask, byte flag, bool? value)
+            {
+                if (!value.HasValue)
+                    return;
+
+                setMask |= flag;
+                if (value.Value)
+                    valueMask |= flag;
+            }
+
+            internal static void Apply(JunctionRestrictionWireSnapshot snapshot, JunctionRestrictionsState state)
+            {
+                if (snapshot == null || state == null)
+                    return;
+
+                ApplyFlag(snapshot, state, UTurn, value => state.AllowUTurns = value);
+                ApplyFlag(snapshot, state, LaneChange, value => state.AllowLaneChangesWhenGoingStraight = value);
+                ApplyFlag(snapshot, state, EnterBlocked, value => state.AllowEnterWhenBlocked = value);
+                ApplyFlag(snapshot, state, Pedestrians, value => state.AllowPedestrianCrossing = value);
+                ApplyFlag(snapshot, state, NearTurnOnRed, value => state.AllowNearTurnOnRed = value);
+                ApplyFlag(snapshot, state, FarTurnOnRed, value => state.AllowFarTurnOnRed = value);
+            }
+
+            private static void ApplyFlag(
+                JunctionRestrictionWireSnapshot snapshot,
+                JunctionRestrictionsState state,
+                byte flag,
+                Action<bool?> setter)
+            {
+                if ((snapshot.SetMask & flag) == 0)
+                {
+                    setter(null);
+                    return;
+                }
+
+                var value = (snapshot.ValueMask & flag) != 0;
+                setter(value);
+            }
         }
     }
 
