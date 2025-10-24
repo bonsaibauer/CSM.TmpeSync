@@ -22,7 +22,6 @@ bld/
 [Oo]bj/
 [Ll]og/
 lib/
-scripts/build-settings.json
 msbuild.binlog
 
 # Visual Studio 2015 cache/options directory
