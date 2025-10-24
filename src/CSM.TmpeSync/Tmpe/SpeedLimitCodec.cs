@@ -65,11 +65,17 @@ namespace CSM.TmpeSync.Tmpe
 
         internal static SpeedLimitValue Encode(float speedKmh, float? defaultKmh, bool hasOverride)
         {
+            return Encode(speedKmh, defaultKmh, hasOverride, false);
+        }
+
+        internal static SpeedLimitValue Encode(float speedKmh, float? defaultKmh, bool hasOverride, bool pending)
+        {
             if (!hasOverride)
             {
                 var value = Default();
                 if (defaultKmh.HasValue && defaultKmh.Value > DefaultTolerance)
                     value.RawSpeedKmh = defaultKmh.Value;
+                value.Pending = pending;
                 return value;
             }
 
@@ -78,10 +84,13 @@ namespace CSM.TmpeSync.Tmpe
                 var value = Default();
                 if (defaultKmh.Value > DefaultTolerance)
                     value.RawSpeedKmh = defaultKmh.Value;
+                value.Pending = pending;
                 return value;
             }
 
-            return Encode(speedKmh);
+            var encoded = Encode(speedKmh);
+            encoded.Pending = pending;
+            return encoded;
         }
 
         internal static float DecodeToKmh(SpeedLimitValue value)
@@ -138,24 +147,26 @@ namespace CSM.TmpeSync.Tmpe
             if (value == null)
                 return "<null>";
 
+            var pendingSuffix = value.Pending ? " (pending)" : string.Empty;
+
             switch (value.Type)
             {
                 case SpeedLimitValueType.Default:
-                    return value.RawSpeedKmh > DefaultTolerance
+                    return (value.RawSpeedKmh > DefaultTolerance
                         ? $"{value.RawSpeedKmh:0.###} km/h (raw)"
-                        : "Default";
+                        : "Default") + pendingSuffix;
                 case SpeedLimitValueType.Unlimited:
-                    return value.RawSpeedKmh > DefaultTolerance
+                    return (value.RawSpeedKmh > DefaultTolerance
                         ? $"Unlimited ({value.RawSpeedKmh:0.###} km/h raw)"
-                        : "Unlimited";
+                        : "Unlimited") + pendingSuffix;
                 case SpeedLimitValueType.KilometresPerHour:
-                    return value.Index < KmphPalette.Length
+                    return (value.Index < KmphPalette.Length
                         ? $"{KmphPalette[value.Index]} km/h"
-                        : $"km/h index {value.Index}";
+                        : $"km/h index {value.Index}") + pendingSuffix;
                 case SpeedLimitValueType.MilesPerHour:
-                    return value.Index < MphPalette.Length
+                    return (value.Index < MphPalette.Length
                         ? $"{MphPalette[value.Index]} mph"
-                        : $"mph index {value.Index}";
+                        : $"mph index {value.Index}") + pendingSuffix;
                 default:
                     return value.ToString();
             }

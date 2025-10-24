@@ -19,13 +19,13 @@ namespace CSM.TmpeSync.Snapshot
 
             NetUtil.ForEachLane(laneId =>
             {
-                if (!Tmpe.TmpeAdapter.TryGetSpeedLimit(laneId, out var kmh, out var defaultKmh, out var hasOverride))
+                if (!Tmpe.TmpeAdapter.TryGetSpeedLimit(laneId, out var kmh, out var defaultKmh, out var hasOverride, out var pending))
                     return;
 
                 if (!NetUtil.TryGetLaneLocation(laneId, out var segmentId, out var laneIndex))
                     return;
 
-                var encoded = SpeedLimitCodec.Encode(kmh, defaultKmh, hasOverride);
+                var encoded = SpeedLimitCodec.Encode(kmh, defaultKmh, hasOverride, pending);
                 Log.Debug(
                     LogCategory.Snapshot,
                     "Speed limit snapshot entry | laneId={0} value={1}",

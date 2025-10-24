@@ -110,11 +110,13 @@
     <Compile Include="Util\LockRegistry.cs" />
     <Compile Include="Util\LaneGuidRegistry.cs" />
     <Compile Include="Util\LaneAssignmentRetryBuffer.cs" />
+    <Compile Include="Util\TmpeRetryBuffer.cs" />
     <Compile Include="Util\MultiplayerStateObserver.cs" />
 
     <Compile Include="HideCrosswalks\HideCrosswalksAdapter.cs" />
 
     <Compile Include="Tmpe\TmpeAdapter.cs" />
+    <Compile Include="Tmpe\TmpeAdapter.Pending.cs" />
 
     <Compile Include="Net\Contracts\States\TmpeStates.cs" />
     <Compile Include="Net\Contracts\Requests\SetSpeedLimitRequest.cs" />

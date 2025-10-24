@@ -152,9 +152,9 @@ namespace CSM.TmpeSync.Tmpe
                 ref var lane = ref NetManager.instance.m_lanes.m_buffer[laneId];
                 if ((lane.m_flags & (uint)NetLane.Flags.Created) != 0)
                 {
-                    if (TmpeAdapter.TryGetSpeedLimit(laneId, out var kmh, out var defaultKmh, out var hasOverride))
+                    if (TmpeAdapter.TryGetSpeedLimit(laneId, out var kmh, out var defaultKmh, out var hasOverride, out var pending))
                     {
-                        var encoded = SpeedLimitCodec.Encode(kmh, defaultKmh, hasOverride);
+                        var encoded = SpeedLimitCodec.Encode(kmh, defaultKmh, hasOverride, pending);
 
                         TransmissionDiagnostics.LogOutgoingSpeedLimit(
                             laneId,
