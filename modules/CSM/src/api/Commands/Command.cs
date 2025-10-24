@@ -1,20 +1,40 @@
 using System;
+using CSM.API;
 
 namespace CSM.API.Commands
 {
     public static class Command
     {
         public static Action<CommandBase> SendToAll, SendToServer, SendToClients;
+        public static Action<int, CommandBase> SendToClient;
         public static Func<Type, CommandHandler> GetCommandHandler;
-        
+        public static Func<Connection, bool> RegisterConnection, UnregisterConnection;
+        public static Func<Connection[]> GetRegisteredConnections;
+
         public static MultiplayerRole CurrentRole { get; set; }
 
         public static void ConnectToCSM(Action<CommandBase> sendToAll, Action<CommandBase> sendToServer, Action<CommandBase> sendToClients, Func<Type, CommandHandler> getCommandHandler)
         {
+            ConnectToCSM(sendToAll, sendToServer, sendToClients, null, getCommandHandler, null, null, null);
+        }
+
+        public static void ConnectToCSM(Action<CommandBase> sendToAll,
+            Action<CommandBase> sendToServer,
+            Action<CommandBase> sendToClients,
+            Action<int, CommandBase> sendToClient,
+            Func<Type, CommandHandler> getCommandHandler,
+            Func<Connection, bool> registerConnection,
+            Func<Connection, bool> unregisterConnection,
+            Func<Connection[]> getRegisteredConnections)
+        {
             SendToAll = sendToAll;
             SendToServer = sendToServer;
             SendToClients = sendToClients;
+            SendToClient = sendToClient;
             GetCommandHandler = getCommandHandler;
+            RegisterConnection = registerConnection;
+            UnregisterConnection = unregisterConnection;
+            GetRegisteredConnections = getRegisteredConnections;
         }
     }
     
