@@ -211,7 +211,6 @@
     <Compile Include="Util\LaneMappingStore.cs" />
     <Compile Include="Util\LaneMappingTracker.cs" />
     <Compile Include="Util\TmpeFeatureReadyNotifier.cs" />
-    <Compile Include="Util\TimedTrafficLightFeatureController.cs" />
 
     <Compile Include="Tool\LockOverlay.cs" />
     <Compile Include="Tmpe\TmpeChangeDispatcher.cs" />
