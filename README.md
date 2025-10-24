@@ -12,7 +12,6 @@ The repository contains the add-on sources, PowerShell helpers, and reference su
 | scripts/ | PowerShell helpers to configure, build, install, and update dependencies. |
 | lib/ | Cached copies of Harmony, TM:PE, and CSM assemblies mirrored from Steam. |
 | docs/ | Reference material (integration guide, logging reference, setup notes). |
-| submodules/ | Upstream repositories retained for reference only. They are no longer part of the build. |
 
 ## Prerequisites
 
