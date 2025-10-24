@@ -1,3 +1,5 @@
+using CSM.TmpeSync.Net.Contracts.States;
+using CSM.TmpeSync.Tmpe;
 using CSM.TmpeSync.Util;
 
 namespace CSM.TmpeSync.Net.Handlers
@@ -7,15 +9,15 @@ namespace CSM.TmpeSync.Net.Handlers
         private uint _laneId;
         private ushort _segmentId;
         private int _laneIndex;
-        private readonly float _speedKmh;
+        private readonly SpeedLimitValue _value;
         private readonly long _expectedMappingVersion;
 
-        internal SpeedLimitDeferredOp(uint laneId, ushort segmentId, int laneIndex, float speedKmh, long expectedMappingVersion)
+        internal SpeedLimitDeferredOp(uint laneId, ushort segmentId, int laneIndex, SpeedLimitValue value, long expectedMappingVersion)
         {
             _laneId = laneId;
             _segmentId = segmentId;
             _laneIndex = laneIndex;
-            _speedKmh = speedKmh;
+            _value = value ?? SpeedLimitCodec.Default();
             _expectedMappingVersion = expectedMappingVersion;
         }
 
@@ -76,13 +78,28 @@ namespace CSM.TmpeSync.Net.Handlers
             _segmentId = segmentId;
             _laneIndex = laneIndex;
 
-            if (Tmpe.TmpeAdapter.ApplySpeedLimit(_laneId, _speedKmh))
+            var speedKmh = SpeedLimitCodec.DecodeToKmh(_value);
+            if (Tmpe.TmpeAdapter.ApplySpeedLimit(_laneId, speedKmh))
             {
-                Log.Info(LogCategory.Synchronization, "Deferred speed limit applied | laneId={0} segmentId={1} laneIndex={2} speedKmh={3}", _laneId, _segmentId, _laneIndex, _speedKmh);
+                Log.Info(
+                    LogCategory.Synchronization,
+                    "Deferred speed limit applied | laneId={0} segmentId={1} laneIndex={2} value={3} speedKmh={4}",
+                    _laneId,
+                    _segmentId,
+                    _laneIndex,
+                    SpeedLimitCodec.Describe(_value),
+                    speedKmh);
                 return true;
             }
 
-            Log.Error(LogCategory.Synchronization, "Deferred speed limit failed | laneId={0} segmentId={1} laneIndex={2} speedKmh={3}", _laneId, _segmentId, _laneIndex, _speedKmh);
+            Log.Error(
+                LogCategory.Synchronization,
+                "Deferred speed limit failed | laneId={0} segmentId={1} laneIndex={2} value={3} speedKmh={4}",
+                _laneId,
+                _segmentId,
+                _laneIndex,
+                SpeedLimitCodec.Describe(_value),
+                speedKmh);
             return false;
         }
 

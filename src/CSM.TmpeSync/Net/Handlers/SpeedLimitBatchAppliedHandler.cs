@@ -1,5 +1,6 @@
 using CSM.API.Commands;
 using CSM.TmpeSync.Net.Contracts.Applied;
+using CSM.TmpeSync.Tmpe;
 using CSM.TmpeSync.Util;
 
 namespace CSM.TmpeSync.Net.Handlers
@@ -23,7 +24,12 @@ namespace CSM.TmpeSync.Net.Handlers
             foreach (var item in command.Items)
             {
                 var effectiveVersion = item.MappingVersion > 0 ? item.MappingVersion : command.MappingVersion;
-                SpeedLimitCommandProcessor.Apply(item.LaneId, item.SpeedKmh, item.SegmentId, item.LaneIndex, effectiveVersion);
+                SpeedLimitCommandProcessor.Apply(
+                    item.LaneId,
+                    item.Speed,
+                    item.SegmentId,
+                    item.LaneIndex,
+                    effectiveVersion);
             }
         }
     }

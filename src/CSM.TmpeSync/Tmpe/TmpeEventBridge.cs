@@ -136,15 +136,34 @@ namespace CSM.TmpeSync.Tmpe
                 if (flagsType == null || laneArrowsType == null)
                     return false;
 
-                var target = AccessTools.Method(flagsType, "SetLaneArrowFlags", new[] { typeof(uint), laneArrowsType, typeof(bool) });
-                if (target == null)
+                var setTarget = AccessTools.Method(flagsType, "SetLaneArrowFlags", new[] { typeof(uint), laneArrowsType, typeof(bool) });
+                if (setTarget == null)
                     return false;
 
-                harmony.Patch(target, postfix: new HarmonyMethod(AccessTools.Method(typeof(LaneArrowPatch), nameof(Postfix))));
+                harmony.Patch(setTarget, postfix: new HarmonyMethod(AccessTools.Method(typeof(LaneArrowPatch), nameof(Postfix))));
+
+                var toggleResultType = AccessTools.TypeByName("TrafficManager.API.Traffic.Enums.SetLaneArrow_Result");
+                if (toggleResultType != null)
+                {
+                    var toggleTarget = AccessTools.Method(
+                        flagsType,
+                        "ToggleLaneArrowFlags",
+                        new[] { typeof(uint), typeof(bool), laneArrowsType, toggleResultType.MakeByRefType() });
+
+                    if (toggleTarget != null)
+                        harmony.Patch(toggleTarget, postfix: new HarmonyMethod(AccessTools.Method(typeof(LaneArrowPatch), nameof(TogglePostfix))));
+                }
+
                 return true;
             }
 
             private static void Postfix(uint laneId, object flags, bool overrideHighwayArrows, ref bool __result)
+            {
+                if (__result)
+                    TmpeChangeDispatcher.HandleLaneArrows(laneId);
+            }
+
+            private static void TogglePostfix(uint laneId, ref bool __result)
             {
                 if (__result)
                     TmpeChangeDispatcher.HandleLaneArrows(laneId);

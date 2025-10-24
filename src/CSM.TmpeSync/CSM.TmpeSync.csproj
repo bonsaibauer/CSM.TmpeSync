@@ -206,6 +206,7 @@
     <Compile Include="Tool\LockOverlay.cs" />
     <Compile Include="Tmpe\TmpeChangeDispatcher.cs" />
     <Compile Include="Tmpe\TmpeEventBridge.cs" />
+    <Compile Include="Tmpe\SpeedLimitCodec.cs" />
   </ItemGroup>
 
   <!-- ==== Post-Build: Copy the add-on into the local mod directory ==== -->

@@ -14,6 +14,31 @@ namespace CSM.TmpeSync.Net.Contracts.States
     }
 
     [ProtoContract]
+    public enum SpeedLimitValueType
+    {
+        [ProtoEnum(Value = 0)] Default = 0,
+        [ProtoEnum(Value = 1)] KilometresPerHour = 1,
+        [ProtoEnum(Value = 2)] MilesPerHour = 2,
+        [ProtoEnum(Value = 3)] Unlimited = 3
+    }
+
+    [ProtoContract]
+    public class SpeedLimitValue
+    {
+        [ProtoMember(1)] public SpeedLimitValueType Type { get; set; }
+
+        /// <summary>
+        /// Index into the TM:PE speed-limit palette for the corresponding unit.
+        /// </summary>
+        [ProtoMember(2)] public byte Index { get; set; }
+
+        public override string ToString()
+        {
+            return $"Type={Type} Index={Index}";
+        }
+    }
+
+    [ProtoContract]
     [Flags]
     public enum VehicleRestrictionFlags
     {

@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using CSM.TmpeSync.Net.Contracts.Applied;
+using CSM.TmpeSync.Tmpe;
 using CSM.TmpeSync.Util;
 using Log = CSM.TmpeSync.Util.Log;
 
@@ -24,12 +25,17 @@ namespace CSM.TmpeSync.Snapshot
                 if (!NetUtil.TryGetLaneLocation(laneId, out var segmentId, out var laneIndex))
                     return;
 
-                Log.Debug(LogCategory.Snapshot, "Speed limit snapshot entry | laneId={0} speedKmh={1}", laneId, kmh);
+                var encoded = SpeedLimitCodec.Encode(kmh);
+                Log.Debug(
+                    LogCategory.Snapshot,
+                    "Speed limit snapshot entry | laneId={0} value={1}",
+                    laneId,
+                    SpeedLimitCodec.Describe(encoded));
                 var mappingVersion = LaneMappingStore.Version;
                 buffer.Add(new SpeedLimitBatchApplied.Entry
                 {
                     LaneId = laneId,
-                    SpeedKmh = kmh,
+                    Speed = encoded,
                     SegmentId = segmentId,
                     LaneIndex = laneIndex,
                     MappingVersion = mappingVersion

@@ -1,3 +1,5 @@
+using CSM.TmpeSync.Net.Contracts.States;
+using CSM.TmpeSync.Tmpe;
 using CSM.TmpeSync.Util;
 
 namespace CSM.TmpeSync.Net.Handlers
@@ -5,11 +7,14 @@ namespace CSM.TmpeSync.Net.Handlers
     // Centralises the shared logic so both single and batched handlers behave identically.
     internal static class SpeedLimitCommandProcessor
     {
-        internal static void Apply(uint laneId, float speedKmh, ushort segmentId = 0, int laneIndex = -1, long mappingVersion = 0)
+        internal static void Apply(uint laneId, SpeedLimitValue value, ushort segmentId = 0, int laneIndex = -1, long mappingVersion = 0)
         {
             var resolvedLaneId = laneId;
             var resolvedSegmentId = segmentId;
             var resolvedLaneIndex = laneIndex;
+
+            var speedDescription = SpeedLimitCodec.Describe(value);
+            var speedKmh = SpeedLimitCodec.DecodeToKmh(value);
 
             if (mappingVersion > 0 && LaneMappingStore.Version < mappingVersion)
             {
@@ -30,7 +35,7 @@ namespace CSM.TmpeSync.Net.Handlers
                     segmentId,
                     laneIndex,
                     mappingVersion);
-                DeferredApply.Enqueue(new SpeedLimitDeferredOp(laneId, segmentId, laneIndex, speedKmh, mappingVersion));
+                DeferredApply.Enqueue(new SpeedLimitDeferredOp(laneId, segmentId, laneIndex, value, mappingVersion));
                 return;
             }
 
@@ -40,10 +45,11 @@ namespace CSM.TmpeSync.Net.Handlers
                 {
                     Log.Info(
                         LogCategory.Synchronization,
-                        "Applied speed limit | laneId={0} segmentId={1} laneIndex={2} speedKmh={3} expectedVersion={4}",
+                        "Applied speed limit | laneId={0} segmentId={1} laneIndex={2} value={3} speedKmh={4} expectedVersion={5}",
                         resolvedLaneId,
                         resolvedSegmentId,
                         resolvedLaneIndex,
+                        speedDescription,
                         speedKmh,
                         mappingVersion);
                 }
@@ -51,10 +57,11 @@ namespace CSM.TmpeSync.Net.Handlers
                 {
                     Log.Error(
                         LogCategory.Synchronization,
-                        "Failed to apply speed limit | laneId={0} segmentId={1} laneIndex={2} speedKmh={3} expectedVersion={4}",
+                        "Failed to apply speed limit | laneId={0} segmentId={1} laneIndex={2} value={3} speedKmh={4} expectedVersion={5}",
                         resolvedLaneId,
                         resolvedSegmentId,
                         resolvedLaneIndex,
+                        speedDescription,
                         speedKmh,
                         mappingVersion);
                 }

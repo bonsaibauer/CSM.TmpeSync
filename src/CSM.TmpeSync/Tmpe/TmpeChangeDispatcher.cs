@@ -133,16 +133,18 @@ namespace CSM.TmpeSync.Tmpe
                     var laneInfo = info.m_lanes[laneIndex];
                     if (TmpeAdapter.TryGetSpeedKmh(laneId, out var kmh))
                     {
+                        var encoded = SpeedLimitCodec.Encode(kmh);
+
                         if (TmpeAdapter.TryGetDefaultSpeedKmh(laneId, laneInfo, out var defaultKmh) &&
                             Math.Abs(kmh - defaultKmh) < 0.01f)
                         {
-                            kmh = 0f; // reset to default
+                            encoded = SpeedLimitCodec.Default();
                         }
 
                         Broadcast(new SpeedLimitApplied
                         {
                             LaneId = laneId,
-                            SpeedKmh = kmh,
+                            Speed = encoded,
                             SegmentId = segmentId,
                             LaneIndex = laneIndex,
                             MappingVersion = mappingVersion
