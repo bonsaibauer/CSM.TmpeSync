@@ -74,6 +74,32 @@
     <Error Condition=" !Exists('$(CsmApiDllPath)') " Text="Missing: $(CsmApiDllPath) — verify the CSM.API build path." />
   </Target>
 
+  <Target Name="NormalizeFrameworkReferenceArchitecture" BeforeTargets="ResolveReferences">
+    <!--
+      Visual Studio resolves the .NET 3.5 reference assemblies from the Microsoft.NETFramework.ReferenceAssemblies.net35
+      package with a ProcessorArchitecture of x86. We ship an AnyCPU plugin that must load in a 64-bit Mono runtime,
+      so we explicitly normalise the metadata to match the real (AnyCPU) binaries and avoid architecture mismatch warnings.
+    -->
+    <ItemGroup>
+      <Reference Update="mscorlib">
+        <ProcessorArchitecture>MSIL</ProcessorArchitecture>
+      </Reference>
+      <Reference Update="System.Data">
+        <ProcessorArchitecture>MSIL</ProcessorArchitecture>
+      </Reference>
+    </ItemGroup>
+  </Target>
+
+  <Target Name="VerifyFrameworkReferenceArchitecture" AfterTargets="ResolveReferences">
+    <ItemGroup>
+      <_ArchitectureWarnings Include="@(ReferencePath)"
+                              Condition=" '%(ReferencePath.NuGetPackageId)' == 'Microsoft.NETFramework.ReferenceAssemblies.net35' and '%(ReferencePath.ProcessorArchitecture)' != 'MSIL' " />
+    </ItemGroup>
+
+    <Error Condition=" '@(_ArchitectureWarnings)' != '' "
+           Text="Framework reference %(Identity) resolved with processor architecture '%(ProcessorArchitecture)'. Update NormalizeFrameworkReferenceArchitecture to cover this case." />
+  </Target>
+
   <!-- ==== References ==== -->
   <ItemGroup>
     <!-- Game -->
