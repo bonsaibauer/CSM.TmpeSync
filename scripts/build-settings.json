@@ -1,7 +1,19 @@
 {
-  "CitiesSkylinesDir": "C:\\Program Files (x86)\\Steam\\steamapps\\common\\Cities_Skylines",
-  "GameDirectory": "C:\\Program Files (x86)\\Steam\\steamapps\\common\\Cities_Skylines",
-  "SteamModsDir": "C:\\Program Files (x86)\\Steam\\steamapps\\workshop\\content\\255710",
-  "HarmonyDllDir": "C:\\Program Files (x86)\\Steam\\steamapps\\workshop\\content\\255710\\2040656402",
-  "CsmApiDllPath": "A:\\17 Cloud\\OneDrive\\Documents\\GitHub\\CSM.TmpeSync\\lib\\CSM\\CSM.API.dll"
+  "ActiveProfile": "Steam",
+  "Profiles": {
+    "Steam": {
+      "GameDirectory": "C:\\Program Files (x86)\\Steam\\steamapps\\common\\Cities_Skylines",
+      "CitiesSkylinesDir": "C:\\Program Files (x86)\\Steam\\steamapps\\common\\Cities_Skylines",
+      "ModRootDirectory": "C:\\Users\\mail\\AppData\\Local\\Colossal Order\\Cities_Skylines\\Addons\\Mods",
+      "ModDirectory": "C:\\Users\\mail\\AppData\\Local\\Colossal Order\\Cities_Skylines\\Addons\\Mods\\CSM.TmpeSync",
+      "SteamModsDir": "C:\\Program Files (x86)\\Steam\\steamapps\\workshop\\content\\255710",
+      "HarmonySourceDir": "C:\\Program Files (x86)\\Steam\\steamapps\\workshop\\content\\255710\\2040656402",
+      "CsmSourceDir": "C:\\Program Files (x86)\\Steam\\steamapps\\workshop\\content\\255710\\1558438291",
+      "TmpeSourceDir": "C:\\Program Files (x86)\\Steam\\steamapps\\workshop\\content\\255710\\1637663252",
+      "HarmonyDllDir": "A:\\17 Cloud\\OneDrive\\Documents\\GitHub\\CSM.TmpeSync\\lib\\Harmony",
+      "TmpeDir": "A:\\17 Cloud\\OneDrive\\Documents\\GitHub\\CSM.TmpeSync\\lib\\TMPE",
+      "CsmLibDir": "A:\\17 Cloud\\OneDrive\\Documents\\GitHub\\CSM.TmpeSync\\lib\\CSM",
+      "CsmApiDllPath": "A:\\17 Cloud\\OneDrive\\Documents\\GitHub\\CSM.TmpeSync\\lib\\CSM\\CSM.API.dll"
+    }
+  }
 }

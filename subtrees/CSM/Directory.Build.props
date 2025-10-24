@@ -1,0 +1,8 @@
+<Project>
+  <PropertyGroup Condition="'$(OS)' == 'Windows_NT'">
+    <FrameworkPathOverride Condition="Exists('$(SystemRoot)\Microsoft.NET\Framework\v2.0.50727')">$(SystemRoot)\Microsoft.NET\Framework\v2.0.50727</FrameworkPathOverride>
+    <FrameworkPathOverride Condition="!Exists('$(SystemRoot)\Microsoft.NET\Framework\v2.0.50727') and Exists('$(SystemRoot)\Microsoft.NET\Framework64\v2.0.50727')">$(SystemRoot)\Microsoft.NET\Framework64\v2.0.50727</FrameworkPathOverride>
+    <Net35ReferenceAssemblyPath Condition="Exists('$(ProgramFiles)\Reference Assemblies\Microsoft\Framework\v3.5')">$(ProgramFiles)\Reference Assemblies\Microsoft\Framework\v3.5</Net35ReferenceAssemblyPath>
+    <ReferencePath Condition="'$(Net35ReferenceAssemblyPath)' != ''">$(ReferencePath);$(Net35ReferenceAssemblyPath)</ReferencePath>
+  </PropertyGroup>
+</Project>
