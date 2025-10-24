@@ -1036,10 +1036,13 @@ namespace CSM.TmpeSync.Tmpe
         private static object UtilityManagerInstance;
         private static MethodInfo UtilityManagerClearTrafficMethod;
 
+        static partial void OnStaticConstructed();
+
         static TmpeAdapter()
         {
             AppDomain.CurrentDomain.AssemblyLoad += OnAssemblyLoaded;
             RefreshBridge(true);
+            OnStaticConstructed();
         }
 
         private static bool InitialiseSpeedLimitBridge(Assembly tmpeAssembly)
