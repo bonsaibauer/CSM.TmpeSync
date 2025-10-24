@@ -5,7 +5,7 @@ Use this checklist when verifying TM:PE synchronisation in a CSM session.
 ## Pre-flight
 
 - [ ] CSM and TM:PE load without Harmony errors in the game log.
-- [ ] `CSM.TmpeSync` appears in the mod list and the log file `%LOCALAPPDATA%\Colossal Order\Cities_Skylines\CSM.TmpeSync\csm.tmpe-sync.log` is created.
+- [ ] `CSM.TmpeSync` appears in the mod list and the log file `%LOCALAPPDATA%\Colossal Order\Cities_Skylines\CSM.TmpeSync\log-YYYY-MM-DD.log` (UTC+02:00) is created.
 - [ ] All participating clients run the same TM:PE version as the host.
 
 ## Lane mapping infrastructure

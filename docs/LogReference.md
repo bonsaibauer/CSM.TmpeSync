@@ -5,14 +5,17 @@ CSM TM:PE Sync writes all diagnostics to a single rotating log file to keep the 
 ## Location
 
 ```
-%LOCALAPPDATA%\Colossal Order\Cities_Skylines\CSM.TmpeSync\csm.tmpe-sync.log
+%LOCALAPPDATA%\Colossal Order\Cities_Skylines\CSM.TmpeSync\log-YYYY-MM-DD.log
 ```
 
-The file rolls over at 2 MB. Archived logs live next to the active file and use the pattern `csm.tmpe-sync-YYYYMMDD-HHMMSS[[-GUID]].log`.
+A fresh log file is created for every calendar day at UTC+02:00. The active file rolls over at 2 MB, storing
+archives alongside the daily files with the pattern `log-YYYY-MM-DD-archive-YYYYMMDD-HHMMSS[[-GUID]].log`.
+
+Timestamps inside the files are also written at UTC+02:00 to match the file naming scheme.
 
 ## Levels
 
-- `DEBUG` – Verbose bridge tracing and network chatter. These entries are always emitted to aid troubleshooting.
+- `DEBUG` – Verbose bridge tracing and network chatter. These entries appear only in Debug builds to keep Release builds lean.
 - `INFO` – Lifecycle events, dependency checks, and successful synchronisation operations.
 - `WARN` – Missing dependencies, TM:PE features that could not be resolved, or recoverable network issues.
 - `ERROR` – Exceptions thrown while applying or exporting state. These indicate the host rejected an operation.
