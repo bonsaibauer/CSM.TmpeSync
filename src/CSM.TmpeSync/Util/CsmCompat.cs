@@ -1,6 +1,4 @@
 using System;
-using System.Collections;
-using System.Reflection;
 using CSM.API.Commands;
 using CSM.API.Helpers;
 using CSM.API.Networking;
@@ -14,15 +12,6 @@ namespace CSM.TmpeSync.Util
         private static bool _loggedMissingSendToClients;
         private static bool _loggedSendToClientNotServer;
         private static bool _loggedSendToClientUnavailable;
-
-        private static readonly object SendToClientReflectionSync = new object();
-        private static bool _sendToClientReflectionInitialized;
-        private static bool _sendToClientReflectionAvailable;
-        private static FieldInfo _commandInternalInstanceField;
-        private static MethodInfo _commandInternalSendToClientMethod;
-        private static PropertyInfo _multiplayerManagerInstanceProperty;
-        private static PropertyInfo _multiplayerManagerCurrentServerProperty;
-        private static PropertyInfo _serverConnectedPlayersProperty;
 
         internal static void SendToAll(CommandBase command)
         {
@@ -38,24 +27,13 @@ namespace CSM.TmpeSync.Util
                 return;
             }
 
-            Log.Debug(LogCategory.Network, "Dispatch delegate missing | direction=all type={0} action=fallback", commandName);
-
             if (!_loggedMissingSendToAll)
             {
                 _loggedMissingSendToAll = true;
                 Log.Warn(LogCategory.Network, "Unable to broadcast command | reason=no_send_delegate type={0}", command.GetType().FullName);
             }
 
-            if (IsServerInstance())
-            {
-                Log.Debug(LogCategory.Network, "Fallback via SendToClients | type={0}", commandName);
-                SendToClients(command);
-            }
-            else
-            {
-                Log.Debug(LogCategory.Network, "Fallback via SendToServer | type={0}", commandName);
-                SendToServer(command);
-            }
+            Log.Debug(LogCategory.Network, "Dispatch delegate missing | direction=all type={0}", commandName);
         }
 
         internal static void SendToClients(CommandBase command)
@@ -68,8 +46,13 @@ namespace CSM.TmpeSync.Util
 
             if (!IsServerInstance())
             {
-                Log.Debug(LogCategory.Network, "Forwarding client-bound command to server | type={0}", commandName);
-                SendToServer(command);
+                if (!_loggedSendToClientNotServer)
+                {
+                    _loggedSendToClientNotServer = true;
+                    Log.Warn(LogCategory.Network, "Ignoring SendToClients call while not acting as server");
+                }
+
+                Log.Debug(LogCategory.Network, "SendToClients ignored on non-server instance | type={0}", commandName);
                 return;
             }
 
@@ -79,13 +62,13 @@ namespace CSM.TmpeSync.Util
                 return;
             }
 
-            Log.Debug(LogCategory.Network, "Dispatch delegate missing | direction=clients type={0}", commandName);
-
             if (!_loggedMissingSendToClients)
             {
                 _loggedMissingSendToClients = true;
                 Log.Warn(LogCategory.Network, "Unable to send command to connected clients | reason=no_send_delegate type={0}", command.GetType().FullName);
             }
+
+            Log.Debug(LogCategory.Network, "Dispatch delegate missing | direction=clients type={0}", commandName);
         }
 
         internal static void SendToServer(CommandBase command)
@@ -102,9 +85,8 @@ namespace CSM.TmpeSync.Util
                 return;
             }
 
-            Log.Debug(LogCategory.Network, "Dispatch delegate missing | direction=server type={0}", commandName);
-
             Log.Warn(LogCategory.Network, "Unable to send command to server | reason=no_send_delegate type={0}", command.GetType().FullName);
+            Log.Debug(LogCategory.Network, "Dispatch delegate missing | direction=server type={0}", commandName);
         }
 
         internal static void SendToClient(int clientId, CommandBase command)
@@ -127,16 +109,10 @@ namespace CSM.TmpeSync.Util
                 return;
             }
 
-            if (TrySendToClientInternal(clientId, command, out var failureReason))
-            {
-                Log.Debug(LogCategory.Network, "Dispatch complete | direction=client type={0} clientId={1}", commandName, clientId);
-                return;
-            }
-
             if (!_loggedSendToClientUnavailable)
             {
                 _loggedSendToClientUnavailable = true;
-                Log.Warn(LogCategory.Network, "Unable to send command to client | id={0} command={1} reason={2}", clientId, command.GetType().Name, failureReason ?? "unknown");
+                Log.Warn(LogCategory.Network, "Unable to send command to client | id={0} command={1} reason=api_unavailable", clientId, command.GetType().Name);
             }
 
             Log.Debug(LogCategory.Network, "Command not delivered to client | type={0} clientId={1}", commandName, clientId);
@@ -206,82 +182,6 @@ namespace CSM.TmpeSync.Util
             }
         }
 
-        private static bool EnsureSendToClientReflection()
-        {
-            if (_sendToClientReflectionInitialized)
-                return _sendToClientReflectionAvailable;
-
-            lock (SendToClientReflectionSync)
-            {
-                if (_sendToClientReflectionInitialized)
-                    return _sendToClientReflectionAvailable;
-
-                _sendToClientReflectionInitialized = true;
-
-                try
-                {
-                    var commandInternalType = Type.GetType("CSM.Commands.CommandInternal, CSM");
-                    var multiplayerManagerType = Type.GetType("CSM.Networking.MultiplayerManager, CSM");
-
-                    if (commandInternalType == null || multiplayerManagerType == null)
-                    {
-                        Log.Warn(LogCategory.Network, "SendToClient reflection | missing types commandInternal={0} multiplayerManager={1}", commandInternalType != null, multiplayerManagerType != null);
-                        _sendToClientReflectionAvailable = false;
-                        return false;
-                    }
-
-                    _commandInternalInstanceField = commandInternalType.GetField("Instance", BindingFlags.Public | BindingFlags.Static);
-                    _commandInternalSendToClientMethod = commandInternalType.GetMethod("SendToClient", BindingFlags.Public | BindingFlags.Instance, null, new[] { typeof(Player), typeof(CommandBase) }, null);
-                    _multiplayerManagerInstanceProperty = multiplayerManagerType.GetProperty("Instance", BindingFlags.Public | BindingFlags.Static);
-                    _multiplayerManagerCurrentServerProperty = multiplayerManagerType.GetProperty("CurrentServer", BindingFlags.Public | BindingFlags.Instance);
-
-                    var serverType = _multiplayerManagerCurrentServerProperty?.PropertyType;
-                    _serverConnectedPlayersProperty = serverType?.GetProperty("ConnectedPlayers", BindingFlags.Public | BindingFlags.Instance);
-
-                    _sendToClientReflectionAvailable =
-                        _commandInternalInstanceField != null &&
-                        _commandInternalSendToClientMethod != null &&
-                        _multiplayerManagerInstanceProperty != null &&
-                        _multiplayerManagerCurrentServerProperty != null &&
-                        _serverConnectedPlayersProperty != null;
-
-                    if (!_sendToClientReflectionAvailable)
-                    {
-                        Log.Warn(LogCategory.Network, "SendToClient reflection setup incomplete | instanceField={0} method={1} managerProp={2} serverProp={3} playersProp={4}",
-                            _commandInternalInstanceField != null,
-                            _commandInternalSendToClientMethod != null,
-                            _multiplayerManagerInstanceProperty != null,
-                            _multiplayerManagerCurrentServerProperty != null,
-                            _serverConnectedPlayersProperty != null);
-                    }
-                }
-                catch (Exception ex)
-                {
-                    Log.Warn(LogCategory.Network, "SendToClient reflection setup failed | error={0}", ex);
-                    _sendToClientReflectionAvailable = false;
-                }
-
-                return _sendToClientReflectionAvailable;
-            }
-        }
-
-        private static bool Invoke(Action<CommandBase> action, CommandBase command)
-        {
-            if (action == null)
-                return false;
-
-            try
-            {
-                action(command);
-                return true;
-            }
-            catch (Exception ex)
-            {
-                Log.Warn(LogCategory.Network, "Failed to invoke CSM delegate {0} | error={1}", DescribeDelegate(action), ex);
-                return false;
-            }
-        }
-
         internal static int GetSenderId(CommandBase command) => command?.SenderId ?? -1;
 
         internal static bool IsServerInstance() => Command.CurrentRole == MultiplayerRole.Server;
@@ -330,7 +230,7 @@ namespace CSM.TmpeSync.Util
                 Log.Info(LogCategory.Diagnostics, "Command.SendToServer delegate | value={0}", DescribeDelegate(Command.SendToServer));
                 Log.Info(LogCategory.Diagnostics, "Command.SendToClients delegate | value={0}", DescribeDelegate(Command.SendToClients));
                 Log.Info(LogCategory.Diagnostics, "Command.GetCommandHandler delegate | value={0}", DescribeDelegate(Command.GetCommandHandler));
-                Log.Info(LogCategory.Diagnostics, "SendToClient reflection | initialized={0} available={1}", _sendToClientReflectionInitialized, _sendToClientReflectionAvailable);
+                Log.Info(LogCategory.Diagnostics, "Command.SendToClient delegate | value=<unsupported>");
             }
             catch (Exception ex)
             {
