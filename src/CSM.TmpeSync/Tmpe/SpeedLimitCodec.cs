@@ -63,6 +63,27 @@ namespace CSM.TmpeSync.Tmpe
             };
         }
 
+        internal static SpeedLimitValue Encode(float speedKmh, float? defaultKmh, bool hasOverride)
+        {
+            if (!hasOverride)
+            {
+                var value = Default();
+                if (defaultKmh.HasValue && defaultKmh.Value > DefaultTolerance)
+                    value.RawSpeedKmh = defaultKmh.Value;
+                return value;
+            }
+
+            if (defaultKmh.HasValue && Math.Abs(speedKmh - defaultKmh.Value) <= DefaultTolerance)
+            {
+                var value = Default();
+                if (defaultKmh.Value > DefaultTolerance)
+                    value.RawSpeedKmh = defaultKmh.Value;
+                return value;
+            }
+
+            return Encode(speedKmh);
+        }
+
         internal static float DecodeToKmh(SpeedLimitValue value)
         {
             if (value == null)

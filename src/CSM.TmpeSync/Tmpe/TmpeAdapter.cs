@@ -947,6 +947,7 @@ namespace CSM.TmpeSync.Tmpe
         private static MethodInfo SpeedLimitSetLaneMethod;
         private static MethodInfo SpeedLimitSetLaneWithInfoMethod;
         private static MethodInfo SpeedLimitCalculateMethod;
+        private static MethodInfo SpeedLimitCalculateCustomMethod;
         private static MethodInfo SpeedLimitGetDefaultMethod;
         private static Type SetSpeedLimitActionType;
         private static MethodInfo SetSpeedLimitResetMethod;
@@ -964,6 +965,12 @@ namespace CSM.TmpeSync.Tmpe
         private static MethodInfo SpeedLimitMayHaveLaneMethod;
         private static NetInfo.LaneType SpeedLimitLaneTypeMask;
         private static VehicleInfo.VehicleType SpeedLimitVehicleTypeMask;
+        private static Type SpeedLimitResultType;
+        private static FieldInfo SpeedLimitResultOverrideField;
+        private static FieldInfo SpeedLimitResultDefaultField;
+        private static PropertyInfo SpeedValueNullableHasValueProperty;
+        private static PropertyInfo SpeedValueNullableValueProperty;
+        private static PropertyInfo SpeedValueGameUnitsProperty;
 
         private static object LaneArrowManagerInstance;
         private static MethodInfo LaneArrowSetMethod;
@@ -1072,6 +1079,7 @@ namespace CSM.TmpeSync.Tmpe
             SpeedLimitSetLaneMethod = null;
             SpeedLimitSetLaneWithInfoMethod = null;
             SpeedLimitCalculateMethod = null;
+            SpeedLimitCalculateCustomMethod = null;
             SpeedLimitGetDefaultMethod = null;
             SetSpeedLimitActionType = null;
             SetSpeedLimitResetMethod = null;
@@ -1089,6 +1097,12 @@ namespace CSM.TmpeSync.Tmpe
             SpeedLimitMayHaveLaneMethod = null;
             SpeedLimitLaneTypeMask = NetInfo.LaneType.None;
             SpeedLimitVehicleTypeMask = VehicleInfo.VehicleType.None;
+            SpeedLimitResultType = null;
+            SpeedLimitResultOverrideField = null;
+            SpeedLimitResultDefaultField = null;
+            SpeedValueNullableHasValueProperty = null;
+            SpeedValueNullableValueProperty = null;
+            SpeedValueGameUnitsProperty = null;
 
             try
             {
@@ -1167,6 +1181,15 @@ namespace CSM.TmpeSync.Tmpe
                         null);
                     if (SpeedLimitCalculateMethod == null)
                         LogBridgeGap("Speed Limits", "CalculateLaneSpeedLimit(uint)", DescribeMethodOverloads(managerType, "CalculateLaneSpeedLimit"));
+
+                    SpeedLimitCalculateCustomMethod = managerType.GetMethod(
+                        "CalculateCustomSpeedLimit",
+                        BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic,
+                        null,
+                        new[] { typeof(uint) },
+                        null);
+                    if (SpeedLimitCalculateCustomMethod == null)
+                        LogBridgeGap("Speed Limits", "CalculateCustomSpeedLimit(uint)", DescribeMethodOverloads(managerType, "CalculateCustomSpeedLimit"));
 
                     SpeedLimitGetDefaultMethod = managerType.GetMethod(
                         "GetGameSpeedLimit",
@@ -1253,6 +1276,28 @@ namespace CSM.TmpeSync.Tmpe
                         null);
                     if (SpeedValueCtor == null)
                         LogBridgeGap("Speed Limits", "SpeedValue..ctor(float)", "<ctor missing>");
+
+                    SpeedValueGameUnitsProperty = SpeedValueType.GetProperty("GameUnits", BindingFlags.Public | BindingFlags.Instance);
+                }
+
+                SpeedLimitResultType = ResolveTypeWithContext("TrafficManager.State.GetSpeedLimitResult", contextAssembly, "Speed Limits");
+                if (SpeedLimitResultType != null)
+                {
+                    SpeedLimitResultOverrideField = SpeedLimitResultType.GetField("OverrideValue", BindingFlags.Public | BindingFlags.Instance);
+                    if (SpeedLimitResultOverrideField == null)
+                        LogBridgeGap("Speed Limits", "GetSpeedLimitResult.OverrideValue", "<field missing>");
+                    else
+                        InitializeSpeedValueNullableAccessors(SpeedLimitResultOverrideField.FieldType);
+
+                    SpeedLimitResultDefaultField = SpeedLimitResultType.GetField("DefaultValue", BindingFlags.Public | BindingFlags.Instance);
+                    if (SpeedLimitResultDefaultField == null)
+                        LogBridgeGap("Speed Limits", "GetSpeedLimitResult.DefaultValue", "<field missing>");
+                    else
+                        InitializeSpeedValueNullableAccessors(SpeedLimitResultDefaultField.FieldType);
+                }
+                else
+                {
+                    LogBridgeGap("Speed Limits", "type", "TrafficManager.State.GetSpeedLimitResult");
                 }
 
                 var extType = contextAssembly?.GetType("TrafficManager.Manager.Impl.SpeedLimitManagerExt")
@@ -2063,59 +2108,68 @@ namespace CSM.TmpeSync.Tmpe
 
         internal static bool TryGetSpeedKmh(uint laneId, out float kmh)
         {
+            return TryGetSpeedLimit(laneId, out kmh, out _, out _);
+        }
+
+        internal static bool TryGetSpeedLimit(uint laneId, out float speedKmh, out float? defaultKmh, out bool hasOverride)
+        {
+            speedKmh = 0f;
+            defaultKmh = null;
+            hasOverride = false;
+
             try
             {
-                if (SupportsSpeedLimits && TryGetSpeedLimitReal(laneId, out kmh))
+                if (SupportsSpeedLimits && TryGetSpeedLimitReal(laneId, out speedKmh, out defaultKmh, out hasOverride))
                 {
-                    Log.Debug(LogCategory.Hook, "TM:PE speed limit query | laneId={0} speedKmh={1}", laneId, kmh);
+                    Log.Debug(
+                        LogCategory.Hook,
+                        "TM:PE speed limit query | laneId={0} speedKmh={1} override={2} defaultKmh={3}",
+                        laneId,
+                        speedKmh,
+                        hasOverride,
+                        defaultKmh);
                     return true;
                 }
 
+                float? fallbackDefault = TryGetLaneDefaultKmh(laneId);
+
                 lock (StateLock)
                 {
-                    if (!SpeedLimits.TryGetValue(laneId, out kmh))
-                        kmh = 50f;
+                    if (SpeedLimits.TryGetValue(laneId, out var stored))
+                    {
+                        speedKmh = stored;
+                        hasOverride = true;
+                    }
+                    else
+                    {
+                        speedKmh = fallbackDefault ?? 50f;
+                        hasOverride = false;
+                    }
                 }
+
+                defaultKmh = fallbackDefault ?? (hasOverride ? (float?)null : speedKmh);
+
                 if (SupportsSpeedLimits)
-                    Log.Debug(LogCategory.Hook, "TM:PE speed limit query (stub) | laneId={0} speedKmh={1}", laneId, kmh);
+                {
+                    Log.Debug(
+                        LogCategory.Hook,
+                        "TM:PE speed limit query (stub) | laneId={0} speedKmh={1} override={2} defaultKmh={3}",
+                        laneId,
+                        speedKmh,
+                        hasOverride,
+                        defaultKmh);
+                }
+
                 return true;
             }
             catch (Exception ex)
             {
-                Log.Error(LogCategory.Synchronization, "TM:PE TryGetSpeedKmh failed | error={0}", ex);
-                kmh = 0f;
+                Log.Error(LogCategory.Synchronization, "TM:PE TryGetSpeedLimit failed | error={0}", ex);
+                speedKmh = 0f;
+                defaultKmh = null;
+                hasOverride = false;
                 return false;
             }
-        }
-
-        internal static bool TryGetDefaultSpeedKmh(uint laneId, NetInfo.Lane laneInfo, out float kmh)
-        {
-            kmh = 0f;
-
-            try
-            {
-                if (SupportsSpeedLimits && SpeedLimitManagerInstance != null && SpeedLimitGetDefaultMethod != null && laneInfo != null)
-                {
-                    var result = SpeedLimitGetDefaultMethod.Invoke(SpeedLimitManagerInstance, new object[] { (object)laneId, laneInfo });
-                    if (result is float gameUnits)
-                    {
-                        kmh = ConvertGameSpeedToKmh(gameUnits);
-                        return true;
-                    }
-                }
-
-                if (laneInfo != null)
-                {
-                    kmh = ConvertGameSpeedToKmh(laneInfo.m_speedLimit);
-                    return true;
-                }
-            }
-            catch (Exception ex)
-            {
-                Log.Warn(LogCategory.Diagnostics, "TM:PE TryGetDefaultSpeedKmh failed | error={0}", ex);
-            }
-
-            return false;
         }
 
         internal static bool ApplyLaneArrows(uint laneId, LaneArrowFlags arrows)
@@ -3103,9 +3157,9 @@ namespace CSM.TmpeSync.Tmpe
                 }
             }
 
-            if (speedKmh > 0f && TryGetSpeedLimitReal(laneId, out var appliedKmh))
+            if (speedKmh > 0f && TryGetSpeedLimitReal(laneId, out var appliedKmh, out _, out var appliedOverride))
             {
-                if (Math.Abs(appliedKmh - speedKmh) > 0.1f)
+                if (!appliedOverride || Math.Abs(appliedKmh - speedKmh) > 0.1f)
                 {
                     Log.Warn(
                         LogCategory.Bridge,
@@ -3120,28 +3174,56 @@ namespace CSM.TmpeSync.Tmpe
             return true;
         }
 
-        private static bool TryGetSpeedLimitReal(uint laneId, out float kmh)
+        private static bool TryGetSpeedLimitReal(uint laneId, out float kmh, out float? defaultKmh, out bool hasOverride)
         {
             kmh = 0f;
+            defaultKmh = null;
+            hasOverride = false;
+
             if (SpeedLimitManagerInstance == null)
                 return false;
+
+            if (SpeedLimitCalculateCustomMethod != null && SpeedLimitResultOverrideField != null)
+            {
+                var result = SpeedLimitCalculateCustomMethod.Invoke(SpeedLimitManagerInstance, new object[] { laneId });
+                if (result != null)
+                {
+                    if (TryExtractSpeedValue(SpeedLimitResultOverrideField.GetValue(result), out var overrideKmh))
+                    {
+                        hasOverride = true;
+                        kmh = overrideKmh;
+                    }
+
+                    if (SpeedLimitResultDefaultField != null && TryExtractSpeedValue(SpeedLimitResultDefaultField.GetValue(result), out var defaultValue))
+                    {
+                        defaultKmh = defaultValue;
+                        if (!hasOverride)
+                            kmh = defaultValue;
+                    }
+
+                    if (hasOverride || defaultKmh.HasValue)
+                        return true;
+                }
+            }
 
             if (SpeedLimitCalculateMethod != null)
             {
                 var result = SpeedLimitCalculateMethod.Invoke(SpeedLimitManagerInstance, new object[] { laneId });
-                if (result != null && SpeedValueGetKmphMethod != null)
+                if (TryConvertSpeedValueToKmh(result, out var overrideValue))
                 {
-                    kmh = Convert.ToSingle(SpeedValueGetKmphMethod.Invoke(result, null));
+                    hasOverride = true;
+                    kmh = overrideValue;
                     return true;
                 }
             }
 
-            if (SpeedLimitGetDefaultMethod != null && TryGetLaneInfo(laneId, out var segmentId, out var laneIndex, out var laneInfo, out _))
+            if (SpeedLimitGetDefaultMethod != null && TryGetLaneInfo(laneId, out _, out _, out var laneInfo, out _))
             {
                 var value = SpeedLimitGetDefaultMethod.Invoke(SpeedLimitManagerInstance, new object[] { (object)laneId, laneInfo });
                 if (value is float gameUnits)
                 {
-                    kmh = ConvertGameSpeedToKmh(gameUnits);
+                    defaultKmh = ConvertGameSpeedToKmh(gameUnits);
+                    kmh = defaultKmh.Value;
                     return true;
                 }
             }
@@ -3212,6 +3294,65 @@ namespace CSM.TmpeSync.Tmpe
             return null;
         }
 
+        private static void InitializeSpeedValueNullableAccessors(Type nullableType)
+        {
+            if (nullableType == null)
+                return;
+
+            if (!nullableType.IsGenericType || nullableType.GetGenericTypeDefinition() != typeof(Nullable<>))
+                return;
+
+            SpeedValueNullableHasValueProperty ??= nullableType.GetProperty("HasValue", BindingFlags.Public | BindingFlags.Instance);
+            SpeedValueNullableValueProperty ??= nullableType.GetProperty("Value", BindingFlags.Public | BindingFlags.Instance);
+        }
+
+        private static bool TryExtractSpeedValue(object nullable, out float kmh)
+        {
+            kmh = 0f;
+
+            if (nullable == null || SpeedValueNullableHasValueProperty == null || SpeedValueNullableValueProperty == null)
+                return false;
+
+            var hasValue = (bool)SpeedValueNullableHasValueProperty.GetValue(nullable, null);
+            if (!hasValue)
+                return false;
+
+            var value = SpeedValueNullableValueProperty.GetValue(nullable, null);
+            return TryConvertSpeedValueToKmh(value, out kmh);
+        }
+
+        private static bool TryConvertSpeedValueToKmh(object speedValue, out float kmh)
+        {
+            kmh = 0f;
+
+            if (speedValue == null)
+                return false;
+
+            if (SpeedValueType != null && SpeedValueType.IsInstanceOfType(speedValue))
+            {
+                if (SpeedValueGetKmphMethod != null)
+                {
+                    kmh = Convert.ToSingle(SpeedValueGetKmphMethod.Invoke(speedValue, null));
+                    return true;
+                }
+
+                if (SpeedValueGameUnitsProperty != null)
+                {
+                    var gameUnits = Convert.ToSingle(SpeedValueGameUnitsProperty.GetValue(speedValue, null));
+                    kmh = ConvertGameSpeedToKmh(gameUnits);
+                    return true;
+                }
+            }
+
+            if (speedValue is float floatValue)
+            {
+                kmh = ConvertGameSpeedToKmh(floatValue);
+                return true;
+            }
+
+            return false;
+        }
+
         private static float ConvertGameSpeedToKmh(float gameUnits)
         {
             if (SpeedValueType == null || SpeedValueGetKmphMethod == null)
@@ -3263,6 +3404,17 @@ namespace CSM.TmpeSync.Tmpe
             }
 
             return false;
+        }
+
+        private static float? TryGetLaneDefaultKmh(uint laneId)
+        {
+            if (TryGetLaneInfo(laneId, out _, out _, out var laneInfo, out _))
+            {
+                if (laneInfo != null)
+                    return ConvertGameSpeedToKmh(laneInfo.m_speedLimit);
+            }
+
+            return null;
         }
 
         private static bool LaneSupportsCustomSpeedLimits(ushort segmentId, int laneIndex, NetInfo.Lane laneInfo, NetInfo segmentInfo, out string detail)
