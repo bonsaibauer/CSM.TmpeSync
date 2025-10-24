@@ -140,7 +140,7 @@ function Format-MsBuildProperty {
         return $null
     }
 
-    $escaped = $Value.Replace('"', '\"')
+    $escaped = $Value.Replace('"', '""')
     return [string]::Format('/p:{0}="{1}"', $Name, $escaped)
 }
 
@@ -154,7 +154,7 @@ function Format-DotnetProperty {
         return $null
     }
 
-    $escaped = $Value.Replace('"', '\"')
+    $escaped = $Value.Replace('"', '""')
     return [string]::Format('-p:{0}="{1}"', $Name, $escaped)
 }
 
@@ -310,6 +310,8 @@ function Prompt-ForProfileSelection {
         if ($choice -ge 1 -and $choice -le $AvailableProfiles.Count) {
             return $AvailableProfiles[$choice - 1]
         }
+
+        return $AvailableProfiles[0]
     }
 
     return $AvailableProfiles[$currentIndex]
@@ -433,25 +435,6 @@ function Configure-Profile {
             throw "Subscribe to Harmony, TM:PE, and CSM on the Steam Workshop before continuing."
         }
     }
-    New-Item -ItemType Directory -Path $targetDirectory -Force | Out-Null
-
-    Set-ProfileValue -Profile $profile -Key 'GameDirectory' -Value $gameDir
-    Set-ProfileValue -Profile $profile -Key 'CitiesSkylinesDir' -Value $gameDir
-    Set-ProfileValue -Profile $profile -Key 'ModRootDirectory' -Value $modRoot
-    Set-ProfileValue -Profile $profile -Key 'ModDirectory' -Value $modDirectory
-    Set-ProfileValue -Profile $profile -Key 'SteamModsDir' -Value $defaults.SteamModsDir
-    Set-ProfileValue -Profile $profile -Key 'HarmonySourceDir' -Value $defaults.HarmonySourceDir
-    Set-ProfileValue -Profile $profile -Key 'CsmSourceDir' -Value $defaults.CsmSourceDir
-    Set-ProfileValue -Profile $profile -Key 'TmpeSourceDir' -Value $defaults.TmpeSourceDir
-
-    $harmonyLibDir = Join-Path $script:LibRoot 'Harmony'
-    $csmLibDir = Join-Path $script:LibRoot 'CSM'
-    $tmpeLibDir = Join-Path $script:LibRoot 'TMPE'
-    Set-ProfileValue -Profile $profile -Key 'HarmonyDllDir' -Value $harmonyLibDir
-    Set-ProfileValue -Profile $profile -Key 'TmpeDir' -Value $tmpeLibDir
-    $csmApiPath = Join-Path $csmLibDir 'CSM.API.dll'
-    Set-ProfileValue -Profile $profile -Key 'CsmApiDllPath' -Value $csmApiPath
-    Set-ProfileValue -Profile $profile -Key 'CsmLibDir' -Value $csmLibDir
 
     Set-ProfileValue -Profile $profile -Key 'GameDirectory' -Value $gameDir
     Set-ProfileValue -Profile $profile -Key 'CitiesSkylinesDir' -Value $gameDir
@@ -475,6 +458,16 @@ function Configure-Profile {
     if ($available -notcontains $ProfileName) {
         throw "Unsupported profile: $ProfileName"
     }
+    New-Item -ItemType Directory -Path $targetDirectory -Force | Out-Null
+
+    Set-ProfileValue -Profile $profile -Key 'GameDirectory' -Value $gameDir
+    Set-ProfileValue -Profile $profile -Key 'CitiesSkylinesDir' -Value $gameDir
+    Set-ProfileValue -Profile $profile -Key 'ModRootDirectory' -Value $modRoot
+    Set-ProfileValue -Profile $profile -Key 'ModDirectory' -Value $modDirectory
+    Set-ProfileValue -Profile $profile -Key 'SteamModsDir' -Value $defaults.SteamModsDir
+    Set-ProfileValue -Profile $profile -Key 'HarmonySourceDir' -Value $defaults.HarmonySourceDir
+    Set-ProfileValue -Profile $profile -Key 'CsmSourceDir' -Value $defaults.CsmSourceDir
+    Set-ProfileValue -Profile $profile -Key 'TmpeSourceDir' -Value $defaults.TmpeSourceDir
 
     if ($Settings.ActiveProfile -ne $ProfileName) {
         $Settings.ActiveProfile = $ProfileName
