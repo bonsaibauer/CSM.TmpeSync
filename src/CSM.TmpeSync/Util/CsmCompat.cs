@@ -475,7 +475,11 @@ namespace CSM.TmpeSync.Util
 
             try
             {
+#if NETSTANDARD || NET5_0_OR_GREATER
                 return property.GetValue(null) as Delegate;
+#else
+                return property.GetValue(null, null) as Delegate;
+#endif
             }
             catch
             {
