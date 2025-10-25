@@ -1,7 +1,7 @@
 using System;
 using CSM.API.Commands;
 using CSM.TmpeSync.Util;
-using CSM.TmpeSync.CsmBridge;
+using CSM.TmpeSync.Bridge;
 using CSM.TmpeSync.TmpeBridge;
 
 namespace CSM.TmpeSync.Snapshot

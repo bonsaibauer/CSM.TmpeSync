@@ -2,7 +2,7 @@ using System;
 using HarmonyLib;
 using CSM.API.Helpers;
 using CSM.TmpeSync.Util;
-using CSM.TmpeSync.CsmBridge;
+using CSM.TmpeSync.Bridge;
 
 namespace CSM.TmpeSync.TmpeBridge
 {

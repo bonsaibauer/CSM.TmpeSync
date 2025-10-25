@@ -6,7 +6,7 @@ using CSM.TmpeSync.Network.Contracts.Applied;
 using CSM.TmpeSync.Network.Contracts.Requests;
 using CSM.TmpeSync.Network.Contracts.States;
 using CSM.TmpeSync.Util;
-using CSM.TmpeSync.CsmBridge;
+using CSM.TmpeSync.Bridge;
 
 namespace CSM.TmpeSync.TmpeBridge
 {
