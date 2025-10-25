@@ -30,15 +30,28 @@ namespace CSM.TmpeSync.Util
             Error
         }
 
+        private sealed class LogTarget
+        {
+            internal LogTarget(string roleName, string filePrefix)
+            {
+                RoleName = roleName;
+                FilePrefix = filePrefix;
+            }
+
+            internal string RoleName { get; }
+            internal string FilePrefix { get; }
+        }
+
         private static readonly object SyncRoot = new object();
         private static readonly string LogDirectory;
         private static readonly TimeSpan LogOffset;
         private static readonly bool DebugEnabled;
+        private static readonly LogTarget ClientTarget = new LogTarget("Client", "clientlog");
+        private static readonly LogTarget ServerTarget = new LogTarget("Server", "serverlog");
+        private static LogTarget _activeTarget = ClientTarget;
         private static bool _initialised;
         private static string _dailyLogDateStamp = string.Empty;
         private static string _currentLogFilePath;
-        private static string _sessionLogFilePath;
-        private static bool _sessionActive;
 
         static Log()
         {
@@ -48,7 +61,7 @@ namespace CSM.TmpeSync.Util
             LogDirectory = Path.Combine(citiesDir, "CSM.TmpeSync");
             LogOffset = TimeSpan.FromHours(2);
             var now = GetLocalTime();
-            _currentLogFilePath = BuildDailyLogFilePath(now);
+            _currentLogFilePath = BuildDailyLogFilePath(now, _activeTarget);
             _dailyLogDateStamp = now.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
 #if DEBUG
             DebugEnabled = true;
@@ -65,15 +78,12 @@ namespace CSM.TmpeSync.Util
             {
                 lock (SyncRoot)
                 {
-                    if (!_sessionActive)
+                    var now = GetLocalTime();
+                    var stamp = now.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+                    if (!string.Equals(_dailyLogDateStamp, stamp, StringComparison.Ordinal))
                     {
-                        var now = GetLocalTime();
-                        var stamp = now.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
-                        if (!string.Equals(_dailyLogDateStamp, stamp, StringComparison.Ordinal))
-                        {
-                            _dailyLogDateStamp = stamp;
-                            _currentLogFilePath = BuildDailyLogFilePath(now);
-                        }
+                        _dailyLogDateStamp = stamp;
+                        _currentLogFilePath = BuildDailyLogFilePath(now, _activeTarget);
                     }
 
                     return _currentLogFilePath;
@@ -109,80 +119,29 @@ namespace CSM.TmpeSync.Util
 
         internal static void StartServerSessionLog()
         {
-            string sessionPath;
-
-            lock (SyncRoot)
+            if (SetActiveTarget(ServerTarget, out var previous, out var current, out var path))
             {
-                if (_sessionActive)
-                    return;
-
-                var timestamp = GetLocalTime();
-                var stamp = timestamp.ToString("yyyyMMdd-HHmmss", CultureInfo.InvariantCulture);
-                sessionPath = Path.Combine(
-                    LogDirectory,
-                    string.Format(
-                        CultureInfo.InvariantCulture,
-                        "csm.tmpe-sync-server-{0}.log",
-                        stamp));
-                var suffix = 1;
-                while (File.Exists(sessionPath))
-                {
-                    sessionPath = Path.Combine(
-                        LogDirectory,
-                        string.Format(
-                            CultureInfo.InvariantCulture,
-                            "csm.tmpe-sync-server-{0}-{1}.log",
-                            stamp,
-                            suffix++));
-                }
-
-                _sessionLogFilePath = sessionPath;
-                _currentLogFilePath = sessionPath;
-                _sessionActive = true;
-                _initialised = false;
-                _dailyLogDateStamp = string.Empty;
+                Info(LogCategory.Lifecycle, "Logging target changed | from={0} to={1} file={2}", previous.RoleName, current.RoleName, path);
             }
-
-            Info(LogCategory.Lifecycle, "Server session logging started | file={0}", sessionPath);
         }
 
         internal static void EndServerSessionLog()
         {
-            string sessionPath;
-            lock (SyncRoot)
+            if (SetActiveTarget(ClientTarget, out var previous, out var current, out var path))
             {
-                if (!_sessionActive)
-                    return;
-
-                sessionPath = _sessionLogFilePath ?? _currentLogFilePath;
+                Info(LogCategory.Lifecycle, "Logging target changed | from={0} to={1} file={2}", previous.RoleName, current.RoleName, path);
             }
-
-            Info(LogCategory.Lifecycle, "Server session logging ending | file={0}", sessionPath);
-
-            string defaultPath;
-            lock (SyncRoot)
-            {
-                _sessionActive = false;
-                _sessionLogFilePath = null;
-                var now = GetLocalTime();
-                _currentLogFilePath = BuildDailyLogFilePath(now);
-                _dailyLogDateStamp = now.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
-                _initialised = false;
-                defaultPath = _currentLogFilePath;
-            }
-
-            Info(LogCategory.Lifecycle, "Logging reverted to default file | file={0}", defaultPath);
         }
 
         internal static void HandleRoleChanged(string role)
         {
-            if (string.Equals(role, "Server", StringComparison.OrdinalIgnoreCase))
+            var target = string.Equals(role, "Server", StringComparison.OrdinalIgnoreCase)
+                ? ServerTarget
+                : ClientTarget;
+
+            if (SetActiveTarget(target, out var previous, out var current, out var path))
             {
-                StartServerSessionLog();
-            }
-            else
-            {
-                EndServerSessionLog();
+                Info(LogCategory.Lifecycle, "Logging target changed | from={0} to={1} file={2}", previous.RoleName, current.RoleName, path);
             }
         }
 
@@ -228,15 +187,12 @@ namespace CSM.TmpeSync.Util
 
         private static void EnsureTargetReady(DateTime localTime)
         {
-            if (!_sessionActive)
+            var currentStamp = localTime.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+            if (!string.Equals(_dailyLogDateStamp, currentStamp, StringComparison.Ordinal))
             {
-                var currentStamp = localTime.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
-                if (!string.Equals(_dailyLogDateStamp, currentStamp, StringComparison.Ordinal))
-                {
-                    _dailyLogDateStamp = currentStamp;
-                    _currentLogFilePath = BuildDailyLogFilePath(localTime);
-                    _initialised = false;
-                }
+                _dailyLogDateStamp = currentStamp;
+                _currentLogFilePath = BuildDailyLogFilePath(localTime, _activeTarget);
+                _initialised = false;
             }
 
             if (!_initialised)
@@ -249,11 +205,34 @@ namespace CSM.TmpeSync.Util
 
         private static DateTime GetLocalTime() => DateTime.UtcNow + LogOffset;
 
-        private static string BuildDailyLogFilePath(DateTime localTime)
+        private static bool SetActiveTarget(LogTarget target, out LogTarget previousTarget, out LogTarget currentTarget, out string path)
+        {
+            lock (SyncRoot)
+            {
+                var previous = _activeTarget;
+                var now = GetLocalTime();
+
+                if (!ReferenceEquals(_activeTarget, target) || string.IsNullOrEmpty(_currentLogFilePath))
+                {
+                    _activeTarget = target;
+                    _currentLogFilePath = BuildDailyLogFilePath(now, _activeTarget);
+                    _dailyLogDateStamp = now.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+                    _initialised = false;
+                }
+
+                previousTarget = previous;
+                currentTarget = _activeTarget;
+                path = _currentLogFilePath;
+                return !ReferenceEquals(previous, _activeTarget);
+            }
+        }
+
+        private static string BuildDailyLogFilePath(DateTime localTime, LogTarget target)
         {
             var fileName = string.Format(
                 CultureInfo.InvariantCulture,
-                "log-{0:yyyy-MM-dd}.log",
+                "{0}-{1:yyyy-MM-dd}.log",
+                target.FilePrefix,
                 localTime);
             return Path.Combine(LogDirectory, fileName);
         }
