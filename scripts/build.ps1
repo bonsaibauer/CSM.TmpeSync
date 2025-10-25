@@ -631,7 +631,8 @@ function Reset-Directory {
 function Copy-DirectoryContents {
     param(
         [string]$Source,
-        [string]$Destination
+        [string]$Destination,
+        [string[]]$ExcludeExtensions = @()
     )
 
     if (-not (Test-Path $Source)) {
@@ -640,12 +641,17 @@ function Copy-DirectoryContents {
 
     Reset-Directory -Path $Destination
 
+    $normalizedExclusions = $ExcludeExtensions | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | ForEach-Object { $_.ToLowerInvariant() }
+
     Get-ChildItem -LiteralPath $Source -Force | ForEach-Object {
         $target = Join-Path $Destination $_.Name
         if ($_.PSIsContainer) {
             Copy-Item -LiteralPath $_.FullName -Destination $target -Recurse -Force
         }
         else {
+            if ($normalizedExclusions -and ($normalizedExclusions -contains $_.Extension.ToLowerInvariant())) {
+                return
+            }
             Copy-Item -LiteralPath $_.FullName -Destination $Destination -Force
         }
     }
@@ -878,7 +884,7 @@ function Invoke-InstallMod {
     }
 
     Write-Host "[CSM.TmpeSync] Installing build to $targetDirectory" -ForegroundColor Cyan
-    Copy-DirectoryContents -Source $outputDir -Destination $targetDirectory
+    Copy-DirectoryContents -Source $outputDir -Destination $targetDirectory -ExcludeExtensions '.pdb'
 
     Write-Host "[CSM.TmpeSync] Installation complete." -ForegroundColor Green
 }
