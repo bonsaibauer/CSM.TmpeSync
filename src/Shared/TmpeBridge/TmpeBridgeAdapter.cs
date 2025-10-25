@@ -571,6 +571,7 @@ namespace CSM.TmpeSync.TmpeBridge
                     var gainedPrioritySigns = !prevSupportsPrioritySigns && SupportsPrioritySigns;
                     var gainedParkingRestrictions = !prevSupportsParkingRestrictions && SupportsParkingRestrictions;
                     var gainedToggleTrafficLights = !prevSupportsToggleTrafficLights && SupportsToggleTrafficLights;
+                    var gainedClearTraffic = !prevSupportsClearTraffic && SupportsClearTraffic;
 
                     ReplayCachedState(
                         gainedSpeedLimits,
@@ -580,7 +581,8 @@ namespace CSM.TmpeSync.TmpeBridge
                         gainedJunctionRestrictions,
                         gainedPrioritySigns,
                         gainedParkingRestrictions,
-                        gainedToggleTrafficLights);
+                        gainedToggleTrafficLights,
+                        gainedClearTraffic);
                 }
                 catch (Exception ex)
                 {
@@ -597,10 +599,12 @@ namespace CSM.TmpeSync.TmpeBridge
             bool replayJunctionRestrictions,
             bool replayPrioritySigns,
             bool replayParkingRestrictions,
-            bool replayToggleTrafficLights)
+            bool replayToggleTrafficLights,
+            bool replayClearTraffic)
         {
             if (!replaySpeedLimits && !replayLaneArrows && !replayLaneConnections && !replayVehicleRestrictions &&
-                !replayJunctionRestrictions && !replayPrioritySigns && !replayParkingRestrictions && !replayToggleTrafficLights)
+                !replayJunctionRestrictions && !replayPrioritySigns && !replayParkingRestrictions && !replayToggleTrafficLights &&
+                !replayClearTraffic)
                 return;
 
             Dictionary<uint, float> speedSnapshot = null;
@@ -611,6 +615,7 @@ namespace CSM.TmpeSync.TmpeBridge
             KeyValuePair<NodeSegmentKey, PrioritySignType>[] prioritySnapshot = null;
             Dictionary<ushort, ParkingRestrictionState> parkingSnapshot = null;
             HashSet<ushort> toggleSnapshot = null;
+            int clearTrafficSnapshot = 0;
 
             lock (StateLock)
             {
@@ -630,6 +635,11 @@ namespace CSM.TmpeSync.TmpeBridge
                     parkingSnapshot = ParkingRestrictions.ToDictionary(kvp => kvp.Key, kvp => kvp.Value?.Clone());
                 if (replayToggleTrafficLights && ToggleTrafficLights.Count > 0)
                     toggleSnapshot = new HashSet<ushort>(ToggleTrafficLights);
+                if (replayClearTraffic && PendingClearTrafficRequests > 0)
+                {
+                    clearTrafficSnapshot = PendingClearTrafficRequests;
+                    PendingClearTrafficRequests = 0;
+                }
             }
 
             if ((speedSnapshot == null || speedSnapshot.Count == 0) &&
@@ -639,7 +649,8 @@ namespace CSM.TmpeSync.TmpeBridge
                 (junctionSnapshot == null || junctionSnapshot.Count == 0) &&
                 (prioritySnapshot == null || prioritySnapshot.Length == 0) &&
                 (parkingSnapshot == null || parkingSnapshot.Count == 0) &&
-                (toggleSnapshot == null || toggleSnapshot.Count == 0))
+                (toggleSnapshot == null || toggleSnapshot.Count == 0) &&
+                clearTrafficSnapshot == 0)
                 return;
 
             SimulationManager.instance.AddAction(() =>
@@ -667,6 +678,9 @@ namespace CSM.TmpeSync.TmpeBridge
 
                 if (toggleSnapshot != null && toggleSnapshot.Count > 0)
                     Log.Info(LogCategory.Synchronization, "Replaying cached toggle traffic lights | count={0}", toggleSnapshot.Count);
+
+                if (clearTrafficSnapshot > 0)
+                    Log.Info(LogCategory.Synchronization, "Replaying cached clear traffic requests | count={0}", clearTrafficSnapshot);
 
                 if (speedSnapshot != null)
                 {
@@ -837,6 +851,58 @@ namespace CSM.TmpeSync.TmpeBridge
                         catch (Exception ex)
                         {
                             Log.Warn(LogCategory.Synchronization, "Failed to replay toggle traffic light | nodeId={0} error={1}", nodeId, ex);
+                        }
+                    }
+                }
+
+                if (clearTrafficSnapshot > 0)
+                {
+                    for (var i = 0; i < clearTrafficSnapshot; i++)
+                    {
+                        try
+                        {
+                            var manager = UtilityManagerInstance;
+                            var method = UtilityManagerClearTrafficMethod;
+
+                            if (manager == null || method == null)
+                            {
+                                Log.Warn(
+                                    LogCategory.Synchronization,
+                                    "Failed to replay clear traffic | reason=manager_unavailable remaining={0}",
+                                    clearTrafficSnapshot - i);
+
+                                var remaining = clearTrafficSnapshot - i;
+                                if (remaining > 0)
+                                {
+                                    lock (StateLock)
+                                    {
+                                        PendingClearTrafficRequests += remaining;
+                                    }
+                                }
+
+                                break;
+                            }
+
+                            method.Invoke(manager, Array.Empty<object>());
+                            Log.Info(LogCategory.Synchronization, "TM:PE clear traffic replay applied via API");
+                        }
+                        catch (Exception ex)
+                        {
+                            Log.Warn(
+                                LogCategory.Synchronization,
+                                "Failed to replay clear traffic | remaining={0} error={1}",
+                                clearTrafficSnapshot - i,
+                                ex);
+                            var remaining = clearTrafficSnapshot - i;
+                            if (remaining > 0)
+                            {
+                                lock (StateLock)
+                                {
+                                    PendingClearTrafficRequests += remaining;
+                                }
+                            }
+
+                            break;
                         }
                     }
                 }

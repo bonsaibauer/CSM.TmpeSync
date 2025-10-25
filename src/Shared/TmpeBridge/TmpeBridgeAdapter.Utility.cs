@@ -12,6 +12,7 @@ namespace CSM.TmpeSync.TmpeBridge
     {
         private static object UtilityManagerInstance;
         private static MethodInfo UtilityManagerClearTrafficMethod;
+        private static int PendingClearTrafficRequests;
 
         private static bool InitialiseUtilityBridge(Assembly tmpeAssembly)
         {
@@ -61,20 +62,29 @@ namespace CSM.TmpeSync.TmpeBridge
         {
             try
             {
-                if (!SupportsClearTraffic || UtilityManagerInstance == null || UtilityManagerClearTrafficMethod == null)
+                var manager = UtilityManagerInstance;
+                var method = UtilityManagerClearTrafficMethod;
+
+                if (manager != null && method != null)
                 {
-                    Log.Warn(
-                        LogCategory.Bridge,
-                        "TM:PE clear traffic unavailable | supported={0} hasInstance={1} hasMethod={2}",
-                        SupportsClearTraffic,
-                        UtilityManagerInstance != null,
-                        UtilityManagerClearTrafficMethod != null);
-                    return false;
+                    Log.Debug(LogCategory.Hook, "TM:PE clear traffic request");
+                    method.Invoke(manager, Array.Empty<object>());
+                    Log.Info(LogCategory.Synchronization, "TM:PE clear traffic applied via API");
+                    return true;
                 }
 
-                Log.Debug(LogCategory.Hook, "TM:PE clear traffic request");
-                UtilityManagerClearTrafficMethod.Invoke(UtilityManagerInstance, new object[0]);
-                Log.Info(LogCategory.Synchronization, "TM:PE clear traffic applied via API");
+                int pending;
+                lock (StateLock)
+                {
+                    PendingClearTrafficRequests++;
+                    pending = PendingClearTrafficRequests;
+                }
+
+                Log.Info(
+                    LogCategory.Synchronization,
+                    "TM:PE clear traffic stored in stub | supported={0} pending={1}",
+                    SupportsClearTraffic,
+                    pending);
                 return true;
             }
             catch (Exception ex)
