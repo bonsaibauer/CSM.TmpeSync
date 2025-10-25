@@ -858,7 +858,7 @@ function Invoke-InstallMod {
         }
 
         if ($missingAssemblies.Count -gt 0) {
-            throw "Missing expected assemblies in $outputDir: $($missingAssemblies -join ', '). Ensure the build completed successfully."
+            throw "Missing expected assemblies in ${outputDir}: $($missingAssemblies -join ', '). Ensure the build completed successfully."
         }
 
         $sortedAssemblies = $presentAssemblyNames | Sort-Object -Unique
