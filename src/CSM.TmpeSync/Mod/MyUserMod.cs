@@ -1,10 +1,11 @@
 using System;
 using System.Linq;
 using ICities;
-using CSM.TmpeSync.Tmpe;
+using CSM.TmpeSync.TmpeBridge;
 using CSM.TmpeSync.Snapshot;
 using CSM.TmpeSync.Util;
 using Log = CSM.TmpeSync.Util.Log;
+using CSM.TmpeSync.CsmBridge;
 
 namespace CSM.TmpeSync.Mod
 {
@@ -29,10 +30,10 @@ namespace CSM.TmpeSync.Mod
 
             Log.Info(LogCategory.Network, "Awaiting CSM to activate TM:PE synchronization support.");
 
-            MultiplayerStateObserver.RoleChanged += Log.HandleRoleChanged;
+            CsmBridgeMultiplayerObserver.RoleChanged += Log.HandleRoleChanged;
             try
             {
-                Log.HandleRoleChanged(CsmCompat.DescribeCurrentRole());
+                Log.HandleRoleChanged(CsmBridge.DescribeCurrentRole());
             }
             catch (Exception ex)
             {
@@ -45,9 +46,9 @@ namespace CSM.TmpeSync.Mod
             TmpeFeatureReadyNotifier.Initialize();
             SnapshotDispatcher.TryExportIfServer("mod_enabled");
 
-            CsmCompat.LogDiagnostics("OnEnabled");
+            CsmBridge.LogDiagnostics("OnEnabled");
 
-            var featureSupport = TmpeAdapter.GetFeatureSupportMatrix();
+            var featureSupport = TmpeBridgeAdapter.GetFeatureSupportMatrix();
             var supported = featureSupport
                 .Where(pair => pair.Value)
                 .Select(pair => pair.Key)
@@ -57,7 +58,7 @@ namespace CSM.TmpeSync.Mod
                 .Where(pair => !pair.Value)
                 .Select(pair =>
                 {
-                    var reason = TmpeAdapter.GetUnsupportedReason(pair.Key) ?? "unknown";
+                    var reason = TmpeBridgeAdapter.GetUnsupportedReason(pair.Key) ?? "unknown";
                     return pair.Key + "(" + reason + ")";
                 })
                 .OrderBy(entry => entry, System.StringComparer.OrdinalIgnoreCase)
@@ -73,13 +74,13 @@ namespace CSM.TmpeSync.Mod
         public void OnDisabled()
         {
             Log.Info(LogCategory.Lifecycle, "Mod disabled | begin_cleanup");
-            MultiplayerStateObserver.RoleChanged -= Log.HandleRoleChanged;
+            CsmBridgeMultiplayerObserver.RoleChanged -= Log.HandleRoleChanged;
             Log.EndServerSessionLog();
             TmpeFeatureReadyNotifier.Shutdown();
             LaneMappingTracker.Shutdown();
             SnapshotDispatcher.Shutdown();
 
-            CsmCompat.LogDiagnostics("OnDisabled");
+            CsmBridge.LogDiagnostics("OnDisabled");
             Log.Debug(LogCategory.Lifecycle, "Mod disabled | awaiting_next_enable_cycle");
         }
     }

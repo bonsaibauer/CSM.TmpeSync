@@ -1,9 +1,9 @@
 using ColossalFramework;
-using CSM.TmpeSync.Net.Contracts.Applied;
-using CSM.TmpeSync.Net.Contracts.Requests;
-using CSM.TmpeSync.Net.Handlers;
+using CSM.TmpeSync.Network.Contracts.Applied;
+using CSM.TmpeSync.Network.Contracts.Requests;
+using CSM.TmpeSync.Network.Handlers;
 using CSM.TmpeSync.Snapshot;
-using CSM.TmpeSync.Tmpe;
+using CSM.TmpeSync.TmpeBridge;
 using CSM.TmpeSync.Util;
 
 namespace CSM.TmpeSync.PrioritySigns
@@ -13,14 +13,14 @@ namespace CSM.TmpeSync.PrioritySigns
         public static void Register()
         {
             SnapshotDispatcher.RegisterProvider(new PrioritySignSnapshotProvider());
-            TmpeFeatureRegistry.RegisterNodeHandler(
-                TmpeFeatureRegistry.TrafficPriorityManagerType,
+            TmpeBridgeFeatureRegistry.RegisterNodeHandler(
+                TmpeBridgeFeatureRegistry.TrafficPriorityManagerType,
                 HandleNodeChange);
         }
 
         private static void HandleNodeChange(ushort nodeId)
         {
-            if (!NetUtil.NodeExists(nodeId))
+            if (!NetworkUtil.NodeExists(nodeId))
                 return;
 
             ref var node = ref NetManager.instance.m_nodes.m_buffer[nodeId];
@@ -30,12 +30,12 @@ namespace CSM.TmpeSync.PrioritySigns
                 if (segmentId == 0)
                     continue;
 
-                if (!NetUtil.SegmentExists(segmentId))
+                if (!NetworkUtil.SegmentExists(segmentId))
                     continue;
 
-                if (TmpeAdapter.TryGetPrioritySign(nodeId, segmentId, out var signType))
+                if (TmpeBridgeAdapter.TryGetPrioritySign(nodeId, segmentId, out var signType))
                 {
-                    TmpeChangeDispatcher.Broadcast(new PrioritySignApplied
+                    TmpeBridgeChangeDispatcher.Broadcast(new PrioritySignApplied
                     {
                         NodeId = nodeId,
                         SegmentId = segmentId,

@@ -1,4 +1,5 @@
 using CSM.TmpeSync.Util;
+using CSM.TmpeSync.CsmBridge;
 
 namespace CSM.TmpeSync.Snapshot
 {
@@ -6,7 +7,7 @@ namespace CSM.TmpeSync.Snapshot
     {
         public void Export()
         {
-            if (!CsmCompat.IsServerInstance())
+            if (!CsmBridge.IsServerInstance())
                 return;
 
             LaneMappingTracker.SyncAllSegments("snapshot_export", SnapshotDispatcher.CurrentTargetClientId);

@@ -1,6 +1,6 @@
 using CSM.TmpeSync.Snapshot;
 using CSM.TmpeSync.ToggleTrafficLights.Snapshot;
-using CSM.TmpeSync.Tmpe;
+using CSM.TmpeSync.TmpeBridge;
 using CSM.TmpeSync.Util;
 
 namespace CSM.TmpeSync.ToggleTrafficLights
@@ -12,14 +12,14 @@ namespace CSM.TmpeSync.ToggleTrafficLights
             Log.Info(LogCategory.Lifecycle, "Registering Toggle Traffic Lights feature integration.");
 
             SnapshotDispatcher.RegisterProvider(new ToggleTrafficLightSnapshotProvider());
-            TmpeFeatureRegistry.RegisterNodeHandler(
-                TmpeFeatureRegistry.TrafficLightManagerType,
+            TmpeBridgeFeatureRegistry.RegisterNodeHandler(
+                TmpeBridgeFeatureRegistry.TrafficLightManagerType,
                 HandleTrafficLightNodeChange);
         }
 
         private static void HandleTrafficLightNodeChange(ushort nodeId)
         {
-            TmpeChangeDispatcher.BroadcastTrafficLights(nodeId);
+            TmpeBridgeChangeDispatcher.BroadcastTrafficLights(nodeId);
         }
     }
 }

@@ -1,5 +1,5 @@
-using CSM.TmpeSync.Net.Contracts.Applied;
-using CSM.TmpeSync.Tmpe;
+using CSM.TmpeSync.Network.Contracts.Applied;
+using CSM.TmpeSync.TmpeBridge;
 using CSM.TmpeSync.Util;
 
 namespace CSM.TmpeSync.Snapshot
@@ -9,15 +9,15 @@ namespace CSM.TmpeSync.Snapshot
         public void Export()
         {
             Log.Info(LogCategory.Snapshot, "Exporting TM:PE lane connection snapshot");
-            NetUtil.ForEachLane(laneId =>
+            NetworkUtil.ForEachLane(laneId =>
             {
-                if (!TmpeAdapter.TryGetLaneConnections(laneId, out var targets))
+                if (!TmpeBridgeAdapter.TryGetLaneConnections(laneId, out var targets))
                     return;
 
                 if (targets == null || targets.Length == 0)
                     return;
 
-                if (!NetUtil.TryGetLaneLocation(laneId, out var segmentId, out var laneIndex))
+                if (!NetworkUtil.TryGetLaneLocation(laneId, out var segmentId, out var laneIndex))
                     return;
 
                 var targetSegmentIds = new ushort[targets.Length];
@@ -25,7 +25,7 @@ namespace CSM.TmpeSync.Snapshot
 
                 for (var i = 0; i < targets.Length; i++)
                 {
-                    if (!NetUtil.TryGetLaneLocation(targets[i], out var targetSegment, out var targetIndex))
+                    if (!NetworkUtil.TryGetLaneLocation(targets[i], out var targetSegment, out var targetIndex))
                     {
                         targetSegment = 0;
                         targetIndex = -1;

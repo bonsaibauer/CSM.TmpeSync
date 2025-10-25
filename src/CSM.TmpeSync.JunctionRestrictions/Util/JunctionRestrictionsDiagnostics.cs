@@ -1,8 +1,9 @@
 using System;
 using System.Collections.Generic;
 using System.Text;
-using CSM.TmpeSync.Net.Contracts.States;
+using CSM.TmpeSync.Network.Contracts.States;
 using CSM.TmpeSync.Util;
+using CSM.TmpeSync.CsmBridge;
 
 namespace CSM.TmpeSync.JunctionRestrictions.Util
 {
@@ -21,7 +22,7 @@ namespace CSM.TmpeSync.JunctionRestrictions.Util
         {
             var snapshot = Clone(state);
 
-            if (CsmCompat.IsServerInstance())
+            if (CsmBridge.IsServerInstance())
                 snapshot = PrepareOutgoingJunctionRestrictions(nodeId, snapshot);
 
             Log.Debug(

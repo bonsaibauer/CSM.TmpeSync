@@ -1,10 +1,10 @@
 using ColossalFramework;
-using CSM.TmpeSync.Net.Contracts.Applied;
-using CSM.TmpeSync.Net.Contracts.Requests;
-using CSM.TmpeSync.Net.Handlers;
-using CSM.TmpeSync.Net.Contracts.States;
+using CSM.TmpeSync.Network.Contracts.Applied;
+using CSM.TmpeSync.Network.Contracts.Requests;
+using CSM.TmpeSync.Network.Handlers;
+using CSM.TmpeSync.Network.Contracts.States;
 using CSM.TmpeSync.Snapshot;
-using CSM.TmpeSync.Tmpe;
+using CSM.TmpeSync.TmpeBridge;
 using CSM.TmpeSync.Util;
 
 namespace CSM.TmpeSync.VehicleRestrictions
@@ -14,8 +14,8 @@ namespace CSM.TmpeSync.VehicleRestrictions
         public static void Register()
         {
             SnapshotDispatcher.RegisterProvider(new VehicleRestrictionsSnapshotProvider());
-            TmpeFeatureRegistry.RegisterSegmentHandler(
-                TmpeFeatureRegistry.VehicleRestrictionsManagerType,
+            TmpeBridgeFeatureRegistry.RegisterSegmentHandler(
+                TmpeBridgeFeatureRegistry.VehicleRestrictionsManagerType,
                 HandleSegmentChange);
         }
 
@@ -36,11 +36,11 @@ namespace CSM.TmpeSync.VehicleRestrictions
                     continue;
                 }
 
-                if (TmpeAdapter.TryGetVehicleRestrictions(laneId, out var restrictions))
+                if (TmpeBridgeAdapter.TryGetVehicleRestrictions(laneId, out var restrictions))
                 {
-                    if (NetUtil.TryGetLaneLocation(laneId, out var resolvedSegmentId, out var resolvedLaneIndex))
+                    if (NetworkUtil.TryGetLaneLocation(laneId, out var resolvedSegmentId, out var resolvedLaneIndex))
                     {
-                        TmpeChangeDispatcher.Broadcast(new VehicleRestrictionsApplied
+                        TmpeBridgeChangeDispatcher.Broadcast(new VehicleRestrictionsApplied
                         {
                             LaneId = laneId,
                             SegmentId = resolvedSegmentId,

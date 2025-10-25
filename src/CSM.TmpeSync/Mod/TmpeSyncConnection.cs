@@ -7,10 +7,11 @@ using CSM.TmpeSync.ParkingRestrictions;
 using CSM.TmpeSync.PrioritySigns;
 using CSM.TmpeSync.SpeedLimits;
 using CSM.TmpeSync.ToggleTrafficLights;
-using CSM.TmpeSync.Tmpe;
+using CSM.TmpeSync.TmpeBridge;
 using CSM.TmpeSync.Util;
 using CSM.TmpeSync.VehicleRestrictions;
 using Log = CSM.TmpeSync.Util.Log;
+using CSM.TmpeSync.CsmBridge;
 
 namespace CSM.TmpeSync.Mod
 {
@@ -34,19 +35,19 @@ namespace CSM.TmpeSync.Mod
 
         public override void RegisterHandlers()
         {
-            using (CsmCompat.StartIgnore())
+            using (CsmBridge.StartIgnore())
             {
                 Log.Info(LogCategory.Network, "Registering TM:PE synchronization handlers via CSM connection.");
-                TmpeEventBridge.Enable();
+                TmpeBridgeEventGateway.Enable();
             }
         }
 
         public override void UnregisterHandlers()
         {
-            using (CsmCompat.StartIgnore())
+            using (CsmBridge.StartIgnore())
             {
                 Log.Info(LogCategory.Network, "Unregistering TM:PE synchronization handlers via CSM connection.");
-                TmpeEventBridge.Disable();
+                TmpeBridgeEventGateway.Disable();
             }
         }
     }

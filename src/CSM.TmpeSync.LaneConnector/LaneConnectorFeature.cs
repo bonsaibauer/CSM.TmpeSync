@@ -1,10 +1,10 @@
 using System;
 using ColossalFramework;
-using CSM.TmpeSync.Net.Contracts.Applied;
-using CSM.TmpeSync.Net.Contracts.Requests;
-using CSM.TmpeSync.Net.Handlers;
+using CSM.TmpeSync.Network.Contracts.Applied;
+using CSM.TmpeSync.Network.Contracts.Requests;
+using CSM.TmpeSync.Network.Handlers;
 using CSM.TmpeSync.Snapshot;
-using CSM.TmpeSync.Tmpe;
+using CSM.TmpeSync.TmpeBridge;
 using CSM.TmpeSync.Util;
 
 namespace CSM.TmpeSync.LaneConnector
@@ -14,19 +14,19 @@ namespace CSM.TmpeSync.LaneConnector
         public static void Register()
         {
             SnapshotDispatcher.RegisterProvider(new LaneConnectionsSnapshotProvider());
-            TmpeFeatureRegistry.RegisterLaneConnectionHandler(HandleLaneConnectionChange);
-            TmpeFeatureRegistry.RegisterLaneConnectionNodeHandler(HandleLaneConnectionsForNode);
+            TmpeBridgeFeatureRegistry.RegisterLaneConnectionHandler(HandleLaneConnectionChange);
+            TmpeBridgeFeatureRegistry.RegisterLaneConnectionNodeHandler(HandleLaneConnectionsForNode);
         }
 
         private static void HandleLaneConnectionChange(uint laneId)
         {
-            if (!NetUtil.LaneExists(laneId))
+            if (!NetworkUtil.LaneExists(laneId))
                 return;
 
-            if (!TmpeAdapter.TryGetLaneConnections(laneId, out var targets) || targets == null)
+            if (!TmpeBridgeAdapter.TryGetLaneConnections(laneId, out var targets) || targets == null)
                 targets = Array.Empty<uint>();
 
-            if (!NetUtil.TryGetLaneLocation(laneId, out var segmentId, out var laneIndex))
+            if (!NetworkUtil.TryGetLaneLocation(laneId, out var segmentId, out var laneIndex))
                 return;
 
             var targetSegmentIds = new ushort[targets.Length];
@@ -34,7 +34,7 @@ namespace CSM.TmpeSync.LaneConnector
 
             for (var i = 0; i < targets.Length; i++)
             {
-                if (!NetUtil.TryGetLaneLocation(targets[i], out var targetSegment, out var targetIndex))
+                if (!NetworkUtil.TryGetLaneLocation(targets[i], out var targetSegment, out var targetIndex))
                 {
                     targetSegment = 0;
                     targetIndex = -1;
@@ -44,7 +44,7 @@ namespace CSM.TmpeSync.LaneConnector
                 targetLaneIndexes[i] = targetIndex;
             }
 
-            TmpeChangeDispatcher.Broadcast(new LaneConnectionsApplied
+            TmpeBridgeChangeDispatcher.Broadcast(new LaneConnectionsApplied
             {
                 SourceLaneId = laneId,
                 SourceSegmentId = segmentId,
@@ -57,14 +57,14 @@ namespace CSM.TmpeSync.LaneConnector
 
         private static void HandleLaneConnectionsForNode(ushort nodeId)
         {
-            if (!NetUtil.NodeExists(nodeId))
+            if (!NetworkUtil.NodeExists(nodeId))
                 return;
 
             ref var node = ref NetManager.instance.m_nodes.m_buffer[nodeId];
             for (var i = 0; i < 8; i++)
             {
                 var segmentId = node.GetSegment(i);
-                if (segmentId == 0 || !NetUtil.SegmentExists(segmentId))
+                if (segmentId == 0 || !NetworkUtil.SegmentExists(segmentId))
                     continue;
 
                 ref var segment = ref NetManager.instance.m_segments.m_buffer[segmentId];
