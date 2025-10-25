@@ -2,10 +2,10 @@ using CSM.API.Commands;
 using CSM.TmpeSync.Network.Contracts.States;
 using ProtoBuf;
 
-namespace CSM.TmpeSync.Network.Contracts.Applied
+namespace CSM.TmpeSync.PrioritySigns.Messages
 {
-    [ProtoContract]
-    public class PrioritySignApplied : CommandBase
+    [ProtoContract(Name = "PrioritySignApplied")]
+    public class PrioritySignAppliedCommand : CommandBase
     {
         [ProtoMember(1)] public ushort NodeId { get; set; }
         [ProtoMember(2)] public ushort SegmentId { get; set; }
