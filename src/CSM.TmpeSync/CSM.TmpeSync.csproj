@@ -264,6 +264,7 @@
     <Compile Include="Mod\MultiplayerThreadingExtension.cs" />
     <Compile Include="Mod\FeatureBootstrapper.cs" />
     <Compile Include="Tool\LockOverlay.cs" />
+    <Compile Include="Infrastructure\**\*.cs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\CSM.TmpeSync.LaneConnector\CSM.TmpeSync.LaneConnector.csproj" />

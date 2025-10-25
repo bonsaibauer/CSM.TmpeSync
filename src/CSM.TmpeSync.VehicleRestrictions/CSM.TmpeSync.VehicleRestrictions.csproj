@@ -264,6 +264,7 @@
     <Compile Include="Network\Handlers\VehicleRestrictionsBatchAppliedHandler.cs" />
     <Compile Include="Network\Handlers\SetVehicleRestrictionsRequestHandler.cs" />
     <Compile Include="Snapshot\VehicleRestrictionsSnapshotProvider.cs" />
+    <Compile Include="Infrastructure\**\*.cs" />
   </ItemGroup>
   <!-- ==== Post-Build: Copy the add-on into the local mod directory ==== -->
   <Target Name="AfterBuild">

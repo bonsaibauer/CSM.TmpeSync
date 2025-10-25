@@ -180,6 +180,7 @@
     <Compile Include="Network\Contracts\Requests\ClearTrafficRequest.cs" />
     <Compile Include="Network\Handlers\ClearTrafficAppliedHandler.cs" />
     <Compile Include="Network\Handlers\ClearTrafficRequestHandler.cs" />
+    <Compile Include="Infrastructure\**\*.cs" />
   </ItemGroup>
 
   <Target Name="AfterBuild">
