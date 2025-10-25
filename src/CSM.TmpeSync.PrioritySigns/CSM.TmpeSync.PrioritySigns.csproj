@@ -269,14 +269,10 @@
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="PrioritySignsFeature.cs" />
     <Compile Include="Network\Contracts\Applied\PrioritySignApplied.cs" />
-    <Compile Include="Network\Contracts\Applied\PrioritySignBatchApplied.cs" />
     <Compile Include="Network\Contracts\Requests\SetPrioritySignRequest.cs" />
     <Compile Include="Network\Handlers\PrioritySignAppliedHandler.cs" />
-    <Compile Include="Network\Handlers\PrioritySignBatchAppliedHandler.cs" />
     <Compile Include="Network\Handlers\SetPrioritySignRequestHandler.cs" />
-    <Compile Include="Snapshot\PrioritySignSnapshotProvider.cs" />
     <Compile Include="Bridge\**\*.cs" />
-    <Compile Include="Snapshot\SnapshotDispatcher.cs" />
   </ItemGroup>
   <!-- ==== Post-Build: Copy the add-on into the local mod directory ==== -->
   <Target Name="AfterBuild">

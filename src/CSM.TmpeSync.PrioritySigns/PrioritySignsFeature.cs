@@ -1,68 +1,33 @@
-using System.Collections.Generic;
-using ColossalFramework;
-using CSM.TmpeSync.Network.Contracts.Applied;
-using CSM.TmpeSync.Network.Contracts.Requests;
-using CSM.TmpeSync.Network.Handlers;
-using CSM.TmpeSync.Snapshot;
 using CSM.TmpeSync.PrioritySigns.Bridge;
 using CSM.TmpeSync.Util;
-using CSM.TmpeSync.PrioritySigns.Bridge;
 
 namespace CSM.TmpeSync.PrioritySigns
 {
+    /// <summary>
+    /// Minimaler Bootstrap für Priority Signs:
+    /// - aktiviert nur den Harmony-Event-Gateway
+    /// - keine Snapshot-/Batch-Logik
+    ///
+    /// Die CSM-Command-Handler werden vom CSM-Framework automatisch per Reflection geladen.
+    /// </summary>
     public static class PrioritySignsFeature
     {
-        private static readonly ChangeBatcher<PrioritySignBatchApplied.Entry> PrioritySignBatcher =
-            new ChangeBatcher<PrioritySignBatchApplied.Entry>(FlushPrioritySignBatch);
+        private static bool _enabled;
 
         public static void Register()
         {
-            // Snapshot export removed; feature now operates independently
-            TmpeBridge.RegisterNodeChangeHandler(HandleNodeChange);
+            if (_enabled) return;
+            TmpeEventGateway.Enable();
+            Log.Info(LogCategory.Network, "PrioritySignsFeature ready: Harmony gateway enabled.");
+            _enabled = true;
         }
 
-        private static void HandleNodeChange(ushort nodeId)
+        public static void Unregister()
         {
-            if (!NetworkUtil.NodeExists(nodeId))
-                return;
-
-            ref var node = ref NetManager.instance.m_nodes.m_buffer[nodeId];
-            for (int i = 0; i < 8; i++)
-            {
-                var segmentId = node.GetSegment(i);
-                if (segmentId == 0)
-                    continue;
-
-                if (!NetworkUtil.SegmentExists(segmentId))
-                    continue;
-
-                if (TmpeBridge.TryGetPrioritySign(nodeId, segmentId, out var signTypeRaw))
-                {
-                    var signType = (CSM.TmpeSync.Network.Contracts.States.PrioritySignType)signTypeRaw;
-                    PrioritySignBatcher.Enqueue(new PrioritySignBatchApplied.Entry
-                    {
-                        NodeId = nodeId,
-                        SegmentId = segmentId,
-                        SignType = signType
-                    });
-                }
-            }
-        }
-
-        private static void FlushPrioritySignBatch(IList<PrioritySignBatchApplied.Entry> entries)
-        {
-            if (entries == null || entries.Count == 0)
-                return;
-
-            Log.Info(
-                LogCategory.Network,
-                "Broadcasting priority-sign batch | count={0} role={1}",
-                entries.Count,
-                CsmBridge.DescribeCurrentRole());
-
-            var command = new PrioritySignBatchApplied();
-            command.Items.AddRange(entries);
-            TmpeBridge.Broadcast(command);
+            if (!_enabled) return;
+            TmpeEventGateway.Disable();
+            Log.Info(LogCategory.Network, "PrioritySignsFeature stopped: Harmony gateway disabled.");
+            _enabled = false;
         }
     }
 }
