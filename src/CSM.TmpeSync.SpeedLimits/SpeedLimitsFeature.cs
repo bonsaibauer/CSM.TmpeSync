@@ -3,10 +3,10 @@ using ColossalFramework;
 using CSM.TmpeSync.Network.Contracts.Applied;
 using CSM.TmpeSync.Network.Handlers;
 using CSM.TmpeSync.Snapshot;
-using CSM.TmpeSync.TmpeBridge;
+using CSM.TmpeSync.SpeedLimits.Bridge;
 using CSM.TmpeSync.Util;
 using CSM.TmpeSync.SpeedLimits.Util;
-using CSM.TmpeSync.Bridge;
+using CSM.TmpeSync.SpeedLimits.Bridge;
 
 namespace CSM.TmpeSync.SpeedLimits
 {
@@ -18,7 +18,7 @@ namespace CSM.TmpeSync.SpeedLimits
         public static void Register()
         {
             SnapshotDispatcher.RegisterProvider(new SpeedLimitSnapshotProvider());
-            TmpeBridgeFeatureRegistry.RegisterSegmentHandler(TmpeBridgeFeatureRegistry.SpeedLimitManagerType, HandleSegmentChange);
+            TmpeBridge.RegisterSegmentChangeHandler(HandleSegmentChange);
         }
 
         private static void HandleSegmentChange(ushort segmentId)
@@ -38,7 +38,7 @@ namespace CSM.TmpeSync.SpeedLimits
                     continue;
                 }
 
-                if (TmpeBridgeAdapter.TryGetSpeedLimit(laneId, out var kmh, out var defaultKmh, out var hasOverride))
+                if (TmpeBridge.TryGetSpeedLimit(laneId, out var kmh, out var defaultKmh, out var hasOverride))
                 {
                     if (!hasOverride && (!defaultKmh.HasValue || defaultKmh.Value <= 0f))
                     {
@@ -81,7 +81,7 @@ namespace CSM.TmpeSync.SpeedLimits
 
             var command = new SpeedLimitBatchApplied();
             command.Items.AddRange(entries);
-            TmpeBridgeChangeDispatcher.Broadcast(command);
+            TmpeBridge.Broadcast(command);
         }
     }
 }

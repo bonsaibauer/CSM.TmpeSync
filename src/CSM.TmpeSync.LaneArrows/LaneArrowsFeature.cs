@@ -3,9 +3,9 @@ using CSM.TmpeSync.Network.Contracts.Applied;
 using CSM.TmpeSync.Network.Contracts.Requests;
 using CSM.TmpeSync.Network.Handlers;
 using CSM.TmpeSync.Snapshot;
-using CSM.TmpeSync.TmpeBridge;
+using CSM.TmpeSync.LaneArrows.Bridge;
 using CSM.TmpeSync.Util;
-using CSM.TmpeSync.Bridge;
+using CSM.TmpeSync.LaneArrows.Bridge;
 
 namespace CSM.TmpeSync.LaneArrows
 {
@@ -17,7 +17,7 @@ namespace CSM.TmpeSync.LaneArrows
         public static void Register()
         {
             SnapshotDispatcher.RegisterProvider(new LaneArrowSnapshotProvider());
-            TmpeBridgeFeatureRegistry.RegisterLaneArrowHandler(HandleLaneArrowChange);
+            TmpeBridge.RegisterLaneArrowChangeHandler(HandleLaneArrowChange);
         }
 
         private static void HandleLaneArrowChange(uint laneId)
@@ -25,7 +25,7 @@ namespace CSM.TmpeSync.LaneArrows
             if (!NetworkUtil.LaneExists(laneId))
                 return;
 
-            if (!TmpeBridgeAdapter.TryGetLaneArrows(laneId, out var arrows))
+            if (!TmpeBridge.TryGetLaneArrows(laneId, out var arrows))
                 return;
 
             if (!NetworkUtil.TryGetLaneLocation(laneId, out var segmentId, out var laneIndex))
@@ -53,7 +53,7 @@ namespace CSM.TmpeSync.LaneArrows
 
             var command = new LaneArrowBatchApplied();
             command.Items.AddRange(entries);
-            TmpeBridgeChangeDispatcher.Broadcast(command);
+            TmpeBridge.Broadcast(command);
         }
     }
 }

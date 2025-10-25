@@ -107,6 +107,8 @@
     <Reference Include="ColossalManaged"><HintPath>$(ManagedDir)\ColossalManaged.dll</HintPath><Private>false</Private></Reference>
     <Reference Include="UnityEngine"><HintPath>$(ManagedDir)\UnityEngine.dll</HintPath><Private>false</Private></Reference>
     <Reference Include="Assembly-CSharp"><HintPath>$(ManagedDir)\Assembly-CSharp.dll</HintPath><Private>false</Private></Reference>
+    <!-- Harmony (CitiesHarmony) -->
+    <Reference Include="CitiesHarmony.Harmony"><HintPath>$(HarmonyDllDir)\CitiesHarmony.Harmony.dll</HintPath><Private>false</Private></Reference>
 
     <!-- Harmony (CitiesHarmony) -->
     <Reference Include="CitiesHarmony.Harmony"><HintPath>$(HarmonyDllDir)\CitiesHarmony.Harmony.dll</HintPath><Private>false</Private></Reference>
@@ -266,6 +268,10 @@
     <Compile Include="Network\Handlers\SpeedLimitCommandProcessor.cs" />
     <Compile Include="Snapshot\SpeedLimitSnapshotProvider.cs" />
     <Compile Include="TmpeBridge\SpeedLimitCodec.cs" />
+    <Compile Include="Bridge\CsmBridge.cs" />
+    <Compile Include="Bridge\TmpeBridge.cs" />
+    <Compile Include="Bridge\TmpeEventGateway.cs" />
+    <Compile Include="Bridge\SpeedLimitAdapter.cs" />
     <Compile Include="Util\SpeedLimitDiagnostics.cs" />
   </ItemGroup>
   <!-- ==== Post-Build: Copy the add-on into the local mod directory ==== -->

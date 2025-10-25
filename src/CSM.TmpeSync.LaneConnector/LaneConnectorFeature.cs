@@ -5,9 +5,9 @@ using CSM.TmpeSync.Network.Contracts.Applied;
 using CSM.TmpeSync.Network.Contracts.Requests;
 using CSM.TmpeSync.Network.Handlers;
 using CSM.TmpeSync.Snapshot;
-using CSM.TmpeSync.TmpeBridge;
+using CSM.TmpeSync.LaneConnector.Bridge;
 using CSM.TmpeSync.Util;
-using CSM.TmpeSync.Bridge;
+using CSM.TmpeSync.LaneConnector.Bridge;
 
 namespace CSM.TmpeSync.LaneConnector
 {
@@ -19,8 +19,8 @@ namespace CSM.TmpeSync.LaneConnector
         public static void Register()
         {
             SnapshotDispatcher.RegisterProvider(new LaneConnectionsSnapshotProvider());
-            TmpeBridgeFeatureRegistry.RegisterLaneConnectionHandler(HandleLaneConnectionChange);
-            TmpeBridgeFeatureRegistry.RegisterLaneConnectionNodeHandler(HandleLaneConnectionsForNode);
+            TmpeBridge.RegisterLaneConnectionChangeHandler(HandleLaneConnectionChange);
+            TmpeBridge.RegisterLaneConnectionNodeHandler(HandleLaneConnectionsForNode);
         }
 
         private static void HandleLaneConnectionChange(uint laneId)
@@ -28,7 +28,7 @@ namespace CSM.TmpeSync.LaneConnector
             if (!NetworkUtil.LaneExists(laneId))
                 return;
 
-            if (!TmpeBridgeAdapter.TryGetLaneConnections(laneId, out var targets) || targets == null)
+            if (!TmpeBridge.TryGetLaneConnections(laneId, out var targets) || targets == null)
                 targets = new uint[0];
 
             if (!NetworkUtil.TryGetLaneLocation(laneId, out var segmentId, out var laneIndex))
@@ -102,7 +102,7 @@ namespace CSM.TmpeSync.LaneConnector
 
             var command = new LaneConnectionsBatchApplied();
             command.Items.AddRange(entries);
-            TmpeBridgeChangeDispatcher.Broadcast(command);
+            TmpeBridge.Broadcast(command);
         }
     }
 }

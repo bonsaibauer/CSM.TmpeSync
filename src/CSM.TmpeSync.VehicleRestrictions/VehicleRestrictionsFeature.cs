@@ -5,9 +5,9 @@ using CSM.TmpeSync.Network.Contracts.Requests;
 using CSM.TmpeSync.Network.Handlers;
 using CSM.TmpeSync.Network.Contracts.States;
 using CSM.TmpeSync.Snapshot;
-using CSM.TmpeSync.TmpeBridge;
+using CSM.TmpeSync.VehicleRestrictions.Bridge;
 using CSM.TmpeSync.Util;
-using CSM.TmpeSync.Bridge;
+using CSM.TmpeSync.VehicleRestrictions.Bridge;
 
 namespace CSM.TmpeSync.VehicleRestrictions
 {
@@ -19,9 +19,7 @@ namespace CSM.TmpeSync.VehicleRestrictions
         public static void Register()
         {
             SnapshotDispatcher.RegisterProvider(new VehicleRestrictionsSnapshotProvider());
-            TmpeBridgeFeatureRegistry.RegisterSegmentHandler(
-                TmpeBridgeFeatureRegistry.VehicleRestrictionsManagerType,
-                HandleSegmentChange);
+            TmpeBridge.RegisterSegmentChangeHandler(HandleSegmentChange);
         }
 
         private static void HandleSegmentChange(ushort segmentId)
@@ -41,7 +39,7 @@ namespace CSM.TmpeSync.VehicleRestrictions
                     continue;
                 }
 
-                if (TmpeBridgeAdapter.TryGetVehicleRestrictions(laneId, out var restrictions))
+                if (TmpeBridge.TryGetVehicleRestrictions(laneId, out var restrictions))
                 {
                     if (NetworkUtil.TryGetLaneLocation(laneId, out var resolvedSegmentId, out var resolvedLaneIndex))
                     {
@@ -72,7 +70,7 @@ namespace CSM.TmpeSync.VehicleRestrictions
 
             var command = new VehicleRestrictionsBatchApplied();
             command.Items.AddRange(entries);
-            TmpeBridgeChangeDispatcher.Broadcast(command);
+            TmpeBridge.Broadcast(command);
         }
     }
 }

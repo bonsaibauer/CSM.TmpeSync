@@ -3,9 +3,8 @@ using CSM.TmpeSync.Network.Contracts.Applied;
 using CSM.TmpeSync.Network.Contracts.Requests;
 using CSM.TmpeSync.Network.Contracts.System;
 using CSM.TmpeSync.Network.Contracts.States;
-using CSM.TmpeSync.TmpeBridge;
+using CSM.TmpeSync.VehicleRestrictions.Bridge;
 using CSM.TmpeSync.Util;
-using CSM.TmpeSync.Bridge;
 
 namespace CSM.TmpeSync.Network.Handlers
 {
@@ -65,7 +64,7 @@ namespace CSM.TmpeSync.Network.Handlers
                         return;
                     }
 
-                    if (TmpeBridgeAdapter.ApplyVehicleRestrictions(simLaneId, cmd.Restrictions))
+                    if (TmpeBridge.ApplyVehicleRestrictions(simLaneId, cmd.Restrictions))
                     {
                         if (!NetworkUtil.TryGetLaneLocation(simLaneId, out simSegmentId, out simLaneIndex))
                         {
@@ -74,7 +73,7 @@ namespace CSM.TmpeSync.Network.Handlers
                         }
 
                         var resultingRestrictions = cmd.Restrictions;
-                        if (TmpeBridgeAdapter.TryGetVehicleRestrictions(simLaneId, out var appliedRestrictions))
+                        if (TmpeBridge.TryGetVehicleRestrictions(simLaneId, out var appliedRestrictions))
                             resultingRestrictions = appliedRestrictions;
 
                         Log.Info(LogCategory.Synchronization, "Applied vehicle restrictions | laneId={0} segmentId={1} laneIndex={2} restrictions={3} action=broadcast", simLaneId, simSegmentId, simLaneIndex, resultingRestrictions);

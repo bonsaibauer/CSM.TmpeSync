@@ -1,6 +1,6 @@
 using CSM.API.Commands;
 using CSM.TmpeSync.ToggleTrafficLights.Network.Contracts.Applied;
-using CSM.TmpeSync.TmpeBridge;
+using CSM.TmpeSync.ToggleTrafficLights.Bridge;
 using CSM.TmpeSync.Util;
 using Log = CSM.TmpeSync.Util.Log;
 
@@ -38,7 +38,7 @@ namespace CSM.TmpeSync.ToggleTrafficLights.Network.Handlers
                         return;
                     }
 
-                    if (TmpeBridgeAdapter.ApplyToggleTrafficLight(cmd.NodeId, cmd.Enabled))
+                    if (TmpeBridge.ApplyToggleTrafficLight(cmd.NodeId, cmd.Enabled))
                     {
                         Log.Info(
                             LogCategory.Synchronization,

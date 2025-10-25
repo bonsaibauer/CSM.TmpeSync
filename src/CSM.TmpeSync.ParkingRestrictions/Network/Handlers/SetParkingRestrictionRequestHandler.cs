@@ -3,9 +3,8 @@ using CSM.TmpeSync.Network.Contracts.Applied;
 using CSM.TmpeSync.Network.Contracts.Requests;
 using CSM.TmpeSync.Network.Contracts.System;
 using CSM.TmpeSync.Network.Contracts.States;
-using CSM.TmpeSync.TmpeBridge;
+using CSM.TmpeSync.ParkingRestrictions.Bridge;
 using CSM.TmpeSync.Util;
-using CSM.TmpeSync.Bridge;
 
 namespace CSM.TmpeSync.Network.Handlers
 {
@@ -62,10 +61,10 @@ namespace CSM.TmpeSync.Network.Handlers
                         return;
                     }
 
-                    if (TmpeBridgeAdapter.ApplyParkingRestriction(cmd.SegmentId, state))
+                    if (TmpeBridge.ApplyParkingRestriction(cmd.SegmentId, state))
                     {
                         var resultingState = state?.Clone();
-                        if (TmpeBridgeAdapter.TryGetParkingRestriction(cmd.SegmentId, out var appliedState) && appliedState != null)
+                        if (TmpeBridge.TryGetParkingRestriction(cmd.SegmentId, out var appliedState) && appliedState != null)
                             resultingState = appliedState.Clone();
                         Log.Info(
                             LogCategory.Synchronization,

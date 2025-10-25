@@ -2,10 +2,10 @@ using CSM.API.Commands;
 using CSM.TmpeSync.ToggleTrafficLights.Network.Contracts.Applied;
 using CSM.TmpeSync.ToggleTrafficLights.Network.Contracts.Requests;
 using CSM.TmpeSync.Network.Contracts.System;
-using CSM.TmpeSync.TmpeBridge;
+using CSM.TmpeSync.ToggleTrafficLights.Bridge;
 using CSM.TmpeSync.Util;
 using Log = CSM.TmpeSync.Util.Log;
-using CSM.TmpeSync.Bridge;
+using CSM.TmpeSync.ToggleTrafficLights.Bridge;
 
 namespace CSM.TmpeSync.ToggleTrafficLights.Network.Handlers
 {
@@ -41,7 +41,7 @@ namespace CSM.TmpeSync.ToggleTrafficLights.Network.Handlers
                 return;
             }
 
-            if (!TmpeBridgeAdapter.IsFeatureSupported("toggleTrafficLights"))
+            if (!TmpeBridge.IsFeatureSupported("toggleTrafficLights"))
             {
                 Log.Warn(
                     LogCategory.Network,
@@ -73,10 +73,10 @@ namespace CSM.TmpeSync.ToggleTrafficLights.Network.Handlers
                         return;
                     }
 
-                    if (TmpeBridgeAdapter.ApplyToggleTrafficLight(cmd.NodeId, cmd.Enabled))
+                    if (TmpeBridge.ApplyToggleTrafficLight(cmd.NodeId, cmd.Enabled))
                     {
                         var resultingEnabled = cmd.Enabled;
-                        if (TmpeBridgeAdapter.TryGetToggleTrafficLight(cmd.NodeId, out var appliedEnabled))
+                        if (TmpeBridge.TryGetToggleTrafficLight(cmd.NodeId, out var appliedEnabled))
                             resultingEnabled = appliedEnabled;
                         Log.Info(
                             LogCategory.Synchronization,

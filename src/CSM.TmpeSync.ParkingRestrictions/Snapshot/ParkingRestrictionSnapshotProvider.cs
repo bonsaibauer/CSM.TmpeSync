@@ -1,5 +1,5 @@
 using CSM.TmpeSync.Network.Contracts.Applied;
-using CSM.TmpeSync.TmpeBridge;
+using CSM.TmpeSync.ParkingRestrictions.Bridge;
 using CSM.TmpeSync.Util;
 
 namespace CSM.TmpeSync.Snapshot
@@ -11,7 +11,7 @@ namespace CSM.TmpeSync.Snapshot
             Log.Info(LogCategory.Snapshot, "Exporting TM:PE parking restriction snapshot");
             NetworkUtil.ForEachSegment(segmentId =>
             {
-                if (!TmpeBridgeAdapter.TryGetParkingRestriction(segmentId, out var state))
+                if (!TmpeBridge.TryGetParkingRestriction(segmentId, out var state))
                     return;
 
                 if (state == null || state.AllowParkingBothDirections)

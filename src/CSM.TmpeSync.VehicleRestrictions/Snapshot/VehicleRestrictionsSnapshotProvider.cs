@@ -1,6 +1,6 @@
 using CSM.TmpeSync.Network.Contracts.Applied;
 using CSM.TmpeSync.Network.Contracts.States;
-using CSM.TmpeSync.TmpeBridge;
+using CSM.TmpeSync.VehicleRestrictions.Bridge;
 using CSM.TmpeSync.Util;
 
 namespace CSM.TmpeSync.Snapshot
@@ -12,7 +12,7 @@ namespace CSM.TmpeSync.Snapshot
             Log.Info(LogCategory.Snapshot, "Exporting TM:PE vehicle restrictions snapshot");
             NetworkUtil.ForEachLane(laneId =>
             {
-                if (!TmpeBridgeAdapter.TryGetVehicleRestrictions(laneId, out var restrictions))
+                if (!TmpeBridge.TryGetVehicleRestrictions(laneId, out var restrictions))
                     return;
 
                 if (restrictions == VehicleRestrictionFlags.None)

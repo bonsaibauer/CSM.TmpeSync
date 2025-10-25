@@ -5,9 +5,8 @@ using CSM.API.Commands;
 using CSM.TmpeSync.Network.Contracts.Applied;
 using CSM.TmpeSync.Network.Contracts.Requests;
 using CSM.TmpeSync.Network.Contracts.System;
-using CSM.TmpeSync.TmpeBridge;
+using CSM.TmpeSync.LaneConnector.Bridge;
 using CSM.TmpeSync.Util;
-using CSM.TmpeSync.Bridge;
 
 namespace CSM.TmpeSync.Network.Handlers
 {
@@ -143,7 +142,7 @@ namespace CSM.TmpeSync.Network.Handlers
                     Array.Resize(ref liveTargetSegments, liveCount);
                     Array.Resize(ref liveTargetIndexes, liveCount);
 
-                    if (TmpeBridgeAdapter.ApplyLaneConnections(simSourceLaneId, liveTargets))
+                    if (TmpeBridge.ApplyLaneConnections(simSourceLaneId, liveTargets))
                     {
                         if (!NetworkUtil.TryGetLaneLocation(simSourceLaneId, out simSourceSegmentId, out simSourceLaneIndex))
                         {

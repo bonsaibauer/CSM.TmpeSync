@@ -4,9 +4,8 @@ using CSM.TmpeSync.Network.Contracts.Requests;
 using CSM.TmpeSync.Network.Contracts.System;
 using CSM.TmpeSync.Network.Contracts.States;
 using CSM.TmpeSync.JunctionRestrictions.Util;
-using CSM.TmpeSync.TmpeBridge;
+using CSM.TmpeSync.JunctionRestrictions.Bridge;
 using CSM.TmpeSync.Util;
-using CSM.TmpeSync.Bridge;
 
 namespace CSM.TmpeSync.Network.Handlers
 {
@@ -63,7 +62,7 @@ namespace CSM.TmpeSync.Network.Handlers
                         return;
                     }
 
-                    if (!TmpeBridgeAdapter.ApplyJunctionRestrictions(cmd.NodeId, state))
+                    if (!TmpeBridge.ApplyJunctionRestrictions(cmd.NodeId, state))
                     {
                         Log.Error(
                             LogCategory.Synchronization,
@@ -75,7 +74,7 @@ namespace CSM.TmpeSync.Network.Handlers
                     }
 
                     var resultingState = state?.Clone();
-                    if (TmpeBridgeAdapter.TryGetJunctionRestrictions(cmd.NodeId, out var appliedState) && appliedState != null)
+                    if (TmpeBridge.TryGetJunctionRestrictions(cmd.NodeId, out var appliedState) && appliedState != null)
                         resultingState = appliedState.Clone();
 
                     resultingState = JunctionRestrictionsDiagnostics.LogOutgoingJunctionRestrictions(

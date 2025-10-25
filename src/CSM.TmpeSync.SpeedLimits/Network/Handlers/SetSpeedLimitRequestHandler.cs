@@ -3,11 +3,11 @@ using CSM.TmpeSync.Network.Contracts.Applied;
 using CSM.TmpeSync.Network.Contracts.Requests;
 using CSM.TmpeSync.Network.Contracts.States;
 using CSM.TmpeSync.Network.Contracts.System;
-using CSM.TmpeSync.TmpeBridge;
+using CSM.TmpeSync.SpeedLimits.Bridge;
 using CSM.TmpeSync.SpeedLimits.Util;
 using CSM.TmpeSync.Util;
 using Log = CSM.TmpeSync.Util.Log;
-using CSM.TmpeSync.Bridge;
+using CSM.TmpeSync.SpeedLimits.Bridge;
 
 namespace CSM.TmpeSync.Network.Handlers
 {
@@ -75,7 +75,7 @@ namespace CSM.TmpeSync.Network.Handlers
                         return;
                     }
 
-                    if (!TmpeBridgeAdapter.ApplySpeedLimit(lockedLaneId, requestedKmh))
+                    if (!TmpeBridge.ApplySpeedLimit(lockedLaneId, requestedKmh))
                     {
                         Log.Error(
                             LogCategory.Synchronization,
@@ -94,7 +94,7 @@ namespace CSM.TmpeSync.Network.Handlers
                     float? resultingDefault = null;
                     var resultingSpeedKmh = requestedKmh;
 
-                    if (TmpeBridgeAdapter.TryGetSpeedLimit(lockedLaneId, out var appliedSpeed, out var appliedDefault, out var hasOverride))
+                    if (TmpeBridge.TryGetSpeedLimit(lockedLaneId, out var appliedSpeed, out var appliedDefault, out var hasOverride))
                     {
                         resultingSpeedKmh = appliedSpeed;
                         resultingDefault = appliedDefault;

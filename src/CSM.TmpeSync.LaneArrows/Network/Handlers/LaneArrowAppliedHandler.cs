@@ -1,7 +1,7 @@
 using CSM.API.Commands;
 using CSM.TmpeSync.Network.Contracts.Applied;
 using CSM.TmpeSync.Network.Contracts.States;
-using CSM.TmpeSync.TmpeBridge;
+using CSM.TmpeSync.LaneArrows.Bridge;
 using CSM.TmpeSync.Util;
 
 namespace CSM.TmpeSync.Network.Handlers
@@ -40,7 +40,7 @@ namespace CSM.TmpeSync.Network.Handlers
                     resolvedLaneId,
                     resolvedSegmentId,
                     resolvedLaneIndex);
-                if (TmpeBridgeAdapter.ApplyLaneArrows(resolvedLaneId, arrows))
+                if (TmpeBridge.ApplyLaneArrows(resolvedLaneId, arrows))
                     Log.Info(LogCategory.Synchronization, "Applied remote lane arrows | laneId={0} segmentId={1} laneIndex={2} arrows={3}", resolvedLaneId, resolvedSegmentId, resolvedLaneIndex, arrows);
                 else
                     Log.Error(LogCategory.Synchronization, "Failed to apply remote lane arrows | laneId={0} segmentId={1} laneIndex={2} arrows={3}", resolvedLaneId, resolvedSegmentId, resolvedLaneIndex, arrows);

@@ -3,9 +3,8 @@ using CSM.TmpeSync.Network.Contracts.Applied;
 using CSM.TmpeSync.Network.Contracts.Requests;
 using CSM.TmpeSync.Network.Contracts.States;
 using CSM.TmpeSync.Network.Contracts.System;
-using CSM.TmpeSync.TmpeBridge;
+using CSM.TmpeSync.PrioritySigns.Bridge;
 using CSM.TmpeSync.Util;
-using CSM.TmpeSync.Bridge;
 
 namespace CSM.TmpeSync.Network.Handlers
 {
@@ -75,10 +74,10 @@ namespace CSM.TmpeSync.Network.Handlers
                         return;
                     }
 
-                    if (TmpeBridgeAdapter.ApplyPrioritySign(cmd.NodeId, cmd.SegmentId, cmd.SignType))
+                    if (TmpeBridge.ApplyPrioritySign(cmd.NodeId, cmd.SegmentId, cmd.SignType))
                     {
                         var resultingSign = cmd.SignType;
-                        if (TmpeBridgeAdapter.TryGetPrioritySign(cmd.NodeId, cmd.SegmentId, out var appliedSign))
+                        if (TmpeBridge.TryGetPrioritySign(cmd.NodeId, cmd.SegmentId, out var appliedSign))
                             resultingSign = appliedSign;
                         Log.Info(
                             LogCategory.Synchronization,

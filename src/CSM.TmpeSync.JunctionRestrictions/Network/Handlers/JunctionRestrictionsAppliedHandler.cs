@@ -2,7 +2,7 @@ using CSM.API.Commands;
 using CSM.TmpeSync.Network.Contracts.Applied;
 using CSM.TmpeSync.Network.Contracts.States;
 using CSM.TmpeSync.JunctionRestrictions.Util;
-using CSM.TmpeSync.TmpeBridge;
+using CSM.TmpeSync.JunctionRestrictions.Bridge;
 using CSM.TmpeSync.Util;
 
 namespace CSM.TmpeSync.Network.Handlers
@@ -27,7 +27,7 @@ namespace CSM.TmpeSync.Network.Handlers
 
             if (NetworkUtil.NodeExists(nodeId))
             {
-                if (TmpeBridgeAdapter.ApplyJunctionRestrictions(nodeId, state))
+                if (TmpeBridge.ApplyJunctionRestrictions(nodeId, state))
                 {
                     Log.Info(
                         LogCategory.Synchronization,

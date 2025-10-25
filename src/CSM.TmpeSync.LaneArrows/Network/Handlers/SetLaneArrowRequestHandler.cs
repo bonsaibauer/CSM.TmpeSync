@@ -3,9 +3,9 @@ using CSM.TmpeSync.Network.Contracts.Applied;
 using CSM.TmpeSync.Network.Contracts.Requests;
 using CSM.TmpeSync.Network.Contracts.System;
 using CSM.TmpeSync.Network.Contracts.States;
-using CSM.TmpeSync.TmpeBridge;
+using CSM.TmpeSync.LaneArrows.Bridge;
 using CSM.TmpeSync.Util;
-using CSM.TmpeSync.Bridge;
+using CSM.TmpeSync.LaneArrows.Bridge;
 
 namespace CSM.TmpeSync.Network.Handlers
 {
@@ -72,7 +72,7 @@ namespace CSM.TmpeSync.Network.Handlers
                         return;
                     }
 
-                    if (TmpeBridgeAdapter.ApplyLaneArrows(simLaneId, cmd.Arrows))
+                    if (TmpeBridge.ApplyLaneArrows(simLaneId, cmd.Arrows))
                     {
                         if (!NetworkUtil.TryGetLaneLocation(simLaneId, out simSegmentId, out simLaneIndex))
                         {
@@ -81,7 +81,7 @@ namespace CSM.TmpeSync.Network.Handlers
                         }
 
                         var resultingArrows = cmd.Arrows;
-                        if (TmpeBridgeAdapter.TryGetLaneArrows(simLaneId, out var appliedArrows))
+                        if (TmpeBridge.TryGetLaneArrows(simLaneId, out var appliedArrows))
                             resultingArrows = appliedArrows;
 
                         Log.Info(LogCategory.Synchronization, "Applied lane arrows | laneId={0} segmentId={1} laneIndex={2} arrows={3} action=broadcast", simLaneId, simSegmentId, simLaneIndex, resultingArrows);

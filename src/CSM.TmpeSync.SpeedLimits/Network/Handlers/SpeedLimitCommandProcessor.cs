@@ -1,5 +1,5 @@
 using CSM.TmpeSync.Network.Contracts.States;
-using CSM.TmpeSync.TmpeBridge;
+using CSM.TmpeSync.SpeedLimits.Bridge;
 using CSM.TmpeSync.Util;
 
 namespace CSM.TmpeSync.Network.Handlers
@@ -27,7 +27,7 @@ namespace CSM.TmpeSync.Network.Handlers
                 return;
             }
 
-            if (!TmpeBridgeAdapter.ApplySpeedLimit(resolvedLaneId, speedKmh))
+            if (!TmpeBridge.ApplySpeedLimit(resolvedLaneId, speedKmh))
             {
                 Log.Error(
                     LogCategory.Synchronization,
@@ -40,7 +40,7 @@ namespace CSM.TmpeSync.Network.Handlers
                 return;
             }
 
-            if (!TmpeBridgeAdapter.TryGetSpeedLimit(resolvedLaneId, out var resultingKmh, out _, out _))
+            if (!TmpeBridge.TryGetSpeedLimit(resolvedLaneId, out var resultingKmh, out _, out _))
                 resultingKmh = speedKmh;
 
             Log.Info(

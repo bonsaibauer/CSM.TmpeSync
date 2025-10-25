@@ -1,6 +1,6 @@
 using CSM.TmpeSync.Network.Contracts.Applied;
 using CSM.TmpeSync.Network.Contracts.States;
-using CSM.TmpeSync.TmpeBridge;
+using CSM.TmpeSync.PrioritySigns.Bridge;
 using CSM.TmpeSync.Util;
 
 namespace CSM.TmpeSync.Snapshot
@@ -14,7 +14,7 @@ namespace CSM.TmpeSync.Snapshot
             {
                 NetworkUtil.ForEachSegment(segmentId =>
                 {
-                    if (!TmpeBridgeAdapter.TryGetPrioritySign(nodeId, segmentId, out var signType))
+                    if (!TmpeBridge.TryGetPrioritySign(nodeId, segmentId, out var signType))
                         return;
 
                     if (signType == PrioritySignType.None)

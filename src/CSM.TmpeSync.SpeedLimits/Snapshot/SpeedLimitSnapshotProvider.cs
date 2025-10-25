@@ -1,6 +1,6 @@
 using System.Collections.Generic;
 using CSM.TmpeSync.Network.Contracts.Applied;
-using CSM.TmpeSync.TmpeBridge;
+using CSM.TmpeSync.SpeedLimits.Bridge;
 using CSM.TmpeSync.Util;
 using Log = CSM.TmpeSync.Util.Log;
 
@@ -19,7 +19,7 @@ namespace CSM.TmpeSync.Snapshot
 
             NetworkUtil.ForEachLane(laneId =>
             {
-                if (!TmpeBridgeAdapter.TryGetSpeedLimit(laneId, out var kmh, out var defaultKmh, out var hasOverride))
+                if (!TmpeBridge.TryGetSpeedLimit(laneId, out var kmh, out var defaultKmh, out var hasOverride))
                     return;
 
                 if (!hasOverride && (!defaultKmh.HasValue || defaultKmh.Value <= 0f))

@@ -1,7 +1,7 @@
 using CSM.API.Commands;
 using CSM.TmpeSync.Network.Contracts.Applied;
 using CSM.TmpeSync.Network.Contracts.States;
-using CSM.TmpeSync.TmpeBridge;
+using CSM.TmpeSync.PrioritySigns.Bridge;
 using CSM.TmpeSync.Util;
 
 namespace CSM.TmpeSync.Network.Handlers
@@ -25,7 +25,7 @@ namespace CSM.TmpeSync.Network.Handlers
 
             if (NetworkUtil.NodeExists(nodeId) && NetworkUtil.SegmentExists(segmentId))
             {
-                if (TmpeBridgeAdapter.ApplyPrioritySign(nodeId, segmentId, signType))
+                if (TmpeBridge.ApplyPrioritySign(nodeId, segmentId, signType))
                 {
                     Log.Info(
                         LogCategory.Synchronization,

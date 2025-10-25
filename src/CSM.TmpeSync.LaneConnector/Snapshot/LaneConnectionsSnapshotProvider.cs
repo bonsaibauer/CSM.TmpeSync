@@ -1,5 +1,5 @@
 using CSM.TmpeSync.Network.Contracts.Applied;
-using CSM.TmpeSync.TmpeBridge;
+using CSM.TmpeSync.LaneConnector.Bridge;
 using CSM.TmpeSync.Util;
 
 namespace CSM.TmpeSync.Snapshot
@@ -11,7 +11,7 @@ namespace CSM.TmpeSync.Snapshot
             Log.Info(LogCategory.Snapshot, "Exporting TM:PE lane connection snapshot");
             NetworkUtil.ForEachLane(laneId =>
             {
-                if (!TmpeBridgeAdapter.TryGetLaneConnections(laneId, out var targets))
+                if (!TmpeBridge.TryGetLaneConnections(laneId, out var targets))
                     return;
 
                 if (targets == null || targets.Length == 0)

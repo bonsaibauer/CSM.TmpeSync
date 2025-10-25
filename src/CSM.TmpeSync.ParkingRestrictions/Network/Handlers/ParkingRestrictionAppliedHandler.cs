@@ -1,7 +1,7 @@
 using CSM.API.Commands;
 using CSM.TmpeSync.Network.Contracts.Applied;
 using CSM.TmpeSync.Network.Contracts.States;
-using CSM.TmpeSync.TmpeBridge;
+using CSM.TmpeSync.ParkingRestrictions.Bridge;
 using CSM.TmpeSync.Util;
 
 namespace CSM.TmpeSync.Network.Handlers
@@ -24,7 +24,7 @@ namespace CSM.TmpeSync.Network.Handlers
 
             if (NetworkUtil.SegmentExists(segmentId))
             {
-                if (TmpeBridgeAdapter.ApplyParkingRestriction(segmentId, state))
+                if (TmpeBridge.ApplyParkingRestriction(segmentId, state))
                 {
                     Log.Info(
                         LogCategory.Synchronization,

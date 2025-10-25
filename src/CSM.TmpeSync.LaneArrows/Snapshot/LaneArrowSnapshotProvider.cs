@@ -1,6 +1,6 @@
 using CSM.TmpeSync.Network.Contracts.Applied;
 using CSM.TmpeSync.Network.Contracts.States;
-using CSM.TmpeSync.TmpeBridge;
+using CSM.TmpeSync.LaneArrows.Bridge;
 using CSM.TmpeSync.Util;
 
 namespace CSM.TmpeSync.Snapshot
@@ -12,7 +12,7 @@ namespace CSM.TmpeSync.Snapshot
             Log.Info(LogCategory.Snapshot, "Exporting TM:PE lane arrow snapshot");
             NetworkUtil.ForEachLane(laneId =>
             {
-                if (!TmpeBridgeAdapter.TryGetLaneArrows(laneId, out var arrows))
+                if (!TmpeBridge.TryGetLaneArrows(laneId, out var arrows))
                     return;
 
                 if (arrows == LaneArrowFlags.None)

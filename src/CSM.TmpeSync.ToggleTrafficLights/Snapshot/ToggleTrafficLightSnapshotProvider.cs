@@ -1,6 +1,6 @@
 using CSM.TmpeSync.ToggleTrafficLights.Network.Contracts.Applied;
 using CSM.TmpeSync.Snapshot;
-using CSM.TmpeSync.TmpeBridge;
+using CSM.TmpeSync.ToggleTrafficLights.Bridge;
 using CSM.TmpeSync.Util;
 using Log = CSM.TmpeSync.Util.Log;
 
@@ -13,7 +13,7 @@ namespace CSM.TmpeSync.ToggleTrafficLights.Snapshot
             Log.Info(LogCategory.Snapshot, "Exporting toggle traffic light snapshot");
             NetworkUtil.ForEachNode(nodeId =>
             {
-                if (!TmpeBridgeAdapter.TryGetToggleTrafficLight(nodeId, out var enabled))
+                if (!TmpeBridge.TryGetToggleTrafficLight(nodeId, out var enabled))
                     return;
 
                 if (!enabled)

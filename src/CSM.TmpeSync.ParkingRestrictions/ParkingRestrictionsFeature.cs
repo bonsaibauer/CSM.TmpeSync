@@ -4,9 +4,9 @@ using CSM.TmpeSync.Network.Contracts.Requests;
 using CSM.TmpeSync.Network.Handlers;
 using CSM.TmpeSync.Network.Contracts.States;
 using CSM.TmpeSync.Snapshot;
-using CSM.TmpeSync.TmpeBridge;
+using CSM.TmpeSync.ParkingRestrictions.Bridge;
 using CSM.TmpeSync.Util;
-using CSM.TmpeSync.Bridge;
+using CSM.TmpeSync.ParkingRestrictions.Bridge;
 
 namespace CSM.TmpeSync.ParkingRestrictions
 {
@@ -18,14 +18,12 @@ namespace CSM.TmpeSync.ParkingRestrictions
         public static void Register()
         {
             SnapshotDispatcher.RegisterProvider(new ParkingRestrictionSnapshotProvider());
-            TmpeBridgeFeatureRegistry.RegisterSegmentHandler(
-                TmpeBridgeFeatureRegistry.ParkingRestrictionsManagerType,
-                HandleSegmentChange);
+            TmpeBridge.RegisterSegmentChangeHandler(HandleSegmentChange);
         }
 
         private static void HandleSegmentChange(ushort segmentId)
         {
-            if (TmpeBridgeAdapter.TryGetParkingRestriction(segmentId, out var state))
+            if (TmpeBridge.TryGetParkingRestriction(segmentId, out var state))
             {
                 ParkingRestrictionBatcher.Enqueue(new ParkingRestrictionBatchApplied.Entry
                 {
@@ -48,7 +46,7 @@ namespace CSM.TmpeSync.ParkingRestrictions
 
             var command = new ParkingRestrictionBatchApplied();
             command.Items.AddRange(entries);
-            TmpeBridgeChangeDispatcher.Broadcast(command);
+            TmpeBridge.Broadcast(command);
         }
     }
 }

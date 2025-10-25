@@ -1,5 +1,5 @@
 using CSM.TmpeSync.Network.Contracts.Applied;
-using CSM.TmpeSync.TmpeBridge;
+using CSM.TmpeSync.JunctionRestrictions.Bridge;
 using CSM.TmpeSync.Util;
 
 namespace CSM.TmpeSync.Snapshot
@@ -11,7 +11,7 @@ namespace CSM.TmpeSync.Snapshot
             Log.Info(LogCategory.Snapshot, "Exporting TM:PE junction restrictions snapshot");
             NetworkUtil.ForEachNode(nodeId =>
             {
-                if (!TmpeBridgeAdapter.TryGetJunctionRestrictions(nodeId, out var state))
+                if (!TmpeBridge.TryGetJunctionRestrictions(nodeId, out var state))
                     return;
 
                 if (state == null || state.IsDefault())

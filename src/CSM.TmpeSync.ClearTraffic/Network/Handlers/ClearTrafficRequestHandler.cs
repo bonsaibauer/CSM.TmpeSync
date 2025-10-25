@@ -2,10 +2,9 @@ using CSM.API.Commands;
 using CSM.TmpeSync.ClearTraffic.Network.Contracts.Applied;
 using CSM.TmpeSync.ClearTraffic.Network.Contracts.Requests;
 using CSM.TmpeSync.Network.Contracts.System;
-using CSM.TmpeSync.TmpeBridge;
+using CSM.TmpeSync.ClearTraffic.Bridge;
 using CSM.TmpeSync.Util;
 using Log = CSM.TmpeSync.Util.Log;
-using CSM.TmpeSync.Bridge;
 
 namespace CSM.TmpeSync.ClearTraffic.Network.Handlers
 {
@@ -30,7 +29,7 @@ namespace CSM.TmpeSync.ClearTraffic.Network.Handlers
             {
                 using (CsmBridge.StartIgnore())
                 {
-                    if (TmpeBridgeAdapter.ClearTraffic())
+                    if (TmpeBridge.ClearTraffic())
                     {
                         Log.Info(
                             LogCategory.Synchronization,

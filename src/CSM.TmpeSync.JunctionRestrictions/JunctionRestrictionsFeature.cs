@@ -4,9 +4,9 @@ using CSM.TmpeSync.Network.Contracts.Applied;
 using CSM.TmpeSync.Network.Contracts.States;
 using CSM.TmpeSync.Network.Handlers;
 using CSM.TmpeSync.Snapshot;
-using CSM.TmpeSync.TmpeBridge;
+using CSM.TmpeSync.JunctionRestrictions.Bridge;
 using CSM.TmpeSync.Util;
-using CSM.TmpeSync.Bridge;
+using CSM.TmpeSync.JunctionRestrictions.Bridge;
 
 namespace CSM.TmpeSync.JunctionRestrictions
 {
@@ -18,14 +18,12 @@ namespace CSM.TmpeSync.JunctionRestrictions
         public static void Register()
         {
             SnapshotDispatcher.RegisterProvider(new JunctionRestrictionsSnapshotProvider());
-            TmpeBridgeFeatureRegistry.RegisterNodeHandler(
-                TmpeBridgeFeatureRegistry.JunctionRestrictionsManagerType,
-                HandleNodeChange);
+            TmpeBridge.RegisterNodeChangeHandler(HandleNodeChange);
         }
 
         private static void HandleNodeChange(ushort nodeId)
         {
-            if (TmpeBridgeAdapter.TryGetJunctionRestrictions(nodeId, out var state) && state != null && !state.IsDefault())
+            if (TmpeBridge.TryGetJunctionRestrictions(nodeId, out var state) && state != null && !state.IsDefault())
             {
                 var preparedState = JunctionRestrictionsDiagnostics.LogOutgoingJunctionRestrictions(
                     nodeId,
@@ -53,7 +51,7 @@ namespace CSM.TmpeSync.JunctionRestrictions
 
             var command = new JunctionRestrictionsBatchApplied();
             command.Items.AddRange(entries);
-            TmpeBridgeChangeDispatcher.Broadcast(command);
+            TmpeBridge.Broadcast(command);
         }
     }
 }

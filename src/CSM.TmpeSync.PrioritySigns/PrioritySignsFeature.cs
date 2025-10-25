@@ -4,9 +4,9 @@ using CSM.TmpeSync.Network.Contracts.Applied;
 using CSM.TmpeSync.Network.Contracts.Requests;
 using CSM.TmpeSync.Network.Handlers;
 using CSM.TmpeSync.Snapshot;
-using CSM.TmpeSync.TmpeBridge;
+using CSM.TmpeSync.PrioritySigns.Bridge;
 using CSM.TmpeSync.Util;
-using CSM.TmpeSync.Bridge;
+using CSM.TmpeSync.PrioritySigns.Bridge;
 
 namespace CSM.TmpeSync.PrioritySigns
 {
@@ -18,9 +18,7 @@ namespace CSM.TmpeSync.PrioritySigns
         public static void Register()
         {
             SnapshotDispatcher.RegisterProvider(new PrioritySignSnapshotProvider());
-            TmpeBridgeFeatureRegistry.RegisterNodeHandler(
-                TmpeBridgeFeatureRegistry.TrafficPriorityManagerType,
-                HandleNodeChange);
+            TmpeBridge.RegisterNodeChangeHandler(HandleNodeChange);
         }
 
         private static void HandleNodeChange(ushort nodeId)
@@ -38,7 +36,7 @@ namespace CSM.TmpeSync.PrioritySigns
                 if (!NetworkUtil.SegmentExists(segmentId))
                     continue;
 
-                if (TmpeBridgeAdapter.TryGetPrioritySign(nodeId, segmentId, out var signType))
+                if (TmpeBridge.TryGetPrioritySign(nodeId, segmentId, out var signType))
                 {
                     PrioritySignBatcher.Enqueue(new PrioritySignBatchApplied.Entry
                     {
@@ -63,7 +61,7 @@ namespace CSM.TmpeSync.PrioritySigns
 
             var command = new PrioritySignBatchApplied();
             command.Items.AddRange(entries);
-            TmpeBridgeChangeDispatcher.Broadcast(command);
+            TmpeBridge.Broadcast(command);
         }
     }
 }

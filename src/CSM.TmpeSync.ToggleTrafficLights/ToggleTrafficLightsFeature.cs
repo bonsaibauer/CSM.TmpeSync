@@ -1,9 +1,9 @@
 using CSM.TmpeSync.Snapshot;
 using CSM.TmpeSync.ToggleTrafficLights.Network.Contracts.Applied;
 using CSM.TmpeSync.ToggleTrafficLights.Snapshot;
-using CSM.TmpeSync.TmpeBridge;
+using CSM.TmpeSync.ToggleTrafficLights.Bridge;
 using CSM.TmpeSync.Util;
-using CSM.TmpeSync.Bridge;
+using CSM.TmpeSync.ToggleTrafficLights.Bridge;
 
 namespace CSM.TmpeSync.ToggleTrafficLights
 {
@@ -14,15 +14,13 @@ namespace CSM.TmpeSync.ToggleTrafficLights
             Log.Info(LogCategory.Lifecycle, "Registering Toggle Traffic Lights feature integration.");
 
             SnapshotDispatcher.RegisterProvider(new ToggleTrafficLightSnapshotProvider());
-            TmpeBridgeFeatureRegistry.RegisterNodeHandler(
-                TmpeBridgeFeatureRegistry.TrafficLightManagerType,
-                HandleTrafficLightNodeChange);
-            TmpeBridgeChangeDispatcher.TrafficLightBroadcastFactory = (nodeId, enabled) =>
+            TmpeBridge.RegisterNodeChangeHandler(HandleTrafficLightNodeChange);
+            TmpeBridge.SetTrafficLightBroadcastFactory((nodeId, enabled) =>
                 new TrafficLightToggledApplied
                 {
                     NodeId = nodeId,
                     Enabled = enabled
-                };
+                });
         }
 
         private static void HandleTrafficLightNodeChange(ushort nodeId)
@@ -33,7 +31,7 @@ namespace CSM.TmpeSync.ToggleTrafficLights
                 nodeId,
                 CsmBridge.DescribeCurrentRole());
 
-            TmpeBridgeChangeDispatcher.BroadcastTrafficLights(nodeId);
+            TmpeBridge.BroadcastTrafficLights(nodeId);
         }
     }
 }

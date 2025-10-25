@@ -2,7 +2,7 @@ using System;
 using System.Linq;
 using CSM.API.Commands;
 using CSM.TmpeSync.Network.Contracts.Applied;
-using CSM.TmpeSync.TmpeBridge;
+using CSM.TmpeSync.LaneConnector.Bridge;
 using CSM.TmpeSync.Util;
 
 namespace CSM.TmpeSync.Network.Handlers
@@ -91,7 +91,7 @@ namespace CSM.TmpeSync.Network.Handlers
             var liveTargetSegments = resolvedTargetSegments.Where((_, idx) => resolvedTargetLaneIds[idx] != 0).ToArray();
             var liveTargetIndexes = resolvedTargetIndexes.Where((_, idx) => resolvedTargetLaneIds[idx] != 0).ToArray();
 
-            if (TmpeBridgeAdapter.ApplyLaneConnections(resolvedSourceLaneId, liveTargets))
+            if (TmpeBridge.ApplyLaneConnections(resolvedSourceLaneId, liveTargets))
             {
                 Log.Info(
                     LogCategory.Synchronization,
