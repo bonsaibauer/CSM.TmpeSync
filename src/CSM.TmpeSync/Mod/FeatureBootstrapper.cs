@@ -26,7 +26,7 @@ namespace CSM.TmpeSync.Mod
             LaneArrowsFeature.Register();
             LaneConnectorFeature.Register();
             JunctionRestrictionsFeature.Register();
-            PrioritySignsFeature.Register();
+            PrioritySignSyncFeature.Register();
             ParkingRestrictionsFeature.Register();
             VehicleRestrictionsFeature.Register();
             ToggleTrafficLightsFeature.Register();
