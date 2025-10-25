@@ -20,6 +20,10 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CSM.TmpeSync.SpeedLimits", 
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CSM.TmpeSync.VehicleRestrictions", "src\CSM.TmpeSync.VehicleRestrictions\CSM.TmpeSync.VehicleRestrictions.csproj", "{3C2E294B-D561-4FAF-976E-6D85B42C4405}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CSM.TmpeSync.ToggleTrafficLights", "src\CSM.TmpeSync.ToggleTrafficLights\CSM.TmpeSync.ToggleTrafficLights.csproj", "{5E3C3361-03F5-4BB5-849C-C8E6528D2C15}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CSM.TmpeSync.ClearTraffic", "src\CSM.TmpeSync.ClearTraffic\CSM.TmpeSync.ClearTraffic.csproj", "{BBAA00D7-39C0-4094-A35B-5BD43C88B3E0}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -62,6 +66,14 @@ Global
                 {3C2E294B-D561-4FAF-976E-6D85B42C4405}.Debug|Any CPU.Build.0 = Debug|Any CPU
                 {3C2E294B-D561-4FAF-976E-6D85B42C4405}.Release|Any CPU.ActiveCfg = Release|Any CPU
                 {3C2E294B-D561-4FAF-976E-6D85B42C4405}.Release|Any CPU.Build.0 = Release|Any CPU
+                {5E3C3361-03F5-4BB5-849C-C8E6528D2C15}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+                {5E3C3361-03F5-4BB5-849C-C8E6528D2C15}.Debug|Any CPU.Build.0 = Debug|Any CPU
+                {5E3C3361-03F5-4BB5-849C-C8E6528D2C15}.Release|Any CPU.ActiveCfg = Release|Any CPU
+                {5E3C3361-03F5-4BB5-849C-C8E6528D2C15}.Release|Any CPU.Build.0 = Release|Any CPU
+                {BBAA00D7-39C0-4094-A35B-5BD43C88B3E0}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+                {BBAA00D7-39C0-4094-A35B-5BD43C88B3E0}.Debug|Any CPU.Build.0 = Debug|Any CPU
+                {BBAA00D7-39C0-4094-A35B-5BD43C88B3E0}.Release|Any CPU.ActiveCfg = Release|Any CPU
+                {BBAA00D7-39C0-4094-A35B-5BD43C88B3E0}.Release|Any CPU.Build.0 = Release|Any CPU
         EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

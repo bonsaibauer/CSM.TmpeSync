@@ -1,10 +1,12 @@
 using CSM.API;
+using CSM.TmpeSync.ClearTraffic;
 using CSM.TmpeSync.JunctionRestrictions;
 using CSM.TmpeSync.LaneArrows;
 using CSM.TmpeSync.LaneConnector;
 using CSM.TmpeSync.ParkingRestrictions;
 using CSM.TmpeSync.PrioritySigns;
 using CSM.TmpeSync.SpeedLimits;
+using CSM.TmpeSync.ToggleTrafficLights;
 using CSM.TmpeSync.Tmpe;
 using CSM.TmpeSync.Util;
 using CSM.TmpeSync.VehicleRestrictions;
@@ -26,6 +28,8 @@ namespace CSM.TmpeSync.Mod
             CommandAssemblies.Add(typeof(JunctionRestrictionsFeature).Assembly);
             CommandAssemblies.Add(typeof(SpeedLimitsFeature).Assembly);
             CommandAssemblies.Add(typeof(VehicleRestrictionsFeature).Assembly);
+            CommandAssemblies.Add(typeof(ToggleTrafficLightsFeature).Assembly);
+            CommandAssemblies.Add(typeof(ClearTrafficFeature).Assembly);
         }
 
         public override void RegisterHandlers()

@@ -103,7 +103,7 @@ namespace CSM.TmpeSync.Tmpe
             }
         }
 
-        private static void BroadcastTrafficLights(ushort nodeId)
+        internal static void BroadcastTrafficLights(ushort nodeId)
         {
             SyncSegmentsForNode(nodeId, "traffic_lights");
 

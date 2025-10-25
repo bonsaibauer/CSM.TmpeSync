@@ -13,3 +13,5 @@ using System.Runtime.CompilerServices;
 [assembly: InternalsVisibleTo("CSM.TmpeSync.JunctionRestrictions")]
 [assembly: InternalsVisibleTo("CSM.TmpeSync.SpeedLimits")]
 [assembly: InternalsVisibleTo("CSM.TmpeSync.VehicleRestrictions")]
+[assembly: InternalsVisibleTo("CSM.TmpeSync.ToggleTrafficLights")]
+[assembly: InternalsVisibleTo("CSM.TmpeSync.ClearTraffic")]
