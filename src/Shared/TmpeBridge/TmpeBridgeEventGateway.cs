@@ -12,6 +12,32 @@ namespace CSM.TmpeSync.TmpeBridge
         private static Harmony _harmony;
         private static bool _enabled;
 
+        static TmpeBridgeEventGateway()
+        {
+            try
+            {
+                AppDomain.CurrentDomain.AssemblyLoad += OnAssemblyLoaded;
+            }
+            catch (Exception ex)
+            {
+                Log.Warn(LogCategory.Diagnostics, "Failed to attach TM:PE assembly load hook | error={0}", ex);
+            }
+        }
+
+        private static void OnAssemblyLoaded(object sender, AssemblyLoadEventArgs args)
+        {
+            try
+            {
+                var name = args?.LoadedAssembly?.GetName()?.Name;
+                if (string.Equals(name, "TrafficManager", StringComparison.OrdinalIgnoreCase))
+                    Refresh();
+            }
+            catch (Exception ex)
+            {
+                Log.Debug(LogCategory.Diagnostics, "TM:PE notifier assembly load hook failed | error={0}", ex);
+            }
+        }
+
         internal static void Enable()
         {
             if (_enabled)
