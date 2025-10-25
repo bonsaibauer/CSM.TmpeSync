@@ -10,20 +10,25 @@ namespace CSM.TmpeSync.Network.Handlers
     {
         protected override void Handle(JunctionRestrictionsApplied cmd)
         {
-            Log.Info("Received JunctionRestrictionsApplied node={0} state={1}", cmd.NodeId, cmd.State);
+            ProcessEntry(cmd.NodeId, cmd.State, "single_command");
+        }
 
-            JunctionRestrictionsDiagnostics.LogIncomingJunctionRestrictions(cmd.NodeId, cmd.State, "applied_handler");
+        internal static void ProcessEntry(ushort nodeId, JunctionRestrictionsState state, string origin)
+        {
+            Log.Info("Received JunctionRestrictionsApplied node={0} state={1} origin={2}", nodeId, state, origin ?? "unknown");
 
-            if (NetworkUtil.NodeExists(cmd.NodeId))
+            JunctionRestrictionsDiagnostics.LogIncomingJunctionRestrictions(nodeId, state, "applied_handler");
+
+            if (NetworkUtil.NodeExists(nodeId))
             {
-                if (TmpeBridgeAdapter.ApplyJunctionRestrictions(cmd.NodeId, cmd.State))
-                    Log.Info("Applied remote junction restrictions node={0}", cmd.NodeId);
+                if (TmpeBridgeAdapter.ApplyJunctionRestrictions(nodeId, state))
+                    Log.Info("Applied remote junction restrictions node={0}", nodeId);
                 else
-                    Log.Error("Failed to apply remote junction restrictions node={0}", cmd.NodeId);
+                    Log.Error("Failed to apply remote junction restrictions node={0}", nodeId);
             }
             else
             {
-                Log.Warn("Node {0} missing – skipping junction restrictions apply.", cmd.NodeId);
+                Log.Warn("Node {0} missing – skipping junction restrictions apply (origin={1}).", nodeId, origin ?? "unknown");
             }
         }
     }

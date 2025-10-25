@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using CSM.TmpeSync.Network.Contracts.Applied;
 using CSM.TmpeSync.Network.Contracts.Requests;
 using CSM.TmpeSync.Network.Handlers;
@@ -9,6 +10,9 @@ namespace CSM.TmpeSync.LaneArrows
 {
     public static class LaneArrowsFeature
     {
+        private static readonly ChangeBatcher<LaneArrowBatchApplied.Entry> LaneArrowBatcher =
+            new ChangeBatcher<LaneArrowBatchApplied.Entry>(FlushLaneArrowBatch);
+
         public static void Register()
         {
             SnapshotDispatcher.RegisterProvider(new LaneArrowSnapshotProvider());
@@ -26,13 +30,23 @@ namespace CSM.TmpeSync.LaneArrows
             if (!NetworkUtil.TryGetLaneLocation(laneId, out var segmentId, out var laneIndex))
                 return;
 
-            TmpeBridgeChangeDispatcher.Broadcast(new LaneArrowApplied
+            LaneArrowBatcher.Enqueue(new LaneArrowBatchApplied.Entry
             {
                 LaneId = laneId,
                 SegmentId = segmentId,
                 LaneIndex = laneIndex,
                 Arrows = arrows
             });
+        }
+
+        private static void FlushLaneArrowBatch(IReadOnlyList<LaneArrowBatchApplied.Entry> entries)
+        {
+            if (entries == null || entries.Count == 0)
+                return;
+
+            var command = new LaneArrowBatchApplied();
+            command.Items.AddRange(entries);
+            TmpeBridgeChangeDispatcher.Broadcast(command);
         }
     }
 }

@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using ColossalFramework;
 using CSM.TmpeSync.Network.Contracts.Applied;
 using CSM.TmpeSync.Network.Contracts.Requests;
@@ -11,6 +12,9 @@ namespace CSM.TmpeSync.VehicleRestrictions
 {
     public static class VehicleRestrictionsFeature
     {
+        private static readonly ChangeBatcher<VehicleRestrictionsBatchApplied.Entry> VehicleRestrictionsBatcher =
+            new ChangeBatcher<VehicleRestrictionsBatchApplied.Entry>(FlushVehicleRestrictionBatch);
+
         public static void Register()
         {
             SnapshotDispatcher.RegisterProvider(new VehicleRestrictionsSnapshotProvider());
@@ -40,7 +44,7 @@ namespace CSM.TmpeSync.VehicleRestrictions
                 {
                     if (NetworkUtil.TryGetLaneLocation(laneId, out var resolvedSegmentId, out var resolvedLaneIndex))
                     {
-                        TmpeBridgeChangeDispatcher.Broadcast(new VehicleRestrictionsApplied
+                        VehicleRestrictionsBatcher.Enqueue(new VehicleRestrictionsBatchApplied.Entry
                         {
                             LaneId = laneId,
                             SegmentId = resolvedSegmentId,
@@ -52,6 +56,16 @@ namespace CSM.TmpeSync.VehicleRestrictions
 
                 laneId = lane.m_nextLane;
             }
+        }
+
+        private static void FlushVehicleRestrictionBatch(IReadOnlyList<VehicleRestrictionsBatchApplied.Entry> entries)
+        {
+            if (entries == null || entries.Count == 0)
+                return;
+
+            var command = new VehicleRestrictionsBatchApplied();
+            command.Items.AddRange(entries);
+            TmpeBridgeChangeDispatcher.Broadcast(command);
         }
     }
 }

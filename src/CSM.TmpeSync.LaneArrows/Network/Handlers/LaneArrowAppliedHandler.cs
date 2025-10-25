@@ -9,43 +9,50 @@ namespace CSM.TmpeSync.Network.Handlers
     {
         protected override void Handle(LaneArrowApplied cmd)
         {
+            ProcessEntry(cmd.LaneId, cmd.SegmentId, cmd.LaneIndex, cmd.Arrows, "single_command");
+        }
+
+        internal static void ProcessEntry(uint laneId, ushort segmentId, int laneIndex, LaneArrowFlags arrows, string origin)
+        {
             Log.Info(
                 LogCategory.Synchronization,
-                "LaneArrowApplied received | laneId={0} segmentId={1} laneIndex={2} arrows={3}",
-                cmd.LaneId,
-                cmd.SegmentId,
-                cmd.LaneIndex,
-                cmd.Arrows);
+                "LaneArrowApplied received | laneId={0} segmentId={1} laneIndex={2} arrows={3} origin={4}",
+                laneId,
+                segmentId,
+                laneIndex,
+                arrows,
+                origin ?? "unknown");
 
-            if (NetworkUtil.TryGetResolvedLaneId(cmd.LaneId, cmd.SegmentId, cmd.LaneIndex, out var laneId))
+            if (NetworkUtil.TryGetResolvedLaneId(laneId, segmentId, laneIndex, out var resolvedLaneId))
             {
-                var segmentId = cmd.SegmentId;
-                var laneIndex = cmd.LaneIndex;
-                if (!NetworkUtil.TryGetLaneLocation(laneId, out segmentId, out laneIndex))
+                var resolvedSegmentId = segmentId;
+                var resolvedLaneIndex = laneIndex;
+                if (!NetworkUtil.TryGetLaneLocation(resolvedLaneId, out resolvedSegmentId, out resolvedLaneIndex))
                 {
-                    segmentId = cmd.SegmentId;
-                    laneIndex = cmd.LaneIndex;
+                    resolvedSegmentId = segmentId;
+                    resolvedLaneIndex = laneIndex;
                 }
 
                 Log.Debug(
                     LogCategory.Synchronization,
                     "Lane resolved locally | laneId={0} segmentId={1} laneIndex={2} action=apply_lane_arrows",
-                    laneId,
-                    segmentId,
-                    laneIndex);
-                if (TmpeBridgeAdapter.ApplyLaneArrows(laneId, cmd.Arrows))
-                    Log.Info(LogCategory.Synchronization, "Applied remote lane arrows | laneId={0} segmentId={1} laneIndex={2} arrows={3}", laneId, segmentId, laneIndex, cmd.Arrows);
+                    resolvedLaneId,
+                    resolvedSegmentId,
+                    resolvedLaneIndex);
+                if (TmpeBridgeAdapter.ApplyLaneArrows(resolvedLaneId, arrows))
+                    Log.Info(LogCategory.Synchronization, "Applied remote lane arrows | laneId={0} segmentId={1} laneIndex={2} arrows={3}", resolvedLaneId, resolvedSegmentId, resolvedLaneIndex, arrows);
                 else
-                    Log.Error(LogCategory.Synchronization, "Failed to apply remote lane arrows | laneId={0} segmentId={1} laneIndex={2} arrows={3}", laneId, segmentId, laneIndex, cmd.Arrows);
+                    Log.Error(LogCategory.Synchronization, "Failed to apply remote lane arrows | laneId={0} segmentId={1} laneIndex={2} arrows={3}", resolvedLaneId, resolvedSegmentId, resolvedLaneIndex, arrows);
             }
             else
             {
                 Log.Warn(
                     LogCategory.Synchronization,
-                    "Lane missing for lane arrow apply | laneId={0} segmentId={1} laneIndex={2} action=skipped",
-                    cmd.LaneId,
-                    cmd.SegmentId,
-                    cmd.LaneIndex);
+                    "Lane missing for lane arrow apply | laneId={0} segmentId={1} laneIndex={2} origin={3} action=skipped",
+                    laneId,
+                    segmentId,
+                    laneIndex,
+                    origin ?? "unknown");
             }
         }
     }

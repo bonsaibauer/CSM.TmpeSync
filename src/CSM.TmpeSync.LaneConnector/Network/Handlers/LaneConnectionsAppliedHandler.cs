@@ -11,50 +11,68 @@ namespace CSM.TmpeSync.Network.Handlers
     {
         protected override void Handle(LaneConnectionsApplied cmd)
         {
-            Log.Info(
-                LogCategory.Synchronization,
-                "LaneConnectionsApplied received | laneId={0} segmentId={1} laneIndex={2} targets=[{3}]",
+            ProcessEntry(
                 cmd.SourceLaneId,
                 cmd.SourceSegmentId,
                 cmd.SourceLaneIndex,
-                FormatLaneIds(cmd.TargetLaneIds));
+                cmd.TargetLaneIds,
+                cmd.TargetSegmentIds,
+                cmd.TargetLaneIndexes,
+                "single_command");
+        }
 
-            var sourceLaneId = cmd.SourceLaneId;
-            var sourceSegmentId = cmd.SourceSegmentId;
-            var sourceLaneIndex = cmd.SourceLaneIndex;
+        internal static void ProcessEntry(
+            uint sourceLaneId,
+            ushort sourceSegmentId,
+            int sourceLaneIndex,
+            uint[] targetLaneIds,
+            ushort[] targetSegmentIds,
+            int[] targetLaneIndexes,
+            string origin)
+        {
+            Log.Info(
+                LogCategory.Synchronization,
+                "LaneConnectionsApplied received | laneId={0} segmentId={1} laneIndex={2} targets=[{3}] origin={4}",
+                sourceLaneId,
+                sourceSegmentId,
+                sourceLaneIndex,
+                FormatLaneIds(targetLaneIds),
+                origin ?? "unknown");
 
             if (!NetworkUtil.TryGetResolvedLaneId(sourceLaneId, sourceSegmentId, sourceLaneIndex, out var resolvedSourceLaneId))
             {
                 Log.Warn(
                     LogCategory.Synchronization,
-                    "Lane missing for lane connection apply | laneId={0} segmentId={1} laneIndex={2} action=skipped",
-                    cmd.SourceLaneId,
-                    cmd.SourceSegmentId,
-                    cmd.SourceLaneIndex);
+                    "Lane missing for lane connection apply | laneId={0} segmentId={1} laneIndex={2} origin={3} action=skipped",
+                    sourceLaneId,
+                    sourceSegmentId,
+                    sourceLaneIndex,
+                    origin ?? "unknown");
                 return;
             }
 
-            var targetLaneIds = cmd.TargetLaneIds ?? new uint[0];
-            var targetSegmentIds = NormalizeArray(cmd.TargetSegmentIds, targetLaneIds.Length);
-            var targetLaneIndexes = NormalizeArray(cmd.TargetLaneIndexes, targetLaneIds.Length);
+            var normalizedTargets = targetLaneIds ?? new uint[0];
+            var normalizedSegments = NormalizeArray(targetSegmentIds, normalizedTargets.Length);
+            var normalizedIndexes = NormalizeArray(targetLaneIndexes, normalizedTargets.Length);
 
-            var resolvedTargetLaneIds = new uint[targetLaneIds.Length];
-            var resolvedTargetSegments = new ushort[targetLaneIds.Length];
-            var resolvedTargetIndexes = new int[targetLaneIds.Length];
+            var resolvedTargetLaneIds = new uint[normalizedTargets.Length];
+            var resolvedTargetSegments = new ushort[normalizedTargets.Length];
+            var resolvedTargetIndexes = new int[normalizedTargets.Length];
 
-            for (var i = 0; i < targetLaneIds.Length; i++)
+            for (var i = 0; i < normalizedTargets.Length; i++)
             {
-                var laneId = targetLaneIds[i];
-                var segmentId = targetSegmentIds[i];
-                var laneIndex = targetLaneIndexes[i];
+                var laneId = normalizedTargets[i];
+                var segmentId = normalizedSegments[i];
+                var laneIndex = normalizedIndexes[i];
 
                 if (!NetworkUtil.TryGetResolvedLaneId(laneId, segmentId, laneIndex, out var resolvedTarget))
                 {
                     Log.Warn(
                         LogCategory.Synchronization,
-                        "Skipping remote lane connection target | sourceLaneId={0} missingTarget={1}",
-                        cmd.SourceLaneId,
-                        targetLaneIds[i]);
+                        "Skipping remote lane connection target | sourceLaneId={0} missingTarget={1} origin={2}",
+                        sourceLaneId,
+                        normalizedTargets[i],
+                        origin ?? "unknown");
                     continue;
                 }
 

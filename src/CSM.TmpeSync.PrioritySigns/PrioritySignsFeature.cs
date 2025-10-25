@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using ColossalFramework;
 using CSM.TmpeSync.Network.Contracts.Applied;
 using CSM.TmpeSync.Network.Contracts.Requests;
@@ -10,6 +11,9 @@ namespace CSM.TmpeSync.PrioritySigns
 {
     public static class PrioritySignsFeature
     {
+        private static readonly ChangeBatcher<PrioritySignBatchApplied.Entry> PrioritySignBatcher =
+            new ChangeBatcher<PrioritySignBatchApplied.Entry>(FlushPrioritySignBatch);
+
         public static void Register()
         {
             SnapshotDispatcher.RegisterProvider(new PrioritySignSnapshotProvider());
@@ -35,7 +39,7 @@ namespace CSM.TmpeSync.PrioritySigns
 
                 if (TmpeBridgeAdapter.TryGetPrioritySign(nodeId, segmentId, out var signType))
                 {
-                    TmpeBridgeChangeDispatcher.Broadcast(new PrioritySignApplied
+                    PrioritySignBatcher.Enqueue(new PrioritySignBatchApplied.Entry
                     {
                         NodeId = nodeId,
                         SegmentId = segmentId,
@@ -43,6 +47,16 @@ namespace CSM.TmpeSync.PrioritySigns
                     });
                 }
             }
+        }
+
+        private static void FlushPrioritySignBatch(IReadOnlyList<PrioritySignBatchApplied.Entry> entries)
+        {
+            if (entries == null || entries.Count == 0)
+                return;
+
+            var command = new PrioritySignBatchApplied();
+            command.Items.AddRange(entries);
+            TmpeBridgeChangeDispatcher.Broadcast(command);
         }
     }
 }
