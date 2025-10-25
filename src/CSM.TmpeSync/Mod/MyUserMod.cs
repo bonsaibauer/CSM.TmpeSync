@@ -29,6 +29,16 @@ namespace CSM.TmpeSync.Mod
             Log.Info(LogCategory.Network, "Awaiting CSM to activate TM:PE synchronization support.");
 
             CsmBridgeMultiplayerObserver.RoleChanged += Log.HandleRoleChanged;
+
+            try
+            {
+                CsmBridgeMultiplayerObserver.Update();
+            }
+            catch (Exception ex)
+            {
+                Log.Warn(LogCategory.Diagnostics, "Initial CSM role probe failed | error={0}", ex);
+            }
+
             try
             {
                 Log.HandleRoleChanged(CsmBridge.DescribeCurrentRole());

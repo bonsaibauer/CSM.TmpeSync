@@ -1,3 +1,4 @@
+using System;
 using CSM.API;
 using CSM.TmpeSync.ClearTraffic;
 using CSM.TmpeSync.JunctionRestrictions;
@@ -39,6 +40,16 @@ namespace CSM.TmpeSync.Mod
             {
                 Log.Info(LogCategory.Network, "Registering TM:PE synchronization handlers via CSM connection.");
                 FeatureBootstrapper.Register();
+
+                try
+                {
+                    CsmBridgeMultiplayerObserver.Update();
+                }
+                catch (Exception ex)
+                {
+                    Log.Warn(LogCategory.Diagnostics, "CSM role refresh failed during handler registration | error={0}", ex);
+                }
+
                 TmpeBridgeEventGateway.Enable();
             }
         }
