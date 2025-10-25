@@ -177,14 +177,11 @@ namespace CSM.TmpeSync.PrioritySigns.Services
             return null;
         }
 
-        private static void SetPrioritySign_Postfix(ushort segmentId, bool startNode, object sign)
+        private static void SetPrioritySign_Postfix(ushort segmentId, bool startNode, object _)
         {
             try
             {
                 if (PrioritySignSynchronization.IsLocalApplyActive)
-                    return;
-
-                if (CsmBridge.IsServerInstance())
                     return;
 
                 if (segmentId == 0)
@@ -195,24 +192,21 @@ namespace CSM.TmpeSync.PrioritySigns.Services
                 if (nodeId == 0)
                     return;
 
-                if (!PrioritySignSynchronization.TryRead(nodeId, segmentId, out byte signRaw))
-                    return;
-
-                var message = new PrioritySignUpdateRequest
+                PrioritySignType signType = PrioritySignType.None;
+                if (PrioritySignSynchronization.TryRead(nodeId, segmentId, out var rawType))
                 {
-                    NodeId = nodeId,
-                    SegmentId = segmentId,
-                    SignType = (PrioritySignType)signRaw
-                };
+                    signType = (PrioritySignType)rawType;
+                }
+                else
+                {
+                    Log.Warn(
+                        LogCategory.Synchronization,
+                        "[PrioritySigns] TryRead failed after SetPrioritySign | node={0} segment={1}",
+                        nodeId,
+                        segmentId);
+                }
 
-                PrioritySignSynchronization.Dispatch(message);
-
-                Log.Info(
-                    LogCategory.Network,
-                    "[PrioritySigns] Client sent PrioritySignUpdateRequest | node={0} seg={1} sign={2}",
-                    nodeId,
-                    segmentId,
-                    (PrioritySignType)signRaw);
+                SendLocalChange(nodeId, segmentId, signType, "set");
             }
             catch (Exception ex)
             {
@@ -227,9 +221,6 @@ namespace CSM.TmpeSync.PrioritySigns.Services
                 if (PrioritySignSynchronization.IsLocalApplyActive)
                     return;
 
-                if (CsmBridge.IsServerInstance())
-                    return;
-
                 if (segmentId == 0)
                     return;
 
@@ -238,25 +229,64 @@ namespace CSM.TmpeSync.PrioritySigns.Services
                 if (nodeId == 0)
                     return;
 
-                var message = new PrioritySignUpdateRequest
+                PrioritySignType signType = PrioritySignType.None;
+                if (PrioritySignSynchronization.TryRead(nodeId, segmentId, out var rawType))
                 {
-                    NodeId = nodeId,
-                    SegmentId = segmentId,
-                    SignType = PrioritySignType.None
-                };
+                    signType = (PrioritySignType)rawType;
+                }
+                else
+                {
+                    Log.Warn(
+                        LogCategory.Synchronization,
+                        "[PrioritySigns] TryRead failed after RemovePrioritySign | node={0} segment={1}",
+                        nodeId,
+                        segmentId);
+                }
 
-                PrioritySignSynchronization.Dispatch(message);
-
-                Log.Info(
-                    LogCategory.Network,
-                    "[PrioritySigns] Client sent PrioritySignUpdateRequest | node={0} seg={1} sign=None",
-                    nodeId,
-                    segmentId);
+                SendLocalChange(nodeId, segmentId, signType, "remove");
             }
             catch (Exception ex)
             {
                 Log.Warn(LogCategory.Network, "[PrioritySigns] RemovePrioritySign postfix error: {0}", ex);
             }
         }
+
+        private static void SendLocalChange(ushort nodeId, ushort segmentId, PrioritySignType signType, string context)
+        {
+            if (CsmBridge.IsServerInstance())
+            {
+                Log.Info(
+                    LogCategory.Synchronization,
+                    "[PrioritySigns] Host applied sign | node={0} seg={1} sign={2} context={3}",
+                    nodeId,
+                    segmentId,
+                    signType,
+                    context);
+
+                PrioritySignSynchronization.Dispatch(new PrioritySignAppliedCommand
+                {
+                    NodeId = nodeId,
+                    SegmentId = segmentId,
+                    SignType = signType
+                });
+                return;
+            }
+
+            Log.Info(
+                LogCategory.Network,
+                "[PrioritySigns] Client sent PrioritySignUpdateRequest | node={0} seg={1} sign={2} context={3}",
+                nodeId,
+                segmentId,
+                signType,
+                context);
+
+            PrioritySignSynchronization.Dispatch(new PrioritySignUpdateRequest
+            {
+                NodeId = nodeId,
+                SegmentId = segmentId,
+                SignType = signType
+            });
+        }
+
     }
 }

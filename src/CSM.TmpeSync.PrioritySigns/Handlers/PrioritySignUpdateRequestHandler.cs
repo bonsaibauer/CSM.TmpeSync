@@ -74,31 +74,11 @@ namespace CSM.TmpeSync.PrioritySigns.Handlers
                         return;
                     }
 
+                    PrioritySignType resultingSign = command.SignType;
+
                     using (CsmBridge.StartIgnore())
                     {
-                        if (PrioritySignSynchronization.Apply(command.NodeId, command.SegmentId, (byte)command.SignType))
-                        {
-                            var resultingSign = command.SignType;
-                            if (PrioritySignSynchronization.TryRead(command.NodeId, command.SegmentId, out var appliedSign))
-                            {
-                                resultingSign = (PrioritySignType)appliedSign;
-                            }
-
-                            Log.Info(
-                                LogCategory.Synchronization,
-                                "Priority sign applied | nodeId={0} segmentId={1} sign={2} action=broadcast",
-                                command.NodeId,
-                                command.SegmentId,
-                                resultingSign);
-
-                            PrioritySignSynchronization.Dispatch(new PrioritySignAppliedCommand
-                            {
-                                NodeId = command.NodeId,
-                                SegmentId = command.SegmentId,
-                                SignType = resultingSign
-                            });
-                        }
-                        else
+                        if (!PrioritySignSynchronization.Apply(command.NodeId, command.SegmentId, (byte)command.SignType))
                         {
                             Log.Error(
                                 LogCategory.Synchronization,
@@ -107,8 +87,36 @@ namespace CSM.TmpeSync.PrioritySigns.Handlers
                                 command.SegmentId,
                                 senderId);
                             CsmBridge.SendToClient(senderId, new RequestRejected { Reason = "tmpe_apply_failed", EntityId = command.SegmentId, EntityType = 2 });
+                            return;
                         }
                     }
+
+                    if (PrioritySignSynchronization.TryRead(command.NodeId, command.SegmentId, out var actualRaw))
+                    {
+                        resultingSign = (PrioritySignType)actualRaw;
+                    }
+                    else
+                    {
+                        Log.Warn(
+                            LogCategory.Synchronization,
+                            "Priority sign verify failed | nodeId={0} segmentId={1} reason=tmpe_read_failed",
+                            command.NodeId,
+                            command.SegmentId);
+                    }
+
+                    Log.Info(
+                        LogCategory.Synchronization,
+                        "Priority sign applied | nodeId={0} segmentId={1} sign={2} action=broadcast",
+                        command.NodeId,
+                        command.SegmentId,
+                        resultingSign);
+
+                    PrioritySignSynchronization.Dispatch(new PrioritySignAppliedCommand
+                    {
+                        NodeId = command.NodeId,
+                        SegmentId = command.SegmentId,
+                        SignType = resultingSign
+                    });
                 }
             });
         }
