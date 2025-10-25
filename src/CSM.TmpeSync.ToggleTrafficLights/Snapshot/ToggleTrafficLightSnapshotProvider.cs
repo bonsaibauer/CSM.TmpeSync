@@ -1,4 +1,4 @@
-using CSM.TmpeSync.Network.Contracts.Applied;
+using CSM.TmpeSync.ToggleTrafficLights.Network.Contracts.Applied;
 using CSM.TmpeSync.Snapshot;
 using CSM.TmpeSync.TmpeBridge;
 using CSM.TmpeSync.Util;

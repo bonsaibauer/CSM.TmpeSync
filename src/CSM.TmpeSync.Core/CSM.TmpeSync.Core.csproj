@@ -289,10 +289,6 @@
 
     <Compile Include="Network\LaneGuid.cs" />
     <Compile Include="Network\Contracts\States\TmpeStates.cs" />
-    <Compile Include="Network\Contracts\Requests\ClearTrafficRequest.cs" />
-    <Compile Include="Network\Contracts\Requests\ToggleTrafficLightRequest.cs" />
-    <Compile Include="Network\Contracts\Applied\ClearTrafficApplied.cs" />
-    <Compile Include="Network\Contracts\Applied\TrafficLightToggledApplied.cs" />
     <Compile Include="Network\Contracts\Mapping\LaneMappingBatch.cs" />
     <Compile Include="Network\Contracts\Mapping\LaneMappingChanged.cs" />
     <Compile Include="Network\Contracts\Mapping\LaneMappingRemoved.cs" />

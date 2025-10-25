@@ -176,6 +176,8 @@
   <ItemGroup>
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="ToggleTrafficLightsFeature.cs" />
+    <Compile Include="Network\Contracts\Applied\TrafficLightToggledApplied.cs" />
+    <Compile Include="Network\Contracts\Requests\ToggleTrafficLightRequest.cs" />
     <Compile Include="Network\Handlers\ToggleTrafficLightRequestHandler.cs" />
     <Compile Include="Network\Handlers\TrafficLightToggledAppliedHandler.cs" />
     <Compile Include="Network\Handlers\TrafficLightToggledDeferredOp.cs" />
