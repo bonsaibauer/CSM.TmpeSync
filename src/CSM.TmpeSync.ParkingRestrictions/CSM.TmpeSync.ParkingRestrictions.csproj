@@ -257,14 +257,14 @@
   <ItemGroup>
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="ParkingRestrictionsFeature.cs" />
-    <Compile Include="Net\Contracts\Applied\ParkingRestrictionApplied.cs" />
-    <Compile Include="Net\Contracts\Requests\SetParkingRestrictionRequest.cs" />
-    <Compile Include="Net\Handlers\ParkingRestrictionAppliedHandler.cs" />
-    <Compile Include="Net\Handlers\SetParkingRestrictionRequestHandler.cs" />
+    <Compile Include="Network\Contracts\Applied\ParkingRestrictionApplied.cs" />
+    <Compile Include="Network\Contracts\Requests\SetParkingRestrictionRequest.cs" />
+    <Compile Include="Network\Handlers\ParkingRestrictionAppliedHandler.cs" />
+    <Compile Include="Network\Handlers\SetParkingRestrictionRequestHandler.cs" />
     <Compile Include="Snapshot\ParkingRestrictionSnapshotProvider.cs" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\CSM.TmpeSync.Core\CSM.TmpeSync.Core.csproj" />
+    <ProjectReference Include="..\CSM.TmpeSync\Core\CSM.TmpeSync.Core.csproj" />
   </ItemGroup>
 
   <!-- ==== Post-Build: Copy the add-on into the local mod directory ==== -->

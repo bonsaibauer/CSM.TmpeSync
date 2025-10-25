@@ -176,14 +176,14 @@
   <ItemGroup>
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="ToggleTrafficLightsFeature.cs" />
-    <Compile Include="Net\Handlers\ToggleTrafficLightRequestHandler.cs" />
-    <Compile Include="Net\Handlers\TrafficLightToggledAppliedHandler.cs" />
-    <Compile Include="Net\Handlers\TrafficLightToggledDeferredOp.cs" />
+    <Compile Include="Network\Handlers\ToggleTrafficLightRequestHandler.cs" />
+    <Compile Include="Network\Handlers\TrafficLightToggledAppliedHandler.cs" />
+    <Compile Include="Network\Handlers\TrafficLightToggledDeferredOp.cs" />
     <Compile Include="Snapshot\ToggleTrafficLightSnapshotProvider.cs" />
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\CSM.TmpeSync.Core\CSM.TmpeSync.Core.csproj" />
+    <ProjectReference Include="..\CSM.TmpeSync\Core\CSM.TmpeSync.Core.csproj" />
   </ItemGroup>
 
   <Target Name="AfterBuild">

@@ -257,16 +257,16 @@
   <ItemGroup>
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="JunctionRestrictionsFeature.cs" />
-    <Compile Include="Net\Contracts\Applied\JunctionRestrictionsApplied.cs" />
-    <Compile Include="Net\Contracts\Requests\SetJunctionRestrictionsRequest.cs" />
-    <Compile Include="Net\Handlers\JunctionRestrictionsAppliedHandler.cs" />
-    <Compile Include="Net\Handlers\SetJunctionRestrictionsRequestHandler.cs" />
-    <Compile Include="Net\Handlers\JunctionRestrictionsDeferredOp.cs" />
+    <Compile Include="Network\Contracts\Applied\JunctionRestrictionsApplied.cs" />
+    <Compile Include="Network\Contracts\Requests\SetJunctionRestrictionsRequest.cs" />
+    <Compile Include="Network\Handlers\JunctionRestrictionsAppliedHandler.cs" />
+    <Compile Include="Network\Handlers\SetJunctionRestrictionsRequestHandler.cs" />
+    <Compile Include="Network\Handlers\JunctionRestrictionsDeferredOp.cs" />
     <Compile Include="Snapshot\JunctionRestrictionsSnapshotProvider.cs" />
     <Compile Include="Util\JunctionRestrictionsDiagnostics.cs" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\CSM.TmpeSync.Core\CSM.TmpeSync.Core.csproj" />
+    <ProjectReference Include="..\CSM.TmpeSync\Core\CSM.TmpeSync.Core.csproj" />
   </ItemGroup>
 
   <!-- ==== Post-Build: Copy the add-on into the local mod directory ==== -->

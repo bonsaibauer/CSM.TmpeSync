@@ -1,9 +1,9 @@
 using ColossalFramework;
-using CSM.TmpeSync.Net.Contracts.Applied;
-using CSM.TmpeSync.Net.Contracts.Requests;
-using CSM.TmpeSync.Net.Handlers;
+using CSM.TmpeSync.Network.Contracts.Applied;
+using CSM.TmpeSync.Network.Contracts.Requests;
+using CSM.TmpeSync.Network.Handlers;
 using CSM.TmpeSync.Snapshot;
-using CSM.TmpeSync.Tmpe;
+using CSM.TmpeSync.TmpeBridge;
 using CSM.TmpeSync.Util;
 using CSM.TmpeSync.SpeedLimits.Util;
 
@@ -14,7 +14,7 @@ namespace CSM.TmpeSync.SpeedLimits
         public static void Register()
         {
             SnapshotDispatcher.RegisterProvider(new SpeedLimitSnapshotProvider());
-            TmpeFeatureRegistry.RegisterSegmentHandler(TmpeFeatureRegistry.SpeedLimitManagerType, HandleSegmentChange);
+            TmpeBridgeFeatureRegistry.RegisterSegmentHandler(TmpeBridgeFeatureRegistry.SpeedLimitManagerType, HandleSegmentChange);
         }
 
         private static void HandleSegmentChange(ushort segmentId)
@@ -48,7 +48,7 @@ namespace CSM.TmpeSync.SpeedLimits
                         defaultKmh,
                         "change_dispatcher");
 
-                    TmpeChangeDispatcher.Broadcast(new SpeedLimitApplied
+                    TmpeBridgeChangeDispatcher.Broadcast(new SpeedLimitApplied
                     {
                         LaneId = laneId,
                         Speed = encoded,

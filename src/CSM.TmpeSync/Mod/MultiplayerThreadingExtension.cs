@@ -1,6 +1,7 @@
 using ICities;
-using CSM.TmpeSync.Tmpe;
+using CSM.TmpeSync.TmpeBridge;
 using CSM.TmpeSync.Util;
+using CSM.TmpeSync.CsmBridge;
 
 namespace CSM.TmpeSync.Mod
 {
@@ -8,13 +9,13 @@ namespace CSM.TmpeSync.Mod
     {
         public override void OnUpdate(float realTimeDelta, float simulationTimeDelta)
         {
-            MultiplayerStateObserver.Update();
+            CsmBridgeMultiplayerObserver.Update();
             LockRegistry.Tick();
         }
 
         public override void OnReleased()
         {
-            MultiplayerStateObserver.Reset();
+            CsmBridgeMultiplayerObserver.Reset();
             DeferredApply.Reset();
             LockRegistry.Reset();
         }

@@ -1,10 +1,10 @@
 using CSM.TmpeSync.JunctionRestrictions.Util;
-using CSM.TmpeSync.Net.Contracts.Applied;
-using CSM.TmpeSync.Net.Contracts.Requests;
-using CSM.TmpeSync.Net.Contracts.States;
-using CSM.TmpeSync.Net.Handlers;
+using CSM.TmpeSync.Network.Contracts.Applied;
+using CSM.TmpeSync.Network.Contracts.Requests;
+using CSM.TmpeSync.Network.Contracts.States;
+using CSM.TmpeSync.Network.Handlers;
 using CSM.TmpeSync.Snapshot;
-using CSM.TmpeSync.Tmpe;
+using CSM.TmpeSync.TmpeBridge;
 using CSM.TmpeSync.Util;
 
 namespace CSM.TmpeSync.JunctionRestrictions
@@ -14,14 +14,14 @@ namespace CSM.TmpeSync.JunctionRestrictions
         public static void Register()
         {
             SnapshotDispatcher.RegisterProvider(new JunctionRestrictionsSnapshotProvider());
-            TmpeFeatureRegistry.RegisterNodeHandler(
-                TmpeFeatureRegistry.JunctionRestrictionsManagerType,
+            TmpeBridgeFeatureRegistry.RegisterNodeHandler(
+                TmpeBridgeFeatureRegistry.JunctionRestrictionsManagerType,
                 HandleNodeChange);
         }
 
         private static void HandleNodeChange(ushort nodeId)
         {
-            TmpeChangeDispatcher.SyncSegmentsForNode(nodeId, "junction_restrictions");
+            TmpeBridgeChangeDispatcher.SyncSegmentsForNode(nodeId, "junction_restrictions");
 
             if (PendingMap.TryGetJunctionRestrictions(nodeId, out var state))
             {
@@ -30,7 +30,7 @@ namespace CSM.TmpeSync.JunctionRestrictions
                     state,
                     "change_dispatcher");
 
-                TmpeChangeDispatcher.Broadcast(new JunctionRestrictionsApplied
+                TmpeBridgeChangeDispatcher.Broadcast(new JunctionRestrictionsApplied
                 {
                     NodeId = nodeId,
                     State = preparedState?.Clone() ?? new JunctionRestrictionsState(),

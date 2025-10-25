@@ -1,6 +1,6 @@
 using System;
 using System.Collections.Generic;
-using CSM.TmpeSync.Net.Contracts.States;
+using CSM.TmpeSync.Network.Contracts.States;
 using CSM.TmpeSync.SpeedLimits.Tmpe;
 using CSM.TmpeSync.Util;
 

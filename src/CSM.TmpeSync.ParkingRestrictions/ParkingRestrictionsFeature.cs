@@ -1,9 +1,9 @@
-using CSM.TmpeSync.Net.Contracts.Applied;
-using CSM.TmpeSync.Net.Contracts.Requests;
-using CSM.TmpeSync.Net.Handlers;
-using CSM.TmpeSync.Net.Contracts.States;
+using CSM.TmpeSync.Network.Contracts.Applied;
+using CSM.TmpeSync.Network.Contracts.Requests;
+using CSM.TmpeSync.Network.Handlers;
+using CSM.TmpeSync.Network.Contracts.States;
 using CSM.TmpeSync.Snapshot;
-using CSM.TmpeSync.Tmpe;
+using CSM.TmpeSync.TmpeBridge;
 
 namespace CSM.TmpeSync.ParkingRestrictions
 {
@@ -12,16 +12,16 @@ namespace CSM.TmpeSync.ParkingRestrictions
         public static void Register()
         {
             SnapshotDispatcher.RegisterProvider(new ParkingRestrictionSnapshotProvider());
-            TmpeFeatureRegistry.RegisterSegmentHandler(
-                TmpeFeatureRegistry.ParkingRestrictionsManagerType,
+            TmpeBridgeFeatureRegistry.RegisterSegmentHandler(
+                TmpeBridgeFeatureRegistry.ParkingRestrictionsManagerType,
                 HandleSegmentChange);
         }
 
         private static void HandleSegmentChange(ushort segmentId)
         {
-            if (TmpeAdapter.TryGetParkingRestriction(segmentId, out var state))
+            if (TmpeBridgeAdapter.TryGetParkingRestriction(segmentId, out var state))
             {
-                TmpeChangeDispatcher.Broadcast(new ParkingRestrictionApplied
+                TmpeBridgeChangeDispatcher.Broadcast(new ParkingRestrictionApplied
                 {
                     SegmentId = segmentId,
                     State = state?.Clone() ?? new ParkingRestrictionState()

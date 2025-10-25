@@ -257,14 +257,14 @@
   <ItemGroup>
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="LaneArrowsFeature.cs" />
-    <Compile Include="Net\Contracts\Applied\LaneArrowApplied.cs" />
-    <Compile Include="Net\Contracts\Requests\SetLaneArrowRequest.cs" />
-    <Compile Include="Net\Handlers\LaneArrowAppliedHandler.cs" />
-    <Compile Include="Net\Handlers\SetLaneArrowRequestHandler.cs" />
+    <Compile Include="Network\Contracts\Applied\LaneArrowApplied.cs" />
+    <Compile Include="Network\Contracts\Requests\SetLaneArrowRequest.cs" />
+    <Compile Include="Network\Handlers\LaneArrowAppliedHandler.cs" />
+    <Compile Include="Network\Handlers\SetLaneArrowRequestHandler.cs" />
     <Compile Include="Snapshot\LaneArrowSnapshotProvider.cs" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\CSM.TmpeSync.Core\CSM.TmpeSync.Core.csproj" />
+    <ProjectReference Include="..\CSM.TmpeSync\Core\CSM.TmpeSync.Core.csproj" />
   </ItemGroup>
 
   <!-- ==== Post-Build: Copy the add-on into the local mod directory ==== -->

@@ -1,0 +1,14 @@
+using CSM.API.Commands;
+using CSM.TmpeSync.Network.Contracts.States;
+using ProtoBuf;
+
+namespace CSM.TmpeSync.Network.Contracts.Applied
+{
+    [ProtoContract]
+    public class JunctionRestrictionsApplied : CommandBase
+    {
+        [ProtoMember(1)] public ushort NodeId { get; set; }
+        [ProtoMember(2)] public JunctionRestrictionsState State { get; set; }
+        [ProtoMember(3)] public long MappingVersion { get; set; }
+    }
+}

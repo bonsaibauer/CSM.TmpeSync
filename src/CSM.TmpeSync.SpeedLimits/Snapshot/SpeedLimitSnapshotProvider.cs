@@ -1,5 +1,5 @@
 using System.Collections.Generic;
-using CSM.TmpeSync.Net.Contracts.Applied;
+using CSM.TmpeSync.Network.Contracts.Applied;
 using CSM.TmpeSync.SpeedLimits.Tmpe;
 using CSM.TmpeSync.Util;
 using Log = CSM.TmpeSync.Util.Log;
@@ -17,12 +17,12 @@ namespace CSM.TmpeSync.Snapshot
             var buffer = new List<SpeedLimitBatchApplied.Entry>(BatchSize);
             var exported = 0;
 
-            NetUtil.ForEachLane(laneId =>
+            NetworkUtil.ForEachLane(laneId =>
             {
                 if (!PendingMap.TryGetSpeedLimit(laneId, out var kmh, out var defaultKmh, out var hasOverride, out var pending))
                     return;
 
-                if (!NetUtil.TryGetLaneLocation(laneId, out var segmentId, out var laneIndex))
+                if (!NetworkUtil.TryGetLaneLocation(laneId, out var segmentId, out var laneIndex))
                     return;
 
                 var encoded = SpeedLimitCodec.Encode(kmh, defaultKmh, hasOverride, pending);
