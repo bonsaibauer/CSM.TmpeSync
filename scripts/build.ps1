@@ -899,10 +899,16 @@ $availableProfiles = Get-AvailableProfiles
 $profileName = Determine-ActiveProfile -Settings $settings -RequestedProfile $Profile
 $shouldConfigure = $Configure
 $requiresConfiguredProfile = ($Update -or $Build -or $Install)
+$promptedForProfile = $false
 
 if ($requiresConfiguredProfile) {
     $profilesTable = Ensure-Hashtable $settings.Profiles
     $settings.Profiles = $profilesTable
+
+    if ([string]::IsNullOrWhiteSpace($Profile)) {
+        $profileName = Prompt-ForProfileSelection -AvailableProfiles $availableProfiles -CurrentProfile $profileName
+        $promptedForProfile = $true
+    }
 
     $existingProfile = if ($profilesTable.ContainsKey($profileName)) {
         Ensure-Hashtable $profilesTable[$profileName]
@@ -914,12 +920,19 @@ if ($requiresConfiguredProfile) {
     }
 }
 
-if ($shouldConfigure -and [string]::IsNullOrWhiteSpace($Profile)) {
+if ($shouldConfigure -and -not $promptedForProfile -and [string]::IsNullOrWhiteSpace($Profile)) {
     $profileName = Prompt-ForProfileSelection -AvailableProfiles $availableProfiles -CurrentProfile $profileName
+    $promptedForProfile = $true
 }
 
 if ($shouldConfigure) {
     Configure-Profile -Settings $settings -ProfileName $profileName -ParameterGameDir $GameDirectory -ParameterModRoot $ModRootDirectory
+}
+
+$usingPromptedProfile = ([string]::IsNullOrWhiteSpace($Profile) -and $promptedForProfile)
+if ($usingPromptedProfile -and $settings.ActiveProfile -ne $profileName) {
+    $settings.ActiveProfile = $profileName
+    $script:SettingsChanged = $true
 }
 
 $profile = Ensure-Profile -Settings $settings -ProfileName $profileName
