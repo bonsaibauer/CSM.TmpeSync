@@ -181,7 +181,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\CSM.TmpeSync\Core\CSM.TmpeSync.Core.csproj" />
+    <ProjectReference Include="..\CSM.TmpeSync.Core\CSM.TmpeSync.Core.csproj" />
   </ItemGroup>
 
   <Target Name="AfterBuild">

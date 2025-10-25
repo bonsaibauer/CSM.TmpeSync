@@ -264,7 +264,7 @@
     <Compile Include="Snapshot\LaneArrowSnapshotProvider.cs" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\CSM.TmpeSync\Core\CSM.TmpeSync.Core.csproj" />
+    <ProjectReference Include="..\CSM.TmpeSync.Core\CSM.TmpeSync.Core.csproj" />
   </ItemGroup>
 
   <!-- ==== Post-Build: Copy the add-on into the local mod directory ==== -->
