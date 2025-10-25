@@ -12,6 +12,7 @@ namespace CSM.TmpeSync.TmpeBridge
         internal const string JunctionRestrictionsManagerType = "TrafficManager.Manager.Impl.JunctionRestrictionsManager";
         internal const string TrafficPriorityManagerType = "TrafficManager.Manager.Impl.TrafficPriorityManager";
         internal const string TrafficLightManagerType = "TrafficManager.Manager.Impl.TrafficLightManager";
+        internal const string GeometryNotifierType = "TrafficManager.Manager.Impl.GeometryNotifier";
 
         private const string RegistryStateKey = "CSM.TmpeSync.TmpeBridgeFeatureRegistry.State";
         private const string SyncRootKey = "sync";
@@ -129,7 +130,14 @@ namespace CSM.TmpeSync.TmpeBridge
                 }
                 else
                 {
-                    LogUnknownSegmentSender(state, managerType);
+                    var fallbackToAllHandlers = string.Equals(
+                        managerType,
+                        GeometryNotifierType,
+                        StringComparison.Ordinal);
+
+                    if (!fallbackToAllHandlers)
+                        LogUnknownSegmentSender(state, managerType);
+
                     if (allSegmentHandlers.Count == 0)
                     {
                         handlers = null;
@@ -172,7 +180,14 @@ namespace CSM.TmpeSync.TmpeBridge
                 }
                 else
                 {
-                    LogUnknownNodeSender(state, managerType);
+                    var fallbackToAllHandlers = string.Equals(
+                        managerType,
+                        GeometryNotifierType,
+                        StringComparison.Ordinal);
+
+                    if (!fallbackToAllHandlers)
+                        LogUnknownNodeSender(state, managerType);
+
                     if (allNodeHandlers.Count == 0)
                     {
                         handlers = null;
