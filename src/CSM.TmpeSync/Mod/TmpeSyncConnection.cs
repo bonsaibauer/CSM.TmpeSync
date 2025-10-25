@@ -38,6 +38,7 @@ namespace CSM.TmpeSync.Mod
             using (CsmBridge.StartIgnore())
             {
                 Log.Info(LogCategory.Network, "Registering TM:PE synchronization handlers via CSM connection.");
+                FeatureBootstrapper.Register();
                 TmpeBridgeEventGateway.Enable();
             }
         }
