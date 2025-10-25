@@ -264,7 +264,7 @@
     <Compile Include="Tool\LockOverlay.cs" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\CSM.TmpeSync\Core\CSM.TmpeSync.Core.csproj" />
+    <ProjectReference Include="..\CSM.TmpeSync.Core\CSM.TmpeSync.Core.csproj" />
     <ProjectReference Include="..\CSM.TmpeSync.LaneConnector\CSM.TmpeSync.LaneConnector.csproj" />
     <ProjectReference Include="..\CSM.TmpeSync.LaneArrows\CSM.TmpeSync.LaneArrows.csproj" />
     <ProjectReference Include="..\CSM.TmpeSync.PrioritySigns\CSM.TmpeSync.PrioritySigns.csproj" />

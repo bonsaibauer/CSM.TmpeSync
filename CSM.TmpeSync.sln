@@ -4,7 +4,7 @@ VisualStudioVersion = 17.5.2.0
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CSM.TmpeSync", "src\CSM.TmpeSync\CSM.TmpeSync.csproj", "{FE19AB91-3970-8EBD-CEC6-059A16D499E3}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CSM.TmpeSync.Core", "src\CSM.TmpeSync\Core\CSM.TmpeSync.Core.csproj", "{A6E261B7-D9B5-478F-B84A-48D3E9FC115E}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CSM.TmpeSync.Core", "src\CSM.TmpeSync.Core\CSM.TmpeSync.Core.csproj", "{A6E261B7-D9B5-478F-B84A-48D3E9FC115E}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CSM.TmpeSync.LaneConnector", "src\CSM.TmpeSync.LaneConnector\CSM.TmpeSync.LaneConnector.csproj", "{33C2CB44-CDFD-4A71-A1F0-73DF5A186987}"
 EndProject
