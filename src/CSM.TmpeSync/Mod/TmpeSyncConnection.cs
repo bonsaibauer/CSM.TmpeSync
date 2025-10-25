@@ -25,7 +25,7 @@ namespace CSM.TmpeSync.Mod
             CommandAssemblies.Add(typeof(TmpeSyncConnection).Assembly);
             CommandAssemblies.Add(typeof(LaneConnectorFeature).Assembly);
             CommandAssemblies.Add(typeof(LaneArrowsFeature).Assembly);
-            CommandAssemblies.Add(typeof(PrioritySignsFeature).Assembly);
+            CommandAssemblies.Add(typeof(PrioritySignSyncFeature).Assembly);
             CommandAssemblies.Add(typeof(ParkingRestrictionsFeature).Assembly);
             CommandAssemblies.Add(typeof(JunctionRestrictionsFeature).Assembly);
             CommandAssemblies.Add(typeof(SpeedLimitsFeature).Assembly);

@@ -267,12 +267,14 @@
   <!-- ==== Files (EnableDefaultCompileItems=false) ==== -->
   <ItemGroup>
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="PrioritySignsFeature.cs" />
-    <Compile Include="Network\Contracts\Applied\PrioritySignApplied.cs" />
-    <Compile Include="Network\Contracts\Requests\SetPrioritySignRequest.cs" />
-    <Compile Include="Network\Handlers\PrioritySignAppliedHandler.cs" />
-    <Compile Include="Network\Handlers\SetPrioritySignRequestHandler.cs" />
-    <Compile Include="Bridge\**\*.cs" />
+    <Compile Include="PrioritySignSyncFeature.cs" />
+    <Compile Include="Messages\PrioritySignAppliedCommand.cs" />
+    <Compile Include="Messages\PrioritySignUpdateRequest.cs" />
+    <Compile Include="Handlers\PrioritySignAppliedCommandHandler.cs" />
+    <Compile Include="Handlers\PrioritySignUpdateRequestHandler.cs" />
+    <Compile Include="Services\PrioritySignSynchronization.cs" />
+    <Compile Include="Services\PrioritySignTmpeAdapter.cs" />
+    <Compile Include="Services\PrioritySignEventListener.cs" />
   </ItemGroup>
   <!-- ==== Post-Build: Copy the add-on into the local mod directory ==== -->
   <Target Name="AfterBuild">
