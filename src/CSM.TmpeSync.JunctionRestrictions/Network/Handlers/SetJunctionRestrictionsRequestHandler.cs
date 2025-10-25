@@ -1,7 +1,7 @@
 using ColossalFramework;
 using CSM.API.Commands;
-using CSM.TmpeSync.JunctionRestrictions.Net.Contracts.Applied;
-using CSM.TmpeSync.JunctionRestrictions.Net.Contracts.Requests;
+using CSM.TmpeSync.Network.Contracts.Applied;
+using CSM.TmpeSync.Network.Contracts.Requests;
 using CSM.TmpeSync.Network.Contracts.System;
 using CSM.TmpeSync.Network.Contracts.States;
 using CSM.TmpeSync.JunctionRestrictions.Util;

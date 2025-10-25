@@ -1,5 +1,5 @@
 using CSM.API.Commands;
-using CSM.TmpeSync.JunctionRestrictions.Net.Contracts.Applied;
+using CSM.TmpeSync.Network.Contracts.Applied;
 using CSM.TmpeSync.JunctionRestrictions.Util;
 using CSM.TmpeSync.Util;
 

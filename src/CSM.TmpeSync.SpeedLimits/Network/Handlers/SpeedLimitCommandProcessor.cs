@@ -1,5 +1,5 @@
 using CSM.TmpeSync.Network.Contracts.States;
-using CSM.TmpeSync.SpeedLimits.Tmpe;
+using CSM.TmpeSync.TmpeBridge;
 using CSM.TmpeSync.Util;
 
 namespace CSM.TmpeSync.Network.Handlers
