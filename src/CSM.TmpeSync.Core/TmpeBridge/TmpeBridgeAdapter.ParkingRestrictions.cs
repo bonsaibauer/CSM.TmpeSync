@@ -400,5 +400,25 @@ namespace CSM.TmpeSync.TmpeBridge
             Move(s => s.AllowParkingBackward, v => applied.AllowParkingBackward = v, v => rejected.AllowParkingBackward = v);
         }
 
+        private static bool ParkingRestrictionMatches(ParkingRestrictionState desired, ParkingRestrictionState live)
+        {
+            if (desired == null)
+                return true;
+
+            if (live == null)
+                return false;
+
+            bool DirectionMatches(bool? desiredValue, bool? liveValue)
+            {
+                if (!desiredValue.HasValue)
+                    return true;
+
+                return liveValue.HasValue && liveValue.Value == desiredValue.Value;
+            }
+
+            return DirectionMatches(desired.AllowParkingForward, live.AllowParkingForward) &&
+                   DirectionMatches(desired.AllowParkingBackward, live.AllowParkingBackward);
+        }
+
     }
 }
