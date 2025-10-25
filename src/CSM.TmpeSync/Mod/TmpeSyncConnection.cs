@@ -11,7 +11,7 @@ using CSM.TmpeSync.TmpeBridge;
 using CSM.TmpeSync.Util;
 using CSM.TmpeSync.VehicleRestrictions;
 using Log = CSM.TmpeSync.Util.Log;
-using CSM.TmpeSync.CsmBridge;
+using CSM.TmpeSync.Bridge;
 
 namespace CSM.TmpeSync.Mod
 {

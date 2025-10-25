@@ -3,7 +3,7 @@ using CSM.TmpeSync.Network.Contracts.Applied;
 using CSM.TmpeSync.TmpeBridge;
 using CSM.TmpeSync.Util;
 using Log = CSM.TmpeSync.Util.Log;
-using CSM.TmpeSync.CsmBridge;
+using CSM.TmpeSync.Bridge;
 
 namespace CSM.TmpeSync.ClearTraffic.Net.Handlers
 {

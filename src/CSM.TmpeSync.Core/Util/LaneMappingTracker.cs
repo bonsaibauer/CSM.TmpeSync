@@ -7,7 +7,7 @@ using ColossalFramework;
 using CSM.TmpeSync.Network.Contracts.Mapping;
 using CSM.TmpeSync.Snapshot;
 using CSM.TmpeSync.Network;
-using CSM.TmpeSync.CsmBridge;
+using CSM.TmpeSync.Bridge;
 
 namespace CSM.TmpeSync.Util
 {

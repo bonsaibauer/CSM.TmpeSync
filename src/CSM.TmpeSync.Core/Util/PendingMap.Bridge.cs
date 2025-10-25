@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using CSM.TmpeSync.Network.Contracts.States;
 using CSM.TmpeSync.TmpeBridge;
-using CSM.TmpeSync.CsmBridge;
+using CSM.TmpeSync.Bridge;
 
 namespace CSM.TmpeSync.Util
 {

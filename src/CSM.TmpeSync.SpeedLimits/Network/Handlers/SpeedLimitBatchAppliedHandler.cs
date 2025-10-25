@@ -1,7 +1,7 @@
 using CSM.API.Commands;
 using CSM.TmpeSync.Network.Contracts.Applied;
 using CSM.TmpeSync.Util;
-using CSM.TmpeSync.CsmBridge;
+using CSM.TmpeSync.Bridge;
 
 namespace CSM.TmpeSync.Network.Handlers
 {

@@ -6,7 +6,7 @@ using CSM.API.Helpers;
 using CSM.API.Networking;
 using CSM.TmpeSync.Util;
 
-namespace CSM.TmpeSync.CsmBridge
+namespace CSM.TmpeSync.Bridge
 {
     internal static class CsmBridge
     {
