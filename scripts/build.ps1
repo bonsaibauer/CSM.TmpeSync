@@ -28,6 +28,7 @@ $script:ConfigPath = Join-Path $PSScriptRoot "build-settings.json"
 $script:SettingsChanged = $false
 $script:IsWindowsPlatform = [System.Runtime.InteropServices.RuntimeInformation]::IsOSPlatform([System.Runtime.InteropServices.OSPlatform]::Windows)
 $script:MsBuildPath = $null
+$script:ModProjectsCache = $null
 
 function Resolve-MsBuildPath {
     if (-not $script:IsWindowsPlatform) {
@@ -262,6 +263,106 @@ function Resolve-AbsolutePath {
     }
 
     return (Join-Path $script:RepoRoot $Path)
+}
+
+function Get-AssemblyNameFromProject {
+    param([string]$ProjectPath)
+
+    if ([string]::IsNullOrWhiteSpace($ProjectPath) -or -not (Test-Path $ProjectPath)) {
+        return $null
+    }
+
+    try {
+        $raw = Get-Content -LiteralPath $ProjectPath -Raw -ErrorAction Stop
+        if ([string]::IsNullOrWhiteSpace($raw)) {
+            return $null
+        }
+
+        $xml = [xml]$raw
+        $propertyGroups = $xml.Project.PropertyGroup
+        if ($null -eq $propertyGroups) {
+            return $null
+        }
+
+        if ($propertyGroups -isnot [System.Array]) {
+            $propertyGroups = @($propertyGroups)
+        }
+
+        foreach ($group in $propertyGroups) {
+            if ($group.AssemblyName) {
+                return [string]$group.AssemblyName
+            }
+        }
+    }
+    catch {
+        return $null
+    }
+
+    return $null
+}
+
+function Get-ModProjects {
+    if ($script:ModProjectsCache) {
+        return $script:ModProjectsCache
+    }
+
+    $srcDir = Join-Path $script:RepoRoot 'src'
+    if (-not (Test-Path $srcDir)) {
+        $script:ModProjectsCache = @()
+        return $script:ModProjectsCache
+    }
+
+    $script:ModProjectsCache = @()
+
+    $rootProjects = Get-ChildItem -LiteralPath $srcDir -Filter '*.csproj' -File -ErrorAction SilentlyContinue |
+        Where-Object { $_.Name -like 'CSM.TmpeSync*.csproj' }
+
+    foreach ($project in $rootProjects) {
+        $assemblyName = Get-AssemblyNameFromProject -ProjectPath $project.FullName
+        if ([string]::IsNullOrWhiteSpace($assemblyName)) {
+            $assemblyName = [System.IO.Path]::GetFileNameWithoutExtension($project.Name)
+        }
+
+        $script:ModProjectsCache += [pscustomobject]@{
+            ProjectPath  = $project.FullName
+            AssemblyName = $assemblyName
+        }
+    }
+
+    $projectDirectories = Get-ChildItem -Path $srcDir -Directory -ErrorAction SilentlyContinue
+
+    foreach ($directory in $projectDirectories) {
+        $projectFiles = Get-ChildItem -LiteralPath $directory.FullName -Filter '*.csproj' -File -ErrorAction SilentlyContinue |
+            Where-Object { $_.Name -like 'CSM.TmpeSync*.csproj' }
+
+        foreach ($project in $projectFiles) {
+            $assemblyName = Get-AssemblyNameFromProject -ProjectPath $project.FullName
+            if ([string]::IsNullOrWhiteSpace($assemblyName)) {
+                $assemblyName = [System.IO.Path]::GetFileNameWithoutExtension($project.Name)
+            }
+
+            $script:ModProjectsCache += [pscustomobject]@{
+                ProjectPath  = $project.FullName
+                AssemblyName = $assemblyName
+            }
+        }
+    }
+
+    $script:ModProjectsCache = $script:ModProjectsCache | Sort-Object -Property ProjectPath -Unique
+
+    return $script:ModProjectsCache
+}
+
+function Get-ModAssemblyNames {
+    $projects = Get-ModProjects
+    if (-not $projects -or $projects.Count -eq 0) {
+        return @()
+    }
+
+    return $projects |
+        Select-Object -ExpandProperty AssemblyName |
+        Sort-Object -Unique |
+        ForEach-Object { "{0}.dll" -f $_ }
 }
 
 function Get-DefaultProfileName {
@@ -706,8 +807,17 @@ function Invoke-BuildProject {
 }
 
 function Get-OutputDirectory {
-    param([string]$Configuration)
-    return Join-Path $script:RepoRoot ("src/CSM.TmpeSync/bin/{0}/net35" -f $Configuration)
+    param(
+        [string]$Configuration,
+        [string]$ProjectPath = $script:ProjectPath
+    )
+
+    if ([string]::IsNullOrWhiteSpace($ProjectPath)) {
+        throw "Project path not configured."
+    }
+
+    $projectDirectory = Split-Path -Parent $ProjectPath
+    return Join-Path $projectDirectory ("bin/{0}/net35" -f $Configuration)
 }
 
 function Invoke-InstallMod {
@@ -731,6 +841,28 @@ function Invoke-InstallMod {
     $assemblies = Get-ChildItem -LiteralPath $outputDir -Filter 'CSM.TmpeSync*.dll' -ErrorAction Stop
     if (-not $assemblies) {
         throw "No CSM.TmpeSync assemblies found in $outputDir. Build the project first."
+    }
+
+    $expectedAssemblies = Get-ModAssemblyNames
+    if ($expectedAssemblies -and $expectedAssemblies.Count -gt 0) {
+        $presentAssemblyNames = $assemblies | ForEach-Object { $_.Name }
+        $missingAssemblies = @()
+
+        foreach ($expected in $expectedAssemblies) {
+            if ($presentAssemblyNames -notcontains $expected) {
+                $candidate = Join-Path $outputDir $expected
+                if (-not (Test-Path $candidate)) {
+                    $missingAssemblies += $expected
+                }
+            }
+        }
+
+        if ($missingAssemblies.Count -gt 0) {
+            throw "Missing expected assemblies in $outputDir: $($missingAssemblies -join ', '). Ensure the build completed successfully."
+        }
+
+        $sortedAssemblies = $presentAssemblyNames | Sort-Object -Unique
+        Write-Host "[CSM.TmpeSync] Installing assemblies: $($sortedAssemblies -join ', ')" -ForegroundColor Cyan
     }
 
     Write-Host "[CSM.TmpeSync] Installing build to $targetDirectory" -ForegroundColor Cyan
