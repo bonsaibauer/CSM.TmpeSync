@@ -16,20 +16,39 @@ namespace CSM.TmpeSync.Network.Handlers
 
         internal static void ProcessEntry(ushort nodeId, JunctionRestrictionsState state, string origin)
         {
-            Log.Info("Received JunctionRestrictionsApplied node={0} state={1} origin={2}", nodeId, state, origin ?? "unknown");
+            Log.Info(
+                LogCategory.Network,
+                "JunctionRestrictionsApplied received | nodeId={0} origin={1} state={2}",
+                nodeId,
+                origin ?? "unknown",
+                state);
 
             JunctionRestrictionsDiagnostics.LogIncomingJunctionRestrictions(nodeId, state, "applied_handler");
 
             if (NetworkUtil.NodeExists(nodeId))
             {
                 if (TmpeBridgeAdapter.ApplyJunctionRestrictions(nodeId, state))
-                    Log.Info("Applied remote junction restrictions node={0}", nodeId);
+                {
+                    Log.Info(
+                        LogCategory.Synchronization,
+                        "JunctionRestrictionsApplied applied | nodeId={0}",
+                        nodeId);
+                }
                 else
-                    Log.Error("Failed to apply remote junction restrictions node={0}", nodeId);
+                {
+                    Log.Error(
+                        LogCategory.Synchronization,
+                        "JunctionRestrictionsApplied failed | nodeId={0}",
+                        nodeId);
+                }
             }
             else
             {
-                Log.Warn("Node {0} missing – skipping junction restrictions apply (origin={1}).", nodeId, origin ?? "unknown");
+                Log.Warn(
+                    LogCategory.Synchronization,
+                    "JunctionRestrictionsApplied skipped | nodeId={0} origin={1} reason=node_missing",
+                    nodeId,
+                    origin ?? "unknown");
             }
         }
     }

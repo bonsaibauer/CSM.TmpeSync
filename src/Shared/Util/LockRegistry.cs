@@ -70,7 +70,13 @@ namespace CSM.TmpeSync.Util
                 Locks[key] = new LockInfo(owner, normalizedTtl);
             }
 
-            Log.Debug("Lock applied kind={0} id={1} owner={2} ttl={3}", kind, id, owner, normalizedTtl);
+            Log.Debug(
+                LogCategory.Diagnostics,
+                "Edit lock applied | kind={0} id={1} owner={2} ttl={3}",
+                kind,
+                id,
+                owner,
+                normalizedTtl);
         }
 
         internal static void Clear(byte kind, uint id)
@@ -85,11 +91,19 @@ namespace CSM.TmpeSync.Util
 
             if (removed)
             {
-                Log.Debug("Lock cleared kind={0} id={1}", kind, id);
+                Log.Debug(
+                    LogCategory.Diagnostics,
+                    "Edit lock cleared | kind={0} id={1}",
+                    kind,
+                    id);
             }
             else
             {
-                Log.Debug("Lock clear request for missing kind={0} id={1}", kind, id);
+                Log.Debug(
+                    LogCategory.Diagnostics,
+                    "Edit lock clear skipped | kind={0} id={1} reason=missing",
+                    kind,
+                    id);
             }
         }
 

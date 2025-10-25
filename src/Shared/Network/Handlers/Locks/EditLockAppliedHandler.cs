@@ -6,8 +6,15 @@ namespace CSM.TmpeSync.Network.Handlers.Locks
 {
     public class EditLockAppliedHandler : CommandHandler<EditLockApplied>
     {
-        protected override void Handle(EditLockApplied cmd){
-            Log.Info("Received EditLockApplied kind={0} id={1} owner={2} ttl={3}", cmd.TargetKind, cmd.TargetId, cmd.OwnerClientId, cmd.TtlFrames);
+        protected override void Handle(EditLockApplied cmd)
+        {
+            Log.Info(
+                LogCategory.Network,
+                "EditLockApplied received | targetKind={0} targetId={1} ownerId={2} ttl={3}",
+                cmd.TargetKind,
+                cmd.TargetId,
+                cmd.OwnerClientId,
+                cmd.TtlFrames);
             LockRegistry.Apply(cmd.TargetKind, cmd.TargetId, cmd.OwnerClientId, cmd.TtlFrames);
         }
     }

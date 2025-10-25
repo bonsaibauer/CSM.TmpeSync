@@ -10,13 +10,20 @@ namespace CSM.TmpeSync.ToggleTrafficLights.Network.Handlers
     {
         protected override void Handle(TrafficLightToggledApplied cmd)
         {
-            Log.Info("Received TrafficLightToggledApplied node={0} -> {1}", cmd.NodeId, cmd.Enabled);
+            Log.Info(
+                LogCategory.Network,
+                "TrafficLightToggledApplied received | nodeId={0} enabled={1}",
+                cmd.NodeId,
+                cmd.Enabled);
 
             NetworkUtil.RunOnSimulation(() =>
             {
                 if (!NetworkUtil.NodeExists(cmd.NodeId))
                 {
-                    Log.Warn("TrafficLightToggledApplied ignored – node {0} missing.", cmd.NodeId);
+                    Log.Warn(
+                        LogCategory.Synchronization,
+                        "TrafficLightToggledApplied ignored | nodeId={0} reason=node_missing",
+                        cmd.NodeId);
                     return;
                 }
 
@@ -24,17 +31,28 @@ namespace CSM.TmpeSync.ToggleTrafficLights.Network.Handlers
                 {
                     if (!NetworkUtil.NodeExists(cmd.NodeId))
                     {
-                        Log.Warn("TrafficLightToggledApplied skipped – node {0} disappeared while locked.", cmd.NodeId);
+                        Log.Warn(
+                            LogCategory.Synchronization,
+                            "TrafficLightToggledApplied skipped | nodeId={0} reason=node_missing_while_locked",
+                            cmd.NodeId);
                         return;
                     }
 
                     if (TmpeBridgeAdapter.ApplyToggleTrafficLight(cmd.NodeId, cmd.Enabled))
                     {
-                        Log.Info("Applied remote traffic light toggle node={0} -> {1}", cmd.NodeId, cmd.Enabled);
+                        Log.Info(
+                            LogCategory.Synchronization,
+                            "TrafficLightToggledApplied applied | nodeId={0} enabled={1}",
+                            cmd.NodeId,
+                            cmd.Enabled);
                     }
                     else
                     {
-                        Log.Warn("Failed to apply remote traffic light toggle node={0} -> {1}; skipping.", cmd.NodeId, cmd.Enabled);
+                        Log.Warn(
+                            LogCategory.Synchronization,
+                            "TrafficLightToggledApplied failed | nodeId={0} enabled={1}",
+                            cmd.NodeId,
+                            cmd.Enabled);
                     }
                 }
             });

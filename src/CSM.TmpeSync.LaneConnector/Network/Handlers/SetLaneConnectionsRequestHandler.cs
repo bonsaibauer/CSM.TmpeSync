@@ -31,7 +31,8 @@ namespace CSM.TmpeSync.Network.Handlers
             }
 
             Log.Info(
-                "Received SetLaneConnectionsRequest lane={0} segmentId={1} laneIndex={2} targets=[{3}] from client={4} role={5}",
+                LogCategory.Network,
+                "SetLaneConnectionsRequest received | sourceLaneId={0} segmentId={1} laneIndex={2} targets=[{3}] senderId={4} role={5}",
                 cmd.SourceLaneId,
                 sourceSegmentId,
                 sourceLaneIndex,
@@ -41,13 +42,19 @@ namespace CSM.TmpeSync.Network.Handlers
 
             if (!CsmBridge.IsServerInstance())
             {
-                Log.Debug("Ignoring SetLaneConnectionsRequest on non-server instance.");
+                Log.Debug(
+                    LogCategory.Network,
+                    "SetLaneConnectionsRequest ignored | sourceLaneId={0} reason=not_server_instance",
+                    cmd.SourceLaneId);
                 return;
             }
 
             if (!NetworkUtil.TryGetResolvedLaneId(sourceLaneId, sourceSegmentId, sourceLaneIndex, out var resolvedSourceLaneId))
             {
-                Log.Warn("Rejecting SetLaneConnectionsRequest lane={0} – source lane missing on server.", cmd.SourceLaneId);
+                Log.Warn(
+                    LogCategory.Network,
+                    "SetLaneConnectionsRequest rejected | sourceLaneId={0} reason=lane_missing",
+                    cmd.SourceLaneId);
                 CsmBridge.SendToClient(senderId, new RequestRejected { Reason = "entity_missing", EntityId = cmd.SourceLaneId, EntityType = 1 });
                 return;
             }
@@ -64,7 +71,11 @@ namespace CSM.TmpeSync.Network.Handlers
 
                 if (!NetworkUtil.TryGetResolvedLaneId(laneId, segmentId, laneIndex, out var resolvedTarget))
                 {
-                    Log.Warn("Rejecting SetLaneConnectionsRequest lane={0} – target lane {1} missing.", cmd.SourceLaneId, targetLaneIds[i]);
+                    Log.Warn(
+                        LogCategory.Network,
+                        "SetLaneConnectionsRequest rejected | sourceLaneId={0} missingTarget={1}",
+                        cmd.SourceLaneId,
+                        targetLaneIds[i]);
                     CsmBridge.SendToClient(senderId, new RequestRejected { Reason = "entity_missing", EntityId = targetLaneIds[i], EntityType = 1 });
                     return;
                 }
@@ -86,7 +97,10 @@ namespace CSM.TmpeSync.Network.Handlers
                 var simSourceLaneIndex = sourceLaneIndex;
                 if (!NetworkUtil.TryGetResolvedLaneId(resolvedSourceLaneId, simSourceSegmentId, simSourceLaneIndex, out var simSourceLaneId))
                 {
-                    Log.Warn("Simulation step aborted – lane {0} vanished before lane connection apply.", cmd.SourceLaneId);
+                    Log.Warn(
+                        LogCategory.Synchronization,
+                        "Lane connection apply aborted | sourceLaneId={0} reason=lane_missing_before_apply",
+                        cmd.SourceLaneId);
                     return;
                 }
 
@@ -94,7 +108,10 @@ namespace CSM.TmpeSync.Network.Handlers
                 {
                     if (!NetworkUtil.TryGetResolvedLaneId(simSourceLaneId, simSourceSegmentId, simSourceLaneIndex, out simSourceLaneId))
                     {
-                        Log.Warn("Skipping lane connection apply – lane {0} disappeared while locked.", cmd.SourceLaneId);
+                        Log.Warn(
+                            LogCategory.Synchronization,
+                            "Lane connection apply skipped | sourceLaneId={0} reason=lane_missing_while_locked",
+                            cmd.SourceLaneId);
                         return;
                     }
 
@@ -134,7 +151,11 @@ namespace CSM.TmpeSync.Network.Handlers
                             simSourceLaneIndex = sourceLaneIndex;
                         }
 
-                        Log.Info("Applied lane connections lane={0} -> [{1}]; broadcasting update.", simSourceLaneId, FormatLaneIds(liveTargets));
+                        Log.Info(
+                            LogCategory.Synchronization,
+                            "Lane connections applied | sourceLaneId={0} targets=[{1}] action=broadcast",
+                            simSourceLaneId,
+                            FormatLaneIds(liveTargets));
                         CsmBridge.SendToAll(new LaneConnectionsApplied
                         {
                             SourceLaneId = simSourceLaneId,
@@ -147,7 +168,11 @@ namespace CSM.TmpeSync.Network.Handlers
                     }
                     else
                     {
-                        Log.Error("Failed to apply lane connections lane={0}; notifying client {1}.", cmd.SourceLaneId, senderId);
+                        Log.Error(
+                            LogCategory.Synchronization,
+                            "Lane connections apply failed | sourceLaneId={0} senderId={1}",
+                            cmd.SourceLaneId,
+                            senderId);
                         CsmBridge.SendToClient(senderId, new RequestRejected { Reason = "tmpe_apply_failed", EntityId = cmd.SourceLaneId, EntityType = 1 });
                     }
                 }

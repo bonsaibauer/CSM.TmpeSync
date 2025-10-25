@@ -14,11 +14,15 @@ namespace CSM.TmpeSync.ClearTraffic.Network.Handlers
         protected override void Handle(ClearTrafficRequest cmd)
         {
             var senderId = CsmBridge.GetSenderId(cmd);
-            Log.Info("Received ClearTrafficRequest from client={0} role={1}", senderId, CsmBridge.DescribeCurrentRole());
+            Log.Info(
+                LogCategory.Network,
+                "ClearTrafficRequest received | senderId={0} role={1}",
+                senderId,
+                CsmBridge.DescribeCurrentRole());
 
             if (!CsmBridge.IsServerInstance())
             {
-                Log.Debug("Ignoring ClearTrafficRequest on non-server instance.");
+                Log.Debug(LogCategory.Network, "ClearTrafficRequest ignored | reason=not_server_instance");
                 return;
             }
 
@@ -28,12 +32,18 @@ namespace CSM.TmpeSync.ClearTraffic.Network.Handlers
                 {
                     if (TmpeBridgeAdapter.ClearTraffic())
                     {
-                        Log.Info("Cleared traffic in response to client={0}; broadcasting update.", senderId);
+                        Log.Info(
+                            LogCategory.Synchronization,
+                            "Traffic cleared | senderId={0} action=broadcast",
+                            senderId);
                         CsmBridge.SendToAll(new ClearTrafficApplied());
                     }
                     else
                     {
-                        Log.Error("Failed to clear traffic for client {0}; notifying requester.", senderId);
+                        Log.Error(
+                            LogCategory.Synchronization,
+                            "Traffic clear failed | senderId={0} action=notify_requester",
+                            senderId);
                         if (senderId >= 0)
                             CsmBridge.SendToClient(senderId, new RequestRejected { Reason = "tmpe_clear_failed" });
                     }

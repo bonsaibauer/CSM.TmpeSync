@@ -17,17 +17,26 @@ namespace CSM.TmpeSync.Network.Handlers
             var senderId = CsmBridge.GetSenderId(cmd);
             var state = cmd.State ?? new JunctionRestrictionsState();
 
-            Log.Info("Received SetJunctionRestrictionsRequest node={0} state={1} from client={2} role={3}", cmd.NodeId, state, senderId, CsmBridge.DescribeCurrentRole());
+            Log.Info(
+                LogCategory.Network,
+                "SetJunctionRestrictionsRequest received | nodeId={0} state={1} senderId={2} role={3}",
+                cmd.NodeId,
+                state,
+                senderId,
+                CsmBridge.DescribeCurrentRole());
 
             if (!CsmBridge.IsServerInstance())
             {
-                Log.Debug("Ignoring SetJunctionRestrictionsRequest on non-server instance.");
+                Log.Debug(LogCategory.Network, "SetJunctionRestrictionsRequest ignored | reason=not_server_instance");
                 return;
             }
 
             if (!NetworkUtil.NodeExists(cmd.NodeId))
             {
-                Log.Warn("Rejecting SetJunctionRestrictionsRequest node={0} – node missing on server.", cmd.NodeId);
+                Log.Warn(
+                    LogCategory.Network,
+                    "SetJunctionRestrictionsRequest rejected | nodeId={0} reason=node_missing",
+                    cmd.NodeId);
                 CsmBridge.SendToClient(senderId, new RequestRejected { Reason = "entity_missing", EntityId = cmd.NodeId, EntityType = 3 });
                 return;
             }
@@ -36,7 +45,10 @@ namespace CSM.TmpeSync.Network.Handlers
             {
                 if (!NetworkUtil.NodeExists(cmd.NodeId))
                 {
-                    Log.Warn("Simulation step aborted – node {0} vanished before junction restrictions apply.", cmd.NodeId);
+                    Log.Warn(
+                        LogCategory.Synchronization,
+                        "Junction restrictions apply aborted | nodeId={0} reason=node_missing_before_apply",
+                        cmd.NodeId);
                     return;
                 }
 
@@ -44,13 +56,20 @@ namespace CSM.TmpeSync.Network.Handlers
                 {
                     if (!NetworkUtil.NodeExists(cmd.NodeId))
                     {
-                        Log.Warn("Skipping junction restrictions apply – node {0} disappeared while locked.", cmd.NodeId);
+                        Log.Warn(
+                            LogCategory.Synchronization,
+                            "Junction restrictions apply skipped | nodeId={0} reason=node_missing_while_locked",
+                            cmd.NodeId);
                         return;
                     }
 
                     if (!TmpeBridgeAdapter.ApplyJunctionRestrictions(cmd.NodeId, state))
                     {
-                        Log.Error("Failed to apply junction restrictions node={0}; notifying client {1}.", cmd.NodeId, senderId);
+                        Log.Error(
+                            LogCategory.Synchronization,
+                            "Junction restrictions apply failed | nodeId={0} senderId={1}",
+                            cmd.NodeId,
+                            senderId);
                         CsmBridge.SendToClient(senderId, new RequestRejected { Reason = "tmpe_apply_failed", EntityId = cmd.NodeId, EntityType = 3 });
                         return;
                     }
@@ -64,7 +83,10 @@ namespace CSM.TmpeSync.Network.Handlers
                         resultingState,
                         "request_handler");
 
-                    Log.Info("Applied junction restrictions node={0}; broadcasting update.", cmd.NodeId);
+                    Log.Info(
+                        LogCategory.Synchronization,
+                        "Junction restrictions applied | nodeId={0} action=broadcast",
+                        cmd.NodeId);
                     CsmBridge.SendToAll(new JunctionRestrictionsApplied
                     {
                         NodeId = cmd.NodeId,

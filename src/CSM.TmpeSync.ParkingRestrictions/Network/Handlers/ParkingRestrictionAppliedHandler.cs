@@ -15,18 +15,37 @@ namespace CSM.TmpeSync.Network.Handlers
 
         internal static void ProcessEntry(ushort segmentId, ParkingRestrictionState state, string origin)
         {
-            Log.Info("Received ParkingRestrictionApplied segment={0} state={1} origin={2}", segmentId, state, origin ?? "unknown");
+            Log.Info(
+                LogCategory.Network,
+                "ParkingRestrictionApplied received | segmentId={0} origin={1} state={2}",
+                segmentId,
+                origin ?? "unknown",
+                state);
 
             if (NetworkUtil.SegmentExists(segmentId))
             {
                 if (TmpeBridgeAdapter.ApplyParkingRestriction(segmentId, state))
-                    Log.Info("Applied remote parking restriction segment={0}", segmentId);
+                {
+                    Log.Info(
+                        LogCategory.Synchronization,
+                        "ParkingRestrictionApplied applied | segmentId={0}",
+                        segmentId);
+                }
                 else
-                    Log.Error("Failed to apply remote parking restriction segment={0}", segmentId);
+                {
+                    Log.Error(
+                        LogCategory.Synchronization,
+                        "ParkingRestrictionApplied failed | segmentId={0}",
+                        segmentId);
+                }
             }
             else
             {
-                Log.Warn("Segment {0} missing – skipping parking restriction apply (origin={1}).", segmentId, origin ?? "unknown");
+                Log.Warn(
+                    LogCategory.Synchronization,
+                    "ParkingRestrictionApplied skipped | segmentId={0} origin={1} reason=segment_missing",
+                    segmentId,
+                    origin ?? "unknown");
             }
         }
     }
