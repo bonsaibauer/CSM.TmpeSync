@@ -6,6 +6,7 @@ using CSM.TmpeSync.Snapshot;
 using CSM.TmpeSync.TmpeBridge;
 using CSM.TmpeSync.Util;
 using CSM.TmpeSync.SpeedLimits.Util;
+using CSM.TmpeSync.Bridge;
 
 namespace CSM.TmpeSync.SpeedLimits
 {
@@ -71,6 +72,12 @@ namespace CSM.TmpeSync.SpeedLimits
         {
             if (entries == null || entries.Count == 0)
                 return;
+
+            Log.Info(
+                LogCategory.Network,
+                "Broadcasting speed-limit batch | count={0} role={1}",
+                entries.Count,
+                CsmBridge.DescribeCurrentRole());
 
             var command = new SpeedLimitBatchApplied();
             command.Items.AddRange(entries);

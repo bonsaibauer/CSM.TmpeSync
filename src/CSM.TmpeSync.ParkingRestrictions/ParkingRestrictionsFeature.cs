@@ -6,6 +6,7 @@ using CSM.TmpeSync.Network.Contracts.States;
 using CSM.TmpeSync.Snapshot;
 using CSM.TmpeSync.TmpeBridge;
 using CSM.TmpeSync.Util;
+using CSM.TmpeSync.Bridge;
 
 namespace CSM.TmpeSync.ParkingRestrictions
 {
@@ -38,6 +39,12 @@ namespace CSM.TmpeSync.ParkingRestrictions
         {
             if (entries == null || entries.Count == 0)
                 return;
+
+            Log.Info(
+                LogCategory.Network,
+                "Broadcasting parking-restriction batch | count={0} role={1}",
+                entries.Count,
+                CsmBridge.DescribeCurrentRole());
 
             var command = new ParkingRestrictionBatchApplied();
             command.Items.AddRange(entries);

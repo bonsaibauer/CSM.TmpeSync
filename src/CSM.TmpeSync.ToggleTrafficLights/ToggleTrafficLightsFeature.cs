@@ -3,6 +3,7 @@ using CSM.TmpeSync.ToggleTrafficLights.Network.Contracts.Applied;
 using CSM.TmpeSync.ToggleTrafficLights.Snapshot;
 using CSM.TmpeSync.TmpeBridge;
 using CSM.TmpeSync.Util;
+using CSM.TmpeSync.Bridge;
 
 namespace CSM.TmpeSync.ToggleTrafficLights
 {
@@ -26,6 +27,12 @@ namespace CSM.TmpeSync.ToggleTrafficLights
 
         private static void HandleTrafficLightNodeChange(ushort nodeId)
         {
+            Log.Info(
+                LogCategory.Network,
+                "Broadcasting traffic-light toggle | nodeId={0} role={1}",
+                nodeId,
+                CsmBridge.DescribeCurrentRole());
+
             TmpeBridgeChangeDispatcher.BroadcastTrafficLights(nodeId);
         }
     }
