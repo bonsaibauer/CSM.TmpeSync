@@ -264,6 +264,7 @@
     <Compile Include="Network\Handlers\ParkingRestrictionBatchAppliedHandler.cs" />
     <Compile Include="Network\Handlers\SetParkingRestrictionRequestHandler.cs" />
     <Compile Include="Snapshot\ParkingRestrictionSnapshotProvider.cs" />
+    <Compile Include="Infrastructure\**\*.cs" />
   </ItemGroup>
   <!-- ==== Post-Build: Copy the add-on into the local mod directory ==== -->
   <Target Name="AfterBuild">
