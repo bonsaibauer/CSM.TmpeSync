@@ -372,7 +372,9 @@ namespace CSM.TmpeSync.Bridge
                 return;
 
             _stubSimulationLogged = true;
-            Log.Debug(LogCategory.Diagnostics, "Stub simulation hooks unavailable | action=skip_autostart");
+            Log.Debug(
+                LogCategory.Diagnostics,
+                "Stub simulation ready if needed");
         }
 
         internal static void ResetStubSimulationState()
