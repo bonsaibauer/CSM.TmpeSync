@@ -49,7 +49,7 @@ namespace CSM.TmpeSync.PrioritySigns
             }
         }
 
-        private static void FlushPrioritySignBatch(IReadOnlyList<PrioritySignBatchApplied.Entry> entries)
+        private static void FlushPrioritySignBatch(IList<PrioritySignBatchApplied.Entry> entries)
         {
             if (entries == null || entries.Count == 0)
                 return;

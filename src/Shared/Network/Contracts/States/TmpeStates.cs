@@ -1,6 +1,8 @@
 using System;
 using ProtoBuf;
 
+#pragma warning disable CS0436 // Allow linked shared types across modular assemblies.
+
 namespace CSM.TmpeSync.Network.Contracts.States
 {
     [ProtoContract]
@@ -388,3 +390,5 @@ namespace CSM.TmpeSync.Network.Contracts.States
 
 
 }
+
+#pragma warning restore CS0436

@@ -58,7 +58,7 @@ namespace CSM.TmpeSync.VehicleRestrictions
             }
         }
 
-        private static void FlushVehicleRestrictionBatch(IReadOnlyList<VehicleRestrictionsBatchApplied.Entry> entries)
+        private static void FlushVehicleRestrictionBatch(IList<VehicleRestrictionsBatchApplied.Entry> entries)
         {
             if (entries == null || entries.Count == 0)
                 return;

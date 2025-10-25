@@ -39,7 +39,7 @@ namespace CSM.TmpeSync.LaneArrows
             });
         }
 
-        private static void FlushLaneArrowBatch(IReadOnlyList<LaneArrowBatchApplied.Entry> entries)
+        private static void FlushLaneArrowBatch(IList<LaneArrowBatchApplied.Entry> entries)
         {
             if (entries == null || entries.Count == 0)
                 return;

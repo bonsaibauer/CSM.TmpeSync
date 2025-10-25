@@ -5,6 +5,7 @@ using CSM.TmpeSync.Network.Handlers;
 using CSM.TmpeSync.Network.Contracts.States;
 using CSM.TmpeSync.Snapshot;
 using CSM.TmpeSync.TmpeBridge;
+using CSM.TmpeSync.Util;
 
 namespace CSM.TmpeSync.ParkingRestrictions
 {
@@ -33,7 +34,7 @@ namespace CSM.TmpeSync.ParkingRestrictions
             }
         }
 
-        private static void FlushParkingRestrictionBatch(IReadOnlyList<ParkingRestrictionBatchApplied.Entry> entries)
+        private static void FlushParkingRestrictionBatch(IList<ParkingRestrictionBatchApplied.Entry> entries)
         {
             if (entries == null || entries.Count == 0)
                 return;
