@@ -10,6 +10,8 @@
     <Nullable>disable</Nullable>
     <LangVersion>7.3</LangVersion>
 
+    <NoWarn>$(NoWarn);0436</NoWarn>
+
     <RepoRoot>$([System.IO.Path]::GetFullPath('$(MSBuildProjectDirectory)\..\..'))</RepoRoot>
 
     <!-- ===== Cities: Skylines (Game) ===== -->
