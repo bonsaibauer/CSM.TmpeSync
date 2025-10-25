@@ -23,6 +23,7 @@ namespace CSM.TmpeSync.Util
         private static Delegate _segmentReleasedHandler;
         private static readonly Dictionary<ushort, uint> SegmentBuildIndices = new Dictionary<ushort, uint>();
         private static readonly List<ushort> SegmentScratch = new List<ushort>();
+        private static bool _serverInitializationPending;
 
         private sealed class LaneMappingUpdate
         {
@@ -39,7 +40,16 @@ namespace CSM.TmpeSync.Util
             LaneGuidRegistry.Clear();
             PendingMap.Reset();
             SegmentBuildIndices.Clear();
-            ApplyLaneGuidRoleSettings();
+            _serverInitializationPending = false;
+
+            if (CsmBridge.IsServerInstance())
+            {
+                EnsureServerInitialized("initialize");
+            }
+            else
+            {
+                ApplyLaneGuidRoleSettings();
+            }
             CsmBridgeMultiplayerObserver.RoleChanged += OnRoleChanged;
             RegisterSegmentHooks();
             NetworkUtil.StartSimulationCoroutine(Validator());
@@ -57,6 +67,7 @@ namespace CSM.TmpeSync.Util
             LaneGuidRegistry.Clear();
             PendingMap.Reset();
             SegmentBuildIndices.Clear();
+            _serverInitializationPending = false;
             _initialized = false;
         }
 
@@ -69,17 +80,12 @@ namespace CSM.TmpeSync.Util
                 LaneGuidRegistry.Clear();
                 PendingMap.Reset();
                 SegmentBuildIndices.Clear();
+                _serverInitializationPending = false;
                 DeferredApply.Reset();
                 return;
             }
 
-            if (!CsmBridge.IsServerInstance())
-                return;
-
-            ApplyLaneGuidRoleSettings();
-            SegmentBuildIndices.Clear();
-            DeferredApply.Reset();
-            SyncAllSegments("role_change");
+            EnsureServerInitialized("role_change");
         }
 
         internal static void SyncAllSegments(string reason = null, int? targetClientId = null)
@@ -335,6 +341,65 @@ namespace CSM.TmpeSync.Util
                 LaneGuidRegistry.Clear();
                 SegmentBuildIndices.Clear();
             }
+        }
+
+        private static void EnsureServerInitialized(string reason)
+        {
+            if (CsmBridge.IsServerInstance())
+            {
+                ApplyLaneGuidRoleSettings();
+                SegmentBuildIndices.Clear();
+                DeferredApply.Reset();
+                SyncAllSegments(reason);
+                return;
+            }
+
+            if (_serverInitializationPending)
+            {
+                Log.Debug(
+                    LogCategory.Network,
+                    "Server initialization already pending | reason={0}",
+                    reason ?? "<unspecified>");
+                return;
+            }
+
+            _serverInitializationPending = true;
+            NetworkUtil.StartSimulationCoroutine(WaitForServerRole(reason));
+        }
+
+        private static IEnumerator WaitForServerRole(string reason)
+        {
+            const int maxFrames = 180;
+            var waitedFrames = 0;
+
+            while (!CsmBridge.IsServerInstance() && waitedFrames < maxFrames)
+            {
+                waitedFrames++;
+                yield return 0;
+            }
+
+            _serverInitializationPending = false;
+
+            if (!CsmBridge.IsServerInstance())
+            {
+                Log.Warn(
+                    LogCategory.Network,
+                    "Server role confirmation timed out | reason={0} waitedFrames={1}",
+                    reason ?? "<unspecified>",
+                    waitedFrames);
+                yield break;
+            }
+
+            Log.Info(
+                LogCategory.Network,
+                "Server role confirmed after wait | reason={0} waitedFrames={1}",
+                reason ?? "<unspecified>",
+                waitedFrames);
+
+            ApplyLaneGuidRoleSettings();
+            SegmentBuildIndices.Clear();
+            DeferredApply.Reset();
+            SyncAllSegments(reason);
         }
 
         private static void RegisterSegmentHooks()
