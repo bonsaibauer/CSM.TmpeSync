@@ -68,7 +68,7 @@ namespace CSM.TmpeSync.TmpeBridge
                 if (manager != null && method != null)
                 {
                     Log.Debug(LogCategory.Hook, "TM:PE clear traffic request");
-                    method.Invoke(manager, Array.Empty<object>());
+                    method.Invoke(manager, EmptyInvocationParameters);
                     Log.Info(LogCategory.Synchronization, "TM:PE clear traffic applied via API");
                     return true;
                 }
