@@ -277,28 +277,86 @@ namespace CSM.TmpeSync.TmpeBridge
 
             try
             {
-                var factoryStaticType = ResolveType("TrafficManager.API.Implementations.ManagerFactory", tmpeAssembly);
-                if (factoryStaticType == null)
-                    return;
+                object instance = null;
+                Type runtimeType = null;
 
-                var managerFactoryProperty = factoryStaticType.GetProperty(
-                    "ManagerFactory",
-                    BindingFlags.Public | BindingFlags.Static);
-                if (managerFactoryProperty == null)
+                // TM:PE r11+ exposes the factory via TrafficManager.Constants.ManagerFactory.
+                var constantsType = ResolveType("TrafficManager.Constants", tmpeAssembly);
+                if (constantsType != null)
                 {
-                    LogBridgeGap("managerFactory", "property", factoryStaticType.FullName + ".ManagerFactory");
-                    return;
+                    var property = constantsType.GetProperty("ManagerFactory", BindingFlags.Public | BindingFlags.Static);
+                    if (property != null)
+                    {
+                        instance = property.GetValue(null, null);
+                        runtimeType = instance?.GetType();
+                        if (instance == null)
+                            LogBridgeGap("managerFactory", "TrafficManager.Constants.ManagerFactory", "<null>");
+                    }
+                    else
+                    {
+                        LogBridgeGap("managerFactory", "TrafficManager.Constants.ManagerFactory", "<missing>");
+                    }
                 }
 
-                var instance = managerFactoryProperty.GetValue(null, null);
+                // Fallback: direct implementation singleton (TM:PE legacy/newer releases).
                 if (instance == null)
                 {
-                    LogBridgeGap("managerFactory", "instance", factoryStaticType.FullName + ".ManagerFactory");
-                    return;
+                    var implType = ResolveType("TrafficManager.Manager.Impl.ManagerFactory", tmpeAssembly);
+                    if (implType != null)
+                    {
+                        var property = implType.GetProperty("Instance", BindingFlags.Public | BindingFlags.Static);
+                        if (property != null)
+                        {
+                            instance = property.GetValue(null, null);
+                            runtimeType = instance?.GetType();
+                        }
+                        else
+                        {
+                            var field = implType.GetField("Instance", BindingFlags.Public | BindingFlags.Static);
+                            if (field != null)
+                            {
+                                instance = field.GetValue(null);
+                                runtimeType = instance?.GetType();
+                            }
+                            else
+                            {
+                                LogBridgeGap("managerFactory", implType.FullName + ".Instance", "<missing>");
+                            }
+                        }
+
+                        if (instance == null)
+                            LogBridgeGap("managerFactory", implType.FullName + ".Instance", "<null>");
+                    }
                 }
 
+                // Legacy API shim used by older TM:PE versions.
+                if (instance == null)
+                {
+                    var factoryStaticType = ResolveType("TrafficManager.API.Implementations.ManagerFactory", tmpeAssembly);
+                    if (factoryStaticType != null)
+                    {
+                        var managerFactoryProperty = factoryStaticType.GetProperty(
+                            "ManagerFactory",
+                            BindingFlags.Public | BindingFlags.Static);
+                        if (managerFactoryProperty != null)
+                        {
+                            instance = managerFactoryProperty.GetValue(null, null);
+                            runtimeType = instance?.GetType();
+                            if (instance == null)
+                                LogBridgeGap("managerFactory", factoryStaticType.FullName + ".ManagerFactory", "<null>");
+                        }
+                        else
+                        {
+                            LogBridgeGap("managerFactory", factoryStaticType.FullName + ".ManagerFactory", "<missing>");
+                        }
+                    }
+                }
+
+                if (instance == null)
+                    return;
+
                 ManagerFactoryInstance = instance;
-                ManagerFactoryRuntimeType = instance.GetType();
+                ManagerFactoryRuntimeType = runtimeType ?? instance.GetType();
             }
             catch (Exception ex)
             {
