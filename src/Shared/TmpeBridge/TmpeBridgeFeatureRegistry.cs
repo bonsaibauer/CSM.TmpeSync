@@ -13,40 +13,28 @@ namespace CSM.TmpeSync.TmpeBridge
         internal const string TrafficPriorityManagerType = "TrafficManager.Manager.Impl.TrafficPriorityManager";
         internal const string TrafficLightManagerType = "TrafficManager.Manager.Impl.TrafficLightManager";
 
-        private static readonly Dictionary<string, List<Action<ushort>>> SegmentHandlers =
-            new Dictionary<string, List<Action<ushort>>>(StringComparer.Ordinal);
-
-        private static readonly Dictionary<string, List<Action<ushort>>> NodeHandlers =
-            new Dictionary<string, List<Action<ushort>>>(StringComparer.Ordinal);
-
-        private static readonly List<Action<ushort>> AllSegmentHandlers = new List<Action<ushort>>();
-        private static readonly List<Action<ushort>> AllNodeHandlers = new List<Action<ushort>>();
-
-        private static readonly HashSet<string> UnknownSegmentSenders =
-            new HashSet<string>(StringComparer.Ordinal);
-
-        private static readonly HashSet<string> UnknownNodeSenders =
-            new HashSet<string>(StringComparer.Ordinal);
-
-        private static readonly List<Action<uint>> LaneArrowHandlers = new List<Action<uint>>();
-        private static readonly List<Action<uint>> LaneConnectionHandlers = new List<Action<uint>>();
-        private static readonly List<Action<ushort>> LaneConnectionNodeHandlers = new List<Action<ushort>>();
+        private const string RegistryStateKey = "CSM.TmpeSync.TmpeBridgeFeatureRegistry.State";
+        private static readonly object RegistryStateLock = new object();
 
         internal static void RegisterSegmentHandler(string managerType, Action<ushort> handler)
         {
             if (string.IsNullOrEmpty(managerType) || handler == null)
                 return;
 
-            if (!SegmentHandlers.TryGetValue(managerType, out var handlers))
+            var state = GetState();
+            lock (state.SyncRoot)
             {
-                handlers = new List<Action<ushort>>();
-                SegmentHandlers[managerType] = handlers;
+                if (!state.SegmentHandlers.TryGetValue(managerType, out var handlers))
+                {
+                    handlers = new List<Action<ushort>>();
+                    state.SegmentHandlers[managerType] = handlers;
+                }
+
+                handlers.Add(handler);
+
+                if (!state.AllSegmentHandlers.Contains(handler))
+                    state.AllSegmentHandlers.Add(handler);
             }
-
-            handlers.Add(handler);
-
-            if (!AllSegmentHandlers.Contains(handler))
-                AllSegmentHandlers.Add(handler);
         }
 
         internal static void RegisterNodeHandler(string managerType, Action<ushort> handler)
@@ -54,121 +42,214 @@ namespace CSM.TmpeSync.TmpeBridge
             if (string.IsNullOrEmpty(managerType) || handler == null)
                 return;
 
-            if (!NodeHandlers.TryGetValue(managerType, out var handlers))
+            var state = GetState();
+            lock (state.SyncRoot)
             {
-                handlers = new List<Action<ushort>>();
-                NodeHandlers[managerType] = handlers;
+                if (!state.NodeHandlers.TryGetValue(managerType, out var handlers))
+                {
+                    handlers = new List<Action<ushort>>();
+                    state.NodeHandlers[managerType] = handlers;
+                }
+
+                handlers.Add(handler);
+
+                if (!state.AllNodeHandlers.Contains(handler))
+                    state.AllNodeHandlers.Add(handler);
             }
-
-            handlers.Add(handler);
-
-            if (!AllNodeHandlers.Contains(handler))
-                AllNodeHandlers.Add(handler);
         }
 
         internal static void RegisterLaneArrowHandler(Action<uint> handler)
         {
-            if (handler != null)
-                LaneArrowHandlers.Add(handler);
+            if (handler == null)
+                return;
+
+            var state = GetState();
+            lock (state.SyncRoot)
+            {
+                state.LaneArrowHandlers.Add(handler);
+            }
         }
 
         internal static void RegisterLaneConnectionHandler(Action<uint> handler)
         {
-            if (handler != null)
-                LaneConnectionHandlers.Add(handler);
+            if (handler == null)
+                return;
+
+            var state = GetState();
+            lock (state.SyncRoot)
+            {
+                state.LaneConnectionHandlers.Add(handler);
+            }
         }
 
         internal static void RegisterLaneConnectionNodeHandler(Action<ushort> handler)
         {
-            if (handler != null)
-                LaneConnectionNodeHandlers.Add(handler);
+            if (handler == null)
+                return;
+
+            var state = GetState();
+            lock (state.SyncRoot)
+            {
+                state.LaneConnectionNodeHandlers.Add(handler);
+            }
         }
 
         internal static bool NotifySegmentModification(string managerType, ushort segmentId)
         {
-            if (string.IsNullOrEmpty(managerType))
+            var state = GetState();
+            List<Action<ushort>> handlers;
+            bool hasHandlers;
+
+            lock (state.SyncRoot)
             {
-                LogUnknownSegmentSender(managerType);
-                return NotifyAllSegmentHandlers(segmentId);
+                if (!string.IsNullOrEmpty(managerType) &&
+                    state.SegmentHandlers.TryGetValue(managerType, out var registered) &&
+                    registered != null && registered.Count > 0)
+                {
+                    handlers = new List<Action<ushort>>(registered);
+                    hasHandlers = handlers.Count > 0;
+                }
+                else
+                {
+                    LogUnknownSegmentSender(state, managerType);
+                    if (state.AllSegmentHandlers.Count == 0)
+                    {
+                        handlers = null;
+                        hasHandlers = false;
+                    }
+                    else
+                    {
+                        handlers = new List<Action<ushort>>(state.AllSegmentHandlers);
+                        hasHandlers = handlers.Count > 0;
+                    }
+                }
             }
 
-            if (!SegmentHandlers.TryGetValue(managerType, out var handlers) || handlers == null || handlers.Count == 0)
-            {
-                LogUnknownSegmentSender(managerType);
-                return NotifyAllSegmentHandlers(segmentId);
-            }
+            if (!hasHandlers || handlers == null)
+                return false;
 
             foreach (var handler in handlers)
                 handler(segmentId);
 
-            return handlers.Count > 0;
+            return true;
         }
 
         internal static bool NotifyNodeModification(string managerType, ushort nodeId)
         {
-            if (string.IsNullOrEmpty(managerType))
+            var state = GetState();
+            List<Action<ushort>> handlers;
+            bool hasHandlers;
+
+            lock (state.SyncRoot)
             {
-                LogUnknownNodeSender(managerType);
-                return NotifyAllNodeHandlers(nodeId);
+                if (!string.IsNullOrEmpty(managerType) &&
+                    state.NodeHandlers.TryGetValue(managerType, out var registered) &&
+                    registered != null && registered.Count > 0)
+                {
+                    handlers = new List<Action<ushort>>(registered);
+                    hasHandlers = handlers.Count > 0;
+                }
+                else
+                {
+                    LogUnknownNodeSender(state, managerType);
+                    if (state.AllNodeHandlers.Count == 0)
+                    {
+                        handlers = null;
+                        hasHandlers = false;
+                    }
+                    else
+                    {
+                        handlers = new List<Action<ushort>>(state.AllNodeHandlers);
+                        hasHandlers = handlers.Count > 0;
+                    }
+                }
             }
 
-            if (!NodeHandlers.TryGetValue(managerType, out var handlers) || handlers == null || handlers.Count == 0)
-            {
-                LogUnknownNodeSender(managerType);
-                return NotifyAllNodeHandlers(nodeId);
-            }
+            if (!hasHandlers || handlers == null)
+                return false;
 
             foreach (var handler in handlers)
                 handler(nodeId);
 
-            return handlers.Count > 0;
+            return true;
         }
 
         internal static void NotifyLaneArrows(uint laneId)
         {
-            foreach (var handler in LaneArrowHandlers)
+            var state = GetState();
+            Action<uint>[] handlers;
+
+            lock (state.SyncRoot)
+            {
+                if (state.LaneArrowHandlers.Count == 0)
+                    return;
+
+                handlers = state.LaneArrowHandlers.ToArray();
+            }
+
+            foreach (var handler in handlers)
                 handler(laneId);
         }
 
         internal static void NotifyLaneConnections(uint laneId)
         {
-            foreach (var handler in LaneConnectionHandlers)
+            var state = GetState();
+            Action<uint>[] handlers;
+
+            lock (state.SyncRoot)
+            {
+                if (state.LaneConnectionHandlers.Count == 0)
+                    return;
+
+                handlers = state.LaneConnectionHandlers.ToArray();
+            }
+
+            foreach (var handler in handlers)
                 handler(laneId);
         }
 
         internal static void NotifyLaneConnectionsForNode(ushort nodeId)
         {
-            foreach (var handler in LaneConnectionNodeHandlers)
+            var state = GetState();
+            Action<ushort>[] handlers;
+
+            lock (state.SyncRoot)
+            {
+                if (state.LaneConnectionNodeHandlers.Count == 0)
+                    return;
+
+                handlers = state.LaneConnectionNodeHandlers.ToArray();
+            }
+
+            foreach (var handler in handlers)
                 handler(nodeId);
         }
 
-        private static bool NotifyAllSegmentHandlers(ushort segmentId)
+        private static RegistryState GetState()
         {
-            if (AllSegmentHandlers.Count == 0)
-                return false;
+            var current = AppDomain.CurrentDomain.GetData(RegistryStateKey) as RegistryState;
+            if (current != null)
+                return current;
 
-            foreach (var handler in AllSegmentHandlers)
-                handler(segmentId);
+            lock (RegistryStateLock)
+            {
+                current = AppDomain.CurrentDomain.GetData(RegistryStateKey) as RegistryState;
+                if (current != null)
+                    return current;
 
-            return true;
+                current = new RegistryState();
+                AppDomain.CurrentDomain.SetData(RegistryStateKey, current);
+                return current;
+            }
         }
 
-        private static bool NotifyAllNodeHandlers(ushort nodeId)
-        {
-            if (AllNodeHandlers.Count == 0)
-                return false;
-
-            foreach (var handler in AllNodeHandlers)
-                handler(nodeId);
-
-            return true;
-        }
-
-        private static void LogUnknownSegmentSender(string managerType)
+        private static void LogUnknownSegmentSender(RegistryState state, string managerType)
         {
             var key = managerType ?? string.Empty;
-            if (!UnknownSegmentSenders.Add(key))
+            if (state.UnknownSegmentSenders.Contains(key))
                 return;
+
+            state.UnknownSegmentSenders.Add(key);
 
             Log.Warn(
                 LogCategory.Diagnostics,
@@ -176,16 +257,42 @@ namespace CSM.TmpeSync.TmpeBridge
                 string.IsNullOrEmpty(managerType) ? "<null>" : managerType);
         }
 
-        private static void LogUnknownNodeSender(string managerType)
+        private static void LogUnknownNodeSender(RegistryState state, string managerType)
         {
             var key = managerType ?? string.Empty;
-            if (!UnknownNodeSenders.Add(key))
+            if (state.UnknownNodeSenders.Contains(key))
                 return;
+
+            state.UnknownNodeSenders.Add(key);
 
             Log.Warn(
                 LogCategory.Diagnostics,
                 "TM:PE node change sender not recognised | type={0}",
                 string.IsNullOrEmpty(managerType) ? "<null>" : managerType);
+        }
+
+        private sealed class RegistryState
+        {
+            internal readonly object SyncRoot = new object();
+
+            internal readonly Dictionary<string, List<Action<ushort>>> SegmentHandlers =
+                new Dictionary<string, List<Action<ushort>>>(StringComparer.Ordinal);
+
+            internal readonly Dictionary<string, List<Action<ushort>>> NodeHandlers =
+                new Dictionary<string, List<Action<ushort>>>(StringComparer.Ordinal);
+
+            internal readonly List<Action<ushort>> AllSegmentHandlers = new List<Action<ushort>>();
+            internal readonly List<Action<ushort>> AllNodeHandlers = new List<Action<ushort>>();
+
+            internal readonly HashSet<string> UnknownSegmentSenders =
+                new HashSet<string>(StringComparer.Ordinal);
+
+            internal readonly HashSet<string> UnknownNodeSenders =
+                new HashSet<string>(StringComparer.Ordinal);
+
+            internal readonly List<Action<uint>> LaneArrowHandlers = new List<Action<uint>>();
+            internal readonly List<Action<uint>> LaneConnectionHandlers = new List<Action<uint>>();
+            internal readonly List<Action<ushort>> LaneConnectionNodeHandlers = new List<Action<ushort>>();
         }
     }
 }
