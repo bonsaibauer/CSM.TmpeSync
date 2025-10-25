@@ -193,7 +193,7 @@ namespace CSM.TmpeSync.TmpeBridge
         {
             try
             {
-                var sanitizedTargets = (targetLaneIds ?? Array.Empty<uint>())
+                var sanitizedTargets = (targetLaneIds ?? new uint[0])
                     .Where(id => id != 0)
                     .Distinct()
                     .ToArray();

@@ -68,11 +68,11 @@ namespace CSM.TmpeSync.Util
             if (string.Equals(role, "Server", StringComparison.OrdinalIgnoreCase) ||
                 string.Equals(role, "Client", StringComparison.OrdinalIgnoreCase))
             {
-                Tmpe.TmpeBridgeEventGateway.Refresh();
+                TmpeBridgeEventGateway.Refresh();
             }
             else
             {
-                Tmpe.TmpeBridgeEventGateway.Disable();
+                TmpeBridgeEventGateway.Disable();
             }
 
             DeferredApply.Reset();
