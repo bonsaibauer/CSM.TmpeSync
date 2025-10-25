@@ -28,6 +28,7 @@ namespace CSM.TmpeSync.TmpeBridge
         private static bool _initializationAttempted;
         private static bool _loggedMissingAssembly;
         private static readonly object FeatureDiagnosticsLock = new object();
+        private static readonly object[] EmptyInvocationParameters = new object[0];
         private static readonly Dictionary<string, string> FeatureUnsupportedReasons = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         private static readonly Dictionary<string, HashSet<string>> FeatureGapDetails = new Dictionary<string, HashSet<string>>(StringComparer.OrdinalIgnoreCase);
         private static readonly Dictionary<string, string> FeatureKeyAliases = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
@@ -883,7 +884,7 @@ namespace CSM.TmpeSync.TmpeBridge
                                 break;
                             }
 
-                            method.Invoke(manager, Array.Empty<object>());
+                            method.Invoke(manager, EmptyInvocationParameters);
                             Log.Info(LogCategory.Synchronization, "TM:PE clear traffic replay applied via API");
                         }
                         catch (Exception ex)
