@@ -258,8 +258,10 @@
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="ParkingRestrictionsFeature.cs" />
     <Compile Include="Network\Contracts\Applied\ParkingRestrictionApplied.cs" />
+    <Compile Include="Network\Contracts\Applied\ParkingRestrictionBatchApplied.cs" />
     <Compile Include="Network\Contracts\Requests\SetParkingRestrictionRequest.cs" />
     <Compile Include="Network\Handlers\ParkingRestrictionAppliedHandler.cs" />
+    <Compile Include="Network\Handlers\ParkingRestrictionBatchAppliedHandler.cs" />
     <Compile Include="Network\Handlers\SetParkingRestrictionRequestHandler.cs" />
     <Compile Include="Snapshot\ParkingRestrictionSnapshotProvider.cs" />
   </ItemGroup>

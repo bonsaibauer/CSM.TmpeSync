@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using CSM.TmpeSync.Network.Contracts.Applied;
 using CSM.TmpeSync.Network.Contracts.Requests;
 using CSM.TmpeSync.Network.Handlers;
@@ -9,6 +10,9 @@ namespace CSM.TmpeSync.ParkingRestrictions
 {
     public static class ParkingRestrictionsFeature
     {
+        private static readonly ChangeBatcher<ParkingRestrictionBatchApplied.Entry> ParkingRestrictionBatcher =
+            new ChangeBatcher<ParkingRestrictionBatchApplied.Entry>(FlushParkingRestrictionBatch);
+
         public static void Register()
         {
             SnapshotDispatcher.RegisterProvider(new ParkingRestrictionSnapshotProvider());
@@ -21,12 +25,22 @@ namespace CSM.TmpeSync.ParkingRestrictions
         {
             if (TmpeBridgeAdapter.TryGetParkingRestriction(segmentId, out var state))
             {
-                TmpeBridgeChangeDispatcher.Broadcast(new ParkingRestrictionApplied
+                ParkingRestrictionBatcher.Enqueue(new ParkingRestrictionBatchApplied.Entry
                 {
                     SegmentId = segmentId,
                     State = state?.Clone() ?? new ParkingRestrictionState()
                 });
             }
+        }
+
+        private static void FlushParkingRestrictionBatch(IReadOnlyList<ParkingRestrictionBatchApplied.Entry> entries)
+        {
+            if (entries == null || entries.Count == 0)
+                return;
+
+            var command = new ParkingRestrictionBatchApplied();
+            command.Items.AddRange(entries);
+            TmpeBridgeChangeDispatcher.Broadcast(command);
         }
     }
 }

@@ -9,18 +9,23 @@ namespace CSM.TmpeSync.Network.Handlers
     {
         protected override void Handle(PrioritySignApplied cmd)
         {
-            Log.Info("Received PrioritySignApplied node={0} segment={1} sign={2}", cmd.NodeId, cmd.SegmentId, cmd.SignType);
+            ProcessEntry(cmd.NodeId, cmd.SegmentId, cmd.SignType, "single_command");
+        }
 
-            if (NetworkUtil.NodeExists(cmd.NodeId) && NetworkUtil.SegmentExists(cmd.SegmentId))
+        internal static void ProcessEntry(ushort nodeId, ushort segmentId, PrioritySignType signType, string origin)
+        {
+            Log.Info("Received PrioritySignApplied node={0} segment={1} sign={2} origin={3}", nodeId, segmentId, signType, origin ?? "unknown");
+
+            if (NetworkUtil.NodeExists(nodeId) && NetworkUtil.SegmentExists(segmentId))
             {
-                if (TmpeBridgeAdapter.ApplyPrioritySign(cmd.NodeId, cmd.SegmentId, cmd.SignType))
-                    Log.Info("Applied remote priority sign node={0} segment={1} -> {2}", cmd.NodeId, cmd.SegmentId, cmd.SignType);
+                if (TmpeBridgeAdapter.ApplyPrioritySign(nodeId, segmentId, signType))
+                    Log.Info("Applied remote priority sign node={0} segment={1} -> {2}", nodeId, segmentId, signType);
                 else
-                    Log.Error("Failed to apply remote priority sign node={0} segment={1}", cmd.NodeId, cmd.SegmentId);
+                    Log.Error("Failed to apply remote priority sign node={0} segment={1}", nodeId, segmentId);
             }
             else
             {
-                Log.Warn("Node {0} or segment {1} missing – skipping priority sign apply.", cmd.NodeId, cmd.SegmentId);
+                Log.Warn("Node {0} or segment {1} missing – skipping priority sign apply (origin={2}).", nodeId, segmentId, origin ?? "unknown");
             }
         }
     }

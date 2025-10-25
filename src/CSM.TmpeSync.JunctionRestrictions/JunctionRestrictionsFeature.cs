@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using CSM.TmpeSync.JunctionRestrictions.Util;
 using CSM.TmpeSync.Network.Contracts.Applied;
 using CSM.TmpeSync.Network.Contracts.States;
@@ -10,6 +11,9 @@ namespace CSM.TmpeSync.JunctionRestrictions
 {
     public static class JunctionRestrictionsFeature
     {
+        private static readonly ChangeBatcher<JunctionRestrictionsBatchApplied.Entry> JunctionRestrictionsBatcher =
+            new ChangeBatcher<JunctionRestrictionsBatchApplied.Entry>(FlushJunctionRestrictionsBatch);
+
         public static void Register()
         {
             SnapshotDispatcher.RegisterProvider(new JunctionRestrictionsSnapshotProvider());
@@ -27,12 +31,22 @@ namespace CSM.TmpeSync.JunctionRestrictions
                     state,
                     "change_dispatcher");
 
-                TmpeBridgeChangeDispatcher.Broadcast(new JunctionRestrictionsApplied
+                JunctionRestrictionsBatcher.Enqueue(new JunctionRestrictionsBatchApplied.Entry
                 {
                     NodeId = nodeId,
                     State = preparedState?.Clone() ?? new JunctionRestrictionsState()
                 });
             }
+        }
+
+        private static void FlushJunctionRestrictionsBatch(IReadOnlyList<JunctionRestrictionsBatchApplied.Entry> entries)
+        {
+            if (entries == null || entries.Count == 0)
+                return;
+
+            var command = new JunctionRestrictionsBatchApplied();
+            command.Items.AddRange(entries);
+            TmpeBridgeChangeDispatcher.Broadcast(command);
         }
     }
 }

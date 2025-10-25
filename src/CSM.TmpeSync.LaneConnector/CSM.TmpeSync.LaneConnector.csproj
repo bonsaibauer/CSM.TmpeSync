@@ -258,8 +258,10 @@
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="LaneConnectorFeature.cs" />
     <Compile Include="Network\Contracts\Applied\LaneConnectionsApplied.cs" />
+    <Compile Include="Network\Contracts\Applied\LaneConnectionsBatchApplied.cs" />
     <Compile Include="Network\Contracts\Requests\SetLaneConnectionsRequest.cs" />
     <Compile Include="Network\Handlers\LaneConnectionsAppliedHandler.cs" />
+    <Compile Include="Network\Handlers\LaneConnectionsBatchAppliedHandler.cs" />
     <Compile Include="Network\Handlers\SetLaneConnectionsRequestHandler.cs" />
     <Compile Include="Snapshot\LaneConnectionsSnapshotProvider.cs" />
   </ItemGroup>

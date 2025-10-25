@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using ColossalFramework;
 using CSM.TmpeSync.Network.Contracts.Applied;
 using CSM.TmpeSync.Network.Handlers;
@@ -10,6 +11,9 @@ namespace CSM.TmpeSync.SpeedLimits
 {
     public static class SpeedLimitsFeature
     {
+        private static readonly ChangeBatcher<SpeedLimitBatchApplied.Entry> SpeedLimitBatcher =
+            new ChangeBatcher<SpeedLimitBatchApplied.Entry>(FlushSpeedLimitBatch);
+
         public static void Register()
         {
             SnapshotDispatcher.RegisterProvider(new SpeedLimitSnapshotProvider());
@@ -50,7 +54,7 @@ namespace CSM.TmpeSync.SpeedLimits
                         defaultKmh,
                         "change_dispatcher");
 
-                    TmpeBridgeChangeDispatcher.Broadcast(new SpeedLimitApplied
+                    SpeedLimitBatcher.Enqueue(new SpeedLimitBatchApplied.Entry
                     {
                         LaneId = laneId,
                         Speed = encoded,
@@ -61,6 +65,16 @@ namespace CSM.TmpeSync.SpeedLimits
 
                 laneId = lane.m_nextLane;
             }
+        }
+
+        private static void FlushSpeedLimitBatch(IReadOnlyList<SpeedLimitBatchApplied.Entry> entries)
+        {
+            if (entries == null || entries.Count == 0)
+                return;
+
+            var command = new SpeedLimitBatchApplied();
+            command.Items.AddRange(entries);
+            TmpeBridgeChangeDispatcher.Broadcast(command);
         }
     }
 }

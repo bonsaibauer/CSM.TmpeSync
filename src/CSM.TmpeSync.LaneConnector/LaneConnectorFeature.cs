@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using ColossalFramework;
 using CSM.TmpeSync.Network.Contracts.Applied;
 using CSM.TmpeSync.Network.Contracts.Requests;
@@ -11,6 +12,9 @@ namespace CSM.TmpeSync.LaneConnector
 {
     public static class LaneConnectorFeature
     {
+        private static readonly ChangeBatcher<LaneConnectionsBatchApplied.Entry> LaneConnectionsBatcher =
+            new ChangeBatcher<LaneConnectionsBatchApplied.Entry>(FlushLaneConnectionsBatch);
+
         public static void Register()
         {
             SnapshotDispatcher.RegisterProvider(new LaneConnectionsSnapshotProvider());
@@ -44,7 +48,7 @@ namespace CSM.TmpeSync.LaneConnector
                 targetLaneIndexes[i] = targetIndex;
             }
 
-            TmpeBridgeChangeDispatcher.Broadcast(new LaneConnectionsApplied
+            LaneConnectionsBatcher.Enqueue(new LaneConnectionsBatchApplied.Entry
             {
                 SourceLaneId = laneId,
                 SourceSegmentId = segmentId,
@@ -82,6 +86,16 @@ namespace CSM.TmpeSync.LaneConnector
                     laneId = lane.m_nextLane;
                 }
             }
+        }
+
+        private static void FlushLaneConnectionsBatch(IReadOnlyList<LaneConnectionsBatchApplied.Entry> entries)
+        {
+            if (entries == null || entries.Count == 0)
+                return;
+
+            var command = new LaneConnectionsBatchApplied();
+            command.Items.AddRange(entries);
+            TmpeBridgeChangeDispatcher.Broadcast(command);
         }
     }
 }
