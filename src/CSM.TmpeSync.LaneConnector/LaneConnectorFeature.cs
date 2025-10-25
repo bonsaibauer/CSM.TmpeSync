@@ -18,7 +18,7 @@ namespace CSM.TmpeSync.LaneConnector
 
         public static void Register()
         {
-            SnapshotDispatcher.RegisterProvider(new LaneConnectionsSnapshotProvider());
+            // Snapshot export removed; feature now operates independently
             TmpeBridge.RegisterLaneConnectionChangeHandler(HandleLaneConnectionChange);
             TmpeBridge.RegisterLaneConnectionNodeHandler(HandleLaneConnectionsForNode);
         }
@@ -66,24 +66,23 @@ namespace CSM.TmpeSync.LaneConnector
                 return;
 
             ref var node = ref NetManager.instance.m_nodes.m_buffer[nodeId];
-            for (var i = 0; i < 8; i++)
+            for (int i = 0; i < 8; i++)
             {
                 var segmentId = node.GetSegment(i);
                 if (segmentId == 0 || !NetworkUtil.SegmentExists(segmentId))
                     continue;
 
                 ref var segment = ref NetManager.instance.m_segments.m_buffer[segmentId];
-                var lanes = segment.Info?.m_lanes;
-                if (lanes == null)
+                var info = segment.Info;
+                if (info?.m_lanes == null)
                     continue;
 
                 uint laneId = segment.m_lanes;
-                for (int laneIndex = 0; laneId != 0 && laneIndex < lanes.Length; laneIndex++)
+                for (int laneIndex = 0; laneId != 0 && laneIndex < info.m_lanes.Length; laneIndex++)
                 {
                     ref var lane = ref NetManager.instance.m_lanes.m_buffer[laneId];
                     if ((lane.m_flags & (uint)NetLane.Flags.Created) != 0)
                         HandleLaneConnectionChange(laneId);
-
                     laneId = lane.m_nextLane;
                 }
             }

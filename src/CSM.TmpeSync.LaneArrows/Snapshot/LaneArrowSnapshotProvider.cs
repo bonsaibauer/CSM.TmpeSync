@@ -12,9 +12,10 @@ namespace CSM.TmpeSync.Snapshot
             Log.Info(LogCategory.Snapshot, "Exporting TM:PE lane arrow snapshot");
             NetworkUtil.ForEachLane(laneId =>
             {
-                if (!TmpeBridge.TryGetLaneArrows(laneId, out var arrows))
+                if (!TmpeBridge.TryGetLaneArrows(laneId, out var arrowsRaw))
                     return;
 
+                var arrows = (LaneArrowFlags)arrowsRaw;
                 if (arrows == LaneArrowFlags.None)
                     return;
 

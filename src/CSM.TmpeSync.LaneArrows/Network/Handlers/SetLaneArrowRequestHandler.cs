@@ -72,7 +72,7 @@ namespace CSM.TmpeSync.Network.Handlers
                         return;
                     }
 
-                    if (TmpeBridge.ApplyLaneArrows(simLaneId, cmd.Arrows))
+                    if (TmpeBridge.ApplyLaneArrows(simLaneId, (int)cmd.Arrows))
                     {
                         if (!NetworkUtil.TryGetLaneLocation(simLaneId, out simSegmentId, out simLaneIndex))
                         {
@@ -82,7 +82,7 @@ namespace CSM.TmpeSync.Network.Handlers
 
                         var resultingArrows = cmd.Arrows;
                         if (TmpeBridge.TryGetLaneArrows(simLaneId, out var appliedArrows))
-                            resultingArrows = appliedArrows;
+                            resultingArrows = (LaneArrowFlags)appliedArrows;
 
                         Log.Info(LogCategory.Synchronization, "Applied lane arrows | laneId={0} segmentId={1} laneIndex={2} arrows={3} action=broadcast", simLaneId, simSegmentId, simLaneIndex, resultingArrows);
                         CsmBridge.SendToAll(new LaneArrowApplied

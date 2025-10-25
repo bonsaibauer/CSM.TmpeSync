@@ -1,7 +1,7 @@
 using System;
 using CSM.TmpeSync.Network.Contracts.States;
 
-namespace CSM.TmpeSync.TmpeBridge
+namespace CSM.TmpeSync.SpeedLimits.Util
 {
     internal static class SpeedLimitCodec
     {

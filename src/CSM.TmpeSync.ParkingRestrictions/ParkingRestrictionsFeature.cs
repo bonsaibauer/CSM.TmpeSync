@@ -17,7 +17,7 @@ namespace CSM.TmpeSync.ParkingRestrictions
 
         public static void Register()
         {
-            SnapshotDispatcher.RegisterProvider(new ParkingRestrictionSnapshotProvider());
+            // Snapshot export removed; feature now operates independently
             TmpeBridge.RegisterSegmentChangeHandler(HandleSegmentChange);
         }
 

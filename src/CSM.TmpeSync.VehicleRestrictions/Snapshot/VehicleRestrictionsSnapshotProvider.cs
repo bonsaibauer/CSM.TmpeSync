@@ -12,9 +12,10 @@ namespace CSM.TmpeSync.Snapshot
             Log.Info(LogCategory.Snapshot, "Exporting TM:PE vehicle restrictions snapshot");
             NetworkUtil.ForEachLane(laneId =>
             {
-                if (!TmpeBridge.TryGetVehicleRestrictions(laneId, out var restrictions))
+                if (!TmpeBridge.TryGetVehicleRestrictions(laneId, out var restrictionsRaw))
                     return;
 
+                var restrictions = (VehicleRestrictionFlags)restrictionsRaw;
                 if (restrictions == VehicleRestrictionFlags.None)
                     return;
 

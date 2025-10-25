@@ -74,11 +74,11 @@ namespace CSM.TmpeSync.Network.Handlers
                         return;
                     }
 
-                    if (TmpeBridge.ApplyPrioritySign(cmd.NodeId, cmd.SegmentId, cmd.SignType))
+                    if (TmpeBridge.ApplyPrioritySign(cmd.NodeId, cmd.SegmentId, (byte)cmd.SignType))
                     {
                         var resultingSign = cmd.SignType;
                         if (TmpeBridge.TryGetPrioritySign(cmd.NodeId, cmd.SegmentId, out var appliedSign))
-                            resultingSign = appliedSign;
+                            resultingSign = (PrioritySignType)appliedSign;
                         Log.Info(
                             LogCategory.Synchronization,
                             "Priority sign applied | nodeId={0} segmentId={1} sign={2} action=broadcast",

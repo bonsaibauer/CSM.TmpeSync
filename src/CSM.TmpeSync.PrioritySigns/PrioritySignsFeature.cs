@@ -17,7 +17,7 @@ namespace CSM.TmpeSync.PrioritySigns
 
         public static void Register()
         {
-            SnapshotDispatcher.RegisterProvider(new PrioritySignSnapshotProvider());
+            // Snapshot export removed; feature now operates independently
             TmpeBridge.RegisterNodeChangeHandler(HandleNodeChange);
         }
 
@@ -36,8 +36,9 @@ namespace CSM.TmpeSync.PrioritySigns
                 if (!NetworkUtil.SegmentExists(segmentId))
                     continue;
 
-                if (TmpeBridge.TryGetPrioritySign(nodeId, segmentId, out var signType))
+                if (TmpeBridge.TryGetPrioritySign(nodeId, segmentId, out var signTypeRaw))
                 {
+                    var signType = (CSM.TmpeSync.Network.Contracts.States.PrioritySignType)signTypeRaw;
                     PrioritySignBatcher.Enqueue(new PrioritySignBatchApplied.Entry
                     {
                         NodeId = nodeId,

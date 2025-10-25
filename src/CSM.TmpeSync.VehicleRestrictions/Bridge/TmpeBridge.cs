@@ -1,31 +1,26 @@
 using System;
 using CSM.API.Commands;
-using CSM.TmpeSync.TmpeBridge;
 
 namespace CSM.TmpeSync.VehicleRestrictions.Bridge
 {
     public static class TmpeBridge
     {
+        private static readonly System.Collections.Generic.List<Action<ushort>> SegmentHandlers = new System.Collections.Generic.List<Action<ushort>>();
         public static void RegisterSegmentChangeHandler(Action<ushort> handler)
         {
-            TmpeBridgeFeatureRegistry.RegisterSegmentHandler(
-                TmpeBridgeFeatureRegistry.VehicleRestrictionsManagerType,
-                handler);
+            if (handler == null) return;
+            lock (SegmentHandlers) { if (!SegmentHandlers.Contains(handler)) SegmentHandlers.Add(handler); }
+            TmpeEventGateway.Enable();
         }
 
-        public static bool TryGetVehicleRestrictions(uint laneId, out ushort restrictions)
-        {
-            return TmpeBridgeAdapter.TryGetVehicleRestrictions(laneId, out restrictions);
-        }
+        public static bool TryGetVehicleRestrictions(uint laneId, out ushort restrictions) => VehicleRestrictionsAdapter.TryGetVehicleRestrictions(laneId, out restrictions);
 
-        public static bool ApplyVehicleRestrictions(uint laneId, ushort restrictions)
-        {
-            return TmpeBridgeAdapter.ApplyVehicleRestrictions(laneId, restrictions);
-        }
+        public static bool ApplyVehicleRestrictions(uint laneId, ushort restrictions) => VehicleRestrictionsAdapter.ApplyVehicleRestrictions(laneId, restrictions);
 
         public static void Broadcast(CommandBase command)
         {
-            TmpeBridgeChangeDispatcher.Broadcast(command);
+            if (command == null) return;
+            if (CsmBridge.IsServerInstance()) CsmBridge.SendToAll(command); else CsmBridge.SendToServer(command);
         }
     }
 }

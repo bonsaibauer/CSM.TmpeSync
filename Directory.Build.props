@@ -4,15 +4,23 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Compile Include="$(RepoRoot)\src\Shared\Util\**\*.cs"
+    <Compile Include="$(RepoRoot)\src\CSM.TmpeSync\Util\**\*.cs"
              Link="Infrastructure\Util\%(RecursiveDir)%(Filename)%(Extension)" />
-    <Compile Include="$(RepoRoot)\src\Shared\Snapshot\**\*.cs"
-             Link="Infrastructure\Snapshot\%(RecursiveDir)%(Filename)%(Extension)" />
-    <Compile Include="$(RepoRoot)\src\Shared\Network\**\*.cs"
+    <Compile Include="$(RepoRoot)\src\CSM.TmpeSync\Network\**\*.cs"
              Link="Infrastructure\Network\%(RecursiveDir)%(Filename)%(Extension)" />
-    <Compile Include="$(RepoRoot)\src\Shared\CsmBridge\**\*.cs"
+    <Compile Include="$(RepoRoot)\src\CSM.TmpeSync\Bridge\**\*.cs"
              Link="Bridge\CSM\%(RecursiveDir)%(Filename)%(Extension)" />
-    <Compile Include="$(RepoRoot)\src\Shared\TmpeBridge\**\*.cs"
-             Link="Bridge\TMPE\%(RecursiveDir)%(Filename)%(Extension)" />
+  </ItemGroup>
+
+  <!-- Local TM:PE references to satisfy compile-time API usage when TM:PE isn't installed under Steam paths. -->
+  <ItemGroup>
+    <Reference Include="TrafficManager" Condition="Exists('$(RepoRoot)\lib\TMPE\TrafficManager.dll')">
+      <HintPath>$(RepoRoot)\lib\TMPE\TrafficManager.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="TMPE.API" Condition="Exists('$(RepoRoot)\lib\TMPE\TMPE.API.dll')">
+      <HintPath>$(RepoRoot)\lib\TMPE\TMPE.API.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
   </ItemGroup>
 </Project>

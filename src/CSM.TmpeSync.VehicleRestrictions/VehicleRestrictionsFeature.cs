@@ -18,7 +18,7 @@ namespace CSM.TmpeSync.VehicleRestrictions
 
         public static void Register()
         {
-            SnapshotDispatcher.RegisterProvider(new VehicleRestrictionsSnapshotProvider());
+            // Snapshot export removed; feature now operates independently
             TmpeBridge.RegisterSegmentChangeHandler(HandleSegmentChange);
         }
 
@@ -39,8 +39,9 @@ namespace CSM.TmpeSync.VehicleRestrictions
                     continue;
                 }
 
-                if (TmpeBridge.TryGetVehicleRestrictions(laneId, out var restrictions))
+                if (TmpeBridge.TryGetVehicleRestrictions(laneId, out var restrictionsRaw))
                 {
+                    var restrictions = (VehicleRestrictionFlags)restrictionsRaw;
                     if (NetworkUtil.TryGetLaneLocation(laneId, out var resolvedSegmentId, out var resolvedLaneIndex))
                     {
                         VehicleRestrictionsBatcher.Enqueue(new VehicleRestrictionsBatchApplied.Entry

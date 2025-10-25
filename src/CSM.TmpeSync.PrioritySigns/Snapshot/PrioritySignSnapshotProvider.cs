@@ -14,9 +14,10 @@ namespace CSM.TmpeSync.Snapshot
             {
                 NetworkUtil.ForEachSegment(segmentId =>
                 {
-                    if (!TmpeBridge.TryGetPrioritySign(nodeId, segmentId, out var signType))
+                    if (!TmpeBridge.TryGetPrioritySign(nodeId, segmentId, out var signRaw))
                         return;
 
+                    var signType = (PrioritySignType)signRaw;
                     if (signType == PrioritySignType.None)
                         return;
 

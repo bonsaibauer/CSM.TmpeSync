@@ -16,7 +16,7 @@ namespace CSM.TmpeSync.LaneArrows
 
         public static void Register()
         {
-            SnapshotDispatcher.RegisterProvider(new LaneArrowSnapshotProvider());
+            // Snapshot export removed; feature now operates independently
             TmpeBridge.RegisterLaneArrowChangeHandler(HandleLaneArrowChange);
         }
 
@@ -36,7 +36,7 @@ namespace CSM.TmpeSync.LaneArrows
                 LaneId = laneId,
                 SegmentId = segmentId,
                 LaneIndex = laneIndex,
-                Arrows = arrows
+                Arrows = (CSM.TmpeSync.Network.Contracts.States.LaneArrowFlags)arrows
             });
         }
 

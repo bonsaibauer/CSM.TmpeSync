@@ -17,7 +17,7 @@ namespace CSM.TmpeSync.JunctionRestrictions
 
         public static void Register()
         {
-            SnapshotDispatcher.RegisterProvider(new JunctionRestrictionsSnapshotProvider());
+            // Snapshot export removed; feature now operates independently
             TmpeBridge.RegisterNodeChangeHandler(HandleNodeChange);
         }
 

@@ -8,11 +8,11 @@ using CSM.TmpeSync.ParkingRestrictions;
 using CSM.TmpeSync.PrioritySigns;
 using CSM.TmpeSync.SpeedLimits;
 using CSM.TmpeSync.ToggleTrafficLights;
-using CSM.TmpeSync.TmpeBridge;
+
 using CSM.TmpeSync.Util;
 using CSM.TmpeSync.VehicleRestrictions;
 using Log = CSM.TmpeSync.Util.Log;
-using CSM.TmpeSync.Bridge;
+using CSM.TmpeSync.SpeedLimits.Bridge;
 
 namespace CSM.TmpeSync.Mod
 {
@@ -43,14 +43,14 @@ namespace CSM.TmpeSync.Mod
 
                 try
                 {
-                    CsmBridgeMultiplayerObserver.Update();
+                    
                 }
                 catch (Exception ex)
                 {
                     Log.Warn(LogCategory.Diagnostics, "CSM role refresh failed during handler registration | error={0}", ex);
                 }
 
-                TmpeBridgeEventGateway.Enable();
+                
             }
         }
 
@@ -59,7 +59,7 @@ namespace CSM.TmpeSync.Mod
             using (CsmBridge.StartIgnore())
             {
                 Log.Info(LogCategory.Network, "Unregistering TM:PE synchronization handlers via CSM connection.");
-                TmpeBridgeEventGateway.Disable();
+                
             }
         }
     }

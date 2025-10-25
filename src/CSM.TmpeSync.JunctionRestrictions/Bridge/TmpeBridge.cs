@@ -1,32 +1,34 @@
 using System;
 using CSM.API.Commands;
 using CSM.TmpeSync.Network.Contracts.States;
-using CSM.TmpeSync.TmpeBridge;
 
 namespace CSM.TmpeSync.JunctionRestrictions.Bridge
 {
     public static class TmpeBridge
     {
+        private static readonly System.Collections.Generic.List<Action<ushort>> NodeHandlers = new System.Collections.Generic.List<Action<ushort>>();
         public static void RegisterNodeChangeHandler(Action<ushort> handler)
         {
-            TmpeBridgeFeatureRegistry.RegisterNodeHandler(
-                TmpeBridgeFeatureRegistry.JunctionRestrictionsManagerType,
-                handler);
+            if (handler == null) return;
+            lock (NodeHandlers) { if (!NodeHandlers.Contains(handler)) NodeHandlers.Add(handler); }
+            TmpeEventGateway.Enable();
         }
 
-        public static bool TryGetJunctionRestrictions(ushort nodeId, out JunctionRestrictionsState state)
+        internal static void NotifyNodeChanged(ushort nodeId)
         {
-            return TmpeBridgeAdapter.TryGetJunctionRestrictions(nodeId, out state);
+            Action<ushort>[] copy;
+            lock (NodeHandlers) copy = NodeHandlers.ToArray();
+            foreach (var h in copy) { try { h(nodeId); } catch { } }
         }
 
-        public static bool ApplyJunctionRestrictions(ushort nodeId, JunctionRestrictionsState state)
-        {
-            return TmpeBridgeAdapter.ApplyJunctionRestrictions(nodeId, state);
-        }
+        public static bool TryGetJunctionRestrictions(ushort nodeId, out JunctionRestrictionsState state) => JunctionRestrictionsAdapter.TryGetJunctionRestrictions(nodeId, out state);
+
+        public static bool ApplyJunctionRestrictions(ushort nodeId, JunctionRestrictionsState state) => JunctionRestrictionsAdapter.ApplyJunctionRestrictions(nodeId, state);
 
         public static void Broadcast(CommandBase command)
         {
-            TmpeBridgeChangeDispatcher.Broadcast(command);
+            if (command == null) return;
+            if (CsmBridge.IsServerInstance()) CsmBridge.SendToAll(command); else CsmBridge.SendToServer(command);
         }
     }
 }

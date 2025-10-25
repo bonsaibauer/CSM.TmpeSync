@@ -3,7 +3,7 @@ using ICities;
 using CSM.TmpeSync.Snapshot;
 using CSM.TmpeSync.Util;
 using Log = CSM.TmpeSync.Util.Log;
-using CSM.TmpeSync.Bridge;
+// using removed: CSM.TmpeSync.Bridge;
 
 namespace CSM.TmpeSync.Mod
 {
@@ -28,44 +28,16 @@ namespace CSM.TmpeSync.Mod
 
             Log.Info(LogCategory.Network, "Awaiting CSM to activate TM:PE synchronization support.");
 
-            CsmBridgeMultiplayerObserver.RoleChanged += Log.HandleRoleChanged;
-
-            try
-            {
-                CsmBridgeMultiplayerObserver.Update();
-            }
-            catch (Exception ex)
-            {
-                Log.Warn(LogCategory.Diagnostics, "Initial CSM role probe failed | error={0}", ex);
-            }
-
-            try
-            {
-                Log.HandleRoleChanged(CsmBridge.DescribeCurrentRole());
-            }
-            catch (Exception ex)
-            {
-                Log.Warn(LogCategory.Diagnostics, "Unable to initialize session log for current role | error={0}", ex);
-            }
-
             FeatureBootstrapper.Register();
-            SnapshotDispatcher.Initialize();
-            TmpeFeatureReadyNotifier.Initialize();
-
-            HealthCheck.Run();
-
-            SnapshotDispatcher.TryExportIfServer("mod_enabled");
+            // Snapshot orchestration and shared readiness notifier removed; features operate independently
+            // HealthCheck removed due to shared bridge removal
         }
 
         public void OnDisabled()
         {
             Log.Info(LogCategory.Lifecycle, "Mod disabled | begin_cleanup");
-            CsmBridgeMultiplayerObserver.RoleChanged -= Log.HandleRoleChanged;
             Log.EndServerSessionLog();
-            TmpeFeatureReadyNotifier.Shutdown();
-            SnapshotDispatcher.Shutdown();
-
-            CsmBridge.LogDiagnostics("OnDisabled");
+            // No shared shutdown required
             Log.Debug(LogCategory.Lifecycle, "Mod disabled | awaiting_next_enable_cycle");
         }
     }

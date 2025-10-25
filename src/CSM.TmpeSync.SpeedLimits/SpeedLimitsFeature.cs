@@ -17,7 +17,7 @@ namespace CSM.TmpeSync.SpeedLimits
 
         public static void Register()
         {
-            SnapshotDispatcher.RegisterProvider(new SpeedLimitSnapshotProvider());
+            // Snapshot export remains managed within feature
             TmpeBridge.RegisterSegmentChangeHandler(HandleSegmentChange);
         }
 
@@ -85,3 +85,4 @@ namespace CSM.TmpeSync.SpeedLimits
         }
     }
 }
+

@@ -40,7 +40,7 @@ namespace CSM.TmpeSync.Network.Handlers
                     resolvedLaneId,
                     resolvedSegmentId,
                     resolvedLaneIndex);
-                if (TmpeBridge.ApplyVehicleRestrictions(resolvedLaneId, restrictions))
+                if (TmpeBridge.ApplyVehicleRestrictions(resolvedLaneId, (ushort)restrictions))
                     Log.Info(LogCategory.Synchronization, "Applied remote vehicle restrictions | laneId={0} segmentId={1} laneIndex={2} restrictions={3}", resolvedLaneId, resolvedSegmentId, resolvedLaneIndex, restrictions);
                 else
                     Log.Error(LogCategory.Synchronization, "Failed to apply remote vehicle restrictions | laneId={0} segmentId={1} laneIndex={2} restrictions={3}", resolvedLaneId, resolvedSegmentId, resolvedLaneIndex, restrictions);

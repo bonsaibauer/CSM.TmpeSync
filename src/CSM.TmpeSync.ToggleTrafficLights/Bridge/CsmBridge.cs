@@ -139,17 +139,6 @@ namespace CSM.TmpeSync.ToggleTrafficLights.Bridge
                 return;
             }
 
-            try
-            {
-                Command.SendToClient?.Invoke(clientId, command);
-                Log.Debug(LogCategory.Network, "Dispatch complete | direction=client type={0} clientId={1}", commandName, clientId);
-                return;
-            }
-            catch
-            {
-                // fall through to reflection path
-            }
-
             if (TrySendToClientInternal(clientId, command, out var failureReason))
             {
                 Log.Debug(LogCategory.Network, "Dispatch complete | direction=client type={0} clientId={1}", commandName, clientId);
@@ -429,3 +418,4 @@ namespace CSM.TmpeSync.ToggleTrafficLights.Bridge
         }
     }
 }
+

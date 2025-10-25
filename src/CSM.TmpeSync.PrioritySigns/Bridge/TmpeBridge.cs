@@ -1,31 +1,33 @@
 using System;
 using CSM.API.Commands;
-using CSM.TmpeSync.TmpeBridge;
 
 namespace CSM.TmpeSync.PrioritySigns.Bridge
 {
     public static class TmpeBridge
     {
+        private static readonly System.Collections.Generic.List<Action<ushort>> NodeHandlers = new System.Collections.Generic.List<Action<ushort>>();
         public static void RegisterNodeChangeHandler(Action<ushort> handler)
         {
-            TmpeBridgeFeatureRegistry.RegisterNodeHandler(
-                TmpeBridgeFeatureRegistry.TrafficPriorityManagerType,
-                handler);
+            if (handler == null) return;
+            lock (NodeHandlers) { if (!NodeHandlers.Contains(handler)) NodeHandlers.Add(handler); }
+            TmpeEventGateway.Enable();
         }
 
-        public static bool TryGetPrioritySign(ushort nodeId, ushort segmentId, out byte signType)
+        internal static void NotifyNodeChanged(ushort nodeId)
         {
-            return TmpeBridgeAdapter.TryGetPrioritySign(nodeId, segmentId, out signType);
+            Action<ushort>[] copy;
+            lock (NodeHandlers) copy = NodeHandlers.ToArray();
+            foreach (var h in copy) { try { h(nodeId); } catch { } }
         }
 
-        public static bool ApplyPrioritySign(ushort nodeId, ushort segmentId, byte signType)
-        {
-            return TmpeBridgeAdapter.ApplyPrioritySign(nodeId, segmentId, signType);
-        }
+        public static bool TryGetPrioritySign(ushort nodeId, ushort segmentId, out byte signType) => PrioritySignsAdapter.TryGetPrioritySign(nodeId, segmentId, out signType);
+
+        public static bool ApplyPrioritySign(ushort nodeId, ushort segmentId, byte signType) => PrioritySignsAdapter.ApplyPrioritySign(nodeId, segmentId, signType);
 
         public static void Broadcast(CommandBase command)
         {
-            TmpeBridgeChangeDispatcher.Broadcast(command);
+            if (command == null) return;
+            if (CsmBridge.IsServerInstance()) CsmBridge.SendToAll(command); else CsmBridge.SendToServer(command);
         }
     }
 }

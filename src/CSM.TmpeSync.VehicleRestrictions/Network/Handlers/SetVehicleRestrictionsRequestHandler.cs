@@ -64,7 +64,7 @@ namespace CSM.TmpeSync.Network.Handlers
                         return;
                     }
 
-                    if (TmpeBridge.ApplyVehicleRestrictions(simLaneId, cmd.Restrictions))
+                    if (TmpeBridge.ApplyVehicleRestrictions(simLaneId, (ushort)cmd.Restrictions))
                     {
                         if (!NetworkUtil.TryGetLaneLocation(simLaneId, out simSegmentId, out simLaneIndex))
                         {
@@ -74,7 +74,7 @@ namespace CSM.TmpeSync.Network.Handlers
 
                         var resultingRestrictions = cmd.Restrictions;
                         if (TmpeBridge.TryGetVehicleRestrictions(simLaneId, out var appliedRestrictions))
-                            resultingRestrictions = appliedRestrictions;
+                            resultingRestrictions = (VehicleRestrictionFlags)appliedRestrictions;
 
                         Log.Info(LogCategory.Synchronization, "Applied vehicle restrictions | laneId={0} segmentId={1} laneIndex={2} restrictions={3} action=broadcast", simLaneId, simSegmentId, simLaneIndex, resultingRestrictions);
                         CsmBridge.SendToAll(new VehicleRestrictionsApplied

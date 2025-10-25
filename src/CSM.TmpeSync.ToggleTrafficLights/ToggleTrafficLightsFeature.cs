@@ -13,7 +13,7 @@ namespace CSM.TmpeSync.ToggleTrafficLights
         {
             Log.Info(LogCategory.Lifecycle, "Registering Toggle Traffic Lights feature integration.");
 
-            SnapshotDispatcher.RegisterProvider(new ToggleTrafficLightSnapshotProvider());
+            // Snapshot export removed; feature now operates independently
             TmpeBridge.RegisterNodeChangeHandler(HandleTrafficLightNodeChange);
             TmpeBridge.SetTrafficLightBroadcastFactory((nodeId, enabled) =>
                 new TrafficLightToggledApplied

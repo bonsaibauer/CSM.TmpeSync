@@ -1,29 +1,48 @@
 using System;
 using CSM.API.Commands;
-using CSM.TmpeSync.TmpeBridge;
 
 namespace CSM.TmpeSync.LaneArrows.Bridge
 {
     public static class TmpeBridge
     {
+        private static readonly System.Collections.Generic.List<Action<uint>> LaneArrowHandlers = new System.Collections.Generic.List<Action<uint>>();
+
         public static void RegisterLaneArrowChangeHandler(Action<uint> handler)
         {
-            TmpeBridgeFeatureRegistry.RegisterLaneArrowHandler(handler);
+            if (handler == null) return;
+            lock (LaneArrowHandlers)
+            {
+                if (!LaneArrowHandlers.Contains(handler))
+                    LaneArrowHandlers.Add(handler);
+            }
+            // Optionally enable a local event hook if implemented
+            TmpeEventGateway.Enable();
+        }
+
+        internal static void NotifyLaneArrowChanged(uint laneId)
+        {
+            Action<uint>[] copy;
+            lock (LaneArrowHandlers) copy = LaneArrowHandlers.ToArray();
+            foreach (var h in copy) { try { h(laneId); } catch { } }
         }
 
         public static bool TryGetLaneArrows(uint laneId, out int arrows)
         {
-            return TmpeBridgeAdapter.TryGetLaneArrows(laneId, out arrows);
+            return LaneArrowAdapter.TryGetLaneArrows(laneId, out arrows);
         }
 
         public static bool ApplyLaneArrows(uint laneId, int arrows)
         {
-            return TmpeBridgeAdapter.ApplyLaneArrows(laneId, arrows);
+            return LaneArrowAdapter.ApplyLaneArrows(laneId, arrows);
         }
 
         public static void Broadcast(CommandBase command)
         {
-            TmpeBridgeChangeDispatcher.Broadcast(command);
+            if (command == null) return;
+            if (CsmBridge.IsServerInstance())
+                CsmBridge.SendToAll(command);
+            else
+                CsmBridge.SendToServer(command);
         }
     }
 }

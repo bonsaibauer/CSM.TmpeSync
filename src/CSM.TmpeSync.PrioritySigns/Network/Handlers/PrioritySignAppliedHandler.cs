@@ -25,7 +25,7 @@ namespace CSM.TmpeSync.Network.Handlers
 
             if (NetworkUtil.NodeExists(nodeId) && NetworkUtil.SegmentExists(segmentId))
             {
-                if (TmpeBridge.ApplyPrioritySign(nodeId, segmentId, signType))
+                if (TmpeBridge.ApplyPrioritySign(nodeId, segmentId, (byte)signType))
                 {
                     Log.Info(
                         LogCategory.Synchronization,
