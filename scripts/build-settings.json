@@ -3,7 +3,6 @@
   "Profiles": {
     "Steam": {
       "GameDirectory": "C:\\Program Files (x86)\\Steam\\steamapps\\common\\Cities_Skylines",
-      "CitiesSkylinesDir": "C:\\Program Files (x86)\\Steam\\steamapps\\common\\Cities_Skylines",
       "ModRootDirectory": "C:\\Users\\mail\\AppData\\Local\\Colossal Order\\Cities_Skylines\\Addons\\Mods",
       "ModDirectory": "C:\\Users\\mail\\AppData\\Local\\Colossal Order\\Cities_Skylines\\Addons\\Mods\\CSM.TmpeSync",
       "SteamModsDir": "C:\\Program Files (x86)\\Steam\\steamapps\\workshop\\content\\255710",
