@@ -1,0 +1,37 @@
+2025-10-25 15:12:32.141 [Info] [Lifecycle] Mod enabled | action=validate_dependencies
+2025-10-25 15:12:32.142 [Info] [Configuration] Logging initialized | debug=ENABLED path=C:\Users\mail\AppData\Local\Colossal Order\Cities_Skylines\CSM.TmpeSync\clientlog-2025-10-25.log
+2025-10-25 15:12:32.145 [Debug] [Dependency] Dependency status | csmEnabled=True harmonyAvailable=True
+2025-10-25 15:12:32.145 [Info] [Network] Awaiting CSM to activate TM:PE synchronization support.
+2025-10-25 15:12:32.152 [Info] [Lifecycle] Registering Toggle Traffic Lights feature integration.
+2025-10-25 15:12:32.153 [Info] [Lifecycle] Registering Clear Traffic feature integration.
+2025-10-25 15:12:32.159 [Info] [Diagnostics] Running integration health check | action=validate_bridges
+2025-10-25 15:12:32.159 [Info] [Network] CSM bridge ready | delegates=available role=None
+2025-10-25 15:12:32.183 [Info] [Bridge] TM:PE API detected | features=Speed Limits, Lane Arrows, Lane Connector, Vehicle Restrictions, Junction Restrictions, Priority Signs, Parking Restrictions, Toggle Traffic Lights, Clear Traffic
+2025-10-25 15:12:32.184 [Info] [Synchronization] TM:PE bridge ready on client | action=notify_server
+2025-10-25 15:12:32.184 [Debug] [Network] Dispatch command | direction=server type=TmpeFeatureReady
+2025-10-25 15:12:32.227 [Debug] [Network] Dispatch complete | direction=server type=TmpeFeatureReady
+2025-10-25 15:12:32.230 [Info] [Bridge] TM:PE bridge ready | features=junctionRestrictions, laneArrows, laneConnector, parkingRestrictions, prioritySigns, speedLimits, toggleTrafficLights, vehicleRestrictions
+2025-10-25 15:12:32.230 [Info] [Diagnostics] Integration health result | csm=ok tmpe=ok
+2025-10-25 15:12:32.231 [Info] [Diagnostics] Diagnostics snapshot | context=HealthCheck
+2025-10-25 15:12:32.231 [Info] [Diagnostics] Command.CurrentRole | value=None
+2025-10-25 15:12:32.232 [Info] [Diagnostics] Command.SendToAll delegate | value=CSM.Commands.CommandInternal.SendToAll
+2025-10-25 15:12:32.232 [Info] [Diagnostics] Command.SendToServer delegate | value=CSM.Commands.CommandInternal.SendToServer
+2025-10-25 15:12:32.232 [Info] [Diagnostics] Command.SendToClients delegate | value=CSM.Commands.CommandInternal.SendToClients
+2025-10-25 15:12:32.232 [Info] [Diagnostics] Command.GetCommandHandler delegate | value=CSM.Commands.CommandInternal.GetCommandHandler
+2025-10-25 15:12:32.233 [Info] [Diagnostics] Command.SendToClient delegate | value=<unsupported>
+2025-10-25 15:13:08.562 [Info] [Network] Registering TM:PE synchronization handlers via CSM connection.
+2025-10-25 15:13:08.608 [Info] [Diagnostics] TM:PE notifier bridge enabled | segment=True node=True laneArrows=True laneConnAdd=True laneConnRemove=True laneConnClear=True laneConnNode=True clearTraffic=True
+2025-10-25 15:13:19.023 [Info] [Bridge] CSM multiplayer role changed | previous=None current=Server raw=Server
+2025-10-25 15:17:59.093 [Info] [Lifecycle] Logging target changed | from=Server to=Client file=C:\Users\mail\AppData\Local\Colossal Order\Cities_Skylines\CSM.TmpeSync\clientlog-2025-10-25.log
+2025-10-25 15:17:59.107 [Info] [Diagnostics] TM:PE feature availability after role change | role=None speed=OK arrows=OK parking=OK vehicle=OK
+2025-10-25 15:18:02.341 [Info] [Network] Unregistering TM:PE synchronization handlers via CSM connection.
+2025-10-25 15:18:06.394 [Info] [Diagnostics] TM:PE feature availability after role change | role=None speed=OK arrows=OK parking=OK vehicle=OK
+2025-10-25 15:18:06.572 [Info] [Lifecycle] Mod disabled | begin_cleanup
+2025-10-25 15:18:06.573 [Info] [Diagnostics] Diagnostics snapshot | context=OnDisabled
+2025-10-25 15:18:06.573 [Info] [Diagnostics] Command.CurrentRole | value=None
+2025-10-25 15:18:06.573 [Info] [Diagnostics] Command.SendToAll delegate | value=CSM.Commands.CommandInternal.SendToAll
+2025-10-25 15:18:06.574 [Info] [Diagnostics] Command.SendToServer delegate | value=CSM.Commands.CommandInternal.SendToServer
+2025-10-25 15:18:06.574 [Info] [Diagnostics] Command.SendToClients delegate | value=CSM.Commands.CommandInternal.SendToClients
+2025-10-25 15:18:06.574 [Info] [Diagnostics] Command.GetCommandHandler delegate | value=CSM.Commands.CommandInternal.GetCommandHandler
+2025-10-25 15:18:06.574 [Info] [Diagnostics] Command.SendToClient delegate | value=<unsupported>
+2025-10-25 15:18:06.574 [Debug] [Lifecycle] Mod disabled | awaiting_next_enable_cycle

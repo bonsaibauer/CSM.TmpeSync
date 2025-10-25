@@ -1,0 +1,7 @@
+2025-10-25 15:13:19.024 [Info] [Lifecycle] Logging target changed | from=Client to=Server file=C:\Users\mail\AppData\Local\Colossal Order\Cities_Skylines\CSM.TmpeSync\serverlog-2025-10-25.log
+2025-10-25 15:13:19.024 [Info] [Snapshot] Exporting TM:PE snapshot set | trigger=role_change target=broadcast
+2025-10-25 15:13:19.057 [Info] [Diagnostics] TM:PE notifier bridge enabled | segment=True node=True laneArrows=True laneConnAdd=True laneConnRemove=True laneConnClear=True laneConnNode=True clearTraffic=True
+2025-10-25 15:13:19.058 [Info] [Diagnostics] TM:PE feature availability after role change | role=Server speed=OK arrows=OK parking=OK vehicle=OK
+2025-10-25 15:13:19.059 [Debug] [Diagnostics] Stub simulation hooks unavailable | action=skip_autostart
+2025-10-25 15:17:57.104 [Debug] [Bridge] CSM role query transient | raw=None cached=Server
+2025-10-25 15:17:59.093 [Info] [Bridge] CSM multiplayer role changed | previous=Server current=None raw=None
