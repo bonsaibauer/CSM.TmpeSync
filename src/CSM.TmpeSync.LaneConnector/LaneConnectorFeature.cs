@@ -88,7 +88,7 @@ namespace CSM.TmpeSync.LaneConnector
             }
         }
 
-        private static void FlushLaneConnectionsBatch(IReadOnlyList<LaneConnectionsBatchApplied.Entry> entries)
+        private static void FlushLaneConnectionsBatch(IList<LaneConnectionsBatchApplied.Entry> entries)
         {
             if (entries == null || entries.Count == 0)
                 return;

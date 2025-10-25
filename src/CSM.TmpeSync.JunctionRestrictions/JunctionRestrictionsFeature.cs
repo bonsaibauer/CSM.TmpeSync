@@ -39,7 +39,7 @@ namespace CSM.TmpeSync.JunctionRestrictions
             }
         }
 
-        private static void FlushJunctionRestrictionsBatch(IReadOnlyList<JunctionRestrictionsBatchApplied.Entry> entries)
+        private static void FlushJunctionRestrictionsBatch(IList<JunctionRestrictionsBatchApplied.Entry> entries)
         {
             if (entries == null || entries.Count == 0)
                 return;
