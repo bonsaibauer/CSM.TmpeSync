@@ -183,10 +183,6 @@
     <Compile Include="Snapshot\ToggleTrafficLightSnapshotProvider.cs" />
   </ItemGroup>
 
-  <ItemGroup>
-    <ProjectReference Include="..\CSM.TmpeSync.Core\CSM.TmpeSync.Core.csproj" />
-  </ItemGroup>
-
   <Target Name="AfterBuild">
     <MakeDir Directories="$(ModsOutDir)" />
     <ItemGroup>

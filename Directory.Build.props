@@ -2,4 +2,17 @@
   <PropertyGroup>
     <ResolveAssemblyWarnOrErrorOnTargetArchitectureMismatch>None</ResolveAssemblyWarnOrErrorOnTargetArchitectureMismatch>
   </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="$(RepoRoot)\src\Shared\Util\**\*.cs"
+             Link="Infrastructure\Util\%(RecursiveDir)%(Filename)%(Extension)" />
+    <Compile Include="$(RepoRoot)\src\Shared\Snapshot\**\*.cs"
+             Link="Infrastructure\Snapshot\%(RecursiveDir)%(Filename)%(Extension)" />
+    <Compile Include="$(RepoRoot)\src\Shared\Network\**\*.cs"
+             Link="Infrastructure\Network\%(RecursiveDir)%(Filename)%(Extension)" />
+    <Compile Include="$(RepoRoot)\src\Shared\CsmBridge\**\*.cs"
+             Link="Bridge\CSM\%(RecursiveDir)%(Filename)%(Extension)" />
+    <Compile Include="$(RepoRoot)\src\Shared\TmpeBridge\**\*.cs"
+             Link="Bridge\TMPE\%(RecursiveDir)%(Filename)%(Extension)" />
+  </ItemGroup>
 </Project>
