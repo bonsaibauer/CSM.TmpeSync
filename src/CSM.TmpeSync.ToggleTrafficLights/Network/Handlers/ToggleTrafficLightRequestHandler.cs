@@ -14,24 +14,39 @@ namespace CSM.TmpeSync.ToggleTrafficLights.Network.Handlers
         protected override void Handle(ToggleTrafficLightRequest cmd)
         {
             var senderId = CsmBridge.GetSenderId(cmd);
-            Log.Info("Received ToggleTrafficLightRequest node={0} enabled={1} from client={2} role={3}", cmd.NodeId, cmd.Enabled, senderId, CsmBridge.DescribeCurrentRole());
+            Log.Info(
+                LogCategory.Network,
+                "ToggleTrafficLightRequest received | nodeId={0} enabled={1} senderId={2} role={3}",
+                cmd.NodeId,
+                cmd.Enabled,
+                senderId,
+                CsmBridge.DescribeCurrentRole());
 
             if (!CsmBridge.IsServerInstance())
             {
-                Log.Debug("Ignoring ToggleTrafficLightRequest on non-server instance.");
+                Log.Debug(
+                    LogCategory.Network,
+                    "ToggleTrafficLightRequest ignored | nodeId={0} reason=not_server_instance",
+                    cmd.NodeId);
                 return;
             }
 
             if (!NetworkUtil.NodeExists(cmd.NodeId))
             {
-                Log.Warn("Rejecting ToggleTrafficLightRequest node={0} – node missing on server.", cmd.NodeId);
+                Log.Warn(
+                    LogCategory.Network,
+                    "ToggleTrafficLightRequest rejected | nodeId={0} reason=node_missing",
+                    cmd.NodeId);
                 CsmBridge.SendToClient(senderId, new RequestRejected { Reason = "entity_missing", EntityId = cmd.NodeId, EntityType = 3 });
                 return;
             }
 
             if (!TmpeBridgeAdapter.IsFeatureSupported("toggleTrafficLights"))
             {
-                Log.Warn("Rejecting ToggleTrafficLightRequest node={0} – feature not supported by TM:PE bridge.", cmd.NodeId);
+                Log.Warn(
+                    LogCategory.Network,
+                    "ToggleTrafficLightRequest rejected | nodeId={0} reason=feature_not_supported",
+                    cmd.NodeId);
                 CsmBridge.SendToClient(senderId, new RequestRejected { Reason = "feature_disabled", EntityId = cmd.NodeId, EntityType = 3 });
                 return;
             }
@@ -40,7 +55,10 @@ namespace CSM.TmpeSync.ToggleTrafficLights.Network.Handlers
             {
                 if (!NetworkUtil.NodeExists(cmd.NodeId))
                 {
-                    Log.Warn("Simulation step aborted – node {0} vanished before toggle traffic light apply.", cmd.NodeId);
+                    Log.Warn(
+                        LogCategory.Synchronization,
+                        "Toggle traffic light apply aborted | nodeId={0} reason=node_missing_before_apply",
+                        cmd.NodeId);
                     return;
                 }
 
@@ -48,7 +66,10 @@ namespace CSM.TmpeSync.ToggleTrafficLights.Network.Handlers
                 {
                     if (!NetworkUtil.NodeExists(cmd.NodeId))
                     {
-                        Log.Warn("Skipping toggle traffic light apply – node {0} disappeared while locked.", cmd.NodeId);
+                        Log.Warn(
+                            LogCategory.Synchronization,
+                            "Toggle traffic light apply skipped | nodeId={0} reason=node_missing_while_locked",
+                            cmd.NodeId);
                         return;
                     }
 
@@ -57,12 +78,21 @@ namespace CSM.TmpeSync.ToggleTrafficLights.Network.Handlers
                         var resultingEnabled = cmd.Enabled;
                         if (TmpeBridgeAdapter.TryGetToggleTrafficLight(cmd.NodeId, out var appliedEnabled))
                             resultingEnabled = appliedEnabled;
-                        Log.Info("Applied toggle traffic light node={0} -> {1}; broadcasting update.", cmd.NodeId, resultingEnabled);
+                        Log.Info(
+                            LogCategory.Synchronization,
+                            "Toggle traffic light applied | nodeId={0} enabled={1} action=broadcast",
+                            cmd.NodeId,
+                            resultingEnabled);
                         CsmBridge.SendToAll(new TrafficLightToggledApplied { NodeId = cmd.NodeId, Enabled = resultingEnabled });
                     }
                     else
                     {
-                        Log.Error("Failed to apply toggle traffic light node={0} -> {1}; notifying client {2}.", cmd.NodeId, cmd.Enabled, senderId);
+                        Log.Error(
+                            LogCategory.Synchronization,
+                            "Toggle traffic light apply failed | nodeId={0} enabled={1} senderId={2}",
+                            cmd.NodeId,
+                            cmd.Enabled,
+                            senderId);
                         CsmBridge.SendToClient(senderId, new RequestRejected { Reason = "tmpe_apply_failed", EntityId = cmd.NodeId, EntityType = 3 });
                     }
                 }

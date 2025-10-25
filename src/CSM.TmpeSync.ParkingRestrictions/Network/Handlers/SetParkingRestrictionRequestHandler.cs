@@ -16,17 +16,26 @@ namespace CSM.TmpeSync.Network.Handlers
             var senderId = CsmBridge.GetSenderId(cmd);
             var state = cmd.State ?? new ParkingRestrictionState();
 
-            Log.Info("Received SetParkingRestrictionRequest segment={0} state={1} from client={2} role={3}", cmd.SegmentId, state, senderId, CsmBridge.DescribeCurrentRole());
+            Log.Info(
+                LogCategory.Network,
+                "SetParkingRestrictionRequest received | segmentId={0} state={1} senderId={2} role={3}",
+                cmd.SegmentId,
+                state,
+                senderId,
+                CsmBridge.DescribeCurrentRole());
 
             if (!CsmBridge.IsServerInstance())
             {
-                Log.Debug("Ignoring SetParkingRestrictionRequest on non-server instance.");
+                Log.Debug(LogCategory.Network, "SetParkingRestrictionRequest ignored | reason=not_server_instance");
                 return;
             }
 
             if (!NetworkUtil.SegmentExists(cmd.SegmentId))
             {
-                Log.Warn("Rejecting SetParkingRestrictionRequest segment={0} – segment missing on server.", cmd.SegmentId);
+                Log.Warn(
+                    LogCategory.Network,
+                    "SetParkingRestrictionRequest rejected | segmentId={0} reason=segment_missing",
+                    cmd.SegmentId);
                 CsmBridge.SendToClient(senderId, new RequestRejected { Reason = "entity_missing", EntityId = cmd.SegmentId, EntityType = 2 });
                 return;
             }
@@ -35,7 +44,10 @@ namespace CSM.TmpeSync.Network.Handlers
             {
                 if (!NetworkUtil.SegmentExists(cmd.SegmentId))
                 {
-                    Log.Warn("Simulation step aborted – segment {0} vanished before parking restriction apply.", cmd.SegmentId);
+                    Log.Warn(
+                        LogCategory.Synchronization,
+                        "Parking restriction apply aborted | segmentId={0} reason=segment_missing_before_apply",
+                        cmd.SegmentId);
                     return;
                 }
 
@@ -43,7 +55,10 @@ namespace CSM.TmpeSync.Network.Handlers
                 {
                     if (!NetworkUtil.SegmentExists(cmd.SegmentId))
                     {
-                        Log.Warn("Skipping parking restriction apply – segment {0} disappeared while locked.", cmd.SegmentId);
+                        Log.Warn(
+                            LogCategory.Synchronization,
+                            "Parking restriction apply skipped | segmentId={0} reason=segment_missing_while_locked",
+                            cmd.SegmentId);
                         return;
                     }
 
@@ -52,7 +67,11 @@ namespace CSM.TmpeSync.Network.Handlers
                         var resultingState = state?.Clone();
                         if (TmpeBridgeAdapter.TryGetParkingRestriction(cmd.SegmentId, out var appliedState) && appliedState != null)
                             resultingState = appliedState.Clone();
-                        Log.Info("Applied parking restriction segment={0} -> {1}; broadcasting update.", cmd.SegmentId, resultingState);
+                        Log.Info(
+                            LogCategory.Synchronization,
+                            "Parking restriction applied | segmentId={0} state={1} action=broadcast",
+                            cmd.SegmentId,
+                            resultingState);
                         CsmBridge.SendToAll(new ParkingRestrictionApplied
                         {
                             SegmentId = cmd.SegmentId,
@@ -61,7 +80,11 @@ namespace CSM.TmpeSync.Network.Handlers
                     }
                     else
                     {
-                        Log.Error("Failed to apply parking restriction segment={0}; notifying client {1}.", cmd.SegmentId, senderId);
+                        Log.Error(
+                            LogCategory.Synchronization,
+                            "Parking restriction apply failed | segmentId={0} senderId={1}",
+                            cmd.SegmentId,
+                            senderId);
                         CsmBridge.SendToClient(senderId, new RequestRejected { Reason = "tmpe_apply_failed", EntityId = cmd.SegmentId, EntityType = 2 });
                     }
                 }

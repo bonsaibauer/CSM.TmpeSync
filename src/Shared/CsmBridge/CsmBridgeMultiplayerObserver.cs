@@ -1,4 +1,5 @@
 using System;
+using CSM.TmpeSync.Util;
 using Log = CSM.TmpeSync.Util.Log;
 
 namespace CSM.TmpeSync.Bridge
@@ -36,7 +37,7 @@ namespace CSM.TmpeSync.Bridge
             {
                 if (!_loggedRoleReadError)
                 {
-                    Log.Warn("Unable to query current CSM multiplayer role: {0}", ex);
+                    Log.Warn(LogCategory.Bridge, "CSM role query failed | error={0}", ex);
                     _loggedRoleReadError = true;
                 }
 
@@ -49,7 +50,12 @@ namespace CSM.TmpeSync.Bridge
             {
                 if (!string.Equals(observedRole, _lastKnownRole, StringComparison.OrdinalIgnoreCase))
                 {
-                    Log.Info("CSM multiplayer role changed: {0} -> {1} (raw='{2}')", _lastKnownRole, observedRole, rawDescription ?? "<null>");
+                    Log.Info(
+                        LogCategory.Bridge,
+                        "CSM multiplayer role changed | previous={0} current={1} raw={2}",
+                        _lastKnownRole,
+                        observedRole,
+                        rawDescription ?? "<null>");
                     _lastKnownRole = observedRole;
                     NotifyRoleChanged(_lastKnownRole);
                 }
@@ -73,7 +79,11 @@ namespace CSM.TmpeSync.Bridge
                 {
                     if (!_loggedTransientSuppression)
                     {
-                        Log.Debug("CSM multiplayer role query returned '{0}', keeping cached role '{1}' during grace period.", rawDescription ?? "<null>", _lastKnownRole);
+                        Log.Debug(
+                            LogCategory.Bridge,
+                            "CSM role query transient | raw={0} cached={1}",
+                            rawDescription ?? "<null>",
+                            _lastKnownRole);
                         _loggedTransientSuppression = true;
                     }
 
@@ -83,7 +93,12 @@ namespace CSM.TmpeSync.Bridge
 
             if (!string.Equals(_lastKnownRole, RoleNone, StringComparison.OrdinalIgnoreCase))
             {
-                Log.Info("CSM multiplayer role changed: {0} -> {1} (raw='{2}')", _lastKnownRole, RoleNone, rawDescription ?? "<null>");
+                Log.Info(
+                    LogCategory.Bridge,
+                    "CSM multiplayer role changed | previous={0} current={1} raw={2}",
+                    _lastKnownRole,
+                    RoleNone,
+                    rawDescription ?? "<null>");
                 _lastKnownRole = RoleNone;
                 NotifyRoleChanged(_lastKnownRole);
             }
@@ -101,7 +116,7 @@ namespace CSM.TmpeSync.Bridge
         internal static void Reset()
         {
             if (_lastKnownRole != RoleNone)
-                Log.Debug("Resetting cached CSM multiplayer role state.");
+                Log.Debug(LogCategory.Bridge, "Resetting cached CSM multiplayer role state.");
 
             _lastKnownRole = RoleNone;
             _loggedRoleReadError = false;

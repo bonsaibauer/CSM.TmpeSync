@@ -15,18 +15,43 @@ namespace CSM.TmpeSync.Network.Handlers
 
         internal static void ProcessEntry(ushort nodeId, ushort segmentId, PrioritySignType signType, string origin)
         {
-            Log.Info("Received PrioritySignApplied node={0} segment={1} sign={2} origin={3}", nodeId, segmentId, signType, origin ?? "unknown");
+            Log.Info(
+                LogCategory.Network,
+                "PrioritySignApplied received | nodeId={0} segmentId={1} sign={2} origin={3}",
+                nodeId,
+                segmentId,
+                signType,
+                origin ?? "unknown");
 
             if (NetworkUtil.NodeExists(nodeId) && NetworkUtil.SegmentExists(segmentId))
             {
                 if (TmpeBridgeAdapter.ApplyPrioritySign(nodeId, segmentId, signType))
-                    Log.Info("Applied remote priority sign node={0} segment={1} -> {2}", nodeId, segmentId, signType);
+                {
+                    Log.Info(
+                        LogCategory.Synchronization,
+                        "PrioritySignApplied applied | nodeId={0} segmentId={1} sign={2}",
+                        nodeId,
+                        segmentId,
+                        signType);
+                }
                 else
-                    Log.Error("Failed to apply remote priority sign node={0} segment={1}", nodeId, segmentId);
+                {
+                    Log.Error(
+                        LogCategory.Synchronization,
+                        "PrioritySignApplied failed | nodeId={0} segmentId={1} sign={2}",
+                        nodeId,
+                        segmentId,
+                        signType);
+                }
             }
             else
             {
-                Log.Warn("Node {0} or segment {1} missing – skipping priority sign apply (origin={2}).", nodeId, segmentId, origin ?? "unknown");
+                Log.Warn(
+                    LogCategory.Synchronization,
+                    "PrioritySignApplied skipped | nodeId={0} segmentId={1} origin={2} reason=entity_missing",
+                    nodeId,
+                    segmentId,
+                    origin ?? "unknown");
             }
         }
     }

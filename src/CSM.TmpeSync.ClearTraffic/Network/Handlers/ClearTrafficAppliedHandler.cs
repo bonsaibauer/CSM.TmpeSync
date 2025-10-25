@@ -11,16 +11,20 @@ namespace CSM.TmpeSync.ClearTraffic.Network.Handlers
     {
         protected override void Handle(ClearTrafficApplied cmd)
         {
-            Log.Info("Received ClearTrafficApplied command.");
+            Log.Info(LogCategory.Network, "ClearTrafficApplied received | origin=remote");
 
             NetworkUtil.RunOnSimulation(() =>
             {
                 using (CsmBridge.StartIgnore())
                 {
                     if (TmpeBridgeAdapter.ClearTraffic())
-                        Log.Info("Applied remote clear traffic command.");
+                    {
+                        Log.Info(LogCategory.Synchronization, "Remote traffic clear applied | result=success");
+                    }
                     else
-                        Log.Error("Failed to apply remote clear traffic command.");
+                    {
+                        Log.Error(LogCategory.Synchronization, "Remote traffic clear applied | result=failed");
+                    }
                 }
             });
         }

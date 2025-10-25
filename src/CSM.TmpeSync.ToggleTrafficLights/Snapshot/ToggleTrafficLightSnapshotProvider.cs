@@ -10,7 +10,7 @@ namespace CSM.TmpeSync.ToggleTrafficLights.Snapshot
     {
         public void Export()
         {
-            Log.Info("Exporting toggle traffic light snapshot");
+            Log.Info(LogCategory.Snapshot, "Exporting toggle traffic light snapshot");
             NetworkUtil.ForEachNode(nodeId =>
             {
                 if (!TmpeBridgeAdapter.TryGetToggleTrafficLight(nodeId, out var enabled))
@@ -19,7 +19,10 @@ namespace CSM.TmpeSync.ToggleTrafficLights.Snapshot
                 if (!enabled)
                     return;
 
-                Log.Debug("Snapshot toggle traffic light node={0}", nodeId);
+                Log.Debug(
+                    LogCategory.Snapshot,
+                    "Snapshot traffic light | nodeId={0}",
+                    nodeId);
                 SnapshotDispatcher.Dispatch(new TrafficLightToggledApplied { NodeId = nodeId, Enabled = true });
             });
         }
