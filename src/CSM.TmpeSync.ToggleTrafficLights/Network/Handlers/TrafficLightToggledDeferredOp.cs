@@ -1,8 +1,8 @@
-using CSM.TmpeSync.Network.Contracts.Applied;
+using CSM.TmpeSync.ToggleTrafficLights.Network.Contracts.Applied;
 using CSM.TmpeSync.TmpeBridge;
 using CSM.TmpeSync.Util;
 
-namespace CSM.TmpeSync.Network.Handlers
+namespace CSM.TmpeSync.ToggleTrafficLights.Network.Handlers
 {
     internal sealed class TrafficLightToggledDeferredOp : IDeferredOp
     {

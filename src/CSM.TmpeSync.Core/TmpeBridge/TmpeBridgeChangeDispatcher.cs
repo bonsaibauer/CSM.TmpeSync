@@ -2,8 +2,6 @@ using System;
 using ColossalFramework;
 using CSM.API.Commands;
 using CSM.API.Helpers;
-using CSM.TmpeSync.Network.Contracts.Applied;
-using CSM.TmpeSync.Network.Contracts.Requests;
 using CSM.TmpeSync.Network.Contracts.States;
 using CSM.TmpeSync.Util;
 using CSM.TmpeSync.Bridge;
@@ -15,6 +13,10 @@ namespace CSM.TmpeSync.TmpeBridge
     /// </summary>
     internal static class TmpeBridgeChangeDispatcher
     {
+        internal static Func<CommandBase> ClearTrafficBroadcastFactory;
+        internal static Func<CommandBase> ClearTrafficRequestFactory;
+        internal static Func<ushort, bool, CommandBase> TrafficLightBroadcastFactory;
+
         internal static void HandleSegmentModification(ushort segmentId, object sender)
         {
             if (!CanDispatch() || !NetworkUtil.SegmentExists(segmentId))
@@ -79,13 +81,27 @@ namespace CSM.TmpeSync.TmpeBridge
 
             if (CsmBridge.IsServerInstance())
             {
-                Broadcast(new ClearTrafficApplied());
+                var broadcast = ClearTrafficBroadcastFactory?.Invoke();
+                if (broadcast == null)
+                {
+                    Log.Warn(LogCategory.Network, "Clear traffic broadcast skipped | reason=factory_missing");
+                    return;
+                }
+
+                Broadcast(broadcast);
+                return;
+            }
+
+            var request = ClearTrafficRequestFactory?.Invoke();
+            if (request == null)
+            {
+                Log.Warn(LogCategory.Network, "Clear traffic request skipped | reason=factory_missing");
                 return;
             }
 
             try
             {
-                CsmBridge.SendToServer(new ClearTrafficRequest());
+                CsmBridge.SendToServer(request);
             }
             catch (Exception ex)
             {
@@ -110,11 +126,14 @@ namespace CSM.TmpeSync.TmpeBridge
 
             if (TmpeBridgeAdapter.TryGetToggleTrafficLight(nodeId, out var toggleEnabled))
             {
-                Broadcast(new TrafficLightToggledApplied
+                var command = TrafficLightBroadcastFactory?.Invoke(nodeId, toggleEnabled);
+                if (command == null)
                 {
-                    NodeId = nodeId,
-                    Enabled = toggleEnabled
-                });
+                    Log.Warn(LogCategory.Network, "Traffic light broadcast skipped | nodeId={0} reason=factory_missing", nodeId);
+                    return;
+                }
+
+                Broadcast(command);
             }
         }
 
