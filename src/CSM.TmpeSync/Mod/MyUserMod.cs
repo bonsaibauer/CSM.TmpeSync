@@ -1,7 +1,5 @@
 using System;
-using System.Linq;
 using ICities;
-using CSM.TmpeSync.TmpeBridge;
 using CSM.TmpeSync.Snapshot;
 using CSM.TmpeSync.Util;
 using Log = CSM.TmpeSync.Util.Log;
@@ -43,31 +41,10 @@ namespace CSM.TmpeSync.Mod
             FeatureBootstrapper.Register();
             SnapshotDispatcher.Initialize();
             TmpeFeatureReadyNotifier.Initialize();
+
+            HealthCheck.Run();
+
             SnapshotDispatcher.TryExportIfServer("mod_enabled");
-
-            CsmBridge.LogDiagnostics("OnEnabled");
-
-            var featureSupport = TmpeBridgeAdapter.GetFeatureSupportMatrix();
-            var supported = featureSupport
-                .Where(pair => pair.Value)
-                .Select(pair => pair.Key)
-                .OrderBy(name => name, System.StringComparer.OrdinalIgnoreCase)
-                .ToArray();
-            var unsupported = featureSupport
-                .Where(pair => !pair.Value)
-                .Select(pair =>
-                {
-                    var reason = TmpeBridgeAdapter.GetUnsupportedReason(pair.Key) ?? "unknown";
-                    return pair.Key + "(" + reason + ")";
-                })
-                .OrderBy(entry => entry, System.StringComparer.OrdinalIgnoreCase)
-                .ToArray();
-
-            Log.Debug(
-                LogCategory.Bridge,
-                "TM:PE feature support | supported={0} unsupported={1}",
-                supported.Length == 0 ? "<none>" : string.Join(", ", supported),
-                unsupported.Length == 0 ? "<none>" : string.Join(", ", unsupported));
         }
 
         public void OnDisabled()

@@ -268,10 +268,6 @@
     <Compile Include="TmpeBridge\SpeedLimitCodec.cs" />
     <Compile Include="Util\SpeedLimitDiagnostics.cs" />
   </ItemGroup>
-  <ItemGroup>
-    <ProjectReference Include="..\CSM.TmpeSync.Core\CSM.TmpeSync.Core.csproj" />
-  </ItemGroup>
-
   <!-- ==== Post-Build: Copy the add-on into the local mod directory ==== -->
   <Target Name="AfterBuild">
     <MakeDir Directories="$(ModsOutDir)" />
