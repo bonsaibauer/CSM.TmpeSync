@@ -1,0 +1,7 @@
+[Version] 11.9.3.0
+[Released] Oct 05th 2025
+[Link] tmpe-v11930-stable-05102025
+[Stable]
+[Fixed] Reversible Tram AI compatibility - Timed Traffic Lights fail to detect waiting trams
+[Updated] Updated location of despawn button in vehicle info popup to reduce risk of misclick #1784
+[/Version]
