@@ -323,84 +323,40 @@ namespace CSM.TmpeSync.TmpeBridge
             try
             {
                 var wantsOverride = speedKmh > 0f;
-                float? defaultKmh = null;
-                ushort segmentId = 0;
-                int laneIndex = -1;
 
-                if (wantsOverride)
-                    defaultKmh = TryGetLaneDefaultKmh(laneId);
-
-                if (NetworkUtil.TryGetLaneLocation(laneId, out var resolvedSegment, out var resolvedIndex))
+                if (!SupportsSpeedLimits)
                 {
-                    segmentId = resolvedSegment;
-                    laneIndex = resolvedIndex;
-                }
-
-                var observerHash = ComputeLaneObserverHash(laneId);
-
-                if (wantsOverride)
-                {
+                    Log.Info(LogCategory.Synchronization, "TM:PE speed limit stored in stub | laneId={0} speedKmh={1}", laneId, speedKmh);
                     lock (StateLock)
                     {
+                        if (wantsOverride)
+                            SpeedLimits[laneId] = speedKmh;
+                        else
+                            SpeedLimits.Remove(laneId);
+                    }
+
+                    return true;
+                }
+
+                Log.Debug(LogCategory.Hook, "TM:PE speed limit request | laneId={0} speedKmh={1}", laneId, speedKmh);
+                var appliedViaApi = TryApplySpeedLimitReal(laneId, speedKmh);
+
+                if (!appliedViaApi)
+                {
+                    Log.Warn(LogCategory.Bridge, "TM:PE speed limit apply via API failed | laneId={0}", laneId);
+                    return false;
+                }
+
+                lock (StateLock)
+                {
+                    if (wantsOverride)
                         SpeedLimits[laneId] = speedKmh;
-                    }
-
-                    if (SupportsSpeedLimits)
-                    {
-                        PendingMap.UpsertLane(
-                            laneId,
-                            segmentId,
-                            laneIndex,
-                            speedKmh,
-                            defaultKmh,
-                            observerHash,
-                            "apply");
-                    }
                     else
-                    {
-                        Log.Info(LogCategory.Synchronization, "TM:PE speed limit stored in stub | laneId={0} speedKmh={1}", laneId, speedKmh);
-                    }
-                }
-                else
-                {
-                    lock (StateLock)
-                    {
                         SpeedLimits.Remove(laneId);
-                    }
-
-                    PendingMap.ClearLane(laneId, "clear");
                 }
 
-                var appliedViaApi = false;
-
-                if (SupportsSpeedLimits)
-                {
-                    Log.Debug(LogCategory.Hook, "TM:PE speed limit request | laneId={0} speedKmh={1}", laneId, speedKmh);
-                    appliedViaApi = TryApplySpeedLimitReal(laneId, speedKmh);
-
-                    if (appliedViaApi)
-                    {
-                        PendingMap.MarkLaneApplied(laneId);
-                        Log.Info(LogCategory.Synchronization, "TM:PE speed limit applied via API | laneId={0} speedKmh={1}", laneId, speedKmh);
-                    }
-                    else if (wantsOverride)
-                    {
-                        Log.Warn(LogCategory.Bridge, "TM:PE speed limit apply via API failed | laneId={0} action=pending", laneId);
-                        PendingMap.ReportLaneFailure(
-                            laneId,
-                            "api_failed",
-                            defaultKmh,
-                            null,
-                            observerHash);
-                    }
-                    else
-                    {
-                        Log.Warn(LogCategory.Bridge, "TM:PE speed limit reset via API failed | laneId={0}", laneId);
-                        PendingMap.ClearLane(laneId, "clear");
-                    }
-                }
-
-                return appliedViaApi || !SupportsSpeedLimits;
+                Log.Info(LogCategory.Synchronization, "TM:PE speed limit applied via API | laneId={0} speedKmh={1}", laneId, speedKmh);
+                return true;
             }
             catch (Exception ex)
             {
@@ -411,20 +367,18 @@ namespace CSM.TmpeSync.TmpeBridge
 
         internal static bool TryGetSpeedKmh(uint laneId, out float kmh)
         {
-            return TryGetSpeedLimit(laneId, out kmh, out _, out _, out _);
+            return TryGetSpeedLimit(laneId, out kmh, out _, out _);
         }
 
         internal static bool TryGetSpeedLimit(
             uint laneId,
             out float speedKmh,
             out float? defaultKmh,
-            out bool hasOverride,
-            out bool isPending)
+            out bool hasOverride)
         {
             speedKmh = 0f;
             defaultKmh = null;
             hasOverride = false;
-            isPending = false;
 
             try
             {
@@ -438,74 +392,40 @@ namespace CSM.TmpeSync.TmpeBridge
                         hasOverride,
                         defaultKmh);
 
-                    if (hasOverride)
-                    {
-                        PendingMap.MarkLaneApplied(laneId);
-                        return true;
-                    }
-
-                    if (PendingMap.TryGetLaneSnapshot(laneId, out var pending))
-                    {
-                        speedKmh = pending.DesiredSpeedKmh;
-                        defaultKmh = pending.DefaultKmh ?? defaultKmh;
-                        hasOverride = true;
-                        isPending = true;
-                        return true;
-                    }
-
                     return true;
                 }
 
-                float? fallbackDefault = TryGetLaneDefaultKmh(laneId);
-                PendingMap.LaneSnapshot pendingSnapshot;
-                var hasPending = PendingMap.TryGetLaneSnapshot(laneId, out pendingSnapshot);
-
                 lock (StateLock)
                 {
-                    if (hasPending)
-                    {
-                        speedKmh = pendingSnapshot.DesiredSpeedKmh;
-                        hasOverride = true;
-                        isPending = true;
-                    }
-                    else if (SpeedLimits.TryGetValue(laneId, out var stored))
+                    if (SpeedLimits.TryGetValue(laneId, out var stored))
                     {
                         speedKmh = stored;
                         hasOverride = true;
                     }
                     else
                     {
-                        speedKmh = fallbackDefault ?? 50f;
+                        var fallbackDefault = TryGetLaneDefaultKmh(laneId);
+                        defaultKmh = fallbackDefault;
+                        speedKmh = fallbackDefault ?? 0f;
                         hasOverride = false;
                     }
                 }
 
-                if (hasPending)
-                {
-                    if (pendingSnapshot.DefaultKmh.HasValue)
-                        defaultKmh = pendingSnapshot.DefaultKmh.Value;
-                    else if (fallbackDefault.HasValue)
-                        defaultKmh = fallbackDefault.Value;
-                    else
-                        defaultKmh = null;
-                }
-                else
-                {
-                    defaultKmh = fallbackDefault ?? (hasOverride ? (float?)null : speedKmh);
-                }
+                if (!hasOverride && defaultKmh.HasValue)
+                    speedKmh = defaultKmh.Value;
 
                 if (SupportsSpeedLimits)
                 {
                     Log.Debug(
                         LogCategory.Hook,
-                        "TM:PE speed limit query (stub) | laneId={0} speedKmh={1} override={2} defaultKmh={3}",
+                        "TM:PE speed limit query (cache) | laneId={0} speedKmh={1} override={2} defaultKmh={3}",
                         laneId,
                         speedKmh,
                         hasOverride,
                         defaultKmh);
                 }
 
-                return true;
+                return hasOverride || defaultKmh.HasValue;
             }
             catch (Exception ex)
             {

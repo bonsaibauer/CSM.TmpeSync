@@ -15,8 +15,6 @@ namespace CSM.TmpeSync.Mod
     {
         internal static void Register()
         {
-            SnapshotDispatcher.RegisterProvider(new LaneMappingSnapshotProvider());
-
             SpeedLimitsFeature.Register();
             LaneArrowsFeature.Register();
             LaneConnectorFeature.Register();

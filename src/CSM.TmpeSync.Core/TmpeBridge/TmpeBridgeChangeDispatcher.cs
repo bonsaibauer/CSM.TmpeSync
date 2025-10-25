@@ -109,21 +109,8 @@ namespace CSM.TmpeSync.TmpeBridge
             }
         }
 
-        internal static void SyncSegmentsForNode(ushort nodeId, string reason)
-        {
-            ref var node = ref NetManager.instance.m_nodes.m_buffer[nodeId];
-            for (var i = 0; i < 8; i++)
-            {
-                var segmentId = node.GetSegment(i);
-                if (segmentId != 0 && NetworkUtil.SegmentExists(segmentId))
-                    LaneMappingTracker.SyncSegment(segmentId, reason);
-            }
-        }
-
         internal static void BroadcastTrafficLights(ushort nodeId)
         {
-            SyncSegmentsForNode(nodeId, "traffic_lights");
-
             if (TmpeBridgeAdapter.TryGetToggleTrafficLight(nodeId, out var toggleEnabled))
             {
                 var command = TrafficLightBroadcastFactory?.Invoke(nodeId, toggleEnabled);

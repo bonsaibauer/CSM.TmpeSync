@@ -1,10 +1,10 @@
-using ColossalFramework;
 using CSM.API.Commands;
 using CSM.TmpeSync.Network.Contracts.Applied;
 using CSM.TmpeSync.Network.Contracts.Requests;
 using CSM.TmpeSync.Network.Contracts.System;
 using CSM.TmpeSync.Network.Contracts.States;
 using CSM.TmpeSync.JunctionRestrictions.Util;
+using CSM.TmpeSync.TmpeBridge;
 using CSM.TmpeSync.Util;
 using CSM.TmpeSync.Bridge;
 
@@ -48,39 +48,28 @@ namespace CSM.TmpeSync.Network.Handlers
                         return;
                     }
 
-                    if (PendingMap.ApplyJunctionRestrictions(cmd.NodeId, state, ignoreScope: false))
-                    {
-                        var resultingState = state?.Clone();
-                        if (PendingMap.TryGetJunctionRestrictions(cmd.NodeId, out var appliedState) && appliedState != null)
-                            resultingState = appliedState.Clone();
-                        resultingState = JunctionRestrictionsDiagnostics.LogOutgoingJunctionRestrictions(
-                            cmd.NodeId,
-                            resultingState,
-                            "request_handler");
-                        if (NetworkUtil.NodeExists(cmd.NodeId))
-                        {
-                            ref var node = ref NetManager.instance.m_nodes.m_buffer[cmd.NodeId];
-                            for (var i = 0; i < 8; i++)
-                            {
-                                var segmentId = node.GetSegment(i);
-                                if (segmentId != 0 && NetworkUtil.SegmentExists(segmentId))
-                                    LaneMappingTracker.SyncSegment(segmentId, "junction_restrictions_request");
-                            }
-                        }
-                        var mappingVersion = LaneMappingStore.Version;
-                        Log.Info("Applied junction restrictions node={0}; broadcasting update.", cmd.NodeId);
-                        CsmBridge.SendToAll(new JunctionRestrictionsApplied
-                        {
-                            NodeId = cmd.NodeId,
-                            State = resultingState?.Clone() ?? new JunctionRestrictionsState(),
-                            MappingVersion = mappingVersion
-                        });
-                    }
-                    else
+                    if (!TmpeBridgeAdapter.ApplyJunctionRestrictions(cmd.NodeId, state))
                     {
                         Log.Error("Failed to apply junction restrictions node={0}; notifying client {1}.", cmd.NodeId, senderId);
                         CsmBridge.SendToClient(senderId, new RequestRejected { Reason = "tmpe_apply_failed", EntityId = cmd.NodeId, EntityType = 3 });
+                        return;
                     }
+
+                    var resultingState = state?.Clone();
+                    if (TmpeBridgeAdapter.TryGetJunctionRestrictions(cmd.NodeId, out var appliedState) && appliedState != null)
+                        resultingState = appliedState.Clone();
+
+                    resultingState = JunctionRestrictionsDiagnostics.LogOutgoingJunctionRestrictions(
+                        cmd.NodeId,
+                        resultingState,
+                        "request_handler");
+
+                    Log.Info("Applied junction restrictions node={0}; broadcasting update.", cmd.NodeId);
+                    CsmBridge.SendToAll(new JunctionRestrictionsApplied
+                    {
+                        NodeId = cmd.NodeId,
+                        State = resultingState?.Clone() ?? new JunctionRestrictionsState()
+                    });
                 }
             });
         }

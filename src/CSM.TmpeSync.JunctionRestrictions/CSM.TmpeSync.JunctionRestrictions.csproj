@@ -261,7 +261,6 @@
     <Compile Include="Network\Contracts\Requests\SetJunctionRestrictionsRequest.cs" />
     <Compile Include="Network\Handlers\JunctionRestrictionsAppliedHandler.cs" />
     <Compile Include="Network\Handlers\SetJunctionRestrictionsRequestHandler.cs" />
-    <Compile Include="Network\Handlers\JunctionRestrictionsDeferredOp.cs" />
     <Compile Include="Snapshot\JunctionRestrictionsSnapshotProvider.cs" />
     <Compile Include="Util\JunctionRestrictionsDiagnostics.cs" />
   </ItemGroup>

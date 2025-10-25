@@ -22,7 +22,7 @@ namespace CSM.TmpeSync.Network.Handlers
                 cmd.SegmentId,
                 cmd.LaneIndex,
                 SpeedLimitCodec.Describe(cmd.Speed));
-            SpeedLimitCommandProcessor.Apply(cmd.LaneId, cmd.Speed, cmd.SegmentId, cmd.LaneIndex, cmd.MappingVersion);
+            SpeedLimitCommandProcessor.Apply(cmd.LaneId, cmd.Speed, cmd.SegmentId, cmd.LaneIndex);
         }
     }
 }

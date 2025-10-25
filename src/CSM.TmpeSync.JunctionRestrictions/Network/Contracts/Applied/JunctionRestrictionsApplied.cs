@@ -9,6 +9,5 @@ namespace CSM.TmpeSync.Network.Contracts.Applied
     {
         [ProtoMember(1)] public ushort NodeId { get; set; }
         [ProtoMember(2)] public JunctionRestrictionsState State { get; set; }
-        [ProtoMember(3)] public long MappingVersion { get; set; }
     }
 }

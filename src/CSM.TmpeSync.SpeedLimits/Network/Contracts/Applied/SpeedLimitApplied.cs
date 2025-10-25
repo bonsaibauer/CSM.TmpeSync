@@ -14,13 +14,6 @@ namespace CSM.TmpeSync.Network.Contracts.Applied
         [ProtoMember(4, IsRequired = true)] public int LaneIndex { get; set; } = -1;
 
         /// <summary>
-        /// Lane mapping version that was current on the sender when the change was recorded.
-        /// Allows receivers to defer application until the matching mapping update is available.
-        /// </summary>
-        [ProtoMember(5)]
-        public long MappingVersion { get; set; }
-
-        /// <summary>
         /// Raw km/h payload that mirrors <see cref="Speed"/>. Used as a lossless fallback when the
         /// palette-based encoding collapses during transport.
         /// </summary>

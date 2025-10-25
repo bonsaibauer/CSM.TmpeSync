@@ -34,8 +34,7 @@ namespace CSM.TmpeSync.ToggleTrafficLights.Network.Handlers
                     }
                     else
                     {
-                        Log.Warn("Failed to apply remote traffic light toggle node={0} -> {1}; deferring.", cmd.NodeId, cmd.Enabled);
-                        DeferredApply.Enqueue(new TrafficLightToggledDeferredOp(cmd));
+                        Log.Warn("Failed to apply remote traffic light toggle node={0} -> {1}; skipping.", cmd.NodeId, cmd.Enabled);
                     }
                 }
             });

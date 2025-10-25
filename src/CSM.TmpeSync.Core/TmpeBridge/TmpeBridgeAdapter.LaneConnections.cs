@@ -262,8 +262,14 @@ namespace CSM.TmpeSync.TmpeBridge
                 }
             }
 
+            if (affectedNodes.Count == 0)
+                return;
+
             foreach (var nodeId in affectedNodes)
-                PendingMap.TriggerNode(nodeId);
+            {
+                if (TmpeBridgeAdapter.TryGetJunctionRestrictions(nodeId, out var state) && state != null && state.HasAnyValue())
+                    UpdateJunctionRestrictionStub(nodeId, state, null);
+            }
         }
 
         internal static bool TryGetLaneConnections(uint sourceLaneId, out uint[] targetLaneIds)
