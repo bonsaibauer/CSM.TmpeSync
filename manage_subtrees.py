@@ -5,10 +5,11 @@ import os, sys, subprocess, argparse
 from pathlib import Path
 from configparser import ConfigParser
 
-# === Welche Repos sollen eingebunden werden ===
+# === Repos, die als Subtrees eingebunden werden sollen ===
+# Branch ist hier fest auf 'master' gesetzt.
 REPOS = [
-    {"name": "TMPE", "url": "https://github.com/bonsaibauer/TMPE"},
-    {"name": "CSM",  "url": "https://github.com/bonsaibauer/CSM"},
+    {"name": "TMPE", "url": "https://github.com/CitiesSkylinesMods/TMPE", "branch": "master"},
+    {"name": "CSM",  "url": "https://github.com/CitiesSkylinesMultiplayer/CSM", "branch": "master"},
 ]
 BASE_PREFIX = Path("subtrees")
 
@@ -20,7 +21,7 @@ try:
 except Exception:
     GREEN = YELLOW = RED = CYAN = RESET = ""
 
-# === Hilfsfunktionen ===
+# === Shell Helpers ===
 def run(cmd, cwd=None, check=True, capture_output=True, dry_run=False):
     cmd_str = " ".join(cmd)
     if dry_run:
@@ -67,12 +68,24 @@ def maybe_auto_stash(enable: bool):
     return (True, name)
 
 def maybe_auto_stash_pop(did_stash: bool):
-    if not did_stash:
-        return
-    print(f"{YELLOW}Stelle Stash wieder her …{RESET}")
-    subprocess.run(["git", "stash", "pop"], check=False)
+    if did_stash:
+        print(f"{YELLOW}Stelle Stash wieder her …{RESET}")
+        subprocess.run(["git", "stash", "pop"], check=False)
 
+# === Commit Helper (wichtiger Fix) ===
+def commit_prefix_if_needed(prefix: Path, message: str, dry_run: bool):
+    px = prefix.as_posix()
+    run(["git", "add", "-A", "--", px], dry_run=dry_run)
+    diff_rc = subprocess.run(["git", "diff", "--cached", "--quiet", "--", px]).returncode
+    if diff_rc == 1:
+        print(f"{YELLOW}Committe Änderungen unter {px} …{RESET}")
+        run(["git", "commit", "-m", message], dry_run=dry_run)
+    else:
+        print(f"{GREEN}Nichts zu committen unter {px}.{RESET}")
+
+# === Git Basics ===
 def get_default_branch(repo_url, dry_run=False):
+    # Wird nur für Submodule ohne 'branch' in .gitmodules genutzt.
     try:
         r = run(["git", "ls-remote", "--symref", repo_url, "HEAD"], check=False, dry_run=dry_run)
         txt = (r.stdout or "") + (r.stderr or "")
@@ -90,7 +103,7 @@ def get_default_branch(repo_url, dry_run=False):
             return c
     return "main"
 
-def subtree_exists(p: Path): 
+def subtree_exists(p: Path):
     return p.exists() and any(p.iterdir())
 
 def subtree_add(prefix: Path, url: str, branch: str, squash: bool, dry_run: bool):
@@ -107,7 +120,7 @@ def subtree_pull(prefix: Path, url: str, branch: str, squash: bool, dry_run: boo
     print(f"{YELLOW}==> PULL subtree: {px} ({url}@{branch}){RESET}")
     run(args, check=True, dry_run=dry_run)
 
-# === .gitmodules einlesen ===
+# === .gitmodules lesen ===
 def parse_gitmodules(p: Path):
     if not p.exists(): return []
     cfg = ConfigParser()
@@ -163,7 +176,7 @@ def resolve_submodule_url(parent_url: str, sub_url: str) -> str:
         return f"https://github.com/{owner}/{parts[-1]}"
     return f"https://github.com/{owner}/{parts[-1]}"
 
-# === Rekursive Submodule zu Subtrees ===
+# === Rekursiv: Submodule als Subtrees einbinden ===
 def is_empty_dir(p: Path) -> bool:
     return p.exists() and p.is_dir() and not any(p.iterdir())
 
@@ -183,13 +196,13 @@ def vendor_submodules_recursively(root_prefix: Path, parent_repo_url: str, squas
         rel = m["path"].replace("\\", "/").strip("/")
         sub_path = root_prefix / rel
         sub_url  = resolve_submodule_url(parent_repo_url, m["url"])
-        branch   = m.get("branch") or get_default_branch(sub_url, dry_run=dry_run)
+        branch   = (m.get("branch") or get_default_branch(sub_url, dry_run=dry_run))
+
         key = (str(sub_path.resolve()), sub_url)
         if key in visited:
             continue
         visited.add(key)
 
-        # 🧹 falls Ordner leer ist, löschen (fix für dein Problem)
         if sub_path.exists() and is_empty_dir(sub_path):
             print(f"{YELLOW}Leerer Ordner vorhanden, entferne vor Subtree-ADD:{RESET} {sub_path.as_posix()}")
             if not dry_run:
@@ -198,15 +211,13 @@ def vendor_submodules_recursively(root_prefix: Path, parent_repo_url: str, squas
         sub_path.parent.mkdir(parents=True, exist_ok=True)
 
         if subtree_exists(sub_path):
-            try:
-                subtree_pull(sub_path, sub_url, branch, squash, dry_run)
-            except SystemExit:
-                print(f"{RED}Pfad existiert bereits und ist nicht leer:{RESET} {sub_path.as_posix()}")
-                print(f"{YELLOW}Überspringe dieses Submodule. Entferne den Ordner manuell, falls nötig.{RESET}")
-                continue
+            subtree_pull(sub_path, sub_url, branch, squash, dry_run)
+            commit_prefix_if_needed(sub_path, f"chore(subtree): pull {sub_url} ({branch}) -> {sub_path.as_posix()}", dry_run)
         else:
             subtree_add(sub_path, sub_url, branch, squash, dry_run)
+            commit_prefix_if_needed(sub_path, f"chore(subtree): add {sub_url} ({branch}) -> {sub_path.as_posix()}", dry_run)
 
+        # Rekursion in Submodule
         vendor_submodules_recursively(sub_path, sub_url, squash=squash, dry_run=dry_run, visited=visited)
 
 # === Main ===
@@ -228,14 +239,21 @@ def main():
         print(f"{GREEN}Starte Subtree-Update unter '{BASE_PREFIX.as_posix()}' ...{RESET}")
         for repo in REPOS:
             name, url = repo["name"], repo["url"]
+            branch = repo.get("branch") or get_default_branch(url, dry_run=dry_run)
             prefix = BASE_PREFIX / name
-            branch = get_default_branch(url, dry_run=dry_run)
+
             print(f"{GREEN}Repository:{RESET} {name}  {CYAN}{url}{RESET}  (Branch: {branch})")
+
             if subtree_exists(prefix):
                 subtree_pull(prefix, url, branch, squash, dry_run)
+                commit_prefix_if_needed(prefix, f"chore(subtree): pull {url} ({branch}) -> {prefix.as_posix()}", dry_run)
             else:
                 subtree_add(prefix, url, branch, squash, dry_run)
+                commit_prefix_if_needed(prefix, f"chore(subtree): add {url} ({branch}) -> {prefix.as_posix()}", dry_run)
+
+            # Submodule in diesem Subtree rekursiv als Subtrees
             vendor_submodules_recursively(prefix, url, squash=squash, dry_run=dry_run)
+
         print(f"{GREEN}Fertig.{RESET}")
     finally:
         maybe_auto_stash_pop(did_stash)
