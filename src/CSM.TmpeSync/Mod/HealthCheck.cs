@@ -52,10 +52,12 @@ namespace CSM.TmpeSync.Mod
                 return true;
             }
 
+            var missingDelegates = missing.ToArray();
+
             Log.Warn(
                 LogCategory.Network,
                 "CSM bridge degraded | missing={0} role={1}",
-                string.Join(", ", missing),
+                string.Join(", ", missingDelegates),
                 CsmBridge.DescribeCurrentRole());
             return false;
         }
