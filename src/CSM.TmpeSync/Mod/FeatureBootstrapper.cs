@@ -13,8 +13,15 @@ namespace CSM.TmpeSync.Mod
 {
     internal static class FeatureBootstrapper
     {
+        private static bool _registered;
+
         internal static void Register()
         {
+            if (_registered)
+                return;
+
+            _registered = true;
+
             SpeedLimitsFeature.Register();
             LaneArrowsFeature.Register();
             LaneConnectorFeature.Register();
