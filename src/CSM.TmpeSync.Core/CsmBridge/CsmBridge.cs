@@ -4,6 +4,7 @@ using System.Reflection;
 using CSM.API.Commands;
 using CSM.API.Helpers;
 using CSM.API.Networking;
+using CSM.TmpeSync.Util;
 
 namespace CSM.TmpeSync.CsmBridge
 {
