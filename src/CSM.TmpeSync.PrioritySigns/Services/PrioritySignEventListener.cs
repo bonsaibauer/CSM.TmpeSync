@@ -177,7 +177,7 @@ namespace CSM.TmpeSync.PrioritySigns.Services
             return null;
         }
 
-        private static void SetPrioritySign_Postfix(ushort segmentId, bool startNode, object _)
+        private static void SetPrioritySign_Postfix(ushort segmentId, bool startNode)
         {
             try
             {
@@ -192,21 +192,7 @@ namespace CSM.TmpeSync.PrioritySigns.Services
                 if (nodeId == 0)
                     return;
 
-                PrioritySignType signType = PrioritySignType.None;
-                if (PrioritySignSynchronization.TryRead(nodeId, segmentId, out var rawType))
-                {
-                    signType = (PrioritySignType)rawType;
-                }
-                else
-                {
-                    Log.Warn(
-                        LogCategory.Synchronization,
-                        "[PrioritySigns] TryRead failed after SetPrioritySign | node={0} segment={1}",
-                        nodeId,
-                        segmentId);
-                }
-
-                SendLocalChange(nodeId, segmentId, signType, "set");
+                BroadcastNodeSigns(nodeId, "set");
             }
             catch (Exception ex)
             {
@@ -229,25 +215,41 @@ namespace CSM.TmpeSync.PrioritySigns.Services
                 if (nodeId == 0)
                     return;
 
+                BroadcastNodeSigns(nodeId, "remove");
+            }
+            catch (Exception ex)
+            {
+                Log.Warn(LogCategory.Network, "[PrioritySigns] RemovePrioritySign postfix error: {0}", ex);
+            }
+        }
+
+        private static void BroadcastNodeSigns(ushort nodeId, string context)
+        {
+            if (nodeId == 0)
+                return;
+
+            ref var node = ref NetManager.instance.m_nodes.m_buffer[nodeId];
+            for (int i = 0; i < 8; i++)
+            {
+                ushort segId = node.GetSegment(i);
+                if (segId == 0)
+                    continue;
+
                 PrioritySignType signType = PrioritySignType.None;
-                if (PrioritySignSynchronization.TryRead(nodeId, segmentId, out var rawType))
+                if (PrioritySignSynchronization.TryRead(nodeId, segId, out var raw))
                 {
-                    signType = (PrioritySignType)rawType;
+                    signType = (PrioritySignType)raw;
                 }
                 else
                 {
                     Log.Warn(
                         LogCategory.Synchronization,
-                        "[PrioritySigns] TryRead failed after RemovePrioritySign | node={0} segment={1}",
+                        "[PrioritySigns] TryRead failed during node broadcast | node={0} segment={1}",
                         nodeId,
-                        segmentId);
+                        segId);
                 }
 
-                SendLocalChange(nodeId, segmentId, signType, "remove");
-            }
-            catch (Exception ex)
-            {
-                Log.Warn(LogCategory.Network, "[PrioritySigns] RemovePrioritySign postfix error: {0}", ex);
+                SendLocalChange(nodeId, segId, signType, context);
             }
         }
 

@@ -1,4 +1,5 @@
 using CSM.API.Commands;
+using ColossalFramework;
 using CSM.TmpeSync.Bridge;
 using CSM.TmpeSync.Network.Contracts.States;
 using CSM.TmpeSync.Network.Contracts.System;
@@ -74,8 +75,6 @@ namespace CSM.TmpeSync.PrioritySigns.Handlers
                         return;
                     }
 
-                    PrioritySignType resultingSign = command.SignType;
-
                     using (CsmBridge.StartIgnore())
                     {
                         if (!PrioritySignSynchronization.Apply(command.NodeId, command.SegmentId, (byte)command.SignType))
@@ -91,32 +90,42 @@ namespace CSM.TmpeSync.PrioritySigns.Handlers
                         }
                     }
 
-                    if (PrioritySignSynchronization.TryRead(command.NodeId, command.SegmentId, out var actualRaw))
+                    // After TM:PE may have auto-updated other ends at this node, broadcast the entire node state
+                    ref var node = ref NetManager.instance.m_nodes.m_buffer[command.NodeId];
+                    for (int i = 0; i < 8; i++)
                     {
-                        resultingSign = (PrioritySignType)actualRaw;
-                    }
-                    else
-                    {
-                        Log.Warn(
+                        ushort segId = node.GetSegment(i);
+                        if (segId == 0)
+                            continue;
+
+                        PrioritySignType signAtEnd = PrioritySignType.None;
+                        if (PrioritySignSynchronization.TryRead(command.NodeId, segId, out var raw))
+                        {
+                            signAtEnd = (PrioritySignType)raw;
+                        }
+                        else
+                        {
+                            Log.Warn(
+                                LogCategory.Synchronization,
+                                "Priority sign verify failed during node broadcast | nodeId={0} segmentId={1}",
+                                command.NodeId,
+                                segId);
+                        }
+
+                        Log.Info(
                             LogCategory.Synchronization,
-                            "Priority sign verify failed | nodeId={0} segmentId={1} reason=tmpe_read_failed",
+                            "Priority sign applied | nodeId={0} segmentId={1} sign={2} action=broadcast_node",
                             command.NodeId,
-                            command.SegmentId);
+                            segId,
+                            signAtEnd);
+
+                        PrioritySignSynchronization.Dispatch(new PrioritySignAppliedCommand
+                        {
+                            NodeId = command.NodeId,
+                            SegmentId = segId,
+                            SignType = signAtEnd
+                        });
                     }
-
-                    Log.Info(
-                        LogCategory.Synchronization,
-                        "Priority sign applied | nodeId={0} segmentId={1} sign={2} action=broadcast",
-                        command.NodeId,
-                        command.SegmentId,
-                        resultingSign);
-
-                    PrioritySignSynchronization.Dispatch(new PrioritySignAppliedCommand
-                    {
-                        NodeId = command.NodeId,
-                        SegmentId = command.SegmentId,
-                        SignType = resultingSign
-                    });
                 }
             });
         }
