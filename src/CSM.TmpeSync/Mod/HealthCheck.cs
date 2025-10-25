@@ -5,24 +5,12 @@ using CSM.API.Commands;
 using CSM.TmpeSync.Bridge;
 using CSM.TmpeSync.ClearTraffic.Network.Contracts.Applied;
 using CSM.TmpeSync.ClearTraffic.Network.Contracts.Requests;
-using CSM.TmpeSync.JunctionRestrictions.Network.Contracts.Applied;
-using CSM.TmpeSync.JunctionRestrictions.Network.Contracts.Requests;
-using CSM.TmpeSync.LaneArrows.Network.Contracts.Applied;
-using CSM.TmpeSync.LaneArrows.Network.Contracts.Requests;
-using CSM.TmpeSync.LaneConnector.Network.Contracts.Applied;
-using CSM.TmpeSync.LaneConnector.Network.Contracts.Requests;
-using CSM.TmpeSync.ParkingRestrictions.Network.Contracts.Applied;
-using CSM.TmpeSync.ParkingRestrictions.Network.Contracts.Requests;
-using CSM.TmpeSync.PrioritySigns.Network.Contracts.Applied;
-using CSM.TmpeSync.PrioritySigns.Network.Contracts.Requests;
-using CSM.TmpeSync.SpeedLimits.Network.Contracts.Applied;
-using CSM.TmpeSync.SpeedLimits.Network.Contracts.Requests;
+using CSM.TmpeSync.Network.Contracts.Applied;
+using CSM.TmpeSync.Network.Contracts.Requests;
 using CSM.TmpeSync.TmpeBridge;
 using CSM.TmpeSync.ToggleTrafficLights.Network.Contracts.Applied;
 using CSM.TmpeSync.ToggleTrafficLights.Network.Contracts.Requests;
 using CSM.TmpeSync.Util;
-using CSM.TmpeSync.VehicleRestrictions.Network.Contracts.Applied;
-using CSM.TmpeSync.VehicleRestrictions.Network.Contracts.Requests;
 
 namespace CSM.TmpeSync.Mod
 {
