@@ -12,10 +12,10 @@ namespace CSM.TmpeSync.Util
     {
         private readonly object _lock = new object();
         private readonly List<T> _buffer = new List<T>();
-        private readonly Action<IReadOnlyList<T>> _flushAction;
+        private readonly Action<IList<T>> _flushAction;
         private bool _flushScheduled;
 
-        internal ChangeBatcher(Action<IReadOnlyList<T>> flushAction)
+        internal ChangeBatcher(Action<IList<T>> flushAction)
         {
             _flushAction = flushAction ?? throw new ArgumentNullException(nameof(flushAction));
         }

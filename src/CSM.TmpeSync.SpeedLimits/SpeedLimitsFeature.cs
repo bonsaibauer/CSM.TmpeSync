@@ -67,7 +67,7 @@ namespace CSM.TmpeSync.SpeedLimits
             }
         }
 
-        private static void FlushSpeedLimitBatch(IReadOnlyList<SpeedLimitBatchApplied.Entry> entries)
+        private static void FlushSpeedLimitBatch(IList<SpeedLimitBatchApplied.Entry> entries)
         {
             if (entries == null || entries.Count == 0)
                 return;
