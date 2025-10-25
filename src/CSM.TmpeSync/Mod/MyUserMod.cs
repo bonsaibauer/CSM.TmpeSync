@@ -42,7 +42,6 @@ namespace CSM.TmpeSync.Mod
 
             FeatureBootstrapper.Register();
             SnapshotDispatcher.Initialize();
-            LaneMappingTracker.Initialize();
             TmpeFeatureReadyNotifier.Initialize();
             SnapshotDispatcher.TryExportIfServer("mod_enabled");
 
@@ -77,7 +76,6 @@ namespace CSM.TmpeSync.Mod
             CsmBridgeMultiplayerObserver.RoleChanged -= Log.HandleRoleChanged;
             Log.EndServerSessionLog();
             TmpeFeatureReadyNotifier.Shutdown();
-            LaneMappingTracker.Shutdown();
             SnapshotDispatcher.Shutdown();
 
             CsmBridge.LogDiagnostics("OnDisabled");

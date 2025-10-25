@@ -1,6 +1,5 @@
 using CSM.TmpeSync.JunctionRestrictions.Util;
 using CSM.TmpeSync.Network.Contracts.Applied;
-using CSM.TmpeSync.Network.Contracts.Requests;
 using CSM.TmpeSync.Network.Contracts.States;
 using CSM.TmpeSync.Network.Handlers;
 using CSM.TmpeSync.Snapshot;
@@ -21,9 +20,7 @@ namespace CSM.TmpeSync.JunctionRestrictions
 
         private static void HandleNodeChange(ushort nodeId)
         {
-            TmpeBridgeChangeDispatcher.SyncSegmentsForNode(nodeId, "junction_restrictions");
-
-            if (PendingMap.TryGetJunctionRestrictions(nodeId, out var state))
+            if (TmpeBridgeAdapter.TryGetJunctionRestrictions(nodeId, out var state) && state != null && !state.IsDefault())
             {
                 var preparedState = JunctionRestrictionsDiagnostics.LogOutgoingJunctionRestrictions(
                     nodeId,
@@ -33,8 +30,7 @@ namespace CSM.TmpeSync.JunctionRestrictions
                 TmpeBridgeChangeDispatcher.Broadcast(new JunctionRestrictionsApplied
                 {
                     NodeId = nodeId,
-                    State = preparedState?.Clone() ?? new JunctionRestrictionsState(),
-                    MappingVersion = LaneMappingStore.Version
+                    State = preparedState?.Clone() ?? new JunctionRestrictionsState()
                 });
             }
         }

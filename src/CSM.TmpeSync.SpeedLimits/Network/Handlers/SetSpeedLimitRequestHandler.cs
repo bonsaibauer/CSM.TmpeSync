@@ -55,7 +55,7 @@ namespace CSM.TmpeSync.Network.Handlers
 
             Log.Debug(
                 LogCategory.Synchronization,
-                "Queueing speed limit apply | laneId={0} value={1} speedKmh={2}",
+                "Applying speed limit | laneId={0} value={1} speedKmh={2}",
                 cmd.LaneId,
                 requestedDescription,
                 requestedKmh);
@@ -75,56 +75,7 @@ namespace CSM.TmpeSync.Network.Handlers
                         return;
                     }
 
-                    if (PendingMap.ApplySpeedLimit(lockedLaneId, requestedKmh, ignoreScope: false))
-                    {
-                        SpeedLimitValue resultingValue = requestedValue;
-                        float? resultingDefault = null;
-                        var resultingSpeedKmh = SpeedLimitCodec.DecodeToKmh(resultingValue);
-
-                        if (PendingMap.TryGetSpeedLimit(lockedLaneId, out var appliedSpeed, out var appliedDefault, out var hasOverride, out var pending))
-                        {
-                            resultingValue = SpeedLimitCodec.Encode(appliedSpeed, appliedDefault, hasOverride, pending);
-                            resultingDefault = appliedDefault;
-                            resultingSpeedKmh = appliedSpeed;
-                        }
-                        else
-                        {
-                            var assumeOverride = !SpeedLimitCodec.IsDefault(resultingValue);
-                            resultingValue = SpeedLimitCodec.Encode(resultingSpeedKmh, null, assumeOverride, pending: assumeOverride);
-                        }
-                        if (!NetworkUtil.TryGetLaneLocation(lockedLaneId, out var currentSegment, out var currentLaneIndex))
-                        {
-                            currentSegment = segmentId;
-                            currentLaneIndex = laneIndex;
-                        }
-
-                        var mappingVersion = LaneMappingStore.Version;
-                        Log.Info(
-                            LogCategory.Synchronization,
-                            "Applied speed limit | laneId={0} segmentId={1} laneIndex={2} value={3} speedKmh={4} action=broadcast",
-                            lockedLaneId,
-                            currentSegment,
-                            currentLaneIndex,
-                            SpeedLimitCodec.Describe(resultingValue),
-                            SpeedLimitCodec.DecodeToKmh(resultingValue));
-
-                        SpeedLimitDiagnostics.LogOutgoingSpeedLimit(
-                            lockedLaneId,
-                            SpeedLimitCodec.DecodeToKmh(resultingValue),
-                            resultingValue,
-                            resultingDefault,
-                            "request_handler");
-
-                        CsmBridge.SendToAll(new SpeedLimitApplied
-                        {
-                            LaneId = lockedLaneId,
-                            Speed = resultingValue,
-                            SegmentId = currentSegment,
-                            LaneIndex = currentLaneIndex,
-                            MappingVersion = mappingVersion
-                        });
-                    }
-                    else
+                    if (!TmpeBridgeAdapter.ApplySpeedLimit(lockedLaneId, requestedKmh))
                     {
                         Log.Error(
                             LogCategory.Synchronization,
@@ -136,7 +87,49 @@ namespace CSM.TmpeSync.Network.Handlers
                             requestedKmh,
                             senderId);
                         CsmBridge.SendToClient(senderId, new RequestRejected { Reason = "tmpe_apply_failed", EntityId = lockedLaneId, EntityType = 1 });
+                        return;
                     }
+
+                    var resultingValue = requestedValue;
+                    float? resultingDefault = null;
+                    var resultingSpeedKmh = requestedKmh;
+
+                    if (TmpeBridgeAdapter.TryGetSpeedLimit(lockedLaneId, out var appliedSpeed, out var appliedDefault, out var hasOverride))
+                    {
+                        resultingSpeedKmh = appliedSpeed;
+                        resultingDefault = appliedDefault;
+                        resultingValue = SpeedLimitCodec.Encode(appliedSpeed, appliedDefault, hasOverride);
+                    }
+
+                    if (!NetworkUtil.TryGetLaneLocation(lockedLaneId, out var currentSegment, out var currentLaneIndex))
+                    {
+                        currentSegment = segmentId;
+                        currentLaneIndex = laneIndex;
+                    }
+
+                    Log.Info(
+                        LogCategory.Synchronization,
+                        "Applied speed limit | laneId={0} segmentId={1} laneIndex={2} value={3} speedKmh={4} action=broadcast",
+                        lockedLaneId,
+                        currentSegment,
+                        currentLaneIndex,
+                        SpeedLimitCodec.Describe(resultingValue),
+                        resultingSpeedKmh);
+
+                    SpeedLimitDiagnostics.LogOutgoingSpeedLimit(
+                        lockedLaneId,
+                        resultingSpeedKmh,
+                        resultingValue,
+                        resultingDefault,
+                        "request_handler");
+
+                    CsmBridge.SendToAll(new SpeedLimitApplied
+                    {
+                        LaneId = lockedLaneId,
+                        Speed = resultingValue,
+                        SegmentId = currentSegment,
+                        LaneIndex = currentLaneIndex
+                    });
                 }
             });
         }

@@ -19,26 +19,28 @@ namespace CSM.TmpeSync.Snapshot
 
             NetworkUtil.ForEachLane(laneId =>
             {
-                if (!PendingMap.TryGetSpeedLimit(laneId, out var kmh, out var defaultKmh, out var hasOverride, out var pending))
+                if (!TmpeBridgeAdapter.TryGetSpeedLimit(laneId, out var kmh, out var defaultKmh, out var hasOverride))
+                    return;
+
+                if (!hasOverride && (!defaultKmh.HasValue || defaultKmh.Value <= 0f))
                     return;
 
                 if (!NetworkUtil.TryGetLaneLocation(laneId, out var segmentId, out var laneIndex))
                     return;
 
-                var encoded = SpeedLimitCodec.Encode(kmh, defaultKmh, hasOverride, pending);
+                var encoded = SpeedLimitCodec.Encode(kmh, defaultKmh, hasOverride);
                 Log.Debug(
                     LogCategory.Snapshot,
                     "Speed limit snapshot entry | laneId={0} value={1}",
                     laneId,
                     SpeedLimitCodec.Describe(encoded));
-                var mappingVersion = LaneMappingStore.Version;
+
                 buffer.Add(new SpeedLimitBatchApplied.Entry
                 {
                     LaneId = laneId,
                     Speed = encoded,
                     SegmentId = segmentId,
-                    LaneIndex = laneIndex,
-                    MappingVersion = mappingVersion
+                    LaneIndex = laneIndex
                 });
 
                 if (buffer.Count >= BatchSize)
@@ -58,16 +60,9 @@ namespace CSM.TmpeSync.Snapshot
             if (buffer.Count == 0)
                 return 0;
 
-            // Send one command per batch to avoid flooding the network channel.
-            long mappingVersion = 0;
-            foreach (var entry in buffer)
-                if (entry.MappingVersion > mappingVersion)
-                    mappingVersion = entry.MappingVersion;
-
             var payload = new SpeedLimitBatchApplied
             {
-                Items = new List<SpeedLimitBatchApplied.Entry>(buffer),
-                MappingVersion = mappingVersion
+                Items = new List<SpeedLimitBatchApplied.Entry>(buffer)
             };
 
             SnapshotDispatcher.Dispatch(payload);

@@ -131,61 +131,19 @@ namespace CSM.TmpeSync.Util
 
         internal static bool TryResolveLane(ref uint laneId, ref ushort segmentId, ref int laneIndex)
         {
-            if (!TryGetLaneGuidContext(laneId, segmentId, laneIndex, out var laneGuid, out var contextSegment, out var contextLaneIndex, out var hostLaneId))
-                return false;
-
-            if (!LaneGuidRegistry.TryResolveLane(laneGuid, out var resolvedLaneId))
-                return false;
-
-            laneId = resolvedLaneId;
-            segmentId = contextSegment != 0 ? contextSegment : laneGuid.SegmentId;
-            laneIndex = contextLaneIndex >= 0 ? contextLaneIndex : laneGuid.PrefabLaneIndex;
-
-            LaneGuidRegistry.AssignLaneGuid(resolvedLaneId, laneGuid, true);
-            LaneMappingStore.UpsertHostLane(laneGuid, hostLaneId, segmentId, laneIndex, out _, out _);
-            LaneMappingStore.UpdateLocalLane(segmentId, laneIndex, resolvedLaneId);
-
-            return true;
-        }
-
-        private static bool TryGetLaneGuidContext(uint laneId, ushort segmentId, int laneIndex, out LaneGuid laneGuid, out ushort contextSegment, out int contextLaneIndex, out uint hostLaneId)
-        {
-            laneGuid = default;
-            contextSegment = segmentId;
-            contextLaneIndex = laneIndex;
-            hostLaneId = laneId;
-
-            if (laneId != 0 && LaneMappingStore.TryResolveHostLane(laneId, out var hostEntry) && hostEntry.LaneGuid.IsValid)
+            if (laneId != 0 && LaneExists(laneId))
             {
-                laneGuid = hostEntry.LaneGuid;
-                contextSegment = hostEntry.SegmentId;
-                contextLaneIndex = hostEntry.LaneIndex;
-                hostLaneId = hostEntry.HostLaneId != 0 ? hostEntry.HostLaneId : laneId;
+                if (segmentId == 0 || laneIndex < 0)
+                    TryGetLaneLocation(laneId, out segmentId, out laneIndex);
                 return true;
             }
 
-            if (segmentId != 0 && laneIndex >= 0 && LaneMappingStore.TryGetEntry(segmentId, laneIndex, out var entry) && entry.LaneGuid.IsValid)
+            if (segmentId != 0 && laneIndex >= 0 && TryGetLaneId(segmentId, laneIndex, out var resolvedLaneId))
             {
-                laneGuid = entry.LaneGuid;
-                contextSegment = entry.SegmentId;
-                contextLaneIndex = entry.LaneIndex;
-                hostLaneId = entry.HostLaneId;
+                laneId = resolvedLaneId;
                 return true;
             }
 
-            if (laneId != 0 && LaneGuidRegistry.TryGetLaneGuid(laneId, out var registryGuid) && registryGuid.IsValid)
-            {
-                laneGuid = registryGuid;
-                contextSegment = laneGuid.SegmentId;
-                contextLaneIndex = laneGuid.PrefabLaneIndex;
-                hostLaneId = laneId;
-                return true;
-            }
-
-            laneGuid = default;
-            contextSegment = segmentId;
-            contextLaneIndex = laneIndex;
-            hostLaneId = laneId;
             return false;
         }
 
@@ -224,24 +182,15 @@ namespace CSM.TmpeSync.Util
             if (laneId != 0 && LaneExists(laneId))
                 return true;
 
-            if (!TryGetLaneGuidContext(laneId, segmentId, laneIndex, out var laneGuid, out var contextSegment, out var contextLaneIndex, out _))
-                return false;
+            if (segmentId != 0 && laneIndex >= 0)
+                return TryGetLaneId(segmentId, laneIndex, out _);
 
-            if (LaneMappingStore.TryGetEntry(contextSegment, contextLaneIndex, out var entry) && entry.IsLocalResolved && LaneExists(entry.LocalLaneId))
-                return true;
-
-            return LaneGuidRegistry.TryResolveLane(laneGuid, out var resolvedLaneId) && LaneExists(resolvedLaneId);
+            return false;
         }
 
         internal static bool CanResolveLaneSoon(uint laneId, ushort segmentId, int laneIndex)
         {
-            if (IsLaneResolved(laneId, segmentId, laneIndex))
-                return true;
-
-            if (!TryGetLaneGuidContext(laneId, segmentId, laneIndex, out var laneGuid, out var contextSegment, out _, out _))
-                return false;
-
-            return laneGuid.IsValid && SegmentExists(contextSegment);
+            return IsLaneResolved(laneId, segmentId, laneIndex);
         }
 
         internal static bool SegmentExists(ushort segmentId)

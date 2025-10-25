@@ -133,60 +133,31 @@ namespace CSM.TmpeSync.TmpeBridge
             try
             {
                 var desired = state?.Clone() ?? new JunctionRestrictionsState();
-                var storeDesiredInStub = false;
-                var observerHash = ComputeNodeObserverHash(nodeId);
 
-                if (SupportsJunctionRestrictions)
-                {
-                    Log.Debug(LogCategory.Hook, "TM:PE junction restriction request | nodeId={0} state={1}", nodeId, desired);
-
-                    PendingMap.UpsertNode(nodeId, desired, observerHash, "apply");
-                    var outcome = TryApplyJunctionRestrictionsReal(nodeId, desired, out var appliedFlags, out var rejectedFlags);
-
-                    if (outcome == JunctionRestrictionApplyOutcome.Fatal)
-                    {
-                        Log.Warn(LogCategory.Bridge, "TM:PE junction restriction apply via API failed | nodeId={0} action=fallback_to_stub", nodeId);
-                        PendingMap.DropNode(nodeId);
-                        return false;
-                    }
-
-                    UpdateJunctionRestrictionStub(nodeId, rejectedFlags, appliedFlags);
-
-                    if (outcome == JunctionRestrictionApplyOutcome.Success)
-                    {
-                        if (desired.HasAnyValue())
-                            PendingMap.MarkNodeApplied(nodeId, desired);
-                        else
-                            PendingMap.ClearNode(nodeId, "clear");
-                        return true;
-                    }
-
-                    if (outcome == JunctionRestrictionApplyOutcome.Partial)
-                    {
-                        if (appliedFlags != null && appliedFlags.HasAnyValue())
-                            PendingMap.MarkNodeApplied(nodeId, appliedFlags);
-
-                        if (rejectedFlags != null && rejectedFlags.HasAnyValue())
-                            PendingMap.ReportNodeRejection(nodeId, rejectedFlags, "partial", observerHash);
-                        else if (desired.HasAnyValue())
-                            PendingMap.ReportNodeRejection(nodeId, desired, "partial", observerHash);
-
-                        return true;
-                    }
-
-                    if (desired.HasAnyValue())
-                        PendingMap.ReportNodeRejection(nodeId, desired, "no_effect", observerHash);
-
-                    storeDesiredInStub = true;
-                }
-                else
+                if (!SupportsJunctionRestrictions)
                 {
                     Log.Info(LogCategory.Synchronization, "TM:PE junction restrictions stored in stub | nodeId={0} state={1}", nodeId, desired);
-                    storeDesiredInStub = true;
+                    UpdateJunctionRestrictionStub(nodeId, desired, null);
+                    return true;
                 }
 
-                if (storeDesiredInStub)
+                Log.Debug(LogCategory.Hook, "TM:PE junction restriction request | nodeId={0} state={1}", nodeId, desired);
+
+                var outcome = TryApplyJunctionRestrictionsReal(nodeId, desired, out var appliedFlags, out var rejectedFlags);
+
+                if (outcome == JunctionRestrictionApplyOutcome.Fatal)
+                {
+                    Log.Warn(LogCategory.Bridge, "TM:PE junction restriction apply via API failed | nodeId={0}", nodeId);
+                    return false;
+                }
+
+                if (outcome == JunctionRestrictionApplyOutcome.Partial)
+                    UpdateJunctionRestrictionStub(nodeId, appliedFlags ?? desired, rejectedFlags);
+                else
                     UpdateJunctionRestrictionStub(nodeId, desired, null);
+
+                if (rejectedFlags != null && rejectedFlags.HasAnyValue())
+                    Log.Warn(LogCategory.Bridge, "TM:PE junction restriction rejected | nodeId={0} rejected={1}", nodeId, rejectedFlags);
 
                 return true;
             }
@@ -204,7 +175,6 @@ namespace CSM.TmpeSync.TmpeBridge
                 if (SupportsJunctionRestrictions && TryGetJunctionRestrictionsReal(nodeId, out state))
                 {
                     Log.Debug(LogCategory.Hook, "TM:PE junction restriction query | nodeId={0} state={1}", nodeId, state);
-                    PendingMap.OverlayPending(nodeId, state);
                     return true;
                 }
 
@@ -215,8 +185,6 @@ namespace CSM.TmpeSync.TmpeBridge
                     else
                         state = stored.Clone();
                 }
-
-                PendingMap.OverlayPending(nodeId, state);
 
                 return true;
             }
@@ -237,9 +205,6 @@ namespace CSM.TmpeSync.TmpeBridge
                     existing = stored.Clone();
 
                 var merged = MergeJunctionRestrictionStub(existing, valuesToStore, valuesToClear);
-
-                if (merged != null)
-                    PendingMap.OverlayPending(nodeId, merged);
 
                 if (merged == null || !merged.HasAnyValue() || merged.IsDefault())
                     JunctionRestrictions.Remove(nodeId);

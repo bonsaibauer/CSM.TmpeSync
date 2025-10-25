@@ -23,13 +23,11 @@ namespace CSM.TmpeSync.Network.Handlers
 
             foreach (var item in command.Items)
             {
-                var effectiveVersion = item.MappingVersion > 0 ? item.MappingVersion : command.MappingVersion;
                 SpeedLimitCommandProcessor.Apply(
                     item.LaneId,
                     item.Speed,
                     item.SegmentId,
-                    item.LaneIndex,
-                    effectiveVersion);
+                    item.LaneIndex);
             }
         }
     }

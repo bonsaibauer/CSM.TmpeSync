@@ -16,7 +16,6 @@ namespace CSM.TmpeSync.Mod
         public override void OnReleased()
         {
             CsmBridgeMultiplayerObserver.Reset();
-            DeferredApply.Reset();
             LockRegistry.Reset();
         }
     }

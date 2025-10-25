@@ -260,7 +260,6 @@
     <Compile Include="Mod\TmpeSyncConnection.cs" />
     <Compile Include="Mod\MultiplayerThreadingExtension.cs" />
     <Compile Include="Mod\FeatureBootstrapper.cs" />
-    <Compile Include="Snapshot\LaneMappingSnapshotProvider.cs" />
     <Compile Include="Tool\LockOverlay.cs" />
   </ItemGroup>
   <ItemGroup>

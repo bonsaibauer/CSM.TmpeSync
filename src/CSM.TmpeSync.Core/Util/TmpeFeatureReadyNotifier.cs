@@ -45,7 +45,6 @@ namespace CSM.TmpeSync.Util
             }
 
             Log.Info(LogCategory.Synchronization, "TM:PE bridge ready on client | action=notify_server");
-            DeferredApply.Reset();
 
             try
             {
@@ -75,7 +74,6 @@ namespace CSM.TmpeSync.Util
                 TmpeBridgeEventGateway.Disable();
             }
 
-            DeferredApply.Reset();
             LogFeatureStatus(role);
         }
 

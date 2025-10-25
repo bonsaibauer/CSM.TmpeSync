@@ -261,19 +261,12 @@
     <Compile Include="Util\Deps.cs" />
     <Compile Include="Util\NetworkUtil.cs" />
     <Compile Include="Util\EntityLocks.cs" />
-    <Compile Include="Util\DeferredApply.cs" />
     <Compile Include="CsmBridge\CsmBridge.cs" />
     <Compile Include="Util\LockRegistry.cs" />
-    <Compile Include="Util\LaneGuidRegistry.cs" />
-    <Compile Include="Util\PendingMap.cs" />
-    <Compile Include="Util\PendingMap.Bridge.cs" />
     <Compile Include="CsmBridge\CsmBridgeMultiplayerObserver.cs" />
-    <Compile Include="Util\LaneMappingStore.cs" />
-    <Compile Include="Util\LaneMappingTracker.cs" />
     <Compile Include="Util\TmpeFeatureReadyNotifier.cs" />
 
     <Compile Include="TmpeBridge\TmpeBridgeAdapter.cs" />
-    <Compile Include="TmpeBridge\TmpeBridgeAdapter.Pending.cs" />
     <Compile Include="TmpeBridge\TmpeBridgeAdapter.JunctionRestrictions.cs" />
     <Compile Include="TmpeBridge\TmpeBridgeAdapter.LaneArrows.cs" />
     <Compile Include="TmpeBridge\TmpeBridgeAdapter.LaneConnections.cs" />
@@ -287,11 +280,7 @@
     <Compile Include="TmpeBridge\TmpeBridgeEventGateway.cs" />
     <Compile Include="TmpeBridge\TmpeBridgeFeatureRegistry.cs" />
 
-    <Compile Include="Network\LaneGuid.cs" />
     <Compile Include="Network\Contracts\States\TmpeStates.cs" />
-    <Compile Include="Network\Contracts\Mapping\LaneMappingBatch.cs" />
-    <Compile Include="Network\Contracts\Mapping\LaneMappingChanged.cs" />
-    <Compile Include="Network\Contracts\Mapping\LaneMappingRemoved.cs" />
     <Compile Include="Network\Contracts\System\RequestRejected.cs" />
     <Compile Include="Network\Contracts\System\TmpeFeatureReady.cs" />
     <Compile Include="Network\Contracts\Locks\BeginEnd.cs" />

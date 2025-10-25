@@ -498,8 +498,6 @@ namespace CSM.TmpeSync.TmpeBridge
                 SupportsClearTraffic = false;
                 HasRealTmpe = false;
 
-                PendingMap.ClearAll();
-
                 if (tmpeAssembly == null)
                 {
                     if (!_loggedMissingAssembly)

@@ -180,7 +180,6 @@
     <Compile Include="Network\Contracts\Requests\ToggleTrafficLightRequest.cs" />
     <Compile Include="Network\Handlers\ToggleTrafficLightRequestHandler.cs" />
     <Compile Include="Network\Handlers\TrafficLightToggledAppliedHandler.cs" />
-    <Compile Include="Network\Handlers\TrafficLightToggledDeferredOp.cs" />
     <Compile Include="Snapshot\ToggleTrafficLightSnapshotProvider.cs" />
   </ItemGroup>
 

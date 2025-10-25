@@ -1,6 +1,5 @@
 using ColossalFramework;
 using CSM.TmpeSync.Network.Contracts.Applied;
-using CSM.TmpeSync.Network.Contracts.Requests;
 using CSM.TmpeSync.Network.Handlers;
 using CSM.TmpeSync.Snapshot;
 using CSM.TmpeSync.TmpeBridge;
@@ -19,14 +18,11 @@ namespace CSM.TmpeSync.SpeedLimits
 
         private static void HandleSegmentChange(ushort segmentId)
         {
-            LaneMappingTracker.SyncSegment(segmentId, "speed_limits");
-
             ref var segment = ref NetManager.instance.m_segments.m_buffer[segmentId];
             var info = segment.Info;
             if (info?.m_lanes == null)
                 return;
 
-            var mappingVersion = LaneMappingStore.Version;
             uint laneId = segment.m_lanes;
             for (int laneIndex = 0; laneId != 0 && laneIndex < info.m_lanes.Length; laneIndex++)
             {
@@ -37,9 +33,15 @@ namespace CSM.TmpeSync.SpeedLimits
                     continue;
                 }
 
-                if (PendingMap.TryGetSpeedLimit(laneId, out var kmh, out var defaultKmh, out var hasOverride, out var pending))
+                if (TmpeBridgeAdapter.TryGetSpeedLimit(laneId, out var kmh, out var defaultKmh, out var hasOverride))
                 {
-                    var encoded = SpeedLimitCodec.Encode(kmh, defaultKmh, hasOverride, pending);
+                    if (!hasOverride && (!defaultKmh.HasValue || defaultKmh.Value <= 0f))
+                    {
+                        laneId = lane.m_nextLane;
+                        continue;
+                    }
+
+                    var encoded = SpeedLimitCodec.Encode(kmh, defaultKmh, hasOverride);
 
                     SpeedLimitDiagnostics.LogOutgoingSpeedLimit(
                         laneId,
@@ -53,8 +55,7 @@ namespace CSM.TmpeSync.SpeedLimits
                         LaneId = laneId,
                         Speed = encoded,
                         SegmentId = segmentId,
-                        LaneIndex = laneIndex,
-                        MappingVersion = mappingVersion
+                        LaneIndex = laneIndex
                     });
                 }
 

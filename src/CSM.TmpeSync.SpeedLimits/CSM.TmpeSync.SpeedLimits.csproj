@@ -264,7 +264,6 @@
     <Compile Include="Network\Handlers\SpeedLimitBatchAppliedHandler.cs" />
     <Compile Include="Network\Handlers\SetSpeedLimitRequestHandler.cs" />
     <Compile Include="Network\Handlers\SpeedLimitCommandProcessor.cs" />
-    <Compile Include="Network\Handlers\SpeedLimitDeferredOp.cs" />
     <Compile Include="Snapshot\SpeedLimitSnapshotProvider.cs" />
     <Compile Include="TmpeBridge\SpeedLimitCodec.cs" />
     <Compile Include="Util\SpeedLimitDiagnostics.cs" />
