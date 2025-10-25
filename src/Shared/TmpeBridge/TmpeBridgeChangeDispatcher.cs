@@ -13,9 +13,9 @@ namespace CSM.TmpeSync.TmpeBridge
     /// </summary>
     internal static class TmpeBridgeChangeDispatcher
     {
-        internal static Func<CommandBase> ClearTrafficBroadcastFactory = null!;
-        internal static Func<CommandBase> ClearTrafficRequestFactory = null!;
-        internal static Func<ushort, bool, CommandBase> TrafficLightBroadcastFactory = null!;
+        internal static Func<CommandBase> ClearTrafficBroadcastFactory = null;
+        internal static Func<CommandBase> ClearTrafficRequestFactory = null;
+        internal static Func<ushort, bool, CommandBase> TrafficLightBroadcastFactory = null;
 
         internal static void HandleSegmentModification(ushort segmentId, object sender)
         {
