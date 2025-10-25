@@ -1,6 +1,6 @@
 using CSM.API.Commands;
 using CSM.TmpeSync.Network.Contracts.Applied;
-using CSM.TmpeSync.SpeedLimits.Tmpe;
+using CSM.TmpeSync.TmpeBridge;
 using CSM.TmpeSync.SpeedLimits.Util;
 using CSM.TmpeSync.Util;
 

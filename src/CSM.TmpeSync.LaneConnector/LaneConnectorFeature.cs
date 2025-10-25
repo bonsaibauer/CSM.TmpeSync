@@ -24,7 +24,7 @@ namespace CSM.TmpeSync.LaneConnector
                 return;
 
             if (!TmpeBridgeAdapter.TryGetLaneConnections(laneId, out var targets) || targets == null)
-                targets = Array.Empty<uint>();
+                targets = new uint[0];
 
             if (!NetworkUtil.TryGetLaneLocation(laneId, out var segmentId, out var laneIndex))
                 return;

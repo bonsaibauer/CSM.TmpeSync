@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 using CSM.TmpeSync.Network.Contracts.States;
-using CSM.TmpeSync.SpeedLimits.Tmpe;
+using CSM.TmpeSync.TmpeBridge;
 using CSM.TmpeSync.Util;
 
 namespace CSM.TmpeSync.SpeedLimits.Util

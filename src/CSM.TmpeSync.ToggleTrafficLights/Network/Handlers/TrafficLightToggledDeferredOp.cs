@@ -1,7 +1,8 @@
 using CSM.TmpeSync.Network.Contracts.Applied;
 using CSM.TmpeSync.TmpeBridge;
+using CSM.TmpeSync.Util;
 
-namespace CSM.TmpeSync.ToggleTrafficLights.Net.Handlers
+namespace CSM.TmpeSync.Network.Handlers
 {
     internal sealed class TrafficLightToggledDeferredOp : IDeferredOp
     {
@@ -12,7 +13,14 @@ namespace CSM.TmpeSync.ToggleTrafficLights.Net.Handlers
             _cmd = cmd;
         }
 
-        public bool Execute()
+        public string Key => "traffic_light:" + _cmd.NodeId;
+
+        public bool Exists()
+        {
+            return true;
+        }
+
+        public bool TryApply()
         {
             if (!NetworkUtil.NodeExists(_cmd.NodeId))
                 return true;
@@ -24,6 +32,11 @@ namespace CSM.TmpeSync.ToggleTrafficLights.Net.Handlers
 
                 return TmpeBridgeAdapter.ApplyToggleTrafficLight(_cmd.NodeId, _cmd.Enabled);
             }
+        }
+
+        public bool ShouldWait()
+        {
+            return false;
         }
     }
 }
