@@ -11,9 +11,6 @@ namespace CSM.TmpeSync.TmpeBridge
     internal static partial class TmpeBridgeAdapter
     {
         private static readonly HashSet<ushort> ToggleTrafficLights = new HashSet<ushort>();
-        private static object TrafficLightManagerInstance;
-        private static MethodInfo GetHasTrafficLightMethod;
-        private static MethodInfo SetHasTrafficLightMethod;
 
         private static bool InitialiseToggleTrafficLightBridge(Assembly tmpeAssembly)
         {
