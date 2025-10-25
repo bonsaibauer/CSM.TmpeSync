@@ -79,6 +79,11 @@ namespace CSM.TmpeSync.TmpeBridge
             if (!CanDispatch())
                 return;
 
+            Log.Info(
+                LogCategory.Network,
+                "Dispatching clear traffic request | role={0}",
+                CsmBridge.DescribeCurrentRole());
+
             if (CsmBridge.IsServerInstance())
             {
                 var broadcast = ClearTrafficBroadcastFactory?.Invoke();
@@ -158,6 +163,13 @@ namespace CSM.TmpeSync.TmpeBridge
                 Log.Debug(LogCategory.Network, "Skipping TM:PE broadcast | reason=inactive_role type={0}", command.GetType().Name);
                 return;
             }
+
+            Log.Info(
+                LogCategory.Network,
+                "Sending TM:PE command | type={0} role={1} target={2}",
+                command.GetType().Name,
+                CsmBridge.DescribeCurrentRole(),
+                CsmBridge.IsServerInstance() ? "all" : "server");
 
             try
             {
