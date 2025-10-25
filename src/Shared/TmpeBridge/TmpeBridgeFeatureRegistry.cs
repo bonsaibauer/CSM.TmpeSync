@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using CSM.TmpeSync.Util;
 
 namespace CSM.TmpeSync.TmpeBridge
@@ -264,6 +265,22 @@ namespace CSM.TmpeSync.TmpeBridge
                 handler(nodeId);
         }
 
+        internal static DiagnosticsSnapshot CaptureDiagnostics()
+        {
+            var state = GetState();
+            lock (GetSyncRoot(state))
+            {
+                return new DiagnosticsSnapshot(
+                    ConvertHandlerDictionary(GetSegmentHandlers(state)),
+                    ConvertHandlerDictionary(GetNodeHandlers(state)),
+                    GetLaneArrowHandlers(state).Count,
+                    GetLaneConnectionHandlers(state).Count,
+                    GetLaneConnectionNodeHandlers(state).Count,
+                    GetUnknownSegmentSenders(state).ToArray(),
+                    GetUnknownNodeSenders(state).ToArray());
+            }
+        }
+
         private static IDictionary<string, object> GetState()
         {
             var current = AppDomain.CurrentDomain.GetData(RegistryStateKey) as IDictionary<string, object>;
@@ -357,5 +374,72 @@ namespace CSM.TmpeSync.TmpeBridge
 
         private static List<Action<ushort>> GetLaneConnectionNodeHandlers(IDictionary<string, object> state) =>
             (List<Action<ushort>>)state[LaneConnectionNodeHandlersKey];
+
+        private static Dictionary<string, int> ConvertHandlerDictionary(Dictionary<string, List<Action<ushort>>> source)
+        {
+            var result = new Dictionary<string, int>(StringComparer.Ordinal);
+            if (source == null)
+                return result;
+
+            foreach (var pair in source)
+            {
+                var key = pair.Key ?? string.Empty;
+                var handlers = pair.Value;
+                result[key] = handlers == null ? 0 : handlers.Count;
+            }
+
+            return result;
+        }
+
+        internal sealed class DiagnosticsSnapshot
+        {
+            internal DiagnosticsSnapshot(
+                IDictionary<string, int> segmentHandlers,
+                IDictionary<string, int> nodeHandlers,
+                int laneArrowHandlers,
+                int laneConnectionHandlers,
+                int laneConnectionNodeHandlers,
+                string[] unknownSegmentSenders,
+                string[] unknownNodeSenders)
+            {
+                SegmentHandlerCounts = segmentHandlers ?? new Dictionary<string, int>(StringComparer.Ordinal);
+                NodeHandlerCounts = nodeHandlers ?? new Dictionary<string, int>(StringComparer.Ordinal);
+                LaneArrowHandlerCount = laneArrowHandlers;
+                LaneConnectionHandlerCount = laneConnectionHandlers;
+                LaneConnectionNodeHandlerCount = laneConnectionNodeHandlers;
+                UnknownSegmentSenders = unknownSegmentSenders ?? new string[0];
+                UnknownNodeSenders = unknownNodeSenders ?? new string[0];
+            }
+
+            internal IDictionary<string, int> SegmentHandlerCounts { get; }
+
+            internal IDictionary<string, int> NodeHandlerCounts { get; }
+
+            internal int LaneArrowHandlerCount { get; }
+
+            internal int LaneConnectionHandlerCount { get; }
+
+            internal int LaneConnectionNodeHandlerCount { get; }
+
+            internal string[] UnknownSegmentSenders { get; }
+
+            internal string[] UnknownNodeSenders { get; }
+
+            internal int GetSegmentHandlerCount(string managerType)
+            {
+                if (SegmentHandlerCounts == null || string.IsNullOrEmpty(managerType))
+                    return 0;
+
+                return SegmentHandlerCounts.TryGetValue(managerType, out var count) ? count : 0;
+            }
+
+            internal int GetNodeHandlerCount(string managerType)
+            {
+                if (NodeHandlerCounts == null || string.IsNullOrEmpty(managerType))
+                    return 0;
+
+                return NodeHandlerCounts.TryGetValue(managerType, out var count) ? count : 0;
+            }
+        }
     }
 }

@@ -413,7 +413,8 @@ namespace CSM.TmpeSync.TmpeBridge
                 { "junctionRestrictions", SupportsJunctionRestrictions },
                 { "prioritySigns", SupportsPrioritySigns },
                 { "parkingRestrictions", SupportsParkingRestrictions },
-                { "toggleTrafficLights", SupportsToggleTrafficLights }
+                { "toggleTrafficLights", SupportsToggleTrafficLights },
+                { "clearTraffic", SupportsClearTraffic }
             };
         }
 
@@ -471,6 +472,8 @@ namespace CSM.TmpeSync.TmpeBridge
                     return SupportsParkingRestrictions;
                 case "toggletrafficlights":
                     return SupportsToggleTrafficLights;
+                case "cleartraffic":
+                    return SupportsClearTraffic;
                 default:
                     return false;
             }
