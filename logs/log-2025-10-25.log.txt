@@ -1,0 +1,95 @@
+2025-10-25 12:56:14.107 [Info] [Lifecycle] Mod disabled | begin_cleanup
+2025-10-25 12:56:14.136 [Info] [Diagnostics] Diagnostics snapshot | context=OnDisabled
+2025-10-25 12:56:14.137 [Info] [Diagnostics] Command.CurrentRole | value=None
+2025-10-25 12:56:14.137 [Info] [Diagnostics] Command.SendToAll delegate | value=CSM.Commands.CommandInternal.SendToAll
+2025-10-25 12:56:14.137 [Info] [Diagnostics] Command.SendToServer delegate | value=CSM.Commands.CommandInternal.SendToServer
+2025-10-25 12:56:14.137 [Info] [Diagnostics] Command.SendToClients delegate | value=CSM.Commands.CommandInternal.SendToClients
+2025-10-25 12:56:14.138 [Info] [Diagnostics] Command.GetCommandHandler delegate | value=CSM.Commands.CommandInternal.GetCommandHandler
+2025-10-25 12:56:14.138 [Info] [Diagnostics] Command.SendToClient delegate | value=<unsupported>
+2025-10-25 12:56:15.001 [Info] [Lifecycle] Mod enabled | action=validate_dependencies
+2025-10-25 12:56:15.001 [Info] [Configuration] Logging initialized | debug=disabled path=C:\Users\mail\AppData\Local\Colossal Order\Cities_Skylines\CSM.TmpeSync\log-2025-10-25.log
+2025-10-25 12:56:15.002 [Info] [Network] Awaiting CSM to activate TM:PE synchronization support.
+2025-10-25 12:56:15.002 [Info] [Lifecycle] Registering Toggle Traffic Lights feature integration.
+2025-10-25 12:56:15.002 [Info] [Lifecycle] Registering Clear Traffic feature integration.
+2025-10-25 12:56:15.003 [Info] [Diagnostics] Diagnostics snapshot | context=OnEnabled
+2025-10-25 12:56:15.003 [Info] [Diagnostics] Command.CurrentRole | value=None
+2025-10-25 12:56:15.003 [Info] [Diagnostics] Command.SendToAll delegate | value=CSM.Commands.CommandInternal.SendToAll
+2025-10-25 12:56:15.004 [Info] [Diagnostics] Command.SendToServer delegate | value=CSM.Commands.CommandInternal.SendToServer
+2025-10-25 12:56:15.004 [Info] [Diagnostics] Command.SendToClients delegate | value=CSM.Commands.CommandInternal.SendToClients
+2025-10-25 12:56:15.004 [Info] [Diagnostics] Command.GetCommandHandler delegate | value=CSM.Commands.CommandInternal.GetCommandHandler
+2025-10-25 12:56:15.005 [Info] [Diagnostics] Command.SendToClient delegate | value=<unsupported>
+2025-10-25 12:58:22.624 [Info] [Lifecycle] Mod disabled | begin_cleanup
+2025-10-25 12:58:22.624 [Info] [Diagnostics] Diagnostics snapshot | context=OnDisabled
+2025-10-25 12:58:22.625 [Info] [Diagnostics] Command.CurrentRole | value=None
+2025-10-25 12:58:22.625 [Info] [Diagnostics] Command.SendToAll delegate | value=CSM.Commands.CommandInternal.SendToAll
+2025-10-25 12:58:22.625 [Info] [Diagnostics] Command.SendToServer delegate | value=CSM.Commands.CommandInternal.SendToServer
+2025-10-25 12:58:22.625 [Info] [Diagnostics] Command.SendToClients delegate | value=CSM.Commands.CommandInternal.SendToClients
+2025-10-25 12:58:22.625 [Info] [Diagnostics] Command.GetCommandHandler delegate | value=CSM.Commands.CommandInternal.GetCommandHandler
+2025-10-25 12:58:22.627 [Info] [Diagnostics] Command.SendToClient delegate | value=<unsupported>
+2025-10-25 12:58:24.296 [Info] [Lifecycle] Mod enabled | action=validate_dependencies
+2025-10-25 12:58:24.297 [Info] [Configuration] Logging initialized | debug=disabled path=C:\Users\mail\AppData\Local\Colossal Order\Cities_Skylines\CSM.TmpeSync\log-2025-10-25.log
+2025-10-25 12:58:24.297 [Info] [Network] Awaiting CSM to activate TM:PE synchronization support.
+2025-10-25 12:58:24.297 [Info] [Lifecycle] Registering Toggle Traffic Lights feature integration.
+2025-10-25 12:58:24.297 [Info] [Lifecycle] Registering Clear Traffic feature integration.
+2025-10-25 12:58:24.297 [Info] [Diagnostics] Diagnostics snapshot | context=OnEnabled
+2025-10-25 12:58:24.297 [Info] [Diagnostics] Command.CurrentRole | value=None
+2025-10-25 12:58:24.297 [Info] [Diagnostics] Command.SendToAll delegate | value=CSM.Commands.CommandInternal.SendToAll
+2025-10-25 12:58:24.299 [Info] [Diagnostics] Command.SendToServer delegate | value=CSM.Commands.CommandInternal.SendToServer
+2025-10-25 12:58:24.299 [Info] [Diagnostics] Command.SendToClients delegate | value=CSM.Commands.CommandInternal.SendToClients
+2025-10-25 12:58:24.299 [Info] [Diagnostics] Command.GetCommandHandler delegate | value=CSM.Commands.CommandInternal.GetCommandHandler
+2025-10-25 12:58:24.299 [Info] [Diagnostics] Command.SendToClient delegate | value=<unsupported>
+2025-10-25 12:58:48.088 [Info] [Network] Registering TM:PE synchronization handlers via CSM connection.
+2025-10-25 12:58:48.179 [Info] [Diagnostics] TM:PE notifier bridge enabled | segment=True node=True laneArrows=True laneConnAdd=True laneConnRemove=True laneConnClear=True laneConnNode=True clearTraffic=True
+2025-10-25 12:59:14.279 [Warn] [Synchronization] Lane GUID generation failed | segment=37 laneIndex=0 laneId=101489
+2025-10-25 12:59:14.282 [Warn] [Network] Dispatch via CSM delegate failed | delegate=CSM.Commands.CommandInternal.SendToAll type=LaneMappingChanged error=System.NullReferenceException: Object reference not set to an instance of an object
+  at CSM.Commands.TransactionHandler.StartTransaction (CSM.API.Commands.CommandBase command) [0x00000] in <filename unknown>:0 
+  at CSM.Commands.CommandInternal.SendToClients (CSM.API.Commands.CommandBase command) [0x00000] in <filename unknown>:0 
+  at CSM.Commands.CommandInternal.SendToAll (CSM.API.Commands.CommandBase command) [0x00000] in <filename unknown>:0 
+  at CSM.TmpeSync.Bridge.CsmBridge.Invoke (System.Action`1 sendDelegate, CSM.API.Commands.CommandBase command) [0x00000] in <filename unknown>:0 
+2025-10-25 12:59:14.283 [Warn] [Network] Unable to broadcast command | reason=no_send_delegate type=CSM.TmpeSync.Network.Contracts.Mapping.LaneMappingChanged
+2025-10-25 12:59:14.283 [Warn] [Synchronization] Lane GUID generation failed | segment=110 laneIndex=0 laneId=71178
+2025-10-25 12:59:14.283 [Warn] [Network] Dispatch via CSM delegate failed | delegate=CSM.Commands.CommandInternal.SendToAll type=LaneMappingChanged error=System.NullReferenceException: Object reference not set to an instance of an object
+  at CSM.Commands.TransactionHandler.StartTransaction (CSM.API.Commands.CommandBase command) [0x00000] in <filename unknown>:0 
+  at CSM.Commands.CommandInternal.SendToClients (CSM.API.Commands.CommandBase command) [0x00000] in <filename unknown>:0 
+  at CSM.Commands.CommandInternal.SendToAll (CSM.API.Commands.CommandBase command) [0x00000] in <filename unknown>:0 
+  at CSM.TmpeSync.Bridge.CsmBridge.Invoke (System.Action`1 sendDelegate, CSM.API.Commands.CommandBase command) [0x00000] in <filename unknown>:0 
+2025-10-25 12:59:14.284 [Warn] [Synchronization] Lane GUID generation failed | segment=111 laneIndex=0 laneId=71759
+2025-10-25 12:59:14.284 [Warn] [Synchronization] Lane GUID generation failed | segment=111 laneIndex=1 laneId=236000
+2025-10-25 12:59:14.284 [Warn] [Synchronization] Lane GUID generation failed | segment=111 laneIndex=2 laneId=257421
+2025-10-25 12:59:14.285 [Warn] [Synchronization] Lane GUID generation failed | segment=111 laneIndex=3 laneId=203423
+2025-10-25 12:59:14.285 [Warn] [Synchronization] Lane GUID generation failed | segment=111 laneIndex=4 laneId=142677
+2025-10-25 12:59:14.285 [Warn] [Synchronization] Lane GUID generation failed | segment=111 laneIndex=5 laneId=144606
+2025-10-25 12:59:14.286 [Warn] [Network] Dispatch via CSM delegate failed | delegate=CSM.Commands.CommandInternal.SendToAll type=LaneMappingChanged error=System.NullReferenceException: Object reference not set to an instance of an object
+  at CSM.Commands.TransactionHandler.StartTransaction (CSM.API.Commands.CommandBase command) [0x00000] in <filename unknown>:0 
+  at CSM.Commands.CommandInternal.SendToClients (CSM.API.Commands.CommandBase command) [0x00000] in <filename unknown>:0 
+  at CSM.Commands.CommandInternal.SendToAll (CSM.API.Commands.CommandBase command) [0x00000] in <filename unknown>:0 
+  at CSM.TmpeSync.Bridge.CsmBridge.Invoke (System.Action`1 sendDelegate, CSM.API.Commands.CommandBase command) [0x00000] in <filename unknown>:0 
+2025-10-25 12:59:14.286 [Warn] [Network] Dispatch via CSM delegate failed | delegate=CSM.Commands.CommandInternal.SendToAll type=LaneMappingChanged error=System.NullReferenceException: Object reference not set to an instance of an object
+  at CSM.Commands.TransactionHandler.StartTransaction (CSM.API.Commands.CommandBase command) [0x00000] in <filename unknown>:0 
+  at CSM.Commands.CommandInternal.SendToClients (CSM.API.Commands.CommandBase command) [0x00000] in <filename unknown>:0 
+  at CSM.Commands.CommandInternal.SendToAll (CSM.API.Commands.CommandBase command) [0x00000] in <filename unknown>:0 
+  at CSM.TmpeSync.Bridge.CsmBridge.Invoke (System.Action`1 sendDelegate, CSM.API.Commands.CommandBase command) [0x00000] in <filename unknown>:0 
+2025-10-25 12:59:14.286 [Warn] [Network] Dispatch via CSM delegate failed | delegate=CSM.Commands.CommandInternal.SendToAll type=LaneMappingChanged error=System.NullReferenceException: Object reference not set to an instance of an object
+  at CSM.Commands.TransactionHandler.StartTransaction (CSM.API.Commands.CommandBase command) [0x00000] in <filename unknown>:0 
+  at CSM.Commands.CommandInternal.SendToClients (CSM.API.Commands.CommandBase command) [0x00000] in <filename unknown>:0 
+  at CSM.Commands.CommandInternal.SendToAll (CSM.API.Commands.CommandBase command) [0x00000] in <filename unknown>:0 
+  at CSM.TmpeSync.Bridge.CsmBridge.Invoke (System.Action`1 sendDelegate, CSM.API.Commands.CommandBase command) [0x00000] in <filename unknown>:0 
+2025-10-25 12:59:14.287 [Warn] [Network] Dispatch via CSM delegate failed | delegate=CSM.Commands.CommandInternal.SendToAll type=LaneMappingChanged error=System.NullReferenceException: Object reference not set to an instance of an object
+  at CSM.Commands.TransactionHandler.StartTransaction (CSM.API.Commands.CommandBase command) [0x00000] in <filename unknown>:0 
+  at CSM.Commands.CommandInternal.SendToClients (CSM.API.Commands.CommandBase command) [0x00000] in <filename unknown>:0 
+  at CSM.Commands.CommandInternal.SendToAll (CSM.API.Commands.CommandBase command) [0x00000] in <filename unknown>:0 
+  at CSM.TmpeSync.Bridge.CsmBridge.Invoke (System.Action`1 sendDelegate, CSM.API.Commands.CommandBase command) [0x00000] in <filename unknown>:0 
+2025-10-25 12:59:14.287 [Warn] [Network] Dispatch via CSM delegate failed | delegate=CSM.Commands.CommandInternal.SendToAll type=LaneMappingChanged error=System.NullReferenceException: Object reference not set to an instance of an object
+  at CSM.Commands.TransactionHandler.StartTransaction (CSM.API.Commands.CommandBase command) [0x00000] in <filename unknown>:0 
+  at CSM.Commands.CommandInternal.SendToClients (CSM.API.Commands.CommandBase command) [0x00000] in <filename unknown>:0 
+  at CSM.Commands.CommandInternal.SendToAll (CSM.API.Commands.CommandBase command) [0x00000] in <filename unknown>:0 
+  at CSM.TmpeSync.Bridge.CsmBridge.Invoke (System.Action`1 sendDelegate, CSM.API.Commands.CommandBase command) [0x00000] in <filename unknown>:0 
+2025-10-25 12:59:14.287 [Warn] [Network] Dispatch via CSM delegate failed | delegate=CSM.Commands.CommandInternal.SendToAll type=LaneMappingChanged error=System.NullReferenceException: Object reference not set to an instance of an object
+  at CSM.Commands.TransactionHandler.StartTransaction (CSM.API.Commands.CommandBase command) [0x00000] in <filename unknown>:0 
+  at CSM.Commands.CommandInternal.SendToClients (CSM.API.Commands.CommandBase command) [0x00000] in <filename unknown>:0 
+  at CSM.Commands.CommandInternal.SendToAll (CSM.API.Commands.CommandBase command) [0x00000] in <filename unknown>:0 
+  at CSM.TmpeSync.Bridge.CsmBridge.Invoke (System.Action`1 sendDelegate, CSM.API.Commands.CommandBase command) [0x00000] in <filename unknown>:0 
+2025-10-25 12:59:14.287 [Warn] [Synchronization] Lane GUID generation failed | segment=153 laneIndex=0 laneId=24347
+2025-10-25 12:59:14.287 [Warn] [Synchronization] Lane GUID generation failed | segment=153 laneIndex=1 laneId=190371
+2025-10-25 12:59:14.287 [Info] [General] CSM multiplayer role changed: None -> Server (raw='Server')
+2025-10-25 12:59:14.288 [Warn] [Synchronization] Lane GUID generation failed | segment=153 laneIndex=2 laneId=150549
