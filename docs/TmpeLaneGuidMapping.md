@@ -40,7 +40,7 @@ performed through GUIDs.
 1. When switching to the client role, `LaneMappingTracker` disables automatic generation
    (`LaneGuidRegistry.SetAutomaticGeneration(false)`) and clears the registry and build index cache.
 2. Upon receiving a snapshot, `LaneMappingStore.ApplyRemoteSnapshot` ingests the transmitted
-   entries. `LaneMappingBatchHandler.ResolveLocalLane(...)` then tries to translate each GUID into a
+   entries. `PendingMap.ResolveLaneMapping(...)` then tries to translate each GUID into a
    local lane ID via `LaneGuidRegistry.TryResolveLane(...)`.
 3. If resolution succeeds, the client updates the store (`LaneMappingStore.UpdateLocalLane`) and
    calls `LaneGuidRegistry.AssignLaneGuid(...)` so future requests can be served directly from the
