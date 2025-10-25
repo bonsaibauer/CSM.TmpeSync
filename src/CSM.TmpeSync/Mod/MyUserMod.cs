@@ -39,6 +39,7 @@ namespace CSM.TmpeSync.Mod
                 Log.Warn(LogCategory.Diagnostics, "Unable to initialize session log for current role | error={0}", ex);
             }
 
+            FeatureBootstrapper.Register();
             SnapshotDispatcher.Initialize();
             LaneMappingTracker.Initialize();
             TmpeFeatureReadyNotifier.Initialize();

@@ -1,6 +1,13 @@
 using CSM.API;
+using CSM.TmpeSync.JunctionRestrictions;
+using CSM.TmpeSync.LaneArrows;
+using CSM.TmpeSync.LaneConnector;
+using CSM.TmpeSync.ParkingRestrictions;
+using CSM.TmpeSync.PrioritySigns;
+using CSM.TmpeSync.SpeedLimits;
 using CSM.TmpeSync.Tmpe;
 using CSM.TmpeSync.Util;
+using CSM.TmpeSync.VehicleRestrictions;
 using Log = CSM.TmpeSync.Util.Log;
 
 namespace CSM.TmpeSync.Mod
@@ -12,6 +19,13 @@ namespace CSM.TmpeSync.Mod
             Enabled=true;
             ModClass=typeof(MyUserMod);
             CommandAssemblies.Add(typeof(TmpeSyncConnection).Assembly);
+            CommandAssemblies.Add(typeof(LaneConnectorFeature).Assembly);
+            CommandAssemblies.Add(typeof(LaneArrowsFeature).Assembly);
+            CommandAssemblies.Add(typeof(PrioritySignsFeature).Assembly);
+            CommandAssemblies.Add(typeof(ParkingRestrictionsFeature).Assembly);
+            CommandAssemblies.Add(typeof(JunctionRestrictionsFeature).Assembly);
+            CommandAssemblies.Add(typeof(SpeedLimitsFeature).Assembly);
+            CommandAssemblies.Add(typeof(VehicleRestrictionsFeature).Assembly);
         }
 
         public override void RegisterHandlers()
