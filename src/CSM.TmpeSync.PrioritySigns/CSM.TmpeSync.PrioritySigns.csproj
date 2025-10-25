@@ -264,7 +264,6 @@
     <Compile Include="Network\Handlers\PrioritySignBatchAppliedHandler.cs" />
     <Compile Include="Network\Handlers\SetPrioritySignRequestHandler.cs" />
     <Compile Include="Snapshot\PrioritySignSnapshotProvider.cs" />
-    <Compile Include="Infrastructure\**\*.cs" />
   </ItemGroup>
   <!-- ==== Post-Build: Copy the add-on into the local mod directory ==== -->
   <Target Name="AfterBuild">

@@ -267,7 +267,6 @@
     <Compile Include="Snapshot\SpeedLimitSnapshotProvider.cs" />
     <Compile Include="TmpeBridge\SpeedLimitCodec.cs" />
     <Compile Include="Util\SpeedLimitDiagnostics.cs" />
-    <Compile Include="Infrastructure\**\*.cs" />
   </ItemGroup>
   <!-- ==== Post-Build: Copy the add-on into the local mod directory ==== -->
   <Target Name="AfterBuild">
