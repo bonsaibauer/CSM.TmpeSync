@@ -8,7 +8,6 @@ param(
     [string]$Profile = "",
     [string]$GameDirectory = "",
     [string]$SteamModsDir = "",
-    [string]$CitiesSkylinesDir = "",
     [string]$HarmonyDllDir = "",
     [string]$CsmApiDllPath = "",
     [string]$TmpeDir = "",
@@ -370,7 +369,7 @@ function Get-DefaultProfileName {
 }
 
 function Get-AvailableProfiles {
-    return @("Steam")
+    return @("Steam", "Custom")
 }
 
 function Prompt-ForProfileSelection {
@@ -494,7 +493,6 @@ function Get-SteamDefaults {
 
     return @{
         GameDirectory      = $steamGameDir
-        CitiesSkylinesDir  = $steamGameDir
         SteamModsDir       = $steamWorkshopBase
         HarmonySourceDir   = $steamHarmony
         CsmSourceDir       = $steamCsm
@@ -536,7 +534,6 @@ function Configure-Profile {
     }
 
     Set-ProfileValue -Profile $profile -Key 'GameDirectory' -Value $gameDir
-    Set-ProfileValue -Profile $profile -Key 'CitiesSkylinesDir' -Value $gameDir
     Set-ProfileValue -Profile $profile -Key 'ModRootDirectory' -Value $modRoot
     Set-ProfileValue -Profile $profile -Key 'ModDirectory' -Value $modDirectory
     Set-ProfileValue -Profile $profile -Key 'SteamModsDir' -Value $defaults.SteamModsDir
@@ -587,6 +584,21 @@ function Determine-ActiveProfile {
     return (Get-DefaultProfileName)
 }
 
+function Test-ProfileIsConfigured {
+    param([hashtable]$Profile)
+
+    if ($null -eq $Profile) {
+        return $false
+    }
+
+    if (-not $Profile.ContainsKey('GameDirectory')) {
+        return $false
+    }
+
+    $gameDir = [string]$Profile.GameDirectory
+    return -not [string]::IsNullOrWhiteSpace($gameDir)
+}
+
 function Ensure-ConfiguredProfile {
     param(
         [hashtable]$Settings,
@@ -595,7 +607,7 @@ function Ensure-ConfiguredProfile {
 
     $profile = Ensure-Profile -Settings $Settings -ProfileName $ProfileName
 
-    if (-not $profile.ContainsKey('GameDirectory') -or [string]::IsNullOrWhiteSpace($profile.GameDirectory)) {
+    if (-not (Test-ProfileIsConfigured -Profile $profile)) {
         throw "Profile '$ProfileName' is not configured. Run build.ps1 -Configure first."
     }
 
@@ -713,7 +725,7 @@ function Invoke-BuildProject {
         [string]$Configuration
     )
 
-    $citiesDir = Resolve-AbsolutePath -Path ([string]$Profile.CitiesSkylinesDir)
+    $citiesDir = Resolve-AbsolutePath -Path ([string]$Profile.GameDirectory)
     $harmonyDir = Resolve-AbsolutePath -Path ([string]$Profile.HarmonyDllDir)
     $csmApiPath = Resolve-AbsolutePath -Path ([string]$Profile.CsmApiDllPath)
 
@@ -879,12 +891,28 @@ if (-not ($Update -or $Build -or $Install -or $Configure)) {
 $settings = Load-BuildSettings
 $availableProfiles = Get-AvailableProfiles
 $profileName = Determine-ActiveProfile -Settings $settings -RequestedProfile $Profile
+$shouldConfigure = $Configure
+$requiresConfiguredProfile = ($Update -or $Build -or $Install)
 
-if ($Configure -and [string]::IsNullOrWhiteSpace($Profile)) {
+if ($requiresConfiguredProfile) {
+    $profilesTable = Ensure-Hashtable $settings.Profiles
+    $settings.Profiles = $profilesTable
+
+    $existingProfile = if ($profilesTable.ContainsKey($profileName)) {
+        Ensure-Hashtable $profilesTable[$profileName]
+    }
+
+    if (-not $shouldConfigure -and -not (Test-ProfileIsConfigured -Profile $existingProfile)) {
+        Write-Host "[CSM.TmpeSync] No configured profile found. Launching configuration." -ForegroundColor Yellow
+        $shouldConfigure = $true
+    }
+}
+
+if ($shouldConfigure -and [string]::IsNullOrWhiteSpace($Profile)) {
     $profileName = Prompt-ForProfileSelection -AvailableProfiles $availableProfiles -CurrentProfile $profileName
 }
 
-if ($Configure) {
+if ($shouldConfigure) {
     Configure-Profile -Settings $settings -ProfileName $profileName -ParameterGameDir $GameDirectory -ParameterModRoot $ModRootDirectory
 }
 
@@ -892,10 +920,6 @@ $profile = Ensure-Profile -Settings $settings -ProfileName $profileName
 
 if (-not [string]::IsNullOrWhiteSpace($GameDirectory)) {
     Set-ProfileValue -Profile $profile -Key 'GameDirectory' -Value $GameDirectory
-    Set-ProfileValue -Profile $profile -Key 'CitiesSkylinesDir' -Value $GameDirectory
-}
-if (-not [string]::IsNullOrWhiteSpace($CitiesSkylinesDir)) {
-    Set-ProfileValue -Profile $profile -Key 'CitiesSkylinesDir' -Value $CitiesSkylinesDir
 }
 if (-not [string]::IsNullOrWhiteSpace($SteamModsDir)) {
     Set-ProfileValue -Profile $profile -Key 'SteamModsDir' -Value $SteamModsDir
