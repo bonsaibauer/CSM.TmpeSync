@@ -2,14 +2,14 @@ using System;
 using System.Reflection;
 using ColossalFramework;
 using CSM.TmpeSync.Network.Contracts.States;
-using CSM.TmpeSync.Util;                    // Log, LogCategory, NetworkUtil
+using CSM.TmpeSync.Util;
 using TrafficManager.API;
 using TrafficManager.API.Manager;
 using TrafficManager.API.Traffic.Enums;
 
-namespace CSM.TmpeSync.PrioritySigns.Bridge
+namespace CSM.TmpeSync.PrioritySigns.Services
 {
-    internal static class PrioritySignsAdapter
+    internal static class PrioritySignTmpeAdapter
     {
         private static MethodInfo _setPrioritySignMi; // gecachte Reflection
 
@@ -78,6 +78,13 @@ namespace CSM.TmpeSync.PrioritySigns.Bridge
             }
         }
 
+        internal static IDisposable BeginLocalApplyScope()
+        {
+            return LocalIgnore.Scoped();
+        }
+
+        internal static bool IsLocalApplyActive => LocalIgnore.IsActive;
+
         private static void EnsureSetterResolved(ITrafficPriorityManager mgr)
         {
             if (_setPrioritySignMi != null) return;
@@ -128,7 +135,7 @@ namespace CSM.TmpeSync.PrioritySigns.Bridge
             [ThreadStatic]
             private static int _depth;
 
-            public static bool IsActive { get { return _depth > 0; } }
+            public static bool IsActive => _depth > 0;
 
             public static IDisposable Scoped()
             {
