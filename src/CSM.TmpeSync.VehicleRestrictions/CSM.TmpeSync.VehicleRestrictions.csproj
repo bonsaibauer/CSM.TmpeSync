@@ -3,7 +3,7 @@
     <TargetFramework>net35</TargetFramework>
     <OutputType>Library</OutputType>
     <RootNamespace>CSM.TmpeSync</RootNamespace>
-    <AssemblyName>CSM.TmpeSync</AssemblyName>
+    <AssemblyName>CSM.TmpeSync.VehicleRestrictions</AssemblyName>
 
     <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
     <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
@@ -256,23 +256,15 @@
   <!-- ==== Files (EnableDefaultCompileItems=false) ==== -->
   <ItemGroup>
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="Mod\MyUserMod.cs" />
-    <Compile Include="Mod\TmpeSyncConnection.cs" />
-    <Compile Include="Mod\MultiplayerThreadingExtension.cs" />
-    <Compile Include="Mod\FeatureBootstrapper.cs" />
-    <Compile Include="Snapshot\LaneMappingSnapshotProvider.cs" />
-    <Compile Include="Snapshot\ToggleTrafficLightSnapshotProvider.cs" />
-    <Compile Include="Tool\LockOverlay.cs" />
+    <Compile Include="VehicleRestrictionsFeature.cs" />
+    <Compile Include="Net\Contracts\Applied\VehicleRestrictionsApplied.cs" />
+    <Compile Include="Net\Contracts\Requests\SetVehicleRestrictionsRequest.cs" />
+    <Compile Include="Net\Handlers\VehicleRestrictionsAppliedHandler.cs" />
+    <Compile Include="Net\Handlers\SetVehicleRestrictionsRequestHandler.cs" />
+    <Compile Include="Snapshot\VehicleRestrictionsSnapshotProvider.cs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\CSM.TmpeSync.Core\CSM.TmpeSync.Core.csproj" />
-    <ProjectReference Include="..\CSM.TmpeSync.LaneConnector\CSM.TmpeSync.LaneConnector.csproj" />
-    <ProjectReference Include="..\CSM.TmpeSync.LaneArrows\CSM.TmpeSync.LaneArrows.csproj" />
-    <ProjectReference Include="..\CSM.TmpeSync.PrioritySigns\CSM.TmpeSync.PrioritySigns.csproj" />
-    <ProjectReference Include="..\CSM.TmpeSync.ParkingRestrictions\CSM.TmpeSync.ParkingRestrictions.csproj" />
-    <ProjectReference Include="..\CSM.TmpeSync.JunctionRestrictions\CSM.TmpeSync.JunctionRestrictions.csproj" />
-    <ProjectReference Include="..\CSM.TmpeSync.SpeedLimits\CSM.TmpeSync.SpeedLimits.csproj" />
-    <ProjectReference Include="..\CSM.TmpeSync.VehicleRestrictions\CSM.TmpeSync.VehicleRestrictions.csproj" />
   </ItemGroup>
 
   <!-- ==== Post-Build: Copy the add-on into the local mod directory ==== -->
