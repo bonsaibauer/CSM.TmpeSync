@@ -52,7 +52,7 @@ namespace CSM.TmpeSync.Network.Handlers
             {
                 if (LaneMappingStore.TryResolveHostLane(_laneId, out var mappingEntry) && mappingEntry?.LaneGuid.IsValid == true)
                 {
-                    if (LaneMappingBatchHandler.ResolveLocalLane(mappingEntry.SegmentId, mappingEntry.LaneIndex, mappingEntry.LaneGuid))
+                    if (PendingMap.ResolveLaneMapping(mappingEntry.LaneGuid, mappingEntry.SegmentId, mappingEntry.LaneIndex))
                     {
                         laneId = mappingEntry.LocalLaneId != 0 ? mappingEntry.LocalLaneId : laneId;
                         segmentId = mappingEntry.SegmentId != 0 ? mappingEntry.SegmentId : segmentId;
