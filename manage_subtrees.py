@@ -56,15 +56,22 @@ def repo_is_clean():
     untracked_empty = (r.stdout.strip() == "") if r.stdout is not None else True
     return wt and idx and untracked_empty
 
-def commit_repo_if_dirty(message: str, dry_run: bool):
-    """Fallback: repo-weit committen, wenn irgendetwas offen ist."""
+def commit_repo_if_dirty(message: str, dry_run: bool) -> bool:
+    """Repo-weit committen, wenn irgendetwas offen ist. True = es wurde committet."""
     if repo_is_clean():
-        print(f"{GREEN}Repo ist clean – kein Fallback-Commit nötig.{RESET}")
+        print(f"{GREEN}Repo ist clean – kein Commit nötig.{RESET}")
         return False
-    print(f"{YELLOW}Repo ist noch dirty – Fallback: committe ALLES …{RESET}")
+    print(f"{YELLOW}Repo ist dirty – committe ALLES …{RESET}")
     run(["git", "add", "-A"], dry_run=dry_run)
     run(["git", "commit", "-m", message], dry_run=dry_run)
     return True
+
+def ensure_clean_for_subtree(step_desc: str, dry_run: bool):
+    """
+    Vor einem git subtree add/pull sicherstellen, dass der Working Tree clean ist.
+    Macht ggf. einen Fallback-Commit.
+    """
+    commit_repo_if_dirty(f"chore(subtree): prepare {step_desc}", dry_run)
 
 def maybe_auto_stash(enable: bool):
     if not enable:
@@ -83,7 +90,7 @@ def maybe_auto_stash_pop(did_stash: bool):
         subprocess.run(["git", "stash", "pop"], check=False)
 
 # === Commit Helper (Prefix + Fallback) ===
-def commit_prefix_if_needed(prefix: Path, message: str, dry_run: bool):
+def commit_prefix_if_needed(prefix: Path, message: str, dry_run: bool) -> bool:
     px = prefix.as_posix()
     run(["git", "add", "-A", "--", px], dry_run=dry_run)
     diff_rc = subprocess.run(["git", "diff", "--cached", "--quiet", "--", px]).returncode
@@ -119,6 +126,7 @@ def subtree_exists(p: Path):
 
 def subtree_add(prefix: Path, url: str, branch: str, squash: bool, dry_run: bool):
     px = prefix.as_posix()
+    ensure_clean_for_subtree(f"add {px}", dry_run)
     args = ["git", "subtree", "add", f"--prefix={px}", url, branch]
     if squash: args.append("--squash")
     print(f"{YELLOW}==> ADD subtree: {px} ({url}@{branch}){RESET}")
@@ -126,6 +134,7 @@ def subtree_add(prefix: Path, url: str, branch: str, squash: bool, dry_run: bool
 
 def subtree_pull(prefix: Path, url: str, branch: str, squash: bool, dry_run: bool):
     px = prefix.as_posix()
+    ensure_clean_for_subtree(f"pull {px}", dry_run)
     args = ["git", "subtree", "pull", f"--prefix={px}", url, branch]
     if squash: args.append("--squash")
     print(f"{YELLOW}==> PULL subtree: {px} ({url}@{branch}){RESET}")
@@ -201,7 +210,8 @@ def vendor_submodules_recursively(root_prefix: Path, parent_repo_url: str, squas
 
     print(f"{YELLOW}Gefundene Submodule in {root_prefix.as_posix()}:{RESET}")
     for m in mods:
-        print(f"  - {m['path']} ({m['url']})" + (f" [branch={m['branch']}]" if m.get('branch') else ""))
+        print(f"  - {m['path']} ({m['url']})" + (f" [branch={m['branch']}]"
+              if m.get('branch') else ""))
 
     for m in mods:
         rel = m["path"].replace("\\", "/").strip("/")
@@ -214,22 +224,28 @@ def vendor_submodules_recursively(root_prefix: Path, parent_repo_url: str, squas
             continue
         visited.add(key)
 
-        # leere Ordner vor ADD entfernen
+        # leere Ordner vor ADD entfernen -> das macht den Tree dirty:
         if sub_path.exists() and is_empty_dir(sub_path):
             print(f"{YELLOW}Leerer Ordner vorhanden, entferne vor Subtree-ADD:{RESET} {sub_path.as_posix()}")
             if not dry_run:
                 sub_path.rmdir()
+            # direkt danach wieder clean machen:
+            ensure_clean_for_subtree(f"prepare {sub_path.as_posix()}", dry_run)
 
         sub_path.parent.mkdir(parents=True, exist_ok=True)
 
         if subtree_exists(sub_path):
             subtree_pull(sub_path, sub_url, branch, squash, dry_run)
-            changed = commit_prefix_if_needed(sub_path, f"chore(subtree): pull {sub_url} ({branch}) -> {sub_path.as_posix()}", dry_run)
+            changed = commit_prefix_if_needed(sub_path,
+                        f"chore(subtree): pull {sub_url} ({branch}) -> {sub_path.as_posix()}",
+                        dry_run)
             if not changed:
                 commit_repo_if_dirty(f"chore(subtree): finalize pull {sub_url} ({branch})", dry_run)
         else:
             subtree_add(sub_path, sub_url, branch, squash, dry_run)
-            changed = commit_prefix_if_needed(sub_path, f"chore(subtree): add {sub_url} ({branch}) -> {sub_path.as_posix()}", dry_run)
+            changed = commit_prefix_if_needed(sub_path,
+                        f"chore(subtree): add {sub_url} ({branch}) -> {sub_path.as_posix()}",
+                        dry_run)
             if not changed:
                 commit_repo_if_dirty(f"chore(subtree): finalize add {sub_url} ({branch})", dry_run)
 
@@ -262,12 +278,16 @@ def main():
 
             if subtree_exists(prefix):
                 subtree_pull(prefix, url, branch, squash, dry_run)
-                changed = commit_prefix_if_needed(prefix, f"chore(subtree): pull {url} ({branch}) -> {prefix.as_posix()}", dry_run)
+                changed = commit_prefix_if_needed(prefix,
+                            f"chore(subtree): pull {url} ({branch}) -> {prefix.as_posix()}",
+                            dry_run)
                 if not changed:
                     commit_repo_if_dirty(f"chore(subtree): finalize pull {url} ({branch})", dry_run)
             else:
                 subtree_add(prefix, url, branch, squash, dry_run)
-                changed = commit_prefix_if_needed(prefix, f"chore(subtree): add {url} ({branch}) -> {prefix.as_posix()}", dry_run)
+                changed = commit_prefix_if_needed(prefix,
+                            f"chore(subtree): add {url} ({branch}) -> {prefix.as_posix()}",
+                            dry_run)
                 if not changed:
                     commit_repo_if_dirty(f"chore(subtree): finalize add {url} ({branch})", dry_run)
 
