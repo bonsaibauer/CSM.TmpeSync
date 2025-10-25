@@ -1,7 +1,7 @@
 using System;
 using Log = CSM.TmpeSync.Util.Log;
 
-namespace CSM.TmpeSync.CsmBridge
+namespace CSM.TmpeSync.Bridge
 {
     internal static class CsmBridgeMultiplayerObserver
     {

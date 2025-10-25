@@ -1,5 +1,5 @@
 using CSM.TmpeSync.Util;
-using CSM.TmpeSync.CsmBridge;
+using CSM.TmpeSync.Bridge;
 
 namespace CSM.TmpeSync.Snapshot
 {

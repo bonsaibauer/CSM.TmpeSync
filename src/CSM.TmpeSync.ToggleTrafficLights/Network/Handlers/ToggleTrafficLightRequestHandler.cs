@@ -5,9 +5,9 @@ using CSM.TmpeSync.Network.Contracts.System;
 using CSM.TmpeSync.TmpeBridge;
 using CSM.TmpeSync.Util;
 using Log = CSM.TmpeSync.Util.Log;
-using CSM.TmpeSync.CsmBridge;
+using CSM.TmpeSync.Bridge;
 
-namespace CSM.TmpeSync.ToggleTrafficLights.Net.Handlers
+namespace CSM.TmpeSync.Network.Handlers
 {
     public class ToggleTrafficLightRequestHandler : CommandHandler<ToggleTrafficLightRequest>
     {

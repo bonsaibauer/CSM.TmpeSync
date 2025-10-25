@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Text;
 using CSM.TmpeSync.Network.Contracts.States;
 using CSM.TmpeSync.Util;
-using CSM.TmpeSync.CsmBridge;
+using CSM.TmpeSync.Bridge;
 
 namespace CSM.TmpeSync.JunctionRestrictions.Util
 {

@@ -3,11 +3,11 @@ using CSM.TmpeSync.Network.Contracts.Applied;
 using CSM.TmpeSync.Network.Contracts.Requests;
 using CSM.TmpeSync.Network.Contracts.States;
 using CSM.TmpeSync.Network.Contracts.System;
-using CSM.TmpeSync.SpeedLimits.Tmpe;
+using CSM.TmpeSync.TmpeBridge;
 using CSM.TmpeSync.SpeedLimits.Util;
 using CSM.TmpeSync.Util;
 using Log = CSM.TmpeSync.Util.Log;
-using CSM.TmpeSync.CsmBridge;
+using CSM.TmpeSync.Bridge;
 
 namespace CSM.TmpeSync.Network.Handlers
 {

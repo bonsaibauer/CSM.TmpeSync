@@ -4,7 +4,7 @@ using CSM.TmpeSync.TmpeBridge;
 using CSM.TmpeSync.Util;
 using Log = CSM.TmpeSync.Util.Log;
 
-namespace CSM.TmpeSync.ToggleTrafficLights.Net.Handlers
+namespace CSM.TmpeSync.Network.Handlers
 {
     public class TrafficLightToggledAppliedHandler : CommandHandler<TrafficLightToggledApplied>
     {

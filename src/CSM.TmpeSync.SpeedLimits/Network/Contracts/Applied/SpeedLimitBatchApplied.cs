@@ -1,7 +1,7 @@
 using System.Collections.Generic;
 using CSM.API.Commands;
 using CSM.TmpeSync.Network.Contracts.States;
-using CSM.TmpeSync.SpeedLimits.Tmpe;
+using CSM.TmpeSync.TmpeBridge;
 using ProtoBuf;
 
 namespace CSM.TmpeSync.Network.Contracts.Applied
