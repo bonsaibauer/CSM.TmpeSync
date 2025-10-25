@@ -265,6 +265,7 @@
     <Compile Include="Network\Handlers\SetJunctionRestrictionsRequestHandler.cs" />
     <Compile Include="Snapshot\JunctionRestrictionsSnapshotProvider.cs" />
     <Compile Include="Util\JunctionRestrictionsDiagnostics.cs" />
+    <Compile Include="Infrastructure\**\*.cs" />
   </ItemGroup>
   <!-- ==== Post-Build: Copy the add-on into the local mod directory ==== -->
   <Target Name="AfterBuild">
