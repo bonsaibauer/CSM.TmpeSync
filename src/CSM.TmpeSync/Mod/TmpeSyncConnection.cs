@@ -23,15 +23,15 @@ namespace CSM.TmpeSync.Mod
             Enabled=true;
             ModClass=typeof(MyUserMod);
             CommandAssemblies.Add(typeof(TmpeSyncConnection).Assembly);
-            CommandAssemblies.Add(typeof(LaneConnectorFeature).Assembly);
-            CommandAssemblies.Add(typeof(LaneArrowsFeature).Assembly);
+            CommandAssemblies.Add(typeof(LaneConnectorSyncFeature).Assembly);
+            CommandAssemblies.Add(typeof(LaneArrowsSyncFeature).Assembly);
             CommandAssemblies.Add(typeof(PrioritySignSyncFeature).Assembly);
-            CommandAssemblies.Add(typeof(ParkingRestrictionsFeature).Assembly);
+            CommandAssemblies.Add(typeof(ParkingRestrictionSyncFeature).Assembly);
             CommandAssemblies.Add(typeof(JunctionRestrictionsFeature).Assembly);
             CommandAssemblies.Add(typeof(SpeedLimitsFeature).Assembly);
             CommandAssemblies.Add(typeof(VehicleRestrictionsFeature).Assembly);
             CommandAssemblies.Add(typeof(ToggleTrafficLightsFeature).Assembly);
-            CommandAssemblies.Add(typeof(ClearTrafficFeature).Assembly);
+            CommandAssemblies.Add(typeof(ClearTrafficSyncFeature).Assembly);
         }
 
         public override void RegisterHandlers()

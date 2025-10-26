@@ -23,14 +23,14 @@ namespace CSM.TmpeSync.Mod
             _registered = true;
 
             SpeedLimitsFeature.Register();
-            LaneArrowsFeature.Register();
-            LaneConnectorFeature.Register();
+            LaneArrowsSyncFeature.Register();
+            LaneConnectorSyncFeature.Register();
             JunctionRestrictionsFeature.Register();
             PrioritySignSyncFeature.Register();
-            ParkingRestrictionsFeature.Register();
+            ParkingRestrictionSyncFeature.Register();
             VehicleRestrictionsFeature.Register();
             ToggleTrafficLightsFeature.Register();
-            ClearTrafficFeature.Register();
+            ClearTrafficSyncFeature.Register();
         }
     }
 }

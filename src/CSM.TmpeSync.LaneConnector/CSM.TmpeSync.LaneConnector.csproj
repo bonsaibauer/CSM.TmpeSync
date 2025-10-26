@@ -267,16 +267,11 @@
   <!-- ==== Files (EnableDefaultCompileItems=false) ==== -->
   <ItemGroup>
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="LaneConnectorFeature.cs" />
-    <Compile Include="Network\Contracts\Applied\LaneConnectionsApplied.cs" />
-    <Compile Include="Network\Contracts\Applied\LaneConnectionsBatchApplied.cs" />
-    <Compile Include="Network\Contracts\Requests\SetLaneConnectionsRequest.cs" />
-    <Compile Include="Network\Handlers\LaneConnectionsAppliedHandler.cs" />
-    <Compile Include="Network\Handlers\LaneConnectionsBatchAppliedHandler.cs" />
-    <Compile Include="Network\Handlers\SetLaneConnectionsRequestHandler.cs" />
-    <Compile Include="Snapshot\LaneConnectionsSnapshotProvider.cs" />
-    <Compile Include="Bridge\**\*.cs" />
-    <Compile Include="Snapshot\SnapshotDispatcher.cs" />
+    <Compile Include="LaneConnectorSyncFeature.cs" />
+    <!-- LaneConnector follows LaneArrows layout: Messages/Handlers/Services, no feature-local Bridge or Snapshot -->
+    <Compile Include="Messages\*.cs" />
+    <Compile Include="Handlers\*.cs" />
+    <Compile Include="Services\*.cs" />
   </ItemGroup>
   <!-- ==== Post-Build: Copy the add-on into the local mod directory ==== -->
   <Target Name="AfterBuild">

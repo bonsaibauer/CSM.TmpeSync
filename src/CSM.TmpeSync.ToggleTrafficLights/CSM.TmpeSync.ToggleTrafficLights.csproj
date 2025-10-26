@@ -180,13 +180,13 @@
   <ItemGroup>
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="ToggleTrafficLightsFeature.cs" />
-    <Compile Include="Network\Contracts\Applied\TrafficLightToggledApplied.cs" />
-    <Compile Include="Network\Contracts\Requests\ToggleTrafficLightRequest.cs" />
-    <Compile Include="Network\Handlers\ToggleTrafficLightRequestHandler.cs" />
-    <Compile Include="Network\Handlers\TrafficLightToggledAppliedHandler.cs" />
-    <Compile Include="Snapshot\ToggleTrafficLightSnapshotProvider.cs" />
-    <Compile Include="Snapshot\SnapshotDispatcher.cs" />
-    <Compile Include="Bridge\**\*.cs" />
+    <Compile Include="Services\TrafficLightEventListener.cs" />
+    <Compile Include="Services\TrafficLightSynchronization.cs" />
+    <Compile Include="Services\TrafficLightTmpeAdapter.cs" />
+    <Compile Include="Messages\TrafficLightUpdateRequest.cs" />
+    <Compile Include="Messages\TrafficLightAppliedCommand.cs" />
+    <Compile Include="Handlers\TrafficLightUpdateRequestHandler.cs" />
+    <Compile Include="Handlers\TrafficLightAppliedCommandHandler.cs" />
 
   </ItemGroup>
   <Target Name="AfterBuild">

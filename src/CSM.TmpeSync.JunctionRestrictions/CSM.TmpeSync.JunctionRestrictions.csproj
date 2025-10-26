@@ -268,14 +268,12 @@
   <ItemGroup>
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="JunctionRestrictionsFeature.cs" />
-    <Compile Include="Network\Contracts\Applied\JunctionRestrictionsApplied.cs" />
-    <Compile Include="Network\Contracts\Applied\JunctionRestrictionsBatchApplied.cs" />
-    <Compile Include="Network\Contracts\Requests\SetJunctionRestrictionsRequest.cs" />
-    <Compile Include="Network\Handlers\JunctionRestrictionsAppliedHandler.cs" />
-    <Compile Include="Network\Handlers\JunctionRestrictionsBatchAppliedHandler.cs" />
-    <Compile Include="Network\Handlers\SetJunctionRestrictionsRequestHandler.cs" />
-    <Compile Include="Snapshot\JunctionRestrictionsSnapshotProvider.cs" />
-    <Compile Include="Snapshot\SnapshotDispatcher.cs" />
+    <Compile Include="Messages\JunctionRestrictionsAppliedCommand.cs" />
+    <Compile Include="Messages\JunctionRestrictionsUpdateRequest.cs" />
+    <Compile Include="Handlers\JunctionRestrictionsAppliedCommandHandler.cs" />
+    <Compile Include="Handlers\JunctionRestrictionsUpdateRequestHandler.cs" />
+    <Compile Include="Services\JunctionRestrictionsSynchronization.cs" />
+    <Compile Include="Services\JunctionRestrictionsEventListener.cs" />
     <Compile Include="Util\JunctionRestrictionsDiagnostics.cs" />
     <Compile Include="Bridge\**\*.cs" />
   </ItemGroup>

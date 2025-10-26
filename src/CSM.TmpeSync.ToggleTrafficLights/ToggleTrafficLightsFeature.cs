@@ -1,37 +1,34 @@
-using CSM.TmpeSync.Snapshot;
-using CSM.TmpeSync.ToggleTrafficLights.Network.Contracts.Applied;
-using CSM.TmpeSync.ToggleTrafficLights.Snapshot;
-using CSM.TmpeSync.ToggleTrafficLights.Bridge;
+using CSM.TmpeSync.ToggleTrafficLights.Services;
 using CSM.TmpeSync.Util;
-using CSM.TmpeSync.ToggleTrafficLights.Bridge;
 
 namespace CSM.TmpeSync.ToggleTrafficLights
 {
+    /// <summary>
+    /// Bootstraps the traffic light synchronization by enabling the TM:PE change listener.
+    /// The CSM command handlers are picked up automatically via reflection.
+    /// </summary>
     public static class ToggleTrafficLightsFeature
     {
+        private static bool _enabled;
+
         public static void Register()
         {
-            Log.Info(LogCategory.Lifecycle, "Registering Toggle Traffic Lights feature integration.");
+            if (_enabled)
+                return;
 
-            // Snapshot export removed; feature now operates independently
-            TmpeBridge.RegisterNodeChangeHandler(HandleTrafficLightNodeChange);
-            TmpeBridge.SetTrafficLightBroadcastFactory((nodeId, enabled) =>
-                new TrafficLightToggledApplied
-                {
-                    NodeId = nodeId,
-                    Enabled = enabled
-                });
+            TrafficLightEventListener.Enable();
+            Log.Info(LogCategory.Network, "ToggleTrafficLights ready: TM:PE listener enabled.");
+            _enabled = true;
         }
 
-        private static void HandleTrafficLightNodeChange(ushort nodeId)
+        public static void Unregister()
         {
-            Log.Info(
-                LogCategory.Network,
-                "Broadcasting traffic-light toggle | nodeId={0} role={1}",
-                nodeId,
-                CsmBridge.DescribeCurrentRole());
+            if (!_enabled)
+                return;
 
-            TmpeBridge.BroadcastTrafficLights(nodeId);
+            TrafficLightEventListener.Disable();
+            Log.Info(LogCategory.Network, "ToggleTrafficLights stopped: TM:PE listener disabled.");
+            _enabled = false;
         }
     }
 }

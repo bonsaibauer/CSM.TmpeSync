@@ -288,6 +288,23 @@
     <Copy SourceFiles="@(ModFilesToCopy)" DestinationFolder="$(ModsOutDir)" SkipUnchangedFiles="true" />
   </Target>
 
+  <!-- ==== Override file set to minimal pattern (PrioritySigns-like) ==== -->
+  <ItemGroup>
+    <Compile Remove="Network\**\*.cs" />
+    <Compile Remove="Bridge\**\*.cs" />
+    <Compile Remove="Snapshot\**\*.cs" />
+    <Compile Remove="ParkingRestrictionsFeature.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Include="ParkingRestrictionSyncFeature.cs" />
+    <Compile Include="Messages\ParkingRestrictionAppliedCommand.cs" />
+    <Compile Include="Messages\ParkingRestrictionUpdateRequest.cs" />
+    <Compile Include="Handlers\ParkingRestrictionAppliedCommandHandler.cs" />
+    <Compile Include="Handlers\ParkingRestrictionUpdateRequestHandler.cs" />
+    <Compile Include="Services\ParkingRestrictionSynchronization.cs" />
+    <Compile Include="Services\ParkingRestrictionTmpeAdapter.cs" />
+    <Compile Include="Services\ParkingRestrictionEventListener.cs" />
+  </ItemGroup>
+
 </Project>
-
-

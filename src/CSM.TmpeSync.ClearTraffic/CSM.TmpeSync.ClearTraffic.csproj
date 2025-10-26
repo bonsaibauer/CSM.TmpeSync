@@ -179,7 +179,7 @@
 
   <ItemGroup>
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="ClearTrafficFeature.cs" />
+    <Compile Include="ClearTrafficSyncFeature.cs" />
     <Compile Include="Network\Contracts\Applied\ClearTrafficApplied.cs" />
     <Compile Include="Network\Contracts\Requests\ClearTrafficRequest.cs" />
     <Compile Include="Network\Handlers\ClearTrafficAppliedHandler.cs" />
@@ -195,7 +195,23 @@
     <Copy SourceFiles="@(ModFilesToCopy)" DestinationFolder="$(ModsOutDir)" SkipUnchangedFiles="true" />
   </Target>
 
+  <!-- Override legacy compile includes and point to minimal layout -->
+  <ItemGroup>
+    <Compile Remove="Network\Contracts\Applied\ClearTrafficApplied.cs" />
+    <Compile Remove="Network\Contracts\Requests\ClearTrafficRequest.cs" />
+    <Compile Remove="Network\Handlers\ClearTrafficAppliedHandler.cs" />
+    <Compile Remove="Network\Handlers\ClearTrafficRequestHandler.cs" />
+    <Compile Remove="Bridge\**\*.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="Messages\ClearTrafficAppliedCommand.cs" />
+    <Compile Include="Messages\ClearTrafficUpdateRequest.cs" />
+    <Compile Include="Handlers\ClearTrafficAppliedCommandHandler.cs" />
+    <Compile Include="Handlers\ClearTrafficUpdateRequestHandler.cs" />
+    <Compile Include="Services\ClearTrafficEventListener.cs" />
+    <Compile Include="Services\ClearTrafficSynchronization.cs" />
+    <Compile Include="Services\ClearTrafficTmpeAdapter.cs" />
+  </ItemGroup>
+
 </Project>
-
-
 
