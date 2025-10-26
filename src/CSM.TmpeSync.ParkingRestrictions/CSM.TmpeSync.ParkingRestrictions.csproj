@@ -276,7 +276,6 @@
     <Compile Include="Network\Handlers\SetParkingRestrictionRequestHandler.cs" />
     <Compile Include="Snapshot\ParkingRestrictionSnapshotProvider.cs" />
     <Compile Include="Snapshot\SnapshotDispatcher.cs" />
-    <Compile Include="Snapshot\SnapshotDispatcher.cs" />
     <Compile Include="Bridge\**\*.cs" />
   </ItemGroup>
   <!-- ==== Post-Build: Copy the add-on into the local mod directory ==== -->

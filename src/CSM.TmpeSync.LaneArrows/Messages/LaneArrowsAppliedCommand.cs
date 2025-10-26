@@ -1,6 +1,6 @@
 using System.Collections.Generic;
 using CSM.API.Commands;
-using CSM.TmpeSync.Network.Contracts.States;
+using CSM.TmpeSync.Messages.States;
 using ProtoBuf;
 
 namespace CSM.TmpeSync.LaneArrows.Messages

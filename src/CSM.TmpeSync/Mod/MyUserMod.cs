@@ -1,9 +1,7 @@
 using System;
 using ICities;
-using CSM.TmpeSync.Snapshot;
-using CSM.TmpeSync.Util;
-using Log = CSM.TmpeSync.Util.Log;
-// using removed: CSM.TmpeSync.Bridge;
+using CSM.TmpeSync.Services;
+using Log = CSM.TmpeSync.Services.Log;
 
 namespace CSM.TmpeSync.Mod
 {

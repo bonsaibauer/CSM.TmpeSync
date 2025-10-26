@@ -1,7 +1,6 @@
 using CSM.API.Commands;
-using CSM.TmpeSync.Bridge;
-using CSM.TmpeSync.Network.Contracts.States;
-using CSM.TmpeSync.Util;
+using CSM.TmpeSync.Messages.States;
+using CSM.TmpeSync.Services;
 
 namespace CSM.TmpeSync.ParkingRestrictions.Services
 {

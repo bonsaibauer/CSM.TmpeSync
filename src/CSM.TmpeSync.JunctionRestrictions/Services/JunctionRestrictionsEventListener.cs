@@ -2,10 +2,9 @@ using System;
 using System.Reflection;
 using ColossalFramework;
 using HarmonyLib;
-using CSM.TmpeSync.Bridge;
 using CSM.TmpeSync.JunctionRestrictions.Messages;
-using CSM.TmpeSync.Network.Contracts.States;
-using CSM.TmpeSync.Util;
+using CSM.TmpeSync.Messages.States;
+using CSM.TmpeSync.Services;
 
 namespace CSM.TmpeSync.JunctionRestrictions.Services
 {
@@ -169,4 +168,3 @@ namespace CSM.TmpeSync.JunctionRestrictions.Services
         }
     }
 }
-

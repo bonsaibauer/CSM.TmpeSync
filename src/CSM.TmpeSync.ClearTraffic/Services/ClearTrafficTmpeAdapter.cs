@@ -1,6 +1,6 @@
 using System;
 using System.Reflection;
-using CSM.TmpeSync.Util;
+using CSM.TmpeSync.Services;
 
 namespace CSM.TmpeSync.ClearTraffic.Services
 {
@@ -97,4 +97,3 @@ namespace CSM.TmpeSync.ClearTraffic.Services
         }
     }
 }
-

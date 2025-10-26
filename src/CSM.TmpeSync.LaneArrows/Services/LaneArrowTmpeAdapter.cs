@@ -1,7 +1,7 @@
 using System;
 using ColossalFramework;
-using CSM.TmpeSync.Network.Contracts.States;
-using CSM.TmpeSync.Util;
+using CSM.TmpeSync.Messages.States;
+using CSM.TmpeSync.Services;
 
 namespace CSM.TmpeSync.LaneArrows.Services
 {

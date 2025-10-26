@@ -1,5 +1,5 @@
 using CSM.TmpeSync.ParkingRestrictions.Services;
-using CSM.TmpeSync.Util;
+using CSM.TmpeSync.Services;
 
 namespace CSM.TmpeSync.ParkingRestrictions
 {

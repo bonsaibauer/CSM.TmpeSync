@@ -4,7 +4,7 @@ using System.Reflection;
 using ColossalFramework;
 using HarmonyLib;
 using CSM.TmpeSync.LaneArrows.Messages;
-using CSM.TmpeSync.Util;
+using CSM.TmpeSync.Services;
 
 namespace CSM.TmpeSync.LaneArrows.Services
 {
@@ -149,7 +149,7 @@ namespace CSM.TmpeSync.LaneArrows.Services
                     msg.Items.Add(new Messages.LaneArrowsAppliedCommand.Entry
                     {
                         Ordinal = ord,
-                        Arrows = (Network.Contracts.States.LaneArrowFlags)arrows
+                        Arrows = (CSM.TmpeSync.Messages.States.LaneArrowFlags)arrows
                     });
                 }
 

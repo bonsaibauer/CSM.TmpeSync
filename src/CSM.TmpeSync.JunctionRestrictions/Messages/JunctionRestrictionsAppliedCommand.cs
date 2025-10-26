@@ -1,5 +1,5 @@
 using CSM.API.Commands;
-using CSM.TmpeSync.Network.Contracts.States;
+using CSM.TmpeSync.Messages.States;
 using ProtoBuf;
 
 namespace CSM.TmpeSync.JunctionRestrictions.Messages
@@ -12,4 +12,3 @@ namespace CSM.TmpeSync.JunctionRestrictions.Messages
         [ProtoMember(3)] public JunctionRestrictionsState State { get; set; }
     }
 }
-

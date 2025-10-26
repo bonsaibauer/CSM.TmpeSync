@@ -179,14 +179,14 @@
 
   <ItemGroup>
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="ToggleTrafficLightsFeature.cs" />
-    <Compile Include="Services\TrafficLightEventListener.cs" />
-    <Compile Include="Services\TrafficLightSynchronization.cs" />
-    <Compile Include="Services\TrafficLightTmpeAdapter.cs" />
-    <Compile Include="Messages\TrafficLightUpdateRequest.cs" />
-    <Compile Include="Messages\TrafficLightAppliedCommand.cs" />
-    <Compile Include="Handlers\TrafficLightUpdateRequestHandler.cs" />
-    <Compile Include="Handlers\TrafficLightAppliedCommandHandler.cs" />
+    <Compile Include="ToggleTrafficLightsSyncFeature.cs" />
+    <Compile Include="Services\ToggleTrafficLightsEventListener.cs" />
+    <Compile Include="Services\ToggleTrafficLightsSynchronization.cs" />
+    <Compile Include="Services\ToggleTrafficLightsTmpeAdapter.cs" />
+    <Compile Include="Messages\ToggleTrafficLightsUpdateRequest.cs" />
+    <Compile Include="Messages\ToggleTrafficLightsAppliedCommand.cs" />
+    <Compile Include="Handlers\ToggleTrafficLightsUpdateRequestHandler.cs" />
+    <Compile Include="Handlers\ToggleTrafficLightsAppliedCommandHandler.cs" />
 
   </ItemGroup>
   <Target Name="AfterBuild">

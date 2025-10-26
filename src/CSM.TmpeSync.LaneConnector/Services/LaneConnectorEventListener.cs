@@ -4,8 +4,7 @@ using ColossalFramework;
 using HarmonyLib;
 using System.Linq;
 using CSM.TmpeSync.LaneConnector.Messages;
-using CSM.TmpeSync.Bridge;
-using CSM.TmpeSync.Util;
+using CSM.TmpeSync.Services;
 
 namespace CSM.TmpeSync.LaneConnector.Services
 {

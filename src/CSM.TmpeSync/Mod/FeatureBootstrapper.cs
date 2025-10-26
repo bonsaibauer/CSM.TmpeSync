@@ -7,7 +7,6 @@ using CSM.TmpeSync.PrioritySigns;
 using CSM.TmpeSync.SpeedLimits;
 using CSM.TmpeSync.ToggleTrafficLights;
 using CSM.TmpeSync.VehicleRestrictions;
-using CSM.TmpeSync.Snapshot;
 
 namespace CSM.TmpeSync.Mod
 {
@@ -22,15 +21,16 @@ namespace CSM.TmpeSync.Mod
 
             _registered = true;
 
-            SpeedLimitsFeature.Register();
+            SpeedLimitSyncFeature.Register();
             LaneArrowsSyncFeature.Register();
             LaneConnectorSyncFeature.Register();
-            JunctionRestrictionsFeature.Register();
+            JunctionRestrictionsSyncFeature.Register();
             PrioritySignSyncFeature.Register();
             ParkingRestrictionSyncFeature.Register();
-            VehicleRestrictionsFeature.Register();
-            ToggleTrafficLightsFeature.Register();
+            VehicleRestrictionSyncFeature.Register();
+            ToggleTrafficLightsSyncFeature.Register();
             ClearTrafficSyncFeature.Register();
         }
     }
 }
+

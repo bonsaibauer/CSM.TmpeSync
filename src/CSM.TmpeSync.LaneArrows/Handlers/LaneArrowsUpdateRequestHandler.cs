@@ -1,8 +1,8 @@
 using CSM.API.Commands;
 using CSM.TmpeSync.LaneArrows.Messages;
 using CSM.TmpeSync.LaneArrows.Services;
-using CSM.TmpeSync.Network.Contracts.System;
-using CSM.TmpeSync.Util;
+using CSM.TmpeSync.Messages.System;
+using CSM.TmpeSync.Services;
 
 namespace CSM.TmpeSync.LaneArrows.Handlers
 {
@@ -10,12 +10,12 @@ namespace CSM.TmpeSync.LaneArrows.Handlers
     {
         protected override void Handle(LaneArrowsUpdateRequest cmd)
         {
-            var senderId = CSM.TmpeSync.Bridge.CsmBridge.GetSenderId(cmd);
+            var senderId = CSM.TmpeSync.Services.CsmBridge.GetSenderId(cmd);
             Log.Info(LogCategory.Network,
                 "LaneArrowsEndUpdateRequest received | nodeId={0} segmentId={1} startNode={2} items={3} senderId={4} role={5}",
-                cmd.NodeId, cmd.SegmentId, cmd.StartNode, cmd.Items?.Count ?? 0, senderId, CSM.TmpeSync.Bridge.CsmBridge.DescribeCurrentRole());
+                cmd.NodeId, cmd.SegmentId, cmd.StartNode, cmd.Items?.Count ?? 0, senderId, CSM.TmpeSync.Services.CsmBridge.DescribeCurrentRole());
 
-            if (!CSM.TmpeSync.Bridge.CsmBridge.IsServerInstance())
+            if (!CSM.TmpeSync.Services.CsmBridge.IsServerInstance())
             {
                 Log.Debug(LogCategory.Network, "Ignoring LaneArrowsEndUpdateRequest | reason=not_server_instance");
                 return;
@@ -23,13 +23,13 @@ namespace CSM.TmpeSync.LaneArrows.Handlers
 
             if (!NetworkUtil.NodeExists(cmd.NodeId))
             {
-                CSM.TmpeSync.Bridge.CsmBridge.SendToClient(senderId, new RequestRejected { Reason = "entity_missing", EntityId = cmd.NodeId, EntityType = 3 });
+                CSM.TmpeSync.Services.CsmBridge.SendToClient(senderId, new RequestRejected { Reason = "entity_missing", EntityId = cmd.NodeId, EntityType = 3 });
                 return;
             }
 
             if (!NetworkUtil.SegmentExists(cmd.SegmentId))
             {
-                CSM.TmpeSync.Bridge.CsmBridge.SendToClient(senderId, new RequestRejected { Reason = "entity_missing", EntityId = cmd.SegmentId, EntityType = 2 });
+                CSM.TmpeSync.Services.CsmBridge.SendToClient(senderId, new RequestRejected { Reason = "entity_missing", EntityId = cmd.SegmentId, EntityType = 2 });
                 return;
             }
 
@@ -47,7 +47,7 @@ namespace CSM.TmpeSync.LaneArrows.Handlers
                     if (!LaneArrowEndSelector.TryGetCandidates(cmd.NodeId, cmd.SegmentId, out var startNode, out var candidates))
                         return;
 
-                    using (CSM.TmpeSync.Bridge.CsmBridge.StartIgnore())
+                    using (CSM.TmpeSync.Services.CsmBridge.StartIgnore())
                     {
                         foreach (var item in cmd.Items)
                         {
@@ -58,7 +58,7 @@ namespace CSM.TmpeSync.LaneArrows.Handlers
                             if (!NetworkUtil.LaneExists(laneId)) continue;
                             if (!LaneArrowAdapter.ApplyLaneArrows(laneId, (int)item.Arrows))
                             {
-                                CSM.TmpeSync.Bridge.CsmBridge.SendToClient(senderId, new RequestRejected { Reason = "tmpe_apply_failed", EntityId = laneId, EntityType = 1 });
+                                CSM.TmpeSync.Services.CsmBridge.SendToClient(senderId, new RequestRejected { Reason = "tmpe_apply_failed", EntityId = laneId, EntityType = 1 });
                                 return;
                             }
                         }
@@ -83,7 +83,7 @@ namespace CSM.TmpeSync.LaneArrows.Handlers
                             applied.Items.Add(new LaneArrowsAppliedCommand.Entry
                             {
                                 Ordinal = ord,
-                                Arrows = (Network.Contracts.States.LaneArrowFlags)arrows
+                                Arrows = (CSM.TmpeSync.Messages.States.LaneArrowFlags)arrows
                             });
                         }
 

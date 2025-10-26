@@ -1,6 +1,6 @@
 using ICities;
 
-using CSM.TmpeSync.Util;
+using CSM.TmpeSync.Services;
 
 namespace CSM.TmpeSync.Mod
 {

@@ -271,19 +271,24 @@
   <!-- ==== Files (EnableDefaultCompileItems=false) ==== -->
   <ItemGroup>
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="SpeedLimitsFeature.cs" />
-    <Compile Include="Network\Contracts\Applied\SpeedLimitApplied.cs" />
-    <Compile Include="Network\Contracts\Applied\SpeedLimitBatchApplied.cs" />
-    <Compile Include="Network\Contracts\Requests\SetSpeedLimitRequest.cs" />
-    <Compile Include="Network\Handlers\SpeedLimitAppliedHandler.cs" />
-    <Compile Include="Network\Handlers\SpeedLimitBatchAppliedHandler.cs" />
-    <Compile Include="Network\Handlers\SetSpeedLimitRequestHandler.cs" />
-    <Compile Include="Network\Handlers\SpeedLimitCommandProcessor.cs" />
-    <Compile Include="Snapshot\SpeedLimitSnapshotProvider.cs" />
-    <Compile Include="Snapshot\SnapshotDispatcher.cs" />
-    <Compile Include="TmpeBridge\SpeedLimitCodec.cs" />
-    <Compile Include="Util\SpeedLimitDiagnostics.cs" />
-    <Compile Include="Bridge\**\*.cs" />
+    <Compile Include="SpeedLimitSyncFeature.cs" />
+  </ItemGroup>
+  <!-- ==== Override file set to minimal pattern (VehicleRestrictions-like) ==== -->
+  <ItemGroup>
+    <Compile Remove="Network\**\*.cs" />
+    <Compile Remove="Bridge\**\*.cs" />
+    <Compile Remove="Snapshot\**\*.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="Messages\SpeedLimitsAppliedCommand.cs" />
+    <Compile Include="Messages\SpeedLimitsUpdateRequest.cs" />
+    <Compile Include="Handlers\SpeedLimitsAppliedCommandHandler.cs" />
+    <Compile Include="Handlers\SpeedLimitsUpdateRequestHandler.cs" />
+    <Compile Include="Services\SpeedLimitSynchronization.cs" />
+    <Compile Include="Services\SpeedLimitTmpeAdapter.cs" />
+    <Compile Include="Services\SpeedLimitEventListener.cs" />
+    <Compile Include="Services\SpeedLimitAdapter.cs" />
+    <Compile Include="Services\\SpeedLimitCodec.cs" />
   </ItemGroup>
   <!-- ==== Post-Build: Copy the add-on into the local mod directory ==== -->
   <Target Name="AfterBuild">

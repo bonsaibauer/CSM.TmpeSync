@@ -267,14 +267,13 @@
   <!-- ==== Files (EnableDefaultCompileItems=false) ==== -->
   <ItemGroup>
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="JunctionRestrictionsFeature.cs" />
+    <Compile Include="JunctionRestrictionsSyncFeature.cs" />
     <Compile Include="Messages\JunctionRestrictionsAppliedCommand.cs" />
     <Compile Include="Messages\JunctionRestrictionsUpdateRequest.cs" />
     <Compile Include="Handlers\JunctionRestrictionsAppliedCommandHandler.cs" />
     <Compile Include="Handlers\JunctionRestrictionsUpdateRequestHandler.cs" />
     <Compile Include="Services\JunctionRestrictionsSynchronization.cs" />
     <Compile Include="Services\JunctionRestrictionsEventListener.cs" />
-    <Compile Include="Util\JunctionRestrictionsDiagnostics.cs" />
     <Compile Include="Bridge\**\*.cs" />
   </ItemGroup>
   <!-- ==== Post-Build: Copy the add-on into the local mod directory ==== -->
@@ -287,5 +286,7 @@
   </Target>
 
 </Project>
+
+
 
 

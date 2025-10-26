@@ -1,10 +1,9 @@
 using CSM.API.Commands;
 using ColossalFramework;
-using CSM.TmpeSync.Bridge;
 using CSM.TmpeSync.JunctionRestrictions.Messages;
 using CSM.TmpeSync.JunctionRestrictions.Services;
-using CSM.TmpeSync.Network.Contracts.States;
-using CSM.TmpeSync.Util;
+using CSM.TmpeSync.Messages.States;
+using CSM.TmpeSync.Services;
 
 namespace CSM.TmpeSync.JunctionRestrictions.Handlers
 {

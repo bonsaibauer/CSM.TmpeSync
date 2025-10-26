@@ -1,7 +1,7 @@
 using CSM.API.Commands;
 using CSM.TmpeSync.LaneArrows.Messages;
 using CSM.TmpeSync.LaneArrows.Services;
-using CSM.TmpeSync.Util;
+using CSM.TmpeSync.Services;
 
 namespace CSM.TmpeSync.LaneArrows.Handlers
 {
@@ -38,7 +38,7 @@ namespace CSM.TmpeSync.LaneArrows.Handlers
                     return;
                 }
 
-                using (CSM.TmpeSync.Bridge.CsmBridge.StartIgnore())
+                using (CSM.TmpeSync.Services.CsmBridge.StartIgnore())
                 {
                     if (!LaneArrowEndSelector.TryGetCandidates(cmd.NodeId, cmd.SegmentId, out var startNode, out var candidates))
                         return;

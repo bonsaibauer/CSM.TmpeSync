@@ -1,8 +1,8 @@
 using System;
 using System.Linq;
 using System.Reflection;
-using CSM.TmpeSync.Network.Contracts.States;
-using CSM.TmpeSync.Util;
+using CSM.TmpeSync.Messages.States;
+using CSM.TmpeSync.Services;
 using TrafficManager.API;
 using TrafficManager.API.Manager;
 using ExtLaneArrows = TrafficManager.API.Traffic.Enums.LaneArrows;

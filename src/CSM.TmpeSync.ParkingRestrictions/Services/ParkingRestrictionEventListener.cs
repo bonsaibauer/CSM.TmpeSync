@@ -4,8 +4,7 @@ using System.Reflection;
 using ColossalFramework;
 using HarmonyLib;
 using CSM.TmpeSync.ParkingRestrictions.Messages;
-using CSM.TmpeSync.Bridge;
-using CSM.TmpeSync.Util;
+using CSM.TmpeSync.Services;
 
 namespace CSM.TmpeSync.ParkingRestrictions.Services
 {
@@ -157,7 +156,7 @@ namespace CSM.TmpeSync.ParkingRestrictions.Services
             SendLocalChange(segmentId, state, context);
         }
 
-        private static void SendLocalChange(ushort segmentId, Network.Contracts.States.ParkingRestrictionState state, string context)
+        private static void SendLocalChange(ushort segmentId, CSM.TmpeSync.Messages.States.ParkingRestrictionState state, string context)
         {
             if (CsmBridge.IsServerInstance())
             {

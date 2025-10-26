@@ -1,9 +1,8 @@
 using CSM.API.Commands;
-using CSM.TmpeSync.Bridge;
-using CSM.TmpeSync.Network.Contracts.States;
+using CSM.TmpeSync.Messages.States;
 using CSM.TmpeSync.PrioritySigns.Messages;
 using CSM.TmpeSync.PrioritySigns.Services;
-using CSM.TmpeSync.Util;
+using CSM.TmpeSync.Services;
 
 namespace CSM.TmpeSync.PrioritySigns.Handlers
 {

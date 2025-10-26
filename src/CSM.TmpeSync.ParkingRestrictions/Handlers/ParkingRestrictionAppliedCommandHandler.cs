@@ -1,10 +1,8 @@
 using CSM.API.Commands;
 using CSM.TmpeSync.ParkingRestrictions.Messages;
 using CSM.TmpeSync.ParkingRestrictions.Services;
-using CSM.TmpeSync.Network.Contracts.States;
-using CSM.TmpeSync.Util;
-using CSM.TmpeSync.Bridge;
-
+using CSM.TmpeSync.Messages.States;
+using CSM.TmpeSync.Services;
 namespace CSM.TmpeSync.ParkingRestrictions.Handlers
 {
     public class ParkingRestrictionAppliedCommandHandler : CommandHandler<ParkingRestrictionAppliedCommand>

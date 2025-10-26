@@ -9,10 +9,9 @@ using CSM.TmpeSync.PrioritySigns;
 using CSM.TmpeSync.SpeedLimits;
 using CSM.TmpeSync.ToggleTrafficLights;
 
-using CSM.TmpeSync.Util;
+using CSM.TmpeSync.Services;
 using CSM.TmpeSync.VehicleRestrictions;
-using Log = CSM.TmpeSync.Util.Log;
-using CSM.TmpeSync.SpeedLimits.Bridge;
+using Log = CSM.TmpeSync.Services.Log;
 
 namespace CSM.TmpeSync.Mod
 {
@@ -27,10 +26,10 @@ namespace CSM.TmpeSync.Mod
             CommandAssemblies.Add(typeof(LaneArrowsSyncFeature).Assembly);
             CommandAssemblies.Add(typeof(PrioritySignSyncFeature).Assembly);
             CommandAssemblies.Add(typeof(ParkingRestrictionSyncFeature).Assembly);
-            CommandAssemblies.Add(typeof(JunctionRestrictionsFeature).Assembly);
-            CommandAssemblies.Add(typeof(SpeedLimitsFeature).Assembly);
-            CommandAssemblies.Add(typeof(VehicleRestrictionsFeature).Assembly);
-            CommandAssemblies.Add(typeof(ToggleTrafficLightsFeature).Assembly);
+            CommandAssemblies.Add(typeof(JunctionRestrictionsSyncFeature).Assembly);
+            CommandAssemblies.Add(typeof(SpeedLimitSyncFeature).Assembly);
+            CommandAssemblies.Add(typeof(VehicleRestrictionSyncFeature).Assembly);
+            CommandAssemblies.Add(typeof(ToggleTrafficLightsSyncFeature).Assembly);
             CommandAssemblies.Add(typeof(ClearTrafficSyncFeature).Assembly);
         }
 
@@ -64,3 +63,4 @@ namespace CSM.TmpeSync.Mod
         }
     }
 }
+

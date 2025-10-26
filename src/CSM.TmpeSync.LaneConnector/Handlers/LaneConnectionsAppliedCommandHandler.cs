@@ -1,9 +1,8 @@
 using System.Linq;
 using CSM.API.Commands;
-using CSM.TmpeSync.Bridge;
 using CSM.TmpeSync.LaneConnector.Messages;
 using CSM.TmpeSync.LaneConnector.Services;
-using CSM.TmpeSync.Util;
+using CSM.TmpeSync.Services;
 
 namespace CSM.TmpeSync.LaneConnector.Handlers
 {

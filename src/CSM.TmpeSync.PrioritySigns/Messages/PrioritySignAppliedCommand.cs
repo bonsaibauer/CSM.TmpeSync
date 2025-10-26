@@ -1,5 +1,5 @@
 using CSM.API.Commands;
-using CSM.TmpeSync.Network.Contracts.States;
+using CSM.TmpeSync.Messages.States;
 using ProtoBuf;
 
 namespace CSM.TmpeSync.PrioritySigns.Messages

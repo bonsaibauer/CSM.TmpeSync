@@ -1,6 +1,6 @@
 using System;
 using ColossalFramework;
-using CSM.TmpeSync.Util;
+using CSM.TmpeSync.Services;
 
 namespace CSM.TmpeSync.LaneConnector.Services
 {
