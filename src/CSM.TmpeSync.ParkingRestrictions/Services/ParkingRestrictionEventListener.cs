@@ -69,15 +69,37 @@ namespace CSM.TmpeSync.ParkingRestrictions.Services
                 "SetParkingAllowed",
                 typeof(ushort), typeof(NetInfo.Direction), typeof(bool));
 
-            if (method == null)
+            var methodAllDirs = FindMethod(
+                new[]
+                {
+                    "TrafficManager.Manager.Impl.ParkingRestrictionsManager",
+                    "TrafficManager.Manager.ParkingRestrictionsManager",
+                },
+                "SetParkingAllowed",
+                typeof(ushort), typeof(bool));
+
+            if (method == null && methodAllDirs == null)
                 return false;
 
             var postfix = typeof(ParkingRestrictionEventListener)
                 .GetMethod(nameof(SetParkingAllowed_Postfix), BindingFlags.NonPublic | BindingFlags.Static);
 
-            _harmony.Patch(method, postfix: new HarmonyMethod(postfix));
-            Log.Info(LogCategory.Network, "[ParkingRestrictions] Harmony gateway patched {0}.{1}.", method.DeclaringType?.FullName, method.Name);
-            return true;
+            if (method != null)
+            {
+                _harmony.Patch(method, postfix: new HarmonyMethod(postfix));
+                Log.Info(LogCategory.Network, "[ParkingRestrictions] Harmony gateway patched {0}.{1} (dir overload).", method.DeclaringType?.FullName, method.Name);
+            }
+
+            var postfixAllDirs = typeof(ParkingRestrictionEventListener)
+                .GetMethod(nameof(SetParkingAllowedAllDirs_Postfix), BindingFlags.NonPublic | BindingFlags.Static);
+
+            if (methodAllDirs != null)
+            {
+                _harmony.Patch(methodAllDirs, postfix: new HarmonyMethod(postfixAllDirs));
+                Log.Info(LogCategory.Network, "[ParkingRestrictions] Harmony gateway patched {0}.{1} (all-dirs overload).", methodAllDirs.DeclaringType?.FullName, methodAllDirs.Name);
+            }
+
+            return method != null || methodAllDirs != null;
         }
 
         private static MethodInfo FindMethod(string[] typeNames, string methodName, params Type[] parameterTypes)
@@ -124,7 +146,7 @@ namespace CSM.TmpeSync.ParkingRestrictions.Services
             return null;
         }
 
-        private static void SetParkingAllowed_Postfix(ushort segmentId, NetInfo.Direction direction, bool allowed)
+        private static void SetParkingAllowed_Postfix(ushort segmentId, NetInfo.Direction finalDir, bool flag)
         {
             try
             {
@@ -139,6 +161,24 @@ namespace CSM.TmpeSync.ParkingRestrictions.Services
             catch (Exception ex)
             {
                 Log.Warn(LogCategory.Network, "[ParkingRestrictions] SetParkingAllowed postfix error: {0}", ex);
+            }
+        }
+
+        private static void SetParkingAllowedAllDirs_Postfix(ushort segmentId, bool flag)
+        {
+            try
+            {
+                if (ParkingRestrictionSynchronization.IsLocalApplyActive)
+                    return;
+
+                if (segmentId == 0)
+                    return;
+
+                BroadcastSegment(segmentId, "set_all_dirs");
+            }
+            catch (Exception ex)
+            {
+                Log.Warn(LogCategory.Network, "[ParkingRestrictions] SetParkingAllowed(all) postfix error: {0}", ex);
             }
         }
 

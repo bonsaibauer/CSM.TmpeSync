@@ -67,19 +67,54 @@ namespace CSM.TmpeSync.ToggleTrafficLights.Services
 
         private static bool TryPatchToggleTrafficLight()
         {
-            var method = FindMethod(
-                "ToggleTrafficLight",
-                typeof(ushort));
-
-            if (method == null)
-                return false;
-
             var postfix = typeof(ToggleTrafficLightsEventListener)
                 .GetMethod(nameof(ToggleTrafficLight_Postfix), BindingFlags.NonPublic | BindingFlags.Static);
 
-            _harmony.Patch(method, postfix: new HarmonyMethod(postfix));
-            Log.Info(LogCategory.Network, "[ToggleTrafficLights] Harmony gateway patched {0}.{1}.", method.DeclaringType?.FullName, method.Name);
-            return true;
+            int patched = 0;
+
+            var tlmType = AccessTools.TypeByName("TrafficManager.Manager.Impl.TrafficLightManager")
+                        ?? AccessTools.TypeByName("TrafficManager.Manager.TrafficLightManager");
+
+            if (tlmType != null)
+            {
+                foreach (var mi in tlmType.GetMethods(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Static))
+                {
+                    if (!string.Equals(mi.Name, "ToggleTrafficLight", StringComparison.Ordinal))
+                        continue;
+                    var ps = mi.GetParameters();
+                    if (ps.Length >= 1 && ps[0].ParameterType == typeof(ushort))
+                    {
+                        _harmony.Patch(mi, postfix: new HarmonyMethod(postfix));
+                        Log.Info(LogCategory.Network, "[ToggleTrafficLights] Patched {0}.{1}({2}).", tlmType.FullName, mi.Name, string.Join(", ", ps.Select(p => p.ParameterType.Name).ToArray()));
+                        patched++;
+                    }
+                }
+
+                foreach (var mi in tlmType.GetMethods(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Static))
+                {
+                    if (!string.Equals(mi.Name, "SetTrafficLight", StringComparison.Ordinal))
+                        continue;
+                    var ps = mi.GetParameters();
+                    if (ps.Length >= 3 && ps[0].ParameterType == typeof(ushort))
+                    {
+                        _harmony.Patch(mi, postfix: new HarmonyMethod(postfix));
+                        Log.Info(LogCategory.Network, "[ToggleTrafficLights] Patched {0}.{1}({2}).", tlmType.FullName, mi.Name, string.Join(", ", ps.Select(p => p.ParameterType.Name).ToArray()));
+                        patched++;
+                    }
+                }
+            }
+
+            // Fallback: also patch UI click forwarder if present
+            var uiType = AccessTools.TypeByName("TrafficManager.Patch._RoadBaseAI.ClickNodeButtonPatch");
+            var uiMi = uiType?.GetMethod("ToggleTrafficLight", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static, null, new[] { typeof(ushort) }, null);
+            if (uiMi != null)
+            {
+                _harmony.Patch(uiMi, postfix: new HarmonyMethod(postfix));
+                Log.Info(LogCategory.Network, "[ToggleTrafficLights] Patched {0}.ToggleTrafficLight(ushort).", uiType.FullName);
+                patched++;
+            }
+
+            return patched > 0;
         }
 
         private static MethodInfo FindMethod(string methodName, params Type[] parameterTypes)

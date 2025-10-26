@@ -1,5 +1,6 @@
 using System;
 using System.Reflection;
+using System.Linq;
 using ColossalFramework;
 using HarmonyLib;
 using CSM.TmpeSync.JunctionRestrictions.Messages;
@@ -23,11 +24,17 @@ namespace CSM.TmpeSync.JunctionRestrictions.Services
             {
                 _harmony = new Harmony(HarmonyId);
                 bool patched = false;
-                patched |= TryPatch("SetUturnAllowed");
-                patched |= TryPatch("SetLaneChangingAllowedWhenGoingStraight");
-                patched |= TryPatch("SetEnteringBlockedJunctionAllowed");
-                patched |= TryPatch("SetPedestrianCrossingAllowed");
-                patched |= TryPatch("SetTurnOnRedAllowed");
+                patched |= TryPatchAllOverloads("SetUturnAllowed");
+                patched |= TryPatchAllOverloads("SetLaneChangingAllowedWhenGoingStraight");
+                patched |= TryPatchAllOverloads("SetEnteringBlockedJunctionAllowed");
+                patched |= TryPatchAllOverloads("SetPedestrianCrossingAllowed");
+                patched |= TryPatchAllOverloads("SetTurnOnRedAllowed");
+                // Also patch toggles used by UI
+                patched |= TryPatchAllOverloads("ToggleUturnAllowed");
+                patched |= TryPatchAllOverloads("ToggleLaneChangingAllowedWhenGoingStraight");
+                patched |= TryPatchAllOverloads("ToggleEnteringBlockedJunctionAllowed");
+                patched |= TryPatchAllOverloads("TogglePedestrianCrossingAllowed");
+                patched |= TryPatchAllOverloads("ToggleTurnOnRedAllowed");
 
                 if (!patched)
                 {
@@ -65,45 +72,47 @@ namespace CSM.TmpeSync.JunctionRestrictions.Services
             }
         }
 
-        private static bool TryPatch(string methodName)
+        private static bool TryPatchAllOverloads(string methodName)
         {
-            // Signatures contain (ushort segmentId, bool startNode, ...)
             var type = AccessTools.TypeByName("TrafficManager.Manager.Impl.JunctionRestrictionsManager");
-            if (type == null)
-                return false;
-
-            var method = AccessTools.Method(type, methodName);
-            if (method == null)
-                return false;
+            if (type == null) return false;
 
             var postfix = typeof(JunctionRestrictionsEventListener)
-                .GetMethod(nameof(Setter_Postfix), BindingFlags.NonPublic | BindingFlags.Static);
+                .GetMethod(nameof(Setter_GenericPostfix), BindingFlags.NonPublic | BindingFlags.Static);
 
-            _harmony.Patch(method, postfix: new HarmonyMethod(postfix));
-            Log.Info(LogCategory.Network, "[JunctionRestrictions] Patched {0}.{1}", type.FullName, methodName);
-            return true;
+            int count = 0;
+            foreach (var mi in type.GetMethods(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic))
+            {
+                if (!string.Equals(mi.Name, methodName, StringComparison.Ordinal))
+                    continue;
+                _harmony.Patch(mi, postfix: new HarmonyMethod(postfix));
+                Log.Info(LogCategory.Network, "[JunctionRestrictions] Patched {0}.{1}({2})", type.FullName, mi.Name, string.Join(", ", mi.GetParameters().Select(p => p.ParameterType.Name).ToArray()));
+                count++;
+            }
+            return count > 0;
         }
 
-        private static void Setter_Postfix(object __instance, object __result, params object[] __args)
+        private static void Setter_GenericPostfix(object __instance, object __result, params object[] __args)
         {
             try
             {
                 // Extract segmentId and startNode from args
                 ushort segmentId = 0;
                 bool startNode = false;
-                foreach (var arg in __args)
+                // JunctionRestrictionsManager methods always include segmentId (ushort) and startNode (bool)
+                // Some overloads (TurnOnRed) include a leading 'near' bool; ensure we pick the bool following segmentId.
+                int segIndex = Array.FindIndex(__args, a => a is ushort);
+                if (segIndex >= 0)
                 {
-                    if (arg is ushort s)
-                        segmentId = s;
-                }
-
-                // heuristic: the first bool after ushort params is usually startNode
-                for (int i = 0; i < __args.Length; i++)
-                {
-                    if (__args[i] is bool b)
+                    segmentId = (ushort)__args[segIndex];
+                    // find the next bool argument at or after segIndex
+                    for (int i = segIndex + 1; i < __args.Length; i++)
                     {
-                        startNode = b;
-                        break;
+                        if (__args[i] is bool b)
+                        {
+                            startNode = b;
+                            break;
+                        }
                     }
                 }
 

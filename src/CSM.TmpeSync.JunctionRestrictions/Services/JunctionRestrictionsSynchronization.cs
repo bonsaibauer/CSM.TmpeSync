@@ -53,11 +53,36 @@ namespace CSM.TmpeSync.JunctionRestrictions.Services
                     return false;
 
                 var mgrType = iface.GetType();
-                var setUTurn = mgrType.GetMethod("SetUturnAllowed", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic);
-                var setLaneChange = mgrType.GetMethod("SetLaneChangingAllowedWhenGoingStraight", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic);
-                var setBlocked = mgrType.GetMethod("SetEnteringBlockedJunctionAllowed", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic);
-                var setPed = mgrType.GetMethod("SetPedestrianCrossingAllowed", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic);
-                var setTor = mgrType.GetMethod("SetTurnOnRedAllowed", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic);
+                var setUTurn = mgrType.GetMethod(
+                    "SetUturnAllowed",
+                    System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic,
+                    null,
+                    new[] { typeof(ushort), typeof(bool), typeof(bool) },
+                    null);
+                var setLaneChange = mgrType.GetMethod(
+                    "SetLaneChangingAllowedWhenGoingStraight",
+                    System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic,
+                    null,
+                    new[] { typeof(ushort), typeof(bool), typeof(bool) },
+                    null);
+                var setBlocked = mgrType.GetMethod(
+                    "SetEnteringBlockedJunctionAllowed",
+                    System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic,
+                    null,
+                    new[] { typeof(ushort), typeof(bool), typeof(bool) },
+                    null);
+                var setPed = mgrType.GetMethod(
+                    "SetPedestrianCrossingAllowed",
+                    System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic,
+                    null,
+                    new[] { typeof(ushort), typeof(bool), typeof(bool) },
+                    null);
+                var setTor = mgrType.GetMethod(
+                    "SetTurnOnRedAllowed",
+                    System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic,
+                    null,
+                    new[] { typeof(bool), typeof(ushort), typeof(bool), typeof(bool) },
+                    null);
 
                 ref var seg = ref NetManager.instance.m_segments.m_buffer[segmentId];
                 bool startNode = seg.m_startNode == nodeId;

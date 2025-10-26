@@ -56,33 +56,73 @@ namespace CSM.TmpeSync.LaneArrows.Services
 
         private static bool TryPatchSetLaneArrows()
         {
-            // TrafficManager.Manager.Impl.LaneArrowManager.SetLaneArrows(uint laneId, LaneArrows arrows [, bool propagate])
-            var type = AccessTools.TypeByName("TrafficManager.Manager.Impl.LaneArrowManager");
-            if (type == null)
-            {
-                // fallback: find in loaded TM:PE assembly
-                var asm = AppDomain.CurrentDomain
+            // Find LaneArrowManager type
+            var type = AccessTools.TypeByName("TrafficManager.Manager.Impl.LaneArrowManager")
+                ?? AccessTools.TypeByName("TrafficManager.Manager.LaneArrowManager")
+                ?? AppDomain.CurrentDomain
                     .GetAssemblies()
-                    .FirstOrDefault(a => a.GetName().Name?.IndexOf("TrafficManager", StringComparison.OrdinalIgnoreCase) >= 0);
-                type = asm?.GetTypes().FirstOrDefault(t => t.Name == "LaneArrowManager");
+                    .FirstOrDefault(a => a.GetName().Name?.IndexOf("TrafficManager", StringComparison.OrdinalIgnoreCase) >= 0)
+                    ?.GetTypes().FirstOrDefault(t => t.Name == "LaneArrowManager");
+
+            if (type == null)
+                return false;
+
+            int patched = 0;
+
+            // Postfixes
+            var postSet = typeof(LaneArrowEventListener).GetMethod(nameof(PostSetLaneArrows), BindingFlags.NonPublic | BindingFlags.Static);
+            var postToggle = typeof(LaneArrowEventListener).GetMethod(nameof(PostToggleLaneArrows), BindingFlags.NonPublic | BindingFlags.Static);
+            var postResetLane = typeof(LaneArrowEventListener).GetMethod(nameof(PostResetLaneArrows_Lane), BindingFlags.NonPublic | BindingFlags.Static);
+            var postResetSeg = typeof(LaneArrowEventListener).GetMethod(nameof(PostResetLaneArrows_Segment), BindingFlags.NonPublic | BindingFlags.Static);
+
+            // SetLaneArrows(uint, LaneArrows, [bool])
+            foreach (var mi in type.GetMethods(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic))
+            {
+                if (!string.Equals(mi.Name, "SetLaneArrows", StringComparison.Ordinal))
+                    continue;
+                var ps = mi.GetParameters();
+                if (ps.Length >= 2 && ps[0].ParameterType == typeof(uint))
+                {
+                    _harmony.Patch(mi, postfix: new HarmonyMethod(postSet));
+                    Log.Info(LogCategory.Network, "[LaneArrows] Patched {0}.{1}({2}).", type.FullName, mi.Name, string.Join(", ", ps.Select(p => p.ParameterType.Name).ToArray()));
+                    patched++;
+                }
             }
 
-            if (type == null)
-                return false;
+            // ToggleLaneArrows(uint, bool, LaneArrows, out SetLaneArrow_Result)
+            foreach (var mi in type.GetMethods(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic))
+            {
+                if (!string.Equals(mi.Name, "ToggleLaneArrows", StringComparison.Ordinal))
+                    continue;
+                var ps = mi.GetParameters();
+                if (ps.Length >= 3 && ps[0].ParameterType == typeof(uint) && ps[1].ParameterType == typeof(bool))
+                {
+                    _harmony.Patch(mi, postfix: new HarmonyMethod(postToggle));
+                    Log.Info(LogCategory.Network, "[LaneArrows] Patched {0}.{1}({2}).", type.FullName, mi.Name, string.Join(", ", ps.Select(p => p.ParameterType.Name).ToArray()));
+                    patched++;
+                }
+            }
 
-            var method = type
-                .GetMethods(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)
-                .FirstOrDefault(m => m.Name == "SetLaneArrows" && m.GetParameters().Length >= 2 && m.GetParameters()[0].ParameterType == typeof(uint));
+            // ResetLaneArrows(uint laneId)
+            var miLane = type.GetMethod("ResetLaneArrows", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic, null, new[] { typeof(uint) }, null);
+            if (miLane != null)
+            {
+                _harmony.Patch(miLane, postfix: new HarmonyMethod(postResetLane));
+                Log.Info(LogCategory.Network, "[LaneArrows] Patched {0}.ResetLaneArrows(uint).", type.FullName);
+                patched++;
+            }
 
-            if (method == null)
-                return false;
+            // ResetLaneArrows(ushort segmentId, bool? startNode = null)
+            var miSeg = type.GetMethod("ResetLaneArrows", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic, null, new[] { typeof(ushort), typeof(bool?) }, null)
+                      ?? type.GetMethod("ResetLaneArrows", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic, null, new[] { typeof(ushort), typeof(Nullable<bool>) }, null);
+            if (miSeg != null)
+            {
+                _harmony.Patch(miSeg, postfix: new HarmonyMethod(postResetSeg));
+                Log.Info(LogCategory.Network, "[LaneArrows] Patched {0}.ResetLaneArrows(ushort, bool?).", type.FullName);
+                patched++;
+            }
 
-            var postfix = typeof(LaneArrowEventListener)
-                .GetMethod(nameof(PostSetLaneArrows), BindingFlags.NonPublic | BindingFlags.Static);
-
-            _harmony.Patch(method, postfix: new HarmonyMethod(postfix));
-            Log.Info(LogCategory.Network, "[LaneArrows] Harmony gateway patched {0}.{1}.", method.DeclaringType?.FullName, method.Name);
-            return true;
+            return patched > 0;
         }
 
         private static void PostSetLaneArrows(uint laneId)
@@ -111,6 +151,81 @@ namespace CSM.TmpeSync.LaneArrows.Services
             catch (Exception ex)
             {
                 Log.Warn(LogCategory.Network, "[LaneArrows] PostSetLaneArrows error: {0}", ex);
+            }
+        }
+
+        private static void PostToggleLaneArrows(uint laneId, bool startNode)
+        {
+            try
+            {
+                if (LaneArrowSynchronization.IsLocalApplyActive)
+                    return;
+
+                if (!NetworkUtil.LaneExists(laneId))
+                    return;
+
+                if (!NetworkUtil.TryGetLaneLocation(laneId, out var segmentId, out var laneIndex))
+                    return;
+
+                ref var seg = ref NetManager.instance.m_segments.m_buffer[segmentId];
+                ushort nodeId = startNode ? seg.m_startNode : seg.m_endNode;
+                if (nodeId == 0) return;
+
+                BroadcastSegmentEnd(nodeId, segmentId, startNode, "toggle");
+            }
+            catch (Exception ex)
+            {
+                Log.Warn(LogCategory.Network, "[LaneArrows] PostToggleLaneArrows error: {0}", ex);
+            }
+        }
+
+        private static void PostResetLaneArrows_Lane(uint laneId)
+        {
+            try
+            {
+                if (LaneArrowSynchronization.IsLocalApplyActive)
+                    return;
+                if (!NetworkUtil.LaneExists(laneId))
+                    return;
+                if (!NetworkUtil.TryGetLaneLocation(laneId, out var segmentId, out var laneIndex))
+                    return;
+                ref var seg = ref NetManager.instance.m_segments.m_buffer[segmentId];
+                bool affectsStart = ComputeAffectsStart(segmentId, laneIndex);
+                ushort nodeId = affectsStart ? seg.m_startNode : seg.m_endNode;
+                if (nodeId == 0) return;
+                BroadcastSegmentEnd(nodeId, segmentId, affectsStart, "reset_lane");
+            }
+            catch (Exception ex)
+            {
+                Log.Warn(LogCategory.Network, "[LaneArrows] PostResetLaneArrows_Lane error: {0}", ex);
+            }
+        }
+
+        private static void PostResetLaneArrows_Segment(ushort segmentId, bool? startNode)
+        {
+            try
+            {
+                if (LaneArrowSynchronization.IsLocalApplyActive)
+                    return;
+                if (!NetworkUtil.SegmentExists(segmentId))
+                    return;
+                ref var seg = ref NetManager.instance.m_segments.m_buffer[segmentId];
+                if (startNode == null || startNode.Value)
+                {
+                    var nodeId = seg.m_startNode;
+                    if (nodeId != 0)
+                        BroadcastSegmentEnd(nodeId, segmentId, true, "reset_seg_start");
+                }
+                if (startNode == null || !startNode.Value)
+                {
+                    var nodeId = seg.m_endNode;
+                    if (nodeId != 0)
+                        BroadcastSegmentEnd(nodeId, segmentId, false, "reset_seg_end");
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Warn(LogCategory.Network, "[LaneArrows] PostResetLaneArrows_Segment error: {0}", ex);
             }
         }
 

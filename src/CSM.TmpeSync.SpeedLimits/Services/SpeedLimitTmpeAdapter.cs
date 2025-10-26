@@ -15,6 +15,7 @@ namespace CSM.TmpeSync.SpeedLimits.Services
 
             try
             {
+                Log.Info(LogCategory.Diagnostics, "[SpeedLimits][Readback] Begin TryGet | segmentId={0}", segmentId);
                 if (!NetworkUtil.SegmentExists(segmentId))
                     return false;
 
@@ -41,6 +42,9 @@ namespace CSM.TmpeSync.SpeedLimits.Services
                         continue;
 
                     var encoded = SpeedLimitCodec.Encode(kmh, defaultKmh, hasOverride);
+                    Log.Info(LogCategory.Diagnostics,
+                        "[SpeedLimits][Readback] laneOrdinal={0} laneId={1} kmh={2:F1} defaultKmh={3} hasOverride={4} encoded={5}",
+                        i, laneId, kmh, defaultKmh.HasValue ? defaultKmh.Value.ToString("F1") : "null", hasOverride, encoded);
 
                     var sig = new SpeedLimitsAppliedCommand.LaneSignature
                     {
@@ -62,6 +66,9 @@ namespace CSM.TmpeSync.SpeedLimits.Services
                     SegmentId = segmentId,
                     Items = items
                 };
+                Log.Info(LogCategory.Diagnostics,
+                    "[SpeedLimits][Readback] End TryGet | segmentId={0} items={1}",
+                    segmentId, items.Count);
                 return true;
             }
             catch (Exception ex)

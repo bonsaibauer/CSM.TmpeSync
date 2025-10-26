@@ -58,7 +58,8 @@ namespace CSM.TmpeSync.SpeedLimits.Services
                         .GetAssemblies()
                         .FirstOrDefault(a => string.Equals(a.GetName().Name, "TrafficManager", StringComparison.OrdinalIgnoreCase));
 
-                    _managerType = tmpe?.GetType("TrafficManager.Manager.Impl.SpeedLimitManager");
+                    _managerType = tmpe?.GetType("TrafficManager.Manager.Impl.SpeedLimitManager")
+                                   ?? tmpe?.GetTypes().FirstOrDefault(t => t.Name == "SpeedLimitManager");
                     if (_managerType != null)
                     {
                         var instanceProp = _managerType.GetProperty("Instance", BindingFlags.Public | BindingFlags.Static);
@@ -66,45 +67,47 @@ namespace CSM.TmpeSync.SpeedLimits.Services
                     }
 
                     var ctxAsm = _managerType?.Assembly ?? tmpe;
-                    _setActionType = ResolveType("TrafficManager.State.SetSpeedLimitAction", ctxAsm);
-                    _speedValueType = ResolveType("TrafficManager.API.Traffic.Data.SpeedValue", ctxAsm);
+                    _setActionType = ResolveType("TrafficManager.State.SetSpeedLimitAction", ctxAsm)
+                                   ?? AppDomain.CurrentDomain.GetAssemblies()
+                                        .SelectMany(a => { try { return a.GetTypes(); } catch { return new Type[0]; } })
+                                        .FirstOrDefault(t => t.Name == "SetSpeedLimitAction");
+                    _speedValueType = ResolveType("TrafficManager.API.Traffic.Data.SpeedValue", ctxAsm)
+                                     ?? AppDomain.CurrentDomain.GetAssemblies()
+                                        .SelectMany(a => { try { return a.GetTypes(); } catch { return new Type[0]; } })
+                                        .FirstOrDefault(t => t.Name == "SpeedValue");
 
                     if (_managerType != null)
                     {
-                        _setLaneWithInfo = _managerType.GetMethod(
-                            "SetLaneSpeedLimit",
-                            BindingFlags.Instance | BindingFlags.Public,
-                            null,
-                            new[] { typeof(ushort), typeof(uint), typeof(NetInfo.Lane), typeof(uint), _setActionType },
-                            null);
+                        // Resolve SetLaneSpeedLimit overloads without passing null param types
+                        _setLaneWithInfo = _managerType
+                            .GetMethods(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)
+                            .FirstOrDefault(m => m.Name == "SetLaneSpeedLimit" && m.GetParameters().Length == 5 &&
+                                                 m.GetParameters()[0].ParameterType == typeof(ushort) &&
+                                                 m.GetParameters()[1].ParameterType == typeof(uint) &&
+                                                 m.GetParameters()[2].ParameterType == typeof(NetInfo.Lane) &&
+                                                 m.GetParameters()[3].ParameterType == typeof(uint));
 
-                        _setLane = _managerType.GetMethod(
-                            "SetLaneSpeedLimit",
-                            BindingFlags.Instance | BindingFlags.Public,
-                            null,
-                            new[] { typeof(uint), _setActionType },
-                            null);
+                        _setLane = _managerType
+                            .GetMethods(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)
+                            .FirstOrDefault(m => m.Name == "SetLaneSpeedLimit" && m.GetParameters().Length == 2 &&
+                                                 m.GetParameters()[0].ParameterType == typeof(uint));
 
-                        _calcCustom = _managerType.GetMethod(
-                            "CalculateCustomSpeedLimit",
-                            BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic,
-                            null,
-                            new[] { typeof(uint) },
-                            null);
+                        _calcCustom = _managerType
+                            .GetMethods(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)
+                            .FirstOrDefault(m => m.Name == "CalculateCustomSpeedLimit" &&
+                                                 m.GetParameters().Length == 1 && m.GetParameters()[0].ParameterType == typeof(uint));
 
-                        _calcSimple = _managerType.GetMethod(
-                            "CalculateSpeedLimit",
-                            BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic,
-                            null,
-                            new[] { typeof(uint) },
-                            null);
+                        _calcSimple = _managerType
+                            .GetMethods(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)
+                            .FirstOrDefault(m => m.Name == "CalculateSpeedLimit" &&
+                                                 m.GetParameters().Length == 1 && m.GetParameters()[0].ParameterType == typeof(uint));
 
-                        _getDefault = _managerType.GetMethod(
-                            "GetGameSpeedLimit",
-                            BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic,
-                            null,
-                            new[] { typeof(uint), typeof(NetInfo.Lane) },
-                            null);
+                        _getDefault = _managerType
+                            .GetMethods(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)
+                            .FirstOrDefault(m => m.Name == "GetGameSpeedLimit" &&
+                                                 m.GetParameters().Length == 2 &&
+                                                 m.GetParameters()[0].ParameterType == typeof(uint) &&
+                                                 m.GetParameters()[1].ParameterType == typeof(NetInfo.Lane));
                     }
 
                     if (_setActionType != null)
@@ -130,8 +133,10 @@ namespace CSM.TmpeSync.SpeedLimits.Services
                     if (_calcCustom != null)
                     {
                         _resultType = _calcCustom.ReturnType;
-                        _resultOverrideField = _resultType?.GetField("Override", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
-                        _resultDefaultField = _resultType?.GetField("Default", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+                        _resultOverrideField = _resultType?.GetField("OverrideValue", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance)
+                                             ?? _resultType?.GetField("Override", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+                        _resultDefaultField = _resultType?.GetField("DefaultValue", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance)
+                                             ?? _resultType?.GetField("Default", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
                     }
                 }
                 catch (Exception ex)
@@ -197,10 +202,16 @@ namespace CSM.TmpeSync.SpeedLimits.Services
                         if (TryExtractSpeed(_resultOverrideField.GetValue(result), out var ov))
                         {
                             hasOverride = true; kmh = ov;
+                            Log.Info(LogCategory.Diagnostics,
+                                "[SpeedLimits][Probe] laneId={0} source=custom_override kmh={1:F1}",
+                                laneId, kmh);
                         }
                         if (_resultDefaultField != null && TryExtractSpeed(_resultDefaultField.GetValue(result), out var def))
                         {
                             defaultKmh = def; if (!hasOverride) kmh = def;
+                            Log.Info(LogCategory.Diagnostics,
+                                "[SpeedLimits][Probe] laneId={0} source=custom_default kmh={1:F1}",
+                                laneId, kmh);
                         }
                         if (hasOverride || defaultKmh.HasValue)
                             return true;
@@ -223,6 +234,9 @@ namespace CSM.TmpeSync.SpeedLimits.Services
                     {
                         defaultKmh = ConvertGameToKmh(gameUnits);
                         kmh = defaultKmh.Value;
+                        Log.Info(LogCategory.Diagnostics,
+                            "[SpeedLimits][Probe] laneId={0} source=get_default gameUnits={1:F3} kmh={2:F1}",
+                            laneId, gameUnits, kmh);
                         return true;
                     }
                 }
@@ -232,6 +246,9 @@ namespace CSM.TmpeSync.SpeedLimits.Services
                 {
                     defaultKmh = ConvertGameToKmh(li.m_speedLimit);
                     kmh = defaultKmh.Value;
+                    Log.Info(LogCategory.Diagnostics,
+                        "[SpeedLimits][Probe] laneId={0} source=lane_info kmh={1:F1}",
+                        laneId, kmh);
                     return true;
                 }
 

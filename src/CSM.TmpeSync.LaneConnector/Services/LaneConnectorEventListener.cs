@@ -106,7 +106,7 @@ namespace CSM.TmpeSync.LaneConnector.Services
             }
         }
 
-        private static void RemoveLaneConnections_Postfix(uint laneId, bool startNode, bool recalc)
+        private static void RemoveLaneConnections_Postfix(uint laneId, bool startNode)
         {
             try
             {
