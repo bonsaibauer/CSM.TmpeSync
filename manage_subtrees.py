@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-import os, sys, subprocess, argparse
+import os, sys, subprocess, argparse, re
 from pathlib import Path
 from configparser import ConfigParser
 
@@ -11,6 +11,13 @@ REPOS = [
     {"name": "CSM",  "url": "https://github.com/CitiesSkylinesMultiplayer/CSM", "branch": "master"},
 ]
 BASE_PREFIX = Path("subtrees")
+MOD_METADATA_PATH = Path("src/CSM.TmpeSync/Mod/ModMetadata.cs")
+DEPENDENCY_TAG_SOURCES = {
+    "HarmonyBuildVersion": "https://github.com/CitiesHarmony/CitiesHarmony.git",
+    "CsmBuildVersion": "https://github.com/CitiesSkylinesMultiplayer/CSM.git",
+    "TmpeBuildVersion": "https://github.com/CitiesSkylinesMods/TMPE.git",
+}
+VERSION_TAG_PATTERN = re.compile(r"refs/tags/(?:v)?(?P<version>\d+(?:\.\d+){1,3})$")
 
 # === Farbausgabe ===
 try:
@@ -88,6 +95,122 @@ def maybe_auto_stash_pop(did_stash: bool):
     if did_stash:
         print(f"{YELLOW}Stelle Stash wieder her …{RESET}")
         subprocess.run(["git", "stash", "pop"], check=False)
+
+# === Version Helpers ===
+def normalize_version_token(token: str):
+    if not token:
+        return None
+    value = token.strip()
+    if not value:
+        return None
+    if value[0] in ("v", "V"):
+        value = value[1:]
+    if re.fullmatch(r"\d+(?:\.\d+){1,3}", value):
+        return value
+    return None
+
+def parse_version_parts(token: str):
+    normalized = normalize_version_token(token)
+    if not normalized:
+        return None
+    parts = [int(p) for p in normalized.split(".")]
+    if len(parts) > 4:
+        parts = parts[:4]
+    return parts
+
+def fetch_latest_version_from_tags(repo_url: str, dry_run: bool):
+    if dry_run:
+        print(f"{YELLOW}[SKIP]{RESET} Dry-run aktiv – Versionsabfrage für {repo_url} übersprungen.")
+        return None
+
+    cmd = ["git", "ls-remote", "--tags", repo_url]
+    print(f"{CYAN}$ {' '.join(cmd)}{RESET}")
+    try:
+        result = subprocess.run(cmd, check=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+    except Exception as exc:
+        print(f"{RED}Fehler bei git ls-remote für {repo_url}:{RESET} {exc}")
+        return None
+
+    if result.returncode != 0 or not result.stdout:
+        msg = (result.stderr or "").strip()
+        if msg:
+            print(f"{YELLOW}Keine Tags für {repo_url} gefunden oder Befehl fehlgeschlagen:{RESET} {msg}")
+        else:
+            print(f"{YELLOW}Keine Tags für {repo_url} gefunden oder Befehl fehlgeschlagen.{RESET}")
+        return None
+
+    best = None
+    best_parts = None
+
+    for line in result.stdout.splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            _, ref = line.split()
+        except ValueError:
+            continue
+        if ref.endswith("^{}"):
+            ref = ref[:-3]
+        match = VERSION_TAG_PATTERN.match(ref)
+        if not match:
+            continue
+        parts = parse_version_parts(match.group("version"))
+        if not parts:
+            continue
+        padded = tuple(parts + [0] * (4 - len(parts)))
+        if (best is None) or (padded > best):
+            best = padded
+            best_parts = parts
+
+    if best_parts:
+        print(f"{GREEN}Gefundene Version für {repo_url}:{RESET} {'.'.join(str(p) for p in best_parts)}")
+    else:
+        print(f"{YELLOW}Keine passenden Versionstags für {repo_url} gefunden.{RESET}")
+
+    return best_parts
+
+def gather_dependency_versions(dry_run: bool):
+    versions = {}
+    for field, repo_url in DEPENDENCY_TAG_SOURCES.items():
+        parts = fetch_latest_version_from_tags(repo_url, dry_run=dry_run)
+        if parts:
+            versions[field] = parts
+    return versions
+
+def format_version_ctor(parts):
+    padded = list(parts)
+    while len(padded) < 4:
+        padded.append(0)
+    ctor = ", ".join(str(p) for p in padded)
+    return f"new Version({ctor})"
+
+def update_mod_metadata(dependency_versions, dry_run: bool):
+    if not dependency_versions:
+        return
+    if not MOD_METADATA_PATH.exists():
+        print(f"{YELLOW}ModMetadata.cs nicht gefunden, überspringe Aktualisierung.{RESET}")
+        return
+
+    original = MOD_METADATA_PATH.read_text(encoding="utf-8")
+    updated = original
+    changes = 0
+
+    for field, parts in dependency_versions.items():
+        ctor = format_version_ctor(parts)
+        pattern = re.compile(rf"(internal\s+static\s+readonly\s+Version\s+{re.escape(field)}\s*=\s*)new\s+Version\([^;]+\);")
+        updated, count = pattern.subn(rf"\1{ctor};", updated)
+        if count:
+            changes += count
+        else:
+            print(f"{YELLOW}Konnte Feld {field} in ModMetadata.cs nicht aktualisieren.{RESET}")
+
+    if changes and updated != original:
+        if dry_run:
+            print(f"{CYAN}[DRY-RUN]{RESET} Aktualisierte ModMetadata.cs (nicht geschrieben).")
+        else:
+            MOD_METADATA_PATH.write_text(updated, encoding="utf-8")
+            print(f"{GREEN}ModMetadata.cs aktualisiert ({changes} Änderung(en)).{RESET}")
 
 # === Commit Helper (Prefix + Fallback) ===
 def commit_prefix_if_needed(prefix: Path, message: str, dry_run: bool) -> bool:
@@ -293,6 +416,9 @@ def main():
 
             # Submodule als Subtrees (rekursiv)
             vendor_submodules_recursively(prefix, url, squash=squash, dry_run=dry_run)
+
+        dependency_versions = gather_dependency_versions(dry_run)
+        update_mod_metadata(dependency_versions, dry_run)
 
         print(f"{GREEN}Fertig.{RESET}")
     finally:

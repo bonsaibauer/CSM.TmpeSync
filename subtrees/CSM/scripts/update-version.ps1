@@ -119,29 +119,83 @@ function TryReplace($attributeKey, $value)
     return $fileContent
 }
 
-function ValidateVersionString($versionString)
+function NormalizeVersionString([string]$versionString)
 {
-    $versionStringRegex = [System.Text.RegularExpressions.Regex]::Match($versionString, "^[0-9]+(\.[0-9]+){1,3}$");
+    if([string]::IsNullOrWhiteSpace($versionString))
+    {
+        return $null
+    }
 
-    return $versionStringRegex.Success;
+    $normalized = $versionString.Trim()
+    if($normalized.Length -gt 0 -and ($normalized[0] -eq 'v' -or $normalized[0] -eq 'V'))
+    {
+        $normalized = $normalized.Substring(1)
+    }
+
+    $versionStringRegex = [System.Text.RegularExpressions.Regex]::Match($normalized, "^[0-9]+(\.[0-9]+){1,3}$");
+    if($versionStringRegex.Success)
+    {
+        return $normalized
+    }
+
+    return $null
+}
+
+function ValidateVersionString($versionString, [ref]$normalized)
+{
+    $normalized.Value = $null
+
+    if([string]::IsNullOrWhiteSpace($versionString))
+    {
+        return $true
+    }
+
+    $result = NormalizeVersionString $versionString
+    if($null -eq $result)
+    {
+        return $false
+    }
+
+    $normalized.Value = $result
+    return $true
 }
 
 function ValidateParams()
 {
-    if($assemblyVersion -and (-not (ValidateVersionString $assemblyVersion)))
+    $normalized = $null
+
+    if(-not (ValidateVersionString $assemblyVersion ([ref]$normalized)))
     {
         Write-Host ("'$assemblyVersion' is not a valid parameter for attribute 'AssemblyVersion'")
         return $false
     }
+    if($assemblyVersion)
+    {
+        $script:assemblyVersion = $normalized.Value
+    }
 
-    if($assemblyFileVersion -and (-not (ValidateVersionString $assemblyFileVersion)))
+    $normalized = $null
+    if(-not (ValidateVersionString $assemblyFileVersion ([ref]$normalized)))
     {
         Write-Host ("'$assemblyFileVersion' is not a valid parameter for attribute 'AssemblyFileVersion'")
         return $false
     }
+    if($assemblyFileVersion)
+    {
+        $script:assemblyFileVersion = $normalized.Value
+    }
+
+    if($assemblyInformationalVersion)
+    {
+        $normalizedInfo = NormalizeVersionString $assemblyInformationalVersion
+        if($normalizedInfo)
+        {
+            $script:assemblyInformationalVersion = $normalizedInfo
+        }
+    }
 
     return $true
- }
+}
 
 function WriteCustomAttributes($customAttributes)
 {
