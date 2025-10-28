@@ -3,13 +3,14 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using ColossalFramework.Plugins;
+using CSM.TmpeSync.Mod;
 using PluginInfo = ColossalFramework.Plugins.PluginManager.PluginInfo;
 
 namespace CSM.TmpeSync.Services
 {
     internal static class Deps
     {
-        internal static bool TryGetCsmVersion(out string version)
+        internal static bool TryGetCsmVersion(out Version version)
         {
             version = null;
             try
@@ -33,7 +34,7 @@ namespace CSM.TmpeSync.Services
                         (!string.IsNullOrEmpty(assemblyName) && assemblyName.StartsWith("CSM", StringComparison.OrdinalIgnoreCase)) ||
                         (!string.IsNullOrEmpty(ns) && ns.StartsWith("CSM", StringComparison.OrdinalIgnoreCase)))
                     {
-                        version = FormatVersion(assembly?.GetName()?.Version, 2) ?? version;
+                        version = assembly?.GetName()?.Version ?? version;
                         return true;
                     }
                 }
@@ -46,7 +47,7 @@ namespace CSM.TmpeSync.Services
             return false;
         }
 
-        internal static bool TryGetHarmonyVersion(out string version)
+        internal static bool TryGetHarmonyVersion(out Version version)
         {
             version = null;
             try
@@ -54,7 +55,7 @@ namespace CSM.TmpeSync.Services
                 var helperType = Type.GetType("CitiesHarmony.API.HarmonyHelper, CitiesHarmony.API");
                 if (helperType != null)
                 {
-                    version = FormatVersion(helperType.Assembly?.GetName()?.Version) ?? version;
+                    version = helperType.Assembly?.GetName()?.Version ?? version;
                     var method = helperType.GetMethod(
                         "IsHarmonyInstalled",
                         BindingFlags.Public | BindingFlags.Static);
@@ -65,7 +66,7 @@ namespace CSM.TmpeSync.Services
                 var harmonyAssembly = AppDomain.CurrentDomain.GetAssemblies().FirstOrDefault(IsHarmonyAssembly);
                 if (harmonyAssembly != null)
                 {
-                    version = FormatVersion(harmonyAssembly.GetName()?.Version) ?? version;
+                    version = harmonyAssembly.GetName()?.Version ?? version;
                     return true;
                 }
 
@@ -90,7 +91,7 @@ namespace CSM.TmpeSync.Services
             return false;
         }
 
-        private static bool IsHarmonyAssembly(System.Reflection.Assembly assembly)
+        private static bool IsHarmonyAssembly(Assembly assembly)
         {
             try
             {
@@ -104,7 +105,7 @@ namespace CSM.TmpeSync.Services
             }
         }
 
-        private static bool TryGetTmpeVersion(out string version)
+        private static bool TryGetTmpeVersion(out Version version)
         {
             version = null;
             try
@@ -132,11 +133,11 @@ namespace CSM.TmpeSync.Services
                     if (!matches)
                         continue;
 
-                    version = FormatVersion(assembly?.GetName()?.Version, 4) ?? version;
-                    if (string.IsNullOrEmpty(version))
+                    version = assembly?.GetName()?.Version ?? version;
+                    if (version == null)
                     {
                         var tmpeAssembly = FindAssemblyByName("TrafficManager");
-                        version = FormatVersion(tmpeAssembly?.GetName()?.Version, 4) ?? version;
+                        version = tmpeAssembly?.GetName()?.Version ?? version;
                     }
 
                     return true;
@@ -145,7 +146,7 @@ namespace CSM.TmpeSync.Services
                 var assemblyOnly = FindAssemblyByName("TrafficManager");
                 if (assemblyOnly != null)
                 {
-                    version = FormatVersion(assemblyOnly.GetName()?.Version, 4) ?? version;
+                    version = assemblyOnly.GetName()?.Version ?? version;
                     return true;
                 }
             }
@@ -161,7 +162,7 @@ namespace CSM.TmpeSync.Services
         {
             try
             {
-                return Mod.ModMetadata.Version;
+                return ModMetadata.Version;
             }
             catch
             {
@@ -169,14 +170,14 @@ namespace CSM.TmpeSync.Services
             }
         }
 
-        private static string ExtractVersion(PluginInfo plugin)
+        private static Version ExtractVersion(PluginInfo plugin)
         {
             try
             {
                 var instance = plugin?.userModInstance;
                 var type = instance?.GetType();
                 var assembly = type?.Assembly;
-                return FormatVersion(assembly?.GetName()?.Version, 4);
+                return assembly?.GetName()?.Version;
             }
             catch
             {
@@ -233,18 +234,35 @@ namespace CSM.TmpeSync.Services
                 "Dependency report | modVersion={0} csmEnabled={1} csmVersion={2} harmonyAvailable={3} harmonyVersion={4} tmpeDetected={5} tmpeVersion={6}",
                 modVersion ?? "unknown",
                 csmEnabled ? "YES" : "NO",
-                csmVersion ?? "unknown",
+                FormatVersion(csmVersion, 3) ?? "unknown",
                 harmonyAvailable ? "YES" : "NO",
-                harmonyVersion ?? "unknown",
+                FormatVersion(harmonyVersion, 4) ?? "unknown",
                 tmpeDetected ? "YES" : "NO",
-                tmpeVersion ?? "unknown");
+                FormatVersion(tmpeVersion, 4) ?? "unknown");
 
-            Log.Debug(
-                LogCategory.Dependency,
-                "Dependency status | csmEnabled={0} harmonyAvailable={1} tmpeDetected={2}",
+            LogDependencyVersion(
+                "CSM",
                 csmEnabled,
+                csmVersion,
+                ModMetadata.CsmBuildVersion,
+                ModCompatibilityCatalog.CsmLegacyVersions,
+                3);
+
+            LogDependencyVersion(
+                "Harmony",
                 harmonyAvailable,
-                tmpeDetected);
+                harmonyVersion,
+                ModMetadata.HarmonyBuildVersion,
+                ModCompatibilityCatalog.HarmonyLegacyVersions,
+                3);
+
+            LogDependencyVersion(
+                "TM:PE",
+                tmpeDetected,
+                tmpeVersion,
+                ModMetadata.TmpeBuildVersion,
+                ModCompatibilityCatalog.TmpeLegacyVersions,
+                4);
 
             if (!csmEnabled)
                 missing.Add("CSM");
@@ -252,7 +270,53 @@ namespace CSM.TmpeSync.Services
             if (!harmonyAvailable)
                 missing.Add("Harmony");
 
+            if (!tmpeDetected)
+                missing.Add("TM:PE");
+
             return missing.ToArray();
+        }
+
+        private static void LogDependencyVersion(
+            string component,
+            bool available,
+            Version detected,
+            Version expected,
+            IReadOnlyCollection<Version> allowedLegacy,
+            int displayFields)
+        {
+            var comparison = VersionComparer.Compare(detected, expected, allowedLegacy);
+
+            var status = comparison.Status switch
+            {
+                VersionMatchStatus.Match => "MATCH",
+                VersionMatchStatus.AllowedLegacy => "ALLOWED",
+                VersionMatchStatus.OlderThanExpected => "MISMATCH_LOWER",
+                VersionMatchStatus.NewerThanExpected => "MISMATCH_HIGHER",
+                VersionMatchStatus.ExpectedUnspecified => "EXPECTED_UNSPECIFIED",
+                _ => "UNKNOWN"
+            };
+
+            var relation = comparison.Status switch
+            {
+                VersionMatchStatus.OlderThanExpected => " relation=OLDER",
+                VersionMatchStatus.NewerThanExpected => " relation=NEWER",
+                _ => string.Empty
+            };
+
+            var legacy = comparison.Status == VersionMatchStatus.AllowedLegacy && comparison.LegacyMatch != null
+                ? $" legacyMatch={FormatVersion(comparison.LegacyMatch, displayFields)}"
+                : string.Empty;
+
+            Log.Info(
+                LogCategory.Dependency,
+                "Dependency version check | component={0} available={1} detected={2} expected={3} status={4}{5}{6}",
+                component,
+                available ? "YES" : "NO",
+                FormatVersion(detected, displayFields) ?? "unknown",
+                FormatVersion(expected, displayFields) ?? "unspecified",
+                status,
+                relation,
+                legacy);
         }
 
         internal static void DisableSelf(object modInstance)
