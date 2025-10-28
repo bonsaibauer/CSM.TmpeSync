@@ -1,0 +1,53 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <ProjectGuid>{A3462C5B-B9A4-4154-9855-F3025E943946}</ProjectGuid>
+    <TargetFramework>net35</TargetFramework>
+    <AssemblyTitle>Lib.Harmony Helper for Cities: Skylines</AssemblyTitle>
+    <Company>boformer</Company>
+    <Description>
+      Lib.Harmony Helper for Cities: Skylines.
+      Auto-installs and gives access to the up-to-date Harmony 2.x assembly from the Steam Workshop
+    </Description>
+    <Copyright>Copyright 2020 boformer</Copyright>
+    <Version>2.2.0</Version>
+    <Authors>boformer</Authors>
+    <PackageId>CitiesHarmony.API</PackageId>
+    <PackageVersion>2.2.0</PackageVersion>
+    <PackageProjectUrl>https://github.com/boformer/CitiesHarmony</PackageProjectUrl>
+    <PackageReleaseNotes>Update to Harmony 2.2.2</PackageReleaseNotes>
+    <PackageTags>Games;Modding;Patching</PackageTags>
+    <PackageIcon>package_icon.png</PackageIcon>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+  </PropertyGroup>
+  <ItemGroup>
+    <None Include="package_icon.png" Pack="true" PackagePath="" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="CitiesHarmony.Harmony" Version="2.2.0">
+      <ExcludeAssets>runtime</ExcludeAssets>
+    </PackageReference>
+  </ItemGroup>
+  <ItemGroup>
+    <Reference Include="Assembly-CSharp">
+      <HintPath>C:\References\Assembly-CSharp.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="ColossalManaged">
+      <HintPath>C:\References\ColossalManaged.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="ICities">
+      <HintPath>C:\References\ICities.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="UnityEngine">
+      <HintPath>C:\References\UnityEngine.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+  </ItemGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
+    <DebugType>none</DebugType>
+    <DebugSymbols>false</DebugSymbols>
+  </PropertyGroup>
+</Project>
