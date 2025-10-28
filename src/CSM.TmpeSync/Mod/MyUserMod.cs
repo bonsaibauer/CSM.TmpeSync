@@ -7,9 +7,9 @@ namespace CSM.TmpeSync.Mod
 {
     public class MyUserMod : IUserMod
     {
-        public string Name => "CSM TM:PE Sync";
+        public string Name => "🚧 CSM TM:PE Sync (Beta)";
 
-        public string Description => "Synchronizes TM:PE by bonsaibauer";
+        public string Description => "Beta build of the TM:PE sync rewrite for CSM.";
 
         public void OnEnabled()
         {
