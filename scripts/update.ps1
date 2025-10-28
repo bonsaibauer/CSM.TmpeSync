@@ -63,7 +63,17 @@ if (($pyExit -ne 0) -and ($pyExit -ne $null)) {
 }
 
 # --- Interactive update of NewVersion based on LatestCsmTmpeSyncReleaseTag ---
-$modMetadataPath = Join-Path $PSScriptRoot 'src/CSM.TmpeSync/Mod/ModMetadata.cs'
+$modMetadataPath = Join-Path $repoRoot 'src/CSM.TmpeSync/Mod/ModMetadata.cs'
+
+# wait up to 5s if file was just created by the Python script
+$maxWaitMs = 5000
+$stepMs = 200
+$waited = 0
+while (-not (Test-Path $modMetadataPath) -and ($waited -lt $maxWaitMs)) {
+    Start-Sleep -Milliseconds $stepMs
+    $waited += $stepMs
+}
+
 if (-not (Test-Path $modMetadataPath)) {
     throw "File not found: $modMetadataPath"
 }
