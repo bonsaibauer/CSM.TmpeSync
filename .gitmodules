@@ -1,0 +1,6 @@
+[submodule "TLM/OptionsFramework"]
+	path = TLM/OptionsFramework
+	url = https://github.com/krzychu124/OptionsFramework.git
+[submodule "TLM/CSUtil.CameraControl"]
+	path = TLM/CSUtil.CameraControl
+	url = https://github.com/krzychu124/CSUtil.CameraControl.git
