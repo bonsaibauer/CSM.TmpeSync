@@ -1,0 +1,39 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+	<PropertyGroup>
+		<TargetFrameworks>net35;net45;net472;net48;netcoreapp3.0;netcoreapp3.1;net5.0;net6.0</TargetFrameworks>
+		<LangVersion>preview</LangVersion>
+		<IsPackable>false</IsPackable>
+		<IntermediateOutputPath>obj</IntermediateOutputPath>
+		<OutputPath>obj</OutputPath>
+		<CheckEolTargetFramework>false</CheckEolTargetFramework>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<ProjectReference Include="..\Harmony.csproj" />
+	</ItemGroup>
+
+	<PropertyGroup Condition="'$(Configuration)'=='Debug'">
+		<Optimize>false</Optimize>
+		<DebugType>full</DebugType>
+		<DebugSymbols>true</DebugSymbols>
+		<DefineConstants>DEBUG</DefineConstants>
+	</PropertyGroup>
+
+	<PropertyGroup Condition="'$(Configuration)'=='Release'">
+		<Optimize>true</Optimize>
+		<DebugType>none</DebugType>
+		<DebugSymbols>false</DebugSymbols>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<!-- Reference assemblies are needed for non-Windows .NET Framework targeting builds. -->
+		<PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies" Version="1.0.2" PrivateAssets="all" />
+		<PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies.net35" Version="1.0.2" PrivateAssets="all" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<PackageReference Include="MonoMod.Common" Version="$(MonoModCommonVersion)" />
+	</ItemGroup>
+
+</Project>
