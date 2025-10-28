@@ -1,18 +1,39 @@
-# CSM TM:PE Sync
+# 🚧 CSM TM:PE Sync (Beta)
 
-CSM TM:PE Sync keeps [Cities: Skylines Multiplayer (CSM)](https://github.com/CitiesSkylinesMultiplayer/CSM) host‑authoritative while players edit [Traffic Manager: President Edition (TM:PE)](https://github.com/CitiesSkylinesMods/TMPE) features. The add-on lets the host drive TM:PE while every client receives the same authoritative outcome. Development and day-to-day maintenance happen in **Visual Studio Code** with the .NET tooling integrated through the terminal and tasks panel.
+CSM TM:PE Sync keeps [Cities: Skylines Multiplayer (CSM)](https://github.com/CitiesSkylinesMultiplayer/CSM) host-authoritative while players edit [Traffic Manager: President Edition (TM:PE)](https://github.com/CitiesSkylinesMods/TMPE) features. After the latest restructuring the synchronization layer has been rewritten feature by feature: every TM:PE tool now owns its own command handlers, network payloads, and harmony patches. The shared snapshot bridge from earlier releases is gone, so **behaviour and compatibility have changed**. Expect mismatches with old guides until you follow the new documentation linked below.
 
-The repository contains the add-on sources, PowerShell helpers, and reference submodules. Builds rely on your Steam installation instead of compiling the upstream mods locally.
+> **Beta disclaimer**
+>
+> The rewrite is still stabilising. Multiplayer sessions should treat this build as experimental and report issues with logs. Use the mod in controlled test games before deploying it to long-running cities.
 
-## Repository Layout
+## Feature documentation
+
+Detailed docs live alongside the code. Every feature description is bilingual (German first, English second) and explains file layout, message flow, and known limitations.
+
+| Feature | Documentation |
+| --- | --- |
+| Clear Traffic | [docs/ClearTraffic.md](docs/ClearTraffic.md) |
+| Junction Restrictions | [docs/JunctionRestrictions.md](docs/JunctionRestrictions.md) |
+| Lane Arrows | [docs/LaneArrows.md](docs/LaneArrows.md) |
+| Lane Connector | [docs/LaneConnector.md](docs/LaneConnector.md) |
+| Parking Restrictions | [docs/ParkingRestrictions.md](docs/ParkingRestrictions.md) |
+| Priority Signs | [docs/PrioritySigns.md](docs/PrioritySigns.md) |
+| Speed Limits | [docs/SpeedLimits.md](docs/SpeedLimits.md) |
+| Toggle Traffic Lights | [docs/ToggleTrafficLights.md](docs/ToggleTrafficLights.md) |
+| Vehicle Restrictions | [docs/VehicleRestrictions.md](docs/VehicleRestrictions.md) |
+
+Check the corresponding `src/CSM.TmpeSync.<FeatureName>/` project when you extend or debug a specific tool. Each project ships its own bootstrapper and harmony integration and can be iterated in isolation.
+
+## Repository layout
 
 | Path | Description |
 | --- | --- |
-| src/ | Add-on code: CSM connection, TM:PE bridge, request handlers and utilities. |
-| scripts/ | PowerShell helpers to configure, build, install, and update dependencies. |
-| lib/ | Cached copies of Harmony, TM:PE, and CSM assemblies mirrored from Steam. |
-| docs/ | Reference material (integration guide, logging reference, setup notes). |
-| submodules/ | Upstream repositories retained for reference only. They are no longer part of the build. |
+| `src/CSM.TmpeSync/` | Core mod: dependency detection, logging, feature registration, and shared services. |
+| `src/CSM.TmpeSync.<Feature>/` | Independent feature modules created by the restructure. Each module owns handlers, messages, services, and tests where applicable. |
+| `docs/` | Bilingual feature manuals and architectural notes generated during the rewrite. |
+| `scripts/` | PowerShell helpers to configure, build, install, and update dependencies. |
+| `logdiagnostics/` | Tools to inspect synced sessions and collect diagnostic traces. |
+| `subtrees/` | Upstream references (for example TM:PE) vendored as Git subtrees for comparison only. |
 
 ## Prerequisites
 
@@ -36,9 +57,9 @@ The build script mirrors dependencies from Steam Workshop downloads. Make sure t
 
 During configuration the script explicitly asks you to confirm these subscriptions. Answering **No** aborts the process so you can subscribe and retry.
 
-## Initial Setup
+## Initial setup
 
-1. Clone the repository (submodules are optional because the build pulls libraries from Steam):
+1. Clone the repository (subtrees are optional because the build pulls libraries from Steam):
 
    ```powershell
    git clone https://github.com/bonsaibauer/CSM.TmpeSync.git
@@ -60,7 +81,7 @@ During configuration the script explicitly asks you to confirm these subscriptio
 
    Defaults for the Steam Workshop cache and dependency mirrors are pre-populated and stored alongside the paths you provide in `scripts/build-settings.json`.
 
-## Build Workflow
+## Build workflow
 
 `scripts/build.ps1` drives the entire process:
 
@@ -77,9 +98,9 @@ Key parameters:
 - `-ModDirectory <path>` – override the installation target for a single run.
 - `-GameDirectory`, `-SteamModsDir`, `-HarmonySourceDir`, `-CsmSourceDir`, `-TmpeSourceDir` – override paths captured in the profile when needed.
 
-Dependency updates copy the latest Harmony, TM:PE, and CSM libraries from Steam into `lib/`. Remove that directory to force a clean refresh. The build prefers MSBuild from Visual Studio Build Tools and automatically falls back to the `dotnet` CLI only when MSBuild is unavailable.
+Dependency updates copy the latest Harmony, TM:PE, and CSM libraries from Steam into the working cache. Remove those directories to force a clean refresh. The build prefers MSBuild from Visual Studio Build Tools and automatically falls back to the `dotnet` CLI only when MSBuild is unavailable.
 
-## Manual Installation
+## Manual installation
 
 Package the contents of `src/CSM.TmpeSync/bin/<Configuration>/net35/` together with `scripts/install.ps1`. On the target machine run:
 
@@ -89,10 +110,11 @@ pwsh ./scripts/install.ps1
 
 The installer clears any existing copy of the mod and copies the DLL (and optional PDB files) into the default Cities: Skylines mods directory. Use `-ModDirectory` to override the destination.
 
-## Using the Add-on In-Game
+## Using the add-on in-game
 
-1. Enable Harmony, CSM, TM:PE, and CSM.TmpeSync in the Cities: Skylines Content Manager.
-2. Start or join a CSM session. Once connected, every TM:PE edit made by the host is validated, applied through the bridge, and broadcast to all clients.
+1. Enable Harmony, CSM, TM:PE, and CSM.TmpeSync (Beta) in the Cities: Skylines Content Manager.
+2. Start or join a CSM session. Once connected, every TM:PE edit made by the host is validated, applied through the feature-specific bridge, and broadcast to all clients.
+3. Monitor the logs (`%LOCALAPPDATA%\Colossal Order\Cities_Skylines\CSM.TmpeSync\csm.tmpe-sync.log`) for warnings while the Beta stabilises.
 
 ## Logging
 
@@ -104,9 +126,6 @@ Operational logs are written to:
 
 Debug-level entries are always written, so you get full bridge traces without additional setup.
 
-## Learn more
+## Contributing feedback
 
-- [DevelopmentSetup.md](docs/DevelopmentSetup.md) – repeatable setup instructions and troubleshooting notes.
-- [IntegrationOverview.md](docs/IntegrationOverview.md) – explains the mod architecture.
-- [ExternalModIntegrationGuide.md](docs/ExternalModIntegrationGuide.md) – shows how other mods hook into the connection.
-- [TmpeFeatureSyncChecklist.md](docs/TmpeFeatureSyncChecklist.md) – verification checklist for multiplayer sessions.
+File issues with reproduction steps, `csm.tmpe-sync.log`, and the feature name that triggered the problem. The modular architecture lets us iterate on one feature at a time, so accurate reports keep the Beta moving forward.
