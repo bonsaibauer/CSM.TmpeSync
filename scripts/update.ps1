@@ -40,12 +40,19 @@ if (-not [string]::IsNullOrWhiteSpace($ModRootDirectory)) { $arguments += @('-Mo
 $buildExit = $LASTEXITCODE
 if ($buildExit -ne 0) { exit $buildExit }
 
+# --- Determine repo root robustly ---
+$scriptPath = $PSCommandPath
+if ([string]::IsNullOrEmpty($scriptPath)) { $scriptPath = $MyInvocation.MyCommand.Path }
+if ([string]::IsNullOrEmpty($scriptPath)) { throw "Cannot resolve script path. Run with: pwsh -File .\scripts\update.ps1" }
+$scriptDir = Split-Path -Path $scriptPath -Parent
+$repoRoot  = Split-Path -Path $scriptDir -Parent
+
 # --- Run manage_subtrees.py ---
 $pythonCandidates = @('python', 'py')
 $pyExit = $null
-$subtreeScript = Join-Path (Split-Path $PSScriptRoot -Parent) 'scripts/manage_subtrees.py'
+$subtreeScript = Join-Path $repoRoot 'scripts/manage_subtrees.py'
 if (-not (Test-Path $subtreeScript)) {
-    throw "scripts/manage_subtrees.py not found next to update.ps1"
+    throw "scripts/manage_subtrees.py not found at repo root: $subtreeScript"
 }
 
 foreach ($pc in $pythonCandidates) {
@@ -54,7 +61,7 @@ foreach ($pc in $pythonCandidates) {
         $pyExit = $LASTEXITCODE
         if ($pyExit -eq 0) { break }
     } catch {
-        # Try next candidate
+        # try next candidate
     }
 }
 if (($pyExit -ne 0) -and ($pyExit -ne $null)) {
