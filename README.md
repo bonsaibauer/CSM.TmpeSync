@@ -1,3 +1,10 @@
+[![Repository](https://img.shields.io/badge/Repository-CSM.TmpeSync-blue?style=flat&logo=github)](https://github.com/bonsaibauer/CSM.TmpeSync)
+![License](https://img.shields.io/badge/License-MIT-blue)
+![Visitors](https://visitor-badge.laobi.icu/badge?page_id=bonsaibauer.CSM.TmpeSync)
+[![Report Problem](https://img.shields.io/badge/Report-new_Problem_or_Issue-critical?style=flat&logo=github)](https://github.com/bonsaibauer/CSM.TmpeSync/issues/new)
+![GitHub Stars](https://img.shields.io/github/stars/bonsaibauer/CSM.TmpeSync?style=social)
+![GitHub Forks](https://img.shields.io/github/forks/bonsaibauer/CSM.TmpeSync?style=social)
+
 # 🚧 CSM TM:PE Sync (Beta)
 
 CSM TM:PE Sync keeps [Cities: Skylines Multiplayer (CSM)](https://github.com/CitiesSkylinesMultiplayer/CSM) host-authoritative while players edit [Traffic Manager: President Edition (TM:PE)](https://github.com/CitiesSkylinesMods/TMPE) features. After the latest restructuring the synchronization layer has been rewritten feature by feature: every TM:PE tool now owns its own command handlers, network payloads, and harmony patches. The shared snapshot bridge from earlier releases is gone, so **behaviour and compatibility have changed**. Expect mismatches with old guides until you follow the new documentation linked below.
@@ -129,3 +136,8 @@ Debug-level entries are always written, so you get full bridge traces without ad
 ## Contributing feedback
 
 File issues with reproduction steps, `csm.tmpe-sync.log`, and the feature name that triggered the problem. The modular architecture lets us iterate on one feature at a time, so accurate reports keep the Beta moving forward.
+
+## Buy Me A Coffee
+If this project has helped you in any way, do buy me a coffee so I can continue to build more of such projects in the future and share them with the community!
+
+<a href="https://buymeacoffee.com/bonsaibauer" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/default-orange.png" alt="Buy Me A Coffee" height="41" width="174"></a>
