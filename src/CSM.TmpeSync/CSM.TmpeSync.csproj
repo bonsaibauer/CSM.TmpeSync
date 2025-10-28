@@ -274,6 +274,7 @@
     <Compile Include="Mod\TmpeSyncConnection.cs" />
     <Compile Include="Mod\MultiplayerThreadingExtension.cs" />
     <Compile Include="Mod\FeatureBootstrapper.cs" />
+    <Compile Include="Mod\ModMetadata.cs" />
     <Compile Include="Services\**\*.cs" />
     <Compile Include="Handlers\**\*.cs" />
     <Compile Include="Messages\**\*.cs" />

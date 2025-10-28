@@ -8,12 +8,14 @@ namespace CSM.TmpeSync.Mod
     {
         public override void OnUpdate(float realTimeDelta, float simulationTimeDelta)
         {
+            CompatibilityGuard.Tick();
             LockRegistry.Tick();
         }
 
         public override void OnReleased()
         {
             LockRegistry.Reset();
+            CompatibilityGuard.Shutdown();
         }
     }
 }

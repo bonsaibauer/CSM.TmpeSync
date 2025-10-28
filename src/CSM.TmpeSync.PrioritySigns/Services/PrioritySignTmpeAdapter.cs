@@ -11,7 +11,7 @@ namespace CSM.TmpeSync.PrioritySigns.Services
 {
     internal static class PrioritySignTmpeAdapter
     {
-        private static MethodInfo _setPrioritySignMi; // gecachte Reflection
+        private static MethodInfo _setPrioritySignMi; // cached reflection metadata
 
         internal static bool TryGetPrioritySign(ushort nodeId, ushort segmentId, out byte signType)
         {
@@ -58,7 +58,7 @@ namespace CSM.TmpeSync.PrioritySigns.Services
 
                 var tmpeType = MapToExt((PrioritySignType)signType);
 
-                // Direkter API-Setter existiert in deiner TM:PE.API nicht → gezielte Reflection als Zwischenlösung
+                // The TM:PE API does not expose a direct setter; reflection is used as an interim solution.
                 EnsureSetterResolved(mgr);
 
                 using (LocalIgnore.Scoped())
@@ -90,7 +90,7 @@ namespace CSM.TmpeSync.PrioritySigns.Services
             if (_setPrioritySignMi != null) return;
 
             var t = mgr.GetType();
-            // exakte Signatur zur Vermeidung von AmbiguousMatchException
+            // Resolve the exact signature to avoid AmbiguousMatchException.
             _setPrioritySignMi = t.GetMethod(
                 "SetPrioritySign",
                 BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic,
@@ -127,8 +127,8 @@ namespace CSM.TmpeSync.PrioritySigns.Services
         }
 
         /// <summary>
-        /// Lokaler, dateiinterner Ignore-Helper nur für PrioritySigns – kollisionsfrei.
-        /// Nutzung: using (LocalIgnore.Scoped()) { ... }
+        /// File-local ignore helper for PrioritySigns to avoid cross-feature interference.
+        /// Usage: using (LocalIgnore.Scoped()) { ... }
         /// </summary>
         private static class LocalIgnore
         {
