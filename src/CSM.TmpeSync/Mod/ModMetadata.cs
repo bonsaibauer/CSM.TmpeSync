@@ -14,21 +14,22 @@ namespace CSM.TmpeSync.Mod
         /// <summary>
         /// Latest release tag for CSM TM:PE Sync.
         /// </summary>
-        internal const string LatestCsmTmpeSyncReleaseTag = "";
+        internal const string LatestCsmTmpeSyncReleaseTag = "v0.1.1";
 
         /// <summary>
         /// Latest release tag for Traffic Manager: President Edition.
         /// </summary>
-        internal const string LatestTmpeReleaseTag = "";
+        internal const string LatestTmpeReleaseTag = "11.9.3.0";
 
         /// <summary>
         /// Latest release tag for Cities: Skylines Multiplayer.
         /// </summary>
-        internal const string LatestCsmReleaseTag = "";
+        internal const string LatestCsmReleaseTag = "v2309.286";
 
         /// <summary>
         /// Latest release tag for Cities Harmony.
         /// </summary>
-        internal const string LatestCitiesHarmonyReleaseTag = "";
+        internal const string LatestCitiesHarmonyReleaseTag = "v2.2.2-0";
+
     }
 }
