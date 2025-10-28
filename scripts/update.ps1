@@ -16,6 +16,7 @@ param(
 
 $ErrorActionPreference = "Stop"
 
+# --- Build step ---
 $buildScript = Join-Path $PSScriptRoot 'build.ps1'
 if (-not (Test-Path $buildScript)) {
     throw "build.ps1 not found next to update.ps1"
@@ -36,4 +37,68 @@ if (-not [string]::IsNullOrWhiteSpace($ModDirectory)) { $arguments += @('-ModDir
 if (-not [string]::IsNullOrWhiteSpace($ModRootDirectory)) { $arguments += @('-ModRootDirectory', $ModRootDirectory) }
 
 & $buildScript @arguments
-exit $LASTEXITCODE
+$buildExit = $LASTEXITCODE
+if ($buildExit -ne 0) { exit $buildExit }
+
+# --- Run manage_subtrees.py ---
+$pythonCandidates = @('python', 'py')
+$pyExit = $null
+$subtreeScript = Join-Path (Split-Path $PSScriptRoot -Parent) 'scripts/manage_subtrees.py'
+if (-not (Test-Path $subtreeScript)) {
+    throw "scripts/manage_subtrees.py not found next to update.ps1"
+}
+
+foreach ($pc in $pythonCandidates) {
+    try {
+        & $pc $subtreeScript
+        $pyExit = $LASTEXITCODE
+        if ($pyExit -eq 0) { break }
+    } catch {
+        # Try next candidate
+    }
+}
+if (($pyExit -ne 0) -and ($pyExit -ne $null)) {
+    Write-Error "manage_subtrees.py failed with exit code $pyExit"
+    exit $pyExit
+}
+
+# --- Interactive update of NewVersion based on LatestCsmTmpeSyncReleaseTag ---
+$modMetadataPath = Join-Path $PSScriptRoot 'src/CSM.TmpeSync/Mod/ModMetadata.cs'
+if (-not (Test-Path $modMetadataPath)) {
+    throw "File not found: $modMetadataPath"
+}
+
+# Read file
+$content = Get-Content -Path $modMetadataPath -Raw -Encoding UTF8
+
+# Extract current LatestCsmTmpeSyncReleaseTag
+$tagMatch = [regex]::Match($content, 'internal\s+const\s+string\s+LatestCsmTmpeSyncReleaseTag\s*=\s*"([^"]+)"\s*;')
+$currentTag = if ($tagMatch.Success) { $tagMatch.Groups[1].Value } else { "<unknown>" }
+
+Write-Host "LatestCsmTmpeSyncReleaseTag: $currentTag"
+$change = Read-Host "Do you want to change the constant 'NewVersion'? (yes/no)"
+
+if ($change -match '^(?i)y(es)?$') {
+    $newVersion = Read-Host "Enter new string for 'NewVersion' (leave empty to keep current)"
+    if (-not [string]::IsNullOrWhiteSpace($newVersion)) {
+        # Replace NewVersion
+        $newContent = [regex]::Replace(
+            $content,
+            '(?m)^\s*internal\s+const\s+string\s+NewVersion\s*=\s*"[^"]*"\s*;',
+            ('        internal const string NewVersion = "' + ($newVersion -replace '"','\"') + '";')
+        )
+
+        if ($newContent -ne $content) {
+            Set-Content -Path $modMetadataPath -Value $newContent -Encoding UTF8
+            Write-Host "NewVersion updated to: $newVersion"
+        } else {
+            Write-Host "No match found for NewVersion. File unchanged."
+        }
+    } else {
+        Write-Host "Empty input. NewVersion remains unchanged."
+    }
+} else {
+    Write-Host "No change requested for NewVersion."
+}
+
+exit 0
