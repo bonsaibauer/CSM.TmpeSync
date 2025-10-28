@@ -5,7 +5,7 @@ import os, sys, subprocess, argparse, re
 from pathlib import Path
 from configparser import ConfigParser
 
-# === Repositories (real) – branch pinned to 'master' ===
+# === Repositories (real) – branch pinned to 'master'+ ===
 REPOS = [
     {"name": "TMPE", "url": "https://github.com/CitiesSkylinesMods/TMPE", "branch": "master"},
     {"name": "CSM",  "url": "https://github.com/CitiesSkylinesMultiplayer/CSM", "branch": "master"},
