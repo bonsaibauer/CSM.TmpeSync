@@ -30,25 +30,13 @@ namespace CSM.TmpeSync.Services
             Error
         }
 
-        private sealed class LogTarget
-        {
-            internal LogTarget(string roleName, string filePrefix)
-            {
-                RoleName = roleName;
-                FilePrefix = filePrefix;
-            }
-
-            internal string RoleName { get; }
-            internal string FilePrefix { get; }
-        }
-
         private static readonly object SyncRoot = new object();
         private static readonly string LogDirectory;
         private static readonly TimeSpan LogOffset;
         private static readonly bool DebugEnabled;
-        private static readonly LogTarget ClientTarget = new LogTarget("Client", "clientlog");
-        private static readonly LogTarget ServerTarget = new LogTarget("Server", "serverlog");
-        private static LogTarget _activeTarget = ClientTarget;
+        private const string LogFilePrefix = "log";
+        private const string DefaultRoleTag = "client";
+        private static string _activeRoleTag = DefaultRoleTag;
         private static bool _initialised;
         private static string _dailyLogDateStamp = string.Empty;
         private static string _currentLogFilePath;
@@ -61,7 +49,7 @@ namespace CSM.TmpeSync.Services
             LogDirectory = Path.Combine(citiesDir, "CSM.TmpeSync");
             LogOffset = TimeSpan.FromHours(2);
             var now = GetLocalTime();
-            _currentLogFilePath = BuildDailyLogFilePath(now, _activeTarget);
+            _currentLogFilePath = BuildDailyLogFilePath(now);
             _dailyLogDateStamp = now.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
 #if DEBUG
             DebugEnabled = true;
@@ -83,7 +71,7 @@ namespace CSM.TmpeSync.Services
                     if (!string.Equals(_dailyLogDateStamp, stamp, StringComparison.Ordinal))
                     {
                         _dailyLogDateStamp = stamp;
-                        _currentLogFilePath = BuildDailyLogFilePath(now, _activeTarget);
+                        _currentLogFilePath = BuildDailyLogFilePath(now);
                     }
 
                     return _currentLogFilePath;
@@ -119,29 +107,25 @@ namespace CSM.TmpeSync.Services
 
         internal static void StartServerSessionLog()
         {
-            if (SetActiveTarget(ServerTarget, out var previous, out var current, out var path))
+            if (SetActiveRole("host", out var previousRole, out var currentRole, out var path))
             {
-                Info(LogCategory.Lifecycle, "Logging target changed | from={0} to={1} file={2}", previous.RoleName, current.RoleName, path);
+                Info(LogCategory.Lifecycle, "Logging role changed | from={0} to={1} file={2}", previousRole, currentRole, path);
             }
         }
 
         internal static void EndServerSessionLog()
         {
-            if (SetActiveTarget(ClientTarget, out var previous, out var current, out var path))
+            if (SetActiveRole(DefaultRoleTag, out var previousRole, out var currentRole, out var path))
             {
-                Info(LogCategory.Lifecycle, "Logging target changed | from={0} to={1} file={2}", previous.RoleName, current.RoleName, path);
+                Info(LogCategory.Lifecycle, "Logging role changed | from={0} to={1} file={2}", previousRole, currentRole, path);
             }
         }
 
         internal static void HandleRoleChanged(string role)
         {
-            var target = string.Equals(role, "Server", StringComparison.OrdinalIgnoreCase)
-                ? ServerTarget
-                : ClientTarget;
-
-            if (SetActiveTarget(target, out var previous, out var current, out var path))
+            if (SetActiveRole(role, out var previousRole, out var currentRole, out var path))
             {
-                Info(LogCategory.Lifecycle, "Logging target changed | from={0} to={1} file={2}", previous.RoleName, current.RoleName, path);
+                Info(LogCategory.Lifecycle, "Logging role changed | from={0} to={1} file={2}", previousRole, currentRole, path);
             }
         }
 
@@ -163,19 +147,20 @@ namespace CSM.TmpeSync.Services
             }
 
             var localTime = GetLocalTime();
-            var line = string.Format(
-                CultureInfo.InvariantCulture,
-                "{0:yyyy-MM-dd HH:mm:ss.fff} [{1}] [{2}] {3}",
-                localTime,
-                level,
-                category,
-                formattedMessage);
 
             lock (SyncRoot)
             {
                 try
                 {
-                    EnsureTargetReady(localTime);
+                    EnsureLogReady(localTime);
+                    var line = string.Format(
+                        CultureInfo.InvariantCulture,
+                        "{0:yyyy-MM-dd HH:mm:ss.fff} [{1}] [{2}] [{3}] {4}",
+                        localTime,
+                        level,
+                        _activeRoleTag,
+                        category,
+                        formattedMessage);
                     File.AppendAllText(_currentLogFilePath, line + Environment.NewLine);
                 }
                 catch
@@ -185,13 +170,13 @@ namespace CSM.TmpeSync.Services
             }
         }
 
-        private static void EnsureTargetReady(DateTime localTime)
+        private static void EnsureLogReady(DateTime localTime)
         {
             var currentStamp = localTime.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
             if (!string.Equals(_dailyLogDateStamp, currentStamp, StringComparison.Ordinal))
             {
                 _dailyLogDateStamp = currentStamp;
-                _currentLogFilePath = BuildDailyLogFilePath(localTime, _activeTarget);
+                _currentLogFilePath = BuildDailyLogFilePath(localTime);
                 _initialised = false;
             }
 
@@ -205,36 +190,73 @@ namespace CSM.TmpeSync.Services
 
         private static DateTime GetLocalTime() => DateTime.UtcNow + LogOffset;
 
-        private static bool SetActiveTarget(LogTarget target, out LogTarget previousTarget, out LogTarget currentTarget, out string path)
+        private static bool SetActiveRole(string role, out string previousRole, out string currentRole, out string path)
         {
+            var targetRole = NormalizeRole(role);
+
             lock (SyncRoot)
             {
-                var previous = _activeTarget;
-                var now = GetLocalTime();
+                var previous = _activeRoleTag;
 
-                if (!ReferenceEquals(_activeTarget, target) || string.IsNullOrEmpty(_currentLogFilePath))
+                if (!string.Equals(_activeRoleTag, targetRole, StringComparison.Ordinal))
                 {
-                    _activeTarget = target;
-                    _currentLogFilePath = BuildDailyLogFilePath(now, _activeTarget);
+                    _activeRoleTag = targetRole;
+                }
+
+                if (string.IsNullOrEmpty(_currentLogFilePath))
+                {
+                    var now = GetLocalTime();
+                    _currentLogFilePath = BuildDailyLogFilePath(now);
                     _dailyLogDateStamp = now.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
                     _initialised = false;
                 }
 
-                previousTarget = previous;
-                currentTarget = _activeTarget;
+                previousRole = previous;
+                currentRole = _activeRoleTag;
                 path = _currentLogFilePath;
-                return !ReferenceEquals(previous, _activeTarget);
+                return !string.Equals(previous, _activeRoleTag, StringComparison.Ordinal);
             }
         }
 
-        private static string BuildDailyLogFilePath(DateTime localTime, LogTarget target)
+        private static string BuildDailyLogFilePath(DateTime localTime)
         {
             var fileName = string.Format(
                 CultureInfo.InvariantCulture,
                 "{0}-{1:yyyy-MM-dd}.log",
-                target.FilePrefix,
+                LogFilePrefix,
                 localTime);
             return Path.Combine(LogDirectory, fileName);
+        }
+
+        private static string NormalizeRole(string role)
+        {
+            if (IsNullOrWhiteSpace(role))
+            {
+                return DefaultRoleTag;
+            }
+
+            var normalized = role.Trim().ToLowerInvariant();
+            return string.Equals(normalized, "server", StringComparison.Ordinal)
+                ? "host"
+                : normalized;
+        }
+
+        private static bool IsNullOrWhiteSpace(string value)
+        {
+            if (string.IsNullOrEmpty(value))
+            {
+                return true;
+            }
+
+            for (var i = 0; i < value.Length; i++)
+            {
+                if (!char.IsWhiteSpace(value[i]))
+                {
+                    return false;
+                }
+            }
+
+            return true;
         }
     }
 }
