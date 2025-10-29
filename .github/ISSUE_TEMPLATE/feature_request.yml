@@ -1,5 +1,5 @@
 name: "Feature"
-description: "Kurzer Wunsch für ein neues Feature."
+description: "Quick note for a new idea."
 title: "Feature: "
 labels:
   - enhancement
@@ -7,16 +7,16 @@ body:
   - type: markdown
     attributes:
       value: |
-        Halte dich kurz und sag was du brauchst.
+        Keep it brief and say what you need.
   - type: input
-    id: idee
+    id: idea
     attributes:
-      label: Was soll dazu kommen?
-      placeholder: Ein Satz reicht.
+      label: What should we add?
+      placeholder: One sentence is enough.
     validations:
       required: true
   - type: textarea
-    id: nutzen
+    id: value
     attributes:
-      label: Warum?
-      description: Welchen Vorteil bringt es?
+      label: Why?
+      description: What is the benefit?

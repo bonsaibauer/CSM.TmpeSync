@@ -1,5 +1,5 @@
 name: "Version mismatch"
-description: "Version passt nicht? Log anhängen."
+description: "Version mismatch? Attach the log snippet."
 title: "Version mismatch: "
 labels:
   - version-mismatch
@@ -7,22 +7,22 @@ body:
   - type: markdown
     attributes:
       value: |
-        Schau in das Log und füge die Stelle mit dem Versionsfehler ein.
+        Check the log and paste the lines showing the mismatch.
   - type: input
-    id: stelle
+    id: location
     attributes:
-      label: Wo tritt es auf?
-      placeholder: z. B. Service oder Paketname.
+      label: Where did it happen?
+      placeholder: Service or package name.
   - type: textarea
     id: log
     attributes:
-      label: Logstelle
-      description: Kopiere die Zeilen mit dem Versionsproblem.
+      label: Log snippet
+      description: Copy the lines with the version mismatch.
       render: shell
       placeholder: |
-        [2024-05-01 10:15:03] Erwartet 1.4.0, gefunden 1.3.2
+        [2024-05-01 10:15:03] Expected 1.4.0, found 1.3.2
   - type: textarea
-    id: kurz
+    id: note
     attributes:
-      label: Kurzbeschreibung
-      description: Was ist das Problem?
+      label: Short note
+      description: What is the impact?
