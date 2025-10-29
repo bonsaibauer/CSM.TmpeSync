@@ -344,7 +344,7 @@ function Update-ModMetadataFile {
             $lines += "        internal static readonly string[] $($entry.LegacyConst) = new[]"
             $lines += '        {'
             foreach ($legacyEscaped in $escapedLegacy) {
-                $lines += "            \"$legacyEscaped\",";
+                $lines += "            `"$legacyEscaped`",";
             }
             $lines += '        };'
         }
@@ -575,7 +575,7 @@ function Get-AllReleaseTags {
             return @()
         }
         catch {
-            Write-Host "Unerwarteter Fehler beim Abruf der Releases für $owner/$repo: $($_.Exception.Message)"
+            Write-Host "Unerwarteter Fehler beim Abruf der Releases für $($owner)/$($repo): $($_.Exception.Message)"
             return @()
         }
 
