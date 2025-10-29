@@ -86,19 +86,49 @@ namespace CSM.TmpeSync.Services
 
         internal static bool CompareVersions(string versionA, string versionB)
         {
-            return string.Equals(NormalizeVersion(versionA), NormalizeVersion(versionB), StringComparison.OrdinalIgnoreCase);
+            var normalizedA = TrimTrailingZeroComponents(NormalizeVersion(versionA));
+            var normalizedB = TrimTrailingZeroComponents(NormalizeVersion(versionB));
+            return string.Equals(normalizedA, normalizedB, StringComparison.OrdinalIgnoreCase);
         }
 
-        internal static string NormalizeVersion(string value)
+        internal static string NormalizeVersion(string value, int? maxComponents = null)
+        {
+            var sanitized = SanitizeRawVersion(value);
+            if (string.IsNullOrEmpty(sanitized))
+                return string.Empty;
+
+            var match = VersionPattern.Match(sanitized);
+            var numericPortion = match.Success ? match.Groups[1].Value : sanitized;
+            if (string.IsNullOrEmpty(numericPortion))
+                return string.Empty;
+
+            if (maxComponents.HasValue && maxComponents.Value > 0)
+            {
+                var components = numericPortion.Split(new[] { '.' }, StringSplitOptions.RemoveEmptyEntries);
+                if (components.Length > maxComponents.Value)
+                    numericPortion = string.Join(".", components.Take(maxComponents.Value).ToArray());
+            }
+
+            return numericPortion;
+        }
+
+        private static string SanitizeRawVersion(string value)
         {
             if (string.IsNullOrEmpty(value))
                 return string.Empty;
 
-            var match = VersionPattern.Match(value);
-            if (match.Success)
-                return match.Groups[1].Value;
+            var trimmed = value.Trim();
+            if (trimmed.Length == 0)
+                return string.Empty;
 
-            return value.Trim();
+            while (trimmed.EndsWith("-0", StringComparison.Ordinal))
+            {
+                trimmed = trimmed.Substring(0, trimmed.Length - 2).TrimEnd();
+                if (trimmed.Length == 0)
+                    break;
+            }
+
+            return trimmed;
         }
 
         private static IEnumerable<CompatibilityResult> BuildCompatibilityResults()
@@ -108,7 +138,8 @@ namespace CSM.TmpeSync.Services
                 "TM:PE",
                 new Func<PluginInfo>(Deps.GetActiveTmpePlugin),
                 ModMetadata.LatestTmpeReleaseTag,
-                ModMetadata.LegacyTmpeReleaseTags);
+                ModMetadata.LegacyTmpeReleaseTags,
+                normalizedComponentLimit: 3);
             yield return EvaluateFromPlugin(
                 "CSM",
                 new Func<PluginInfo>(Deps.GetActiveCsmPlugin),
@@ -131,7 +162,8 @@ namespace CSM.TmpeSync.Services
             string displayName,
             Func<PluginInfo> pluginAccessor,
             string latestTag,
-            string[] legacyTags)
+            string[] legacyTags,
+            int? normalizedComponentLimit = null)
         {
             PluginInfo plugin = null;
             string version = null;
@@ -152,7 +184,7 @@ namespace CSM.TmpeSync.Services
                 Log.Warn(LogCategory.Diagnostics, "Version lookup failed | mod={0} error={1}", displayName, ex);
             }
 
-            return BuildResult(displayName, installed, version, latestTag, legacyTags);
+            return BuildResult(displayName, installed, version, latestTag, legacyTags, normalizedComponentLimit);
         }
 
         private static CompatibilityResult EvaluateHarmony()
@@ -172,19 +204,26 @@ namespace CSM.TmpeSync.Services
             bool installed,
             string actualVersion,
             string latestTag,
-            string[] legacyTags)
+            string[] legacyTags,
+            int? normalizationComponentLimit = null)
         {
-            var normalizedActual = NormalizeVersion(actualVersion);
-            var normalizedLatest = NormalizeVersion(latestTag);
+            var normalizedActual = NormalizeVersion(actualVersion, normalizationComponentLimit);
+            var normalizedLatest = NormalizeVersion(latestTag, normalizationComponentLimit);
+            var comparableActual = TrimTrailingZeroComponents(normalizedActual);
+            var comparableLatest = TrimTrailingZeroComponents(normalizedLatest);
 
             var normalizedLegacy = new List<string>();
             if (legacyTags != null)
             {
                 foreach (var legacy in legacyTags)
                 {
-                    var normalized = NormalizeVersion(legacy);
+                    var normalized = NormalizeVersion(legacy, normalizationComponentLimit);
                     if (!string.IsNullOrEmpty(normalized))
-                        normalizedLegacy.Add(normalized);
+                    {
+                        var comparableLegacy = TrimTrailingZeroComponents(normalized);
+                        if (!string.IsNullOrEmpty(comparableLegacy))
+                            normalizedLegacy.Add(comparableLegacy);
+                    }
                 }
             }
 
@@ -193,16 +232,16 @@ namespace CSM.TmpeSync.Services
             {
                 status = "Missing";
             }
-            else if (string.IsNullOrEmpty(normalizedActual))
+            else if (string.IsNullOrEmpty(comparableActual))
             {
                 status = "Unknown";
             }
-            else if (!string.IsNullOrEmpty(normalizedLatest) &&
-                     string.Equals(normalizedActual, normalizedLatest, StringComparison.OrdinalIgnoreCase))
+            else if (!string.IsNullOrEmpty(comparableLatest) &&
+                     string.Equals(comparableActual, comparableLatest, StringComparison.OrdinalIgnoreCase))
             {
                 status = "Match";
             }
-            else if (normalizedLegacy.Contains(normalizedActual, StringComparer.OrdinalIgnoreCase))
+            else if (normalizedLegacy.Contains(comparableActual, StringComparer.OrdinalIgnoreCase))
             {
                 status = "Legacy Match";
             }
@@ -216,10 +255,37 @@ namespace CSM.TmpeSync.Services
                 DisplayName = displayName,
                 Installed = installed,
                 ActualVersion = actualVersion ?? string.Empty,
-                NormalizedVersion = normalizedActual,
+                NormalizedVersion = comparableActual,
                 LatestTag = latestTag ?? string.Empty,
                 Status = status
             };
+        }
+
+        private static string TrimTrailingZeroComponents(string version)
+        {
+            if (string.IsNullOrEmpty(version))
+                return string.Empty;
+
+            var components = version.Split('.');
+            var end = components.Length - 1;
+            while (end > 0 && IsZeroComponent(components[end]))
+                end--;
+
+            return string.Join(".", components.Take(end + 1).ToArray());
+        }
+
+        private static bool IsZeroComponent(string component)
+        {
+            if (string.IsNullOrEmpty(component))
+                return true;
+
+            foreach (var ch in component)
+            {
+                if (ch != '0')
+                    return false;
+            }
+
+            return true;
         }
 
         private static string ExtractVersion(PluginInfo plugin)

@@ -35,6 +35,9 @@ namespace CSM.TmpeSync.Services
                     if (plugin == null || !plugin.isEnabled)
                         continue;
 
+                    if (IsTmpeSyncPlugin(plugin))
+                        continue;
+
                     var name = SafeName(plugin);
                     if (!string.IsNullOrEmpty(name) && name.IndexOf("harmony", StringComparison.OrdinalIgnoreCase) >= 0)
                         return true;
@@ -150,6 +153,9 @@ namespace CSM.TmpeSync.Services
                     if (plugin == null || !plugin.isEnabled)
                         continue;
 
+                    if (IsTmpeSyncPlugin(plugin))
+                        continue;
+
                     var name = SafeName(plugin);
                     if (!string.IsNullOrEmpty(name) && name.IndexOf("multiplayer", StringComparison.OrdinalIgnoreCase) >= 0)
                         return plugin;
@@ -183,6 +189,9 @@ namespace CSM.TmpeSync.Services
                 foreach (var plugin in PluginManager.instance.GetPluginsInfo())
                 {
                     if (plugin == null || !plugin.isEnabled)
+                        continue;
+
+                    if (IsTmpeSyncPlugin(plugin))
                         continue;
 
                     var name = SafeName(plugin);
@@ -221,6 +230,33 @@ namespace CSM.TmpeSync.Services
             {
                 return string.Empty;
             }
+        }
+
+        private static bool IsTmpeSyncPlugin(PluginInfo plugin)
+        {
+            if (plugin == null)
+                return false;
+
+            try
+            {
+                var name = SafeName(plugin);
+                if (!string.IsNullOrEmpty(name) && name.IndexOf("CSM.TmpeSync", StringComparison.OrdinalIgnoreCase) >= 0)
+                    return true;
+
+                var modPath = plugin.modPath;
+                if (!string.IsNullOrEmpty(modPath) && modPath.IndexOf("CSM.TmpeSync", StringComparison.OrdinalIgnoreCase) >= 0)
+                    return true;
+
+                var instance = plugin.userModInstance;
+                if (instance != null && instance.GetType().Assembly == typeof(Deps).Assembly)
+                    return true;
+            }
+            catch
+            {
+                // Swallow and assume this isn't our own plugin.
+            }
+
+            return false;
         }
     }
 }
