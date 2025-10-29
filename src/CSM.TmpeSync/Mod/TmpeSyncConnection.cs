@@ -42,14 +42,14 @@ namespace CSM.TmpeSync.Mod
 
                 try
                 {
-                    
+                    CompatibilityChecker.HandleHandlersRegistered();
                 }
                 catch (Exception ex)
                 {
-                    Log.Warn(LogCategory.Diagnostics, "CSM role refresh failed during handler registration | error={0}", ex);
+                    Log.Warn(LogCategory.Diagnostics, "Compatibility handshake setup failed during handler registration | error={0}", ex);
                 }
 
-                
+
             }
         }
 

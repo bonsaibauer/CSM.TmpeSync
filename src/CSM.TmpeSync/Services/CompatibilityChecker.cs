@@ -1,0 +1,366 @@
+using System;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.IO;
+using System.Linq;
+using System.Reflection;
+using System.Text.RegularExpressions;
+using ColossalFramework.Plugins;
+using CSM.TmpeSync.Mod;
+using CSM.TmpeSync.Messages.System;
+
+namespace CSM.TmpeSync.Services
+{
+    internal static class CompatibilityChecker
+    {
+        private sealed class CompatibilityResult
+        {
+            internal string DisplayName;
+            internal bool Installed;
+            internal string ActualVersion;
+            internal string NormalizedVersion;
+            internal string LatestTag;
+            internal string Status;
+        }
+
+        private static readonly Regex VersionPattern = new Regex("^\\D*(\\d+(?:\\.\\d+)*)", RegexOptions.Compiled);
+
+        internal static string LocalVersion => ModMetadata.NewVersion;
+
+        internal static void LogMetadataSummary()
+        {
+            LogMetadataFor(
+                "CSM.TmpeSync",
+                ModMetadata.LatestCsmTmpeSyncReleaseTag,
+                ModMetadata.LegacyCsmTmpeSyncReleaseTags,
+                ModMetadata.NewVersion);
+
+            LogMetadataFor(
+                "TM:PE",
+                ModMetadata.LatestTmpeReleaseTag,
+                ModMetadata.LegacyTmpeReleaseTags,
+                null);
+
+            LogMetadataFor(
+                "CSM",
+                ModMetadata.LatestCsmReleaseTag,
+                ModMetadata.LegacyCsmReleaseTags,
+                null);
+
+            LogMetadataFor(
+                "Cities Harmony",
+                ModMetadata.LatestCitiesHarmonyReleaseTag,
+                ModMetadata.LegacyCitiesHarmonyReleaseTags,
+                null);
+        }
+
+        internal static void LogInstalledVersions()
+        {
+            foreach (var result in BuildCompatibilityResults())
+            {
+                Log.Info(
+                    LogCategory.Dependency,
+                    "Compatibility | mod={0} installed={1} status={2} actualVersion={3} normalizedActual={4} latestTag={5}",
+                    result.DisplayName,
+                    result.Installed ? "Yes" : "No",
+                    result.Status,
+                    string.IsNullOrEmpty(result.ActualVersion) ? "n/a" : result.ActualVersion,
+                    string.IsNullOrEmpty(result.NormalizedVersion) ? "n/a" : result.NormalizedVersion,
+                    string.IsNullOrEmpty(result.LatestTag) ? "n/a" : result.LatestTag);
+            }
+        }
+
+        internal static void HandleHandlersRegistered()
+        {
+            if (CsmBridge.IsServerInstance())
+            {
+                Log.Info(LogCategory.Network, "Version compatibility handshake ready | role=Server version={0}", LocalVersion);
+            }
+            else
+            {
+                Log.Info(LogCategory.Network, "Dispatching version compatibility request | localVersion={0}", LocalVersion);
+                SendVersionRequest();
+            }
+        }
+
+        internal static bool CompareVersions(string versionA, string versionB)
+        {
+            return string.Equals(NormalizeVersion(versionA), NormalizeVersion(versionB), StringComparison.OrdinalIgnoreCase);
+        }
+
+        internal static string NormalizeVersion(string value)
+        {
+            if (string.IsNullOrEmpty(value))
+                return string.Empty;
+
+            var match = VersionPattern.Match(value);
+            if (match.Success)
+                return match.Groups[1].Value;
+
+            return value.Trim();
+        }
+
+        private static IEnumerable<CompatibilityResult> BuildCompatibilityResults()
+        {
+            yield return EvaluateLocalMod();
+            yield return EvaluateFromPlugin(
+                "TM:PE",
+                new Func<PluginInfo>(Deps.GetActiveTmpePlugin),
+                ModMetadata.LatestTmpeReleaseTag,
+                ModMetadata.LegacyTmpeReleaseTags);
+            yield return EvaluateFromPlugin(
+                "CSM",
+                new Func<PluginInfo>(Deps.GetActiveCsmPlugin),
+                ModMetadata.LatestCsmReleaseTag,
+                ModMetadata.LegacyCsmReleaseTags);
+            yield return EvaluateHarmony();
+        }
+
+        private static CompatibilityResult EvaluateLocalMod()
+        {
+            return BuildResult(
+                "CSM.TmpeSync",
+                true,
+                LocalVersion,
+                ModMetadata.LatestCsmTmpeSyncReleaseTag,
+                ModMetadata.LegacyCsmTmpeSyncReleaseTags);
+        }
+
+        private static CompatibilityResult EvaluateFromPlugin(
+            string displayName,
+            Func<PluginInfo> pluginAccessor,
+            string latestTag,
+            string[] legacyTags)
+        {
+            PluginInfo plugin = null;
+            string version = null;
+            bool installed = false;
+
+            try
+            {
+                if (pluginAccessor != null)
+                {
+                    plugin = pluginAccessor();
+                    installed = plugin != null;
+                    if (installed)
+                        version = ExtractVersion(plugin);
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Warn(LogCategory.Diagnostics, "Version lookup failed | mod={0} error={1}", displayName, ex);
+            }
+
+            return BuildResult(displayName, installed, version, latestTag, legacyTags);
+        }
+
+        private static CompatibilityResult EvaluateHarmony()
+        {
+            var installed = Deps.IsHarmonyAvailable();
+            var version = TryGetHarmonyVersion();
+            return BuildResult(
+                "Cities Harmony",
+                installed,
+                version == null ? null : version.ToString(),
+                ModMetadata.LatestCitiesHarmonyReleaseTag,
+                ModMetadata.LegacyCitiesHarmonyReleaseTags);
+        }
+
+        private static CompatibilityResult BuildResult(
+            string displayName,
+            bool installed,
+            string actualVersion,
+            string latestTag,
+            string[] legacyTags)
+        {
+            var normalizedActual = NormalizeVersion(actualVersion);
+            var normalizedLatest = NormalizeVersion(latestTag);
+
+            var normalizedLegacy = new List<string>();
+            if (legacyTags != null)
+            {
+                foreach (var legacy in legacyTags)
+                {
+                    var normalized = NormalizeVersion(legacy);
+                    if (!string.IsNullOrEmpty(normalized))
+                        normalizedLegacy.Add(normalized);
+                }
+            }
+
+            string status;
+            if (!installed)
+            {
+                status = "Missing";
+            }
+            else if (string.IsNullOrEmpty(normalizedActual))
+            {
+                status = "Unknown";
+            }
+            else if (!string.IsNullOrEmpty(normalizedLatest) &&
+                     string.Equals(normalizedActual, normalizedLatest, StringComparison.OrdinalIgnoreCase))
+            {
+                status = "Match";
+            }
+            else if (normalizedLegacy.Contains(normalizedActual, StringComparer.OrdinalIgnoreCase))
+            {
+                status = "Legacy Match";
+            }
+            else
+            {
+                status = "Mismatch";
+            }
+
+            return new CompatibilityResult
+            {
+                DisplayName = displayName,
+                Installed = installed,
+                ActualVersion = actualVersion ?? string.Empty,
+                NormalizedVersion = normalizedActual,
+                LatestTag = latestTag ?? string.Empty,
+                Status = status
+            };
+        }
+
+        private static string ExtractVersion(PluginInfo plugin)
+        {
+            if (plugin == null)
+                return null;
+
+            try
+            {
+                var pluginType = plugin.GetType();
+                var versionProperty = pluginType.GetProperty("version", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                var versionValue = versionProperty != null ? versionProperty.GetValue(plugin, null) : null;
+                if (versionValue != null)
+                {
+                    var value = versionValue.ToString();
+                    if (!string.IsNullOrEmpty(value))
+                        return value;
+                }
+
+                var modInfoProperty = pluginType.GetProperty("modInfo", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                var modInfoValue = modInfoProperty != null ? modInfoProperty.GetValue(plugin, null) : null;
+                if (modInfoValue != null)
+                {
+                    var modInfoType = modInfoValue.GetType();
+                    var modVersionProperty = modInfoType.GetProperty("version", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                    var modVersionValue = modVersionProperty != null ? modVersionProperty.GetValue(modInfoValue, null) : null;
+                    if (modVersionValue != null)
+                    {
+                        var value = modVersionValue.ToString();
+                        if (!string.IsNullOrEmpty(value))
+                            return value;
+                    }
+                }
+
+                var instance = plugin.userModInstance;
+                if (instance != null)
+                {
+                    var assemblyVersion = instance.GetType().Assembly.GetName().Version;
+                    if (assemblyVersion != null)
+                        return assemblyVersion.ToString();
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Debug(LogCategory.Diagnostics, "Failed to read plugin version | plugin={0} error={1}", Deps.SafeName(plugin), ex);
+            }
+
+            return null;
+        }
+
+        private static Version TryGetHarmonyVersion()
+        {
+            try
+            {
+                var field = typeof(PluginManager).GetField("m_AssemblyLocations", BindingFlags.NonPublic | BindingFlags.Instance);
+                var locations = field != null ? field.GetValue(PluginManager.instance) as Dictionary<Assembly, string> : null;
+                if (locations == null)
+                    return null;
+
+                Version result = null;
+                foreach (var pair in locations)
+                {
+                    if (pair.Key == null)
+                        continue;
+
+                    var name = pair.Key.GetName();
+                    if (name == null)
+                        continue;
+
+                    if (!string.Equals(name.Name, "CitiesHarmony.Harmony", StringComparison.OrdinalIgnoreCase))
+                        continue;
+
+                    var version = GetFileVersion(pair.Value);
+                    if (version == null)
+                        continue;
+
+                    if (result == null || version > result)
+                        result = version;
+                }
+
+                return result;
+            }
+            catch (Exception ex)
+            {
+                Log.Warn(LogCategory.Diagnostics, "Harmony version lookup failed | error={0}", ex);
+                return null;
+            }
+        }
+
+        private static Version GetFileVersion(string path)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(path) || !File.Exists(path))
+                    return null;
+
+                var info = FileVersionInfo.GetVersionInfo(path);
+                return new Version(info.FileVersion);
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        private static void LogMetadataFor(string name, string latest, string[] legacy, string current)
+        {
+            var legacyList = legacy != null && legacy.Length > 0 ? string.Join(", ", legacy) : "n/a";
+            var latestValue = string.IsNullOrEmpty(latest) ? "n/a" : latest;
+
+            if (!string.IsNullOrEmpty(current))
+            {
+                Log.Info(
+                    LogCategory.Configuration,
+                    "Metadata ({0}) | current={1} latest={2} legacy=[{3}]",
+                    name,
+                    current,
+                    latestValue,
+                    legacyList);
+            }
+            else
+            {
+                Log.Info(
+                    LogCategory.Configuration,
+                    "Metadata ({0}) | latest={1} legacy=[{2}]",
+                    name,
+                    latestValue,
+                    legacyList);
+            }
+        }
+
+        private static void SendVersionRequest()
+        {
+            try
+            {
+                CsmBridge.SendToServer(new VersionCheckRequest { Version = LocalVersion });
+                Log.Info(LogCategory.Network, "Version compatibility request dispatched | localVersion={0}", LocalVersion);
+            }
+            catch (Exception ex)
+            {
+                Log.Warn(LogCategory.Network, "Failed to send version compatibility request | error={0}", ex);
+            }
+        }
+    }
+}

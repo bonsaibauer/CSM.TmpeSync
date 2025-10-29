@@ -16,6 +16,9 @@ namespace CSM.TmpeSync.Mod
             Log.Info(LogCategory.Lifecycle, "Mod enabled | action=validate_dependencies");
             Log.Info(LogCategory.Configuration, "Logging initialized | debug={0} path={1}", Log.IsDebugEnabled ? "ENABLED" : "disabled", Log.LogFilePath);
 
+            CompatibilityChecker.LogMetadataSummary();
+            CompatibilityChecker.LogInstalledVersions();
+
             var missing = Deps.GetMissingDependencies();
             if (missing.Length > 0)
             {

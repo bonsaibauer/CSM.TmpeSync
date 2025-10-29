@@ -9,39 +9,9 @@ namespace CSM.TmpeSync.Services
 {
     internal static class Deps
     {
-        internal static bool IsCsmEnabled()
-        {
-            try
-            {
-                foreach (var plugin in PluginManager.instance.GetPluginsInfo())
-                {
-                    if (plugin == null || !plugin.isEnabled)
-                        continue;
+        internal static bool IsCsmEnabled() => GetActiveCsmPlugin() != null;
 
-                    var name = SafeName(plugin);
-                    if (!string.IsNullOrEmpty(name) && name.IndexOf("multiplayer", StringComparison.OrdinalIgnoreCase) >= 0)
-                        return true;
-
-                    var instance = plugin.userModInstance;
-                    if (instance == null)
-                        continue;
-
-                    var assemblyName = instance.GetType().Assembly.FullName ?? string.Empty;
-                    var ns = instance.GetType().Namespace ?? string.Empty;
-                    if (assemblyName.StartsWith("CSM", StringComparison.OrdinalIgnoreCase) ||
-                        ns.StartsWith("CSM", StringComparison.OrdinalIgnoreCase))
-                    {
-                        return true;
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                Log.Warn(LogCategory.Dependency, "CSM dependency check failed | error={0}", ex);
-            }
-
-            return false;
-        }
+        internal static bool IsTmpeDetected() => GetActiveTmpePlugin() != null;
 
         internal static bool IsHarmonyAvailable()
         {
@@ -97,14 +67,23 @@ namespace CSM.TmpeSync.Services
             var missing = new List<string>();
             var csmEnabled = IsCsmEnabled();
             var harmonyAvailable = IsHarmonyAvailable();
+            var tmpeDetected = IsTmpeDetected();
 
-            Log.Debug(LogCategory.Dependency, "Dependency status | csmEnabled={0} harmonyAvailable={1}", csmEnabled, harmonyAvailable);
+            Log.Debug(
+                LogCategory.Dependency,
+                "Dependency status | csmEnabled={0} harmonyAvailable={1} tmpeDetected={2}",
+                csmEnabled,
+                harmonyAvailable,
+                tmpeDetected);
 
             if (!csmEnabled)
                 missing.Add("CSM");
 
             if (!harmonyAvailable)
                 missing.Add("Harmony");
+
+            if (!tmpeDetected)
+                missing.Add("TM:PE");
 
             return missing.ToArray();
         }
@@ -162,7 +141,77 @@ namespace CSM.TmpeSync.Services
             }
         }
 
-        private static string SafeName(PluginInfo plugin)
+        internal static PluginInfo GetActiveCsmPlugin()
+        {
+            try
+            {
+                foreach (var plugin in PluginManager.instance.GetPluginsInfo())
+                {
+                    if (plugin == null || !plugin.isEnabled)
+                        continue;
+
+                    var name = SafeName(plugin);
+                    if (!string.IsNullOrEmpty(name) && name.IndexOf("multiplayer", StringComparison.OrdinalIgnoreCase) >= 0)
+                        return plugin;
+
+                    var instance = plugin.userModInstance;
+                    if (instance == null)
+                        continue;
+
+                    var type = instance.GetType();
+                    var assemblyName = type.Assembly.FullName ?? string.Empty;
+                    var ns = type.Namespace ?? string.Empty;
+                    if (assemblyName.StartsWith("CSM", StringComparison.OrdinalIgnoreCase) ||
+                        ns.StartsWith("CSM", StringComparison.OrdinalIgnoreCase))
+                    {
+                        return plugin;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Warn(LogCategory.Dependency, "CSM dependency check failed | error={0}", ex);
+            }
+
+            return null;
+        }
+
+        internal static PluginInfo GetActiveTmpePlugin()
+        {
+            try
+            {
+                foreach (var plugin in PluginManager.instance.GetPluginsInfo())
+                {
+                    if (plugin == null || !plugin.isEnabled)
+                        continue;
+
+                    var name = SafeName(plugin);
+                    if (!string.IsNullOrEmpty(name) && name.IndexOf("traffic manager", StringComparison.OrdinalIgnoreCase) >= 0)
+                        return plugin;
+
+                    var instance = plugin.userModInstance;
+                    if (instance == null)
+                        continue;
+
+                    var type = instance.GetType();
+                    var assemblyName = type.Assembly.GetName().Name ?? string.Empty;
+                    var ns = type.Namespace ?? string.Empty;
+                    if (assemblyName.IndexOf("TrafficManager", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                        ns.IndexOf("TrafficManager", StringComparison.OrdinalIgnoreCase) >= 0)
+                    {
+                        return plugin;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Warn(LogCategory.Dependency, "TM:PE dependency check failed | error={0}", ex);
+            }
+
+            return null;
+        }
+
+        internal static string SafeName(PluginInfo plugin)
         {
             try
             {
