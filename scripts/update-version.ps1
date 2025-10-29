@@ -279,7 +279,7 @@ function Update-ModMetadataFile {
         '        /// <summary>',
         '        /// Current version of the CSM TM:PE Sync mod. Update this value when publishing new builds.',
         '        /// </summary>',
-        "        internal const string NewVersion = \"$escapedVersion\";",
+        "        internal const string NewVersion = ""$escapedVersion"";",
         ''
     )
 
@@ -293,7 +293,7 @@ function Update-ModMetadataFile {
         $lines += '        /// <summary>'
         $lines += "        /// Latest release tag for $($entry.Description)."
         $lines += '        /// </summary>'
-        $lines += "        internal const string $($entry.Const) = \"$escapedValue\";"
+        $lines += "        internal const string $($entry.Const) = ""$escapedValue"";"
         $lines += ''
     }
 
@@ -326,7 +326,7 @@ function Parse-GitHubOwnerRepo {
     $urlTrimmed = ($Url ?? '').Trim()
     if ([string]::IsNullOrEmpty($urlTrimmed)) { return $null }
 
-    $host = $null
+    $hostName = $null
     $owner = $null
     $repo = $null
 
@@ -335,7 +335,7 @@ function Parse-GitHubOwnerRepo {
             $parts = $urlTrimmed.Split('@', 2)
             $right = $parts[1]
             $rightParts = $right.Split(':', 2)
-            $host = $rightParts[0]
+            $hostName = $rightParts[0]
             $pathPart = $rightParts[1]
             $segments = $pathPart.Trim('/').Split('/')
             if ($segments.Length -ge 2) {
@@ -350,7 +350,7 @@ function Parse-GitHubOwnerRepo {
     else {
         try {
             $uri = [Uri]$urlTrimmed
-            $host = $uri.Host
+            $hostName = $uri.Host
             $segments = $uri.AbsolutePath.Trim('/').Split('/')
             if ($segments.Length -ge 2) {
                 $owner = $segments[0]
@@ -366,8 +366,8 @@ function Parse-GitHubOwnerRepo {
         $repo = $repo.Substring(0, $repo.Length - 4)
     }
 
-    if ($host -and $owner -and $repo) {
-        return @{ Host = $host; Owner = $owner; Repo = $repo }
+    if ($hostName -and $owner -and $repo) {
+        return @{ Host = $hostName; Owner = $owner; Repo = $repo }
     }
     return $null
 }
@@ -594,7 +594,7 @@ function Vendor-SubmodulesRecursively {
         return
     }
 
-    Write-Host "Gefundene Submodule in $displayRoot:"
+    Write-Host "Gefundene Submodule in ${displayRoot}:"
     foreach ($m in $mods) {
         $branchInfo = if ($m.ContainsKey('branch') -and -not [string]::IsNullOrWhiteSpace($m['branch'])) { " [branch=$($m['branch'])]" } else { '' }
         Write-Host "  - $($m['path']) ($($m['url']))$branchInfo"
@@ -611,7 +611,7 @@ function Vendor-SubmodulesRecursively {
         if ($Visited.Contains($key)) { continue }
         $Visited.Add($key) | Out-Null
 
-        if (Test-Path $subFull -PathType Container -and (Test-EmptyDirectory -Path $subFull)) {
+        if ((Test-Path -Path $subFull -PathType Container) -and (Test-EmptyDirectory -Path $subFull)) {
             Write-Host "Leerer Ordner vorhanden, entferne vor Subtree-ADD: $subFull"
             if (-not $DryRun) {
                 Remove-Item -Path $subFull -Force
@@ -752,7 +752,7 @@ $modMetadataPath = Join-Path $repoRoot 'src/CSM.TmpeSync/Mod/ModMetadata.cs'
 $maxWaitMs = 5000
 $stepMs = 200
 $waited = 0
-while (-not (Test-Path $modMetadataPath) -and ($waited -lt $maxWaitMs)) {
+while ((-not (Test-Path -Path $modMetadataPath)) -and ($waited -lt $maxWaitMs)) {
     Start-Sleep -Milliseconds $stepMs
     $waited += $stepMs
 }
@@ -778,7 +778,7 @@ if ($change -match '^(?i)y(es)?$') {
         $newContent = [regex]::Replace(
             $content,
             '(?m)^\s*internal\s+const\s+string\s+NewVersion\s*=\s*"[^\"]*"\s*;',
-            ("        internal const string NewVersion = \"$escaped\";")
+            ("        internal const string NewVersion = ""$escaped"";")
         )
 
         if ($newContent -ne $content) {
