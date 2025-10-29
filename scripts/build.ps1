@@ -672,59 +672,6 @@ function Ensure-DirectoryExists {
     }
 }
 
-function Update-Dependencies {
-    param([hashtable]$Profile)
-
-    $gameDir = [string]$Profile.GameDirectory
-    Ensure-DirectoryExists -Path $gameDir -Description "Cities: Skylines game directory"
-
-    $managedSource = Join-Path (Join-Path $gameDir 'Cities_Data') 'Managed'
-    Ensure-DirectoryExists -Path $managedSource -Description "Cities: Skylines managed assemblies"
-
-    foreach ($file in @('ICities.dll', 'ColossalManaged.dll', 'UnityEngine.dll', 'UnityEngine.UI.dll', 'Assembly-CSharp.dll')) {
-        $sourcePath = Join-Path $managedSource $file
-        if (-not (Test-Path $sourcePath)) {
-            throw "Missing required Cities: Skylines assembly: $sourcePath"
-        }
-    }
-
-    $harmonySource = if ($Profile.ContainsKey('HarmonySourceDir')) { [string]$Profile.HarmonySourceDir } else { '' }
-    if (-not [string]::IsNullOrWhiteSpace($harmonySource)) {
-        Copy-DirectoryContents -Source $harmonySource -Destination (Join-Path $script:LibRoot 'Harmony')
-    }
-
-    $csmSource = if ($Profile.ContainsKey('CsmSourceDir')) { [string]$Profile.CsmSourceDir } else { '' }
-    if (-not [string]::IsNullOrWhiteSpace($csmSource)) {
-        Copy-DirectoryContents -Source $csmSource -Destination (Join-Path $script:LibRoot 'CSM')
-    }
-
-    $tmpeSource = if ($Profile.ContainsKey('TmpeSourceDir')) { [string]$Profile.TmpeSourceDir } else { '' }
-    if (-not [string]::IsNullOrWhiteSpace($tmpeSource)) {
-        Copy-DirectoryContents -Source $tmpeSource -Destination (Join-Path $script:LibRoot 'TMPE')
-    }
-
-    $csmLibDir = Join-Path $script:LibRoot 'CSM'
-    $csmApiPath = Join-Path $csmLibDir 'CSM.API.dll'
-    if (-not (Test-Path $csmApiPath)) {
-        $fallbackManaged = Join-Path (Join-Path $csmLibDir 'Cities_Data') 'Managed'
-        $fallbackPath = Join-Path $fallbackManaged 'CSM.API.dll'
-        if (Test-Path $fallbackPath) {
-            Copy-Item -LiteralPath $fallbackPath -Destination $csmApiPath -Force
-        }
-    }
-
-    if (-not (Test-Path $csmApiPath)) {
-        throw "CSM.API.dll not found after dependency sync: $csmApiPath"
-    }
-
-    Set-ProfileValue -Profile $Profile -Key 'CsmApiDllPath' -Value $csmApiPath
-    Set-ProfileValue -Profile $Profile -Key 'HarmonyDllDir' -Value (Join-Path $script:LibRoot 'Harmony')
-    Set-ProfileValue -Profile $Profile -Key 'TmpeDir' -Value (Join-Path $script:LibRoot 'TMPE')
-    Set-ProfileValue -Profile $Profile -Key 'CsmLibDir' -Value $csmLibDir
-
-    Write-Host "[CSM.TmpeSync] Dependencies copied into lib/." -ForegroundColor Cyan
-}
-
 function Invoke-BuildProject {
     param(
         [hashtable]$Profile,
@@ -838,56 +785,8 @@ function Get-OutputDirectory {
     return Join-Path $projectDirectory ("bin/{0}/net35" -f $Configuration)
 }
 
-function Invoke-InstallMod {
-    param(
-        [hashtable]$Profile,
-        [string]$Configuration,
-        [string]$OverrideModDirectory
-    )
-
-    $targetDirectory = if (-not [string]::IsNullOrWhiteSpace($OverrideModDirectory)) { $OverrideModDirectory } elseif ($Profile.ContainsKey('ModDirectory')) { [string]$Profile.ModDirectory } else { '' }
-
-    if ([string]::IsNullOrWhiteSpace($targetDirectory)) {
-        throw "No mod installation directory configured. Run build.ps1 -Configure or pass -ModDirectory."
-    }
-
-    $targetDirectory = Resolve-AbsolutePath -Path $targetDirectory
-
-    $outputDir = Get-OutputDirectory -Configuration $Configuration
-    Ensure-DirectoryExists -Path $outputDir -Description "Build output"
-
-    $assemblies = Get-ChildItem -LiteralPath $outputDir -Filter 'CSM.TmpeSync*.dll' -ErrorAction Stop
-    if (-not $assemblies) {
-        throw "No CSM.TmpeSync assemblies found in $outputDir. Build the project first."
-    }
-
-    $expectedAssemblies = Get-ModAssemblyNames
-    if ($expectedAssemblies -and $expectedAssemblies.Count -gt 0) {
-        $presentAssemblyNames = $assemblies | ForEach-Object { $_.Name }
-        $missingAssemblies = @()
-
-        foreach ($expected in $expectedAssemblies) {
-            if ($presentAssemblyNames -notcontains $expected) {
-                $candidate = Join-Path $outputDir $expected
-                if (-not (Test-Path $candidate)) {
-                    $missingAssemblies += $expected
-                }
-            }
-        }
-
-        if ($missingAssemblies.Count -gt 0) {
-            throw "Missing expected assemblies in ${outputDir}: $($missingAssemblies -join ', '). Ensure the build completed successfully."
-        }
-
-        $sortedAssemblies = $presentAssemblyNames | Sort-Object -Unique
-        Write-Host "[CSM.TmpeSync] Installing assemblies: $($sortedAssemblies -join ', ')" -ForegroundColor Cyan
-    }
-
-    Write-Host "[CSM.TmpeSync] Installing build to $targetDirectory" -ForegroundColor Cyan
-    Copy-DirectoryContents -Source $outputDir -Destination $targetDirectory -ExcludeExtensions '.pdb'
-
-    Write-Host "[CSM.TmpeSync] Installation complete." -ForegroundColor Green
-}
+. (Join-Path $PSScriptRoot 'update-build.ps1')
+. (Join-Path $PSScriptRoot 'install-build.ps1')
 
 if (-not ($Update -or $Build -or $Install -or $Configure)) {
     Write-Host "[CSM.TmpeSync] No action specified. Use -Update, -Build, -Install and/or -Configure." -ForegroundColor Yellow
