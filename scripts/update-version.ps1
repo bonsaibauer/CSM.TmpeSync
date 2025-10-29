@@ -218,6 +218,7 @@ function Update-ModMetadataFile {
     param(
         [string]$RepoRoot,
         [hashtable]$ReleaseRefs,
+        [hashtable]$LegacyReleaseRefs,
         [switch]$DryRun
     )
 
@@ -242,11 +243,13 @@ function Update-ModMetadataFile {
         }
     }
 
+    if ($null -eq $LegacyReleaseRefs) { $LegacyReleaseRefs = @{} }
+
     $entries = @(
-        @{ Name = 'CSM.TmpeSync'; Const = 'LatestCsmTmpeSyncReleaseTag'; Description = 'CSM TM:PE Sync' },
-        @{ Name = 'TMPE'; Const = 'LatestTmpeReleaseTag'; Description = 'Traffic Manager: President Edition' },
-        @{ Name = 'CSM'; Const = 'LatestCsmReleaseTag'; Description = 'Cities: Skylines Multiplayer' },
-        @{ Name = 'CitiesHarmony'; Const = 'LatestCitiesHarmonyReleaseTag'; Description = 'Cities Harmony' }
+        @{ Name = 'CSM.TmpeSync'; LatestConst = 'LatestCsmTmpeSyncReleaseTag'; LegacyConst = 'LegacyCsmTmpeSyncReleaseTags'; Description = 'CSM TM:PE Sync' },
+        @{ Name = 'TMPE'; LatestConst = 'LatestTmpeReleaseTag'; LegacyConst = 'LegacyTmpeReleaseTags'; Description = 'Traffic Manager: President Edition' },
+        @{ Name = 'CSM'; LatestConst = 'LatestCsmReleaseTag'; LegacyConst = 'LegacyCsmReleaseTags'; Description = 'Cities: Skylines Multiplayer' },
+        @{ Name = 'CitiesHarmony'; LatestConst = 'LatestCitiesHarmonyReleaseTag'; LegacyConst = 'LegacyCitiesHarmonyReleaseTags'; Description = 'Cities Harmony' }
     )
 
     $escapeValue = {
@@ -263,6 +266,21 @@ function Update-ModMetadataFile {
         $m = [regex]::Match($text, $pattern)
         if ($m.Success) { return $m.Groups[1].Value }
         return ''
+    }
+
+    $extractExistingArray = {
+        param([string]$constName, [string]$text)
+        if ([string]::IsNullOrEmpty($text)) { return @() }
+        $pattern = [string]::Format('internal\s+static\s+readonly\s+string\[\]\s+{0}\s*=\s*new\s*\[\]\s*\{{(.*?)\}};', [regex]::Escape($constName))
+        $m = [regex]::Match($text, $pattern, [System.Text.RegularExpressions.RegexOptions]::Singleline)
+        if (-not $m.Success) { return @() }
+        $content = $m.Groups[1].Value
+        $results = @()
+        foreach ($match in [regex]::Matches($content, '"((?:\\.|[^"\\])*)"')) {
+            $value = $match.Groups[1].Value
+            $results += [System.Text.RegularExpressions.Regex]::Unescape($value)
+        }
+        return $results
     }
 
     $escapedVersion = & $escapeValue $existingVersion
@@ -284,7 +302,7 @@ function Update-ModMetadataFile {
     )
 
     foreach ($entry in $entries) {
-        $currentValue = & $extractExisting $entry.Const $currentText
+        $currentValue = & $extractExisting $entry.LatestConst $currentText
         $value = $ReleaseRefs[$entry.Name]
         if ([string]::IsNullOrEmpty($value)) {
             $value = $currentValue
@@ -293,7 +311,43 @@ function Update-ModMetadataFile {
         $lines += '        /// <summary>'
         $lines += "        /// Latest release tag for $($entry.Description)."
         $lines += '        /// </summary>'
-        $lines += "        internal const string $($entry.Const) = ""$escapedValue"";"
+        $lines += "        internal const string $($entry.LatestConst) = ""$escapedValue"";"
+        $lines += ''
+
+        $legacyValues = @()
+        if ($LegacyReleaseRefs.ContainsKey($entry.Name)) {
+            $legacyValues = $LegacyReleaseRefs[$entry.Name]
+        }
+        if ($null -eq $legacyValues) { $legacyValues = @() }
+        if ($legacyValues.Count -eq 0) {
+            $legacyValues = & $extractExistingArray $entry.LegacyConst $currentText
+        }
+
+        if ($value -and $legacyValues) {
+            $legacyValues = $legacyValues | Where-Object { $_ -ne $value }
+        }
+
+        $escapedLegacy = @()
+        foreach ($legacy in $legacyValues) {
+            if (-not [string]::IsNullOrEmpty($legacy)) {
+                $escapedLegacy += & $escapeValue $legacy
+            }
+        }
+
+        $lines += '        /// <summary>'
+        $lines += "        /// Legacy release tags for $($entry.Description) (excluding the latest)."
+        $lines += '        /// </summary>'
+        if ($escapedLegacy.Count -eq 0) {
+            $lines += "        internal static readonly string[] $($entry.LegacyConst) = new string[0];"
+        }
+        else {
+            $lines += "        internal static readonly string[] $($entry.LegacyConst) = new[]"
+            $lines += '        {'
+            foreach ($legacyEscaped in $escapedLegacy) {
+                $lines += "            \"$legacyEscaped\",";
+            }
+            $lines += '        };'
+        }
         $lines += ''
     }
 
@@ -444,7 +498,7 @@ function Get-LatestReleaseTag {
     Write-Host "Prüfe neuesten Release für $($parsed.Owner)/$($parsed.Repo) …"
 
     try {
-        $response = Invoke-WebRequest -Uri $apiUrl -Headers @{ 'Accept' = 'application/vnd.github+json' } -ErrorAction Stop
+        $response = Invoke-WebRequest -Uri $apiUrl -Headers @{ 'Accept' = 'application/vnd.github+json'; 'User-Agent' = 'CSM.TmpeSync-update-script' } -ErrorAction Stop
     }
     catch [System.Net.WebException] {
         $webEx = $_.Exception
@@ -485,6 +539,134 @@ function Get-LatestReleaseTag {
         Write-Host "Konnte API-Antwort nicht lesen."
         return ''
     }
+}
+
+function Get-AllReleaseTags {
+    param(
+        [string]$RepoUrl,
+        [switch]$DryRun
+    )
+
+    $parsed = Parse-GitHubOwnerRepo -Url $RepoUrl
+    if ($null -eq $parsed -or $parsed.Host.ToLowerInvariant() -ne 'github.com') {
+        return @()
+    }
+
+    $owner = $parsed.Owner
+    $repo = $parsed.Repo
+    $page = 1
+    $perPage = 100
+    $tags = @()
+
+    Write-Host "Rufe alle Release-Tags für $owner/$repo ab …"
+
+    while ($true) {
+        $apiUrl = "https://api.github.com/repos/$owner/$repo/releases?per_page=$perPage&page=$page"
+        try {
+            $response = Invoke-WebRequest -Uri $apiUrl -Headers @{ 'Accept' = 'application/vnd.github+json'; 'User-Agent' = 'CSM.TmpeSync-update-script' } -ErrorAction Stop
+        }
+        catch [System.Net.WebException] {
+            $webEx = $_.Exception
+            if ($webEx.Response -and $webEx.Response.StatusCode.value__ -eq 404) {
+                Write-Host "Keine Releases für $owner/$repo gefunden."
+                return @()
+            }
+            Write-Host "Netzwerkfehler beim Abruf der Releases für $owner/$repo."
+            return @()
+        }
+        catch {
+            Write-Host "Unerwarteter Fehler beim Abruf der Releases für $owner/$repo: $($_.Exception.Message)"
+            return @()
+        }
+
+        if ($null -eq $response -or $response.StatusCode -ne 200) {
+            break
+        }
+
+        $data = @()
+        try {
+            $json = $response.Content | ConvertFrom-Json
+            if ($null -ne $json) {
+                if ($json -is [System.Array]) {
+                    $data = $json
+                }
+                else {
+                    $data = @($json)
+                }
+            }
+        }
+        catch {
+            Write-Host "Konnte API-Antwort für alle Releases nicht lesen."
+            break
+        }
+
+        if ($data.Count -eq 0) {
+            break
+        }
+
+        foreach ($release in $data) {
+            if ($null -ne $release -and $release.PSObject.Properties.Match('tag_name').Count -gt 0) {
+                $tag = [string]$release.tag_name
+                if (-not [string]::IsNullOrWhiteSpace($tag)) {
+                    $tags += $tag.Trim()
+                }
+            }
+        }
+
+        if ($data.Count -lt $perPage) {
+            break
+        }
+
+        $page += 1
+        if ($page -gt 10) {
+            Write-Host "Beende Abruf nach 10 Seiten, um übermäßige API-Aufrufe zu vermeiden."
+            break
+        }
+    }
+
+    $unique = $tags | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | Select-Object -Unique
+    $result = @()
+    foreach ($item in $unique) {
+        $result += [string]$item
+    }
+    return $result
+}
+
+function Get-LegacyReleaseRefs {
+    param(
+        [hashtable]$LatestReleaseRefs,
+        [switch]$DryRun
+    )
+
+    $legacyRefs = @{}
+
+    foreach ($repo in $Script:ManageSubtreeRepos) {
+        $name = $repo.Name
+        $url = $repo.Url
+        $allTags = Get-AllReleaseTags -RepoUrl $url -DryRun:$DryRun
+        $latest = ''
+        if ($LatestReleaseRefs.ContainsKey($name)) {
+            $latest = $LatestReleaseRefs[$name]
+        }
+        if (-not [string]::IsNullOrEmpty($latest)) {
+            $allTags = $allTags | Where-Object { $_ -ne $latest }
+        }
+        $legacyRefs[$name] = @($allTags)
+    }
+
+    if (-not [string]::IsNullOrWhiteSpace($Script:SelfRepoUrl)) {
+        $selfTags = Get-AllReleaseTags -RepoUrl $Script:SelfRepoUrl -DryRun:$DryRun
+        $selfLatest = ''
+        if ($LatestReleaseRefs.ContainsKey('CSM.TmpeSync')) {
+            $selfLatest = $LatestReleaseRefs['CSM.TmpeSync']
+        }
+        if (-not [string]::IsNullOrEmpty($selfLatest)) {
+            $selfTags = $selfTags | Where-Object { $_ -ne $selfLatest }
+        }
+        $legacyRefs['CSM.TmpeSync'] = @($selfTags)
+    }
+
+    return $legacyRefs
 }
 
 function Test-SubtreeExists {
@@ -851,7 +1033,9 @@ if ($null -eq $releaseRefs) {
     $releaseRefs = @{}
 }
 
-Update-ModMetadataFile -RepoRoot $repoRoot -ReleaseRefs $releaseRefs -DryRun:$SubtreesDryRun
+$legacyReleaseRefs = Get-LegacyReleaseRefs -LatestReleaseRefs $releaseRefs -DryRun:$SubtreesDryRun
+
+Update-ModMetadataFile -RepoRoot $repoRoot -ReleaseRefs $releaseRefs -LegacyReleaseRefs $legacyReleaseRefs -DryRun:$SubtreesDryRun
 
 # --- Interactive update of NewVersion based on LatestCsmTmpeSyncReleaseTag ---
 $modMetadataPath = Join-Path $repoRoot 'src/CSM.TmpeSync/Mod/ModMetadata.cs'
