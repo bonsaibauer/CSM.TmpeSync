@@ -1,0 +1,28 @@
+name: "Version mismatch"
+description: "Version mismatch? Attach the log snippet."
+title: "Version mismatch: "
+labels:
+  - version-mismatch
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Check the log and paste the lines showing the mismatch.
+  - type: input
+    id: location
+    attributes:
+      label: Where did it happen?
+      placeholder: Service or package name.
+  - type: textarea
+    id: log
+    attributes:
+      label: Log snippet
+      description: Copy the lines with the version mismatch.
+      render: shell
+      placeholder: |
+        [2024-05-01 10:15:03] Expected 1.4.0, found 1.3.2
+  - type: textarea
+    id: note
+    attributes:
+      label: Short note
+      description: What is the impact?
