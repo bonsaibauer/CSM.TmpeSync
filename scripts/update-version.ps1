@@ -649,14 +649,28 @@ function Vendor-SubmodulesRecursively {
             $isInitialized = Test-SubtreeInitialized -PrefixRelative $subRelative
         }
 
-        if ($hasExisting -and $isInitialized) {
-            Invoke-SubtreePull -PrefixRelative $subRelative -Url $subUrl -Branch $branch -Squash:$Squash -DryRun:$DryRun
-            $changed = Commit-PrefixIfNeeded -PrefixRelative $subRelative -Message "chore(subtree): pull $subUrl ($branch) -> $subRelative" -DryRun:$DryRun
-            if (-not $changed) {
-                Commit-RepoIfDirty -Message "chore(subtree): finalize pull $subUrl ($branch)" -DryRun:$DryRun | Out-Null
+        $shouldAdd = -not ($hasExisting -and $isInitialized)
+
+        if (-not $shouldAdd) {
+            try {
+                Invoke-SubtreePull -PrefixRelative $subRelative -Url $subUrl -Branch $branch -Squash:$Squash -DryRun:$DryRun
+                $changed = Commit-PrefixIfNeeded -PrefixRelative $subRelative -Message "chore(subtree): pull $subUrl ($branch) -> $subRelative" -DryRun:$DryRun
+                if (-not $changed) {
+                    Commit-RepoIfDirty -Message "chore(subtree): finalize pull $subUrl ($branch)" -DryRun:$DryRun | Out-Null
+                }
+            }
+            catch {
+                if ($_.Exception.Message -match "was never added") {
+                    Write-Host "git subtree meldet: '$subRelative' wurde noch nicht hinzugefügt – falle zurück auf subtree add."
+                    $shouldAdd = $true
+                }
+                else {
+                    throw
+                }
             }
         }
-        else {
+
+        if ($shouldAdd) {
             if ($hasExisting) {
                 Write-Host "Prefix '$subRelative' wurde noch nicht als Subtree hinzugefügt – verwende subtree add."
             }
@@ -706,14 +720,37 @@ function Invoke-ManageSubtrees {
 
                 Write-Host "Repository: $name  $url  (Ref: $branch)"
 
-                if (Test-SubtreeExists -FullPath $prefixFull) {
-                    Invoke-SubtreePull -PrefixRelative $prefixRelative -Url $url -Branch $branch -Squash:$squash -DryRun:$DryRun
-                    $changed = Commit-PrefixIfNeeded -PrefixRelative $prefixRelative -Message "chore(subtree): pull $url ($branch) -> $prefixRelative" -DryRun:$DryRun
-                    if (-not $changed) {
-                        Commit-RepoIfDirty -Message "chore(subtree): finalize pull $url ($branch)" -DryRun:$DryRun | Out-Null
+                $hasExisting = Test-SubtreeExists -FullPath $prefixFull
+                $isInitialized = $false
+                if ($hasExisting) {
+                    $isInitialized = Test-SubtreeInitialized -PrefixRelative $prefixRelative
+                }
+
+                $shouldAdd = -not ($hasExisting -and $isInitialized)
+
+                if (-not $shouldAdd) {
+                    try {
+                        Invoke-SubtreePull -PrefixRelative $prefixRelative -Url $url -Branch $branch -Squash:$squash -DryRun:$DryRun
+                        $changed = Commit-PrefixIfNeeded -PrefixRelative $prefixRelative -Message "chore(subtree): pull $url ($branch) -> $prefixRelative" -DryRun:$DryRun
+                        if (-not $changed) {
+                            Commit-RepoIfDirty -Message "chore(subtree): finalize pull $url ($branch)" -DryRun:$DryRun | Out-Null
+                        }
+                    }
+                    catch {
+                        if ($_.Exception.Message -match "was never added") {
+                            Write-Host "git subtree meldet: '$prefixRelative' wurde noch nicht hinzugefügt – falle zurück auf subtree add."
+                            $shouldAdd = $true
+                        }
+                        else {
+                            throw
+                        }
                     }
                 }
-                else {
+
+                if ($shouldAdd) {
+                    if ($hasExisting) {
+                        Write-Host "Prefix '$prefixRelative' wurde noch nicht als Subtree hinzugefügt – verwende subtree add."
+                    }
                     Invoke-SubtreeAdd -PrefixRelative $prefixRelative -Url $url -Branch $branch -Squash:$squash -DryRun:$DryRun
                     $changed = Commit-PrefixIfNeeded -PrefixRelative $prefixRelative -Message "chore(subtree): add $url ($branch) -> $prefixRelative" -DryRun:$DryRun
                     if (-not $changed) {
