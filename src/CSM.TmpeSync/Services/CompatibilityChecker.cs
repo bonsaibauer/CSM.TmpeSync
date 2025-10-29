@@ -8,6 +8,7 @@ using System.Text.RegularExpressions;
 using ColossalFramework.Plugins;
 using CSM.TmpeSync.Mod;
 using CSM.TmpeSync.Messages.System;
+using PluginInfo = ColossalFramework.Plugins.PluginManager.PluginInfo;
 
 namespace CSM.TmpeSync.Services
 {
