@@ -873,6 +873,27 @@ if (-not [string]::IsNullOrWhiteSpace($ModDirectory)) {
 if ($Update) {
     $configuredProfile = Ensure-ConfiguredProfile -Settings $settings -ProfileName $profileName
     Update-Dependencies -Profile $configuredProfile
+
+    $updateScriptParams = @{
+        SkipBuildStep      = $true
+        Configure          = $Configure
+        Profile            = $profileName
+        GameDirectory      = $GameDirectory
+        SteamModsDir       = $SteamModsDir
+        HarmonySourceDir   = $HarmonySourceDir
+        CsmSourceDir       = $CsmSourceDir
+        TmpeSourceDir      = $TmpeSourceDir
+        HarmonyDllDir      = $HarmonyDllDir
+        CsmApiDllPath      = $CsmApiDllPath
+        TmpeDir            = $TmpeDir
+        ModDirectory       = $ModDirectory
+        ModRootDirectory   = $ModRootDirectory
+        SubtreesNoSquash   = $false
+        SubtreesDryRun     = $false
+        SubtreesAutoStash  = $false
+    }
+
+    Invoke-CsmTmpeSyncUpdate @updateScriptParams
 }
 
 if ($Build) {
