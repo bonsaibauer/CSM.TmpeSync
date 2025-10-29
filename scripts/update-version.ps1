@@ -320,6 +320,29 @@ function Update-ModMetadataFile {
     Commit-PrefixIfNeeded -PrefixRelative $prefixRelative -Message 'chore: update dependency release tags' -DryRun:$DryRun | Out-Null
 }
 
+function Get-ReleaseRefs {
+    param(
+        [switch]$DryRun
+    )
+
+    $releaseRefs = @{}
+
+    foreach ($repo in $Script:ManageSubtreeRepos) {
+        $name = $repo.Name
+        $tag = ''
+        if ($repo.ContainsKey('UseLatestRelease') -and $repo.UseLatestRelease) {
+            $tag = Get-LatestReleaseTag -RepoUrl $repo.Url -DryRun:$DryRun
+        }
+        $releaseRefs[$name] = $tag
+    }
+
+    if (-not [string]::IsNullOrWhiteSpace($Script:SelfRepoUrl)) {
+        $releaseRefs['CSM.TmpeSync'] = Get-LatestReleaseTag -RepoUrl $Script:SelfRepoUrl -DryRun:$DryRun
+    }
+
+    return $releaseRefs
+}
+
 function Parse-GitHubOwnerRepo {
     param([string]$Url)
 
@@ -706,13 +729,13 @@ function Invoke-ManageSubtrees {
                 New-Item -ItemType Directory -Path $basePrefixFull -Force | Out-Null
             }
             Write-Host "Starte Subtree-Update unter '$($Script:BasePrefixRelative)' ..."
-            $releaseRefs = @{}
+            $releaseRefs = Get-ReleaseRefs -DryRun:$DryRun
             foreach ($repo in $Script:ManageSubtreeRepos) {
                 $name = $repo.Name
                 $url = $repo.Url
                 $releaseTag = ''
-                if ($repo.UseLatestRelease) {
-                    $releaseTag = Get-LatestReleaseTag -RepoUrl $url -DryRun:$DryRun
+                if ($releaseRefs.ContainsKey($name)) {
+                    $releaseTag = $releaseRefs[$name]
                 }
                 $branch = if (-not [string]::IsNullOrEmpty($releaseTag)) { $releaseTag } elseif ($repo.ContainsKey('Branch') -and $repo.Branch) { $repo.Branch } else { Get-DefaultBranch -RepoUrl $url -DryRun:$DryRun }
                 $prefixFull = Join-Path $basePrefixFull $name
@@ -763,12 +786,8 @@ function Invoke-ManageSubtrees {
                 Vendor-SubmodulesRecursively -RepoRoot $RepoRoot -RootPrefixFull $prefixFull -ParentRepoUrl $url -Squash:$squash -DryRun:$DryRun
             }
 
-            if (-not [string]::IsNullOrWhiteSpace($Script:SelfRepoUrl)) {
-                $releaseRefs['CSM.TmpeSync'] = Get-LatestReleaseTag -RepoUrl $Script:SelfRepoUrl -DryRun:$DryRun
-            }
-
-            Update-ModMetadataFile -RepoRoot $RepoRoot -ReleaseRefs $releaseRefs -DryRun:$DryRun
             Write-Host 'Fertig.'
+            return $releaseRefs
         }
         finally {
             Invoke-MaybeAutoStashPop -DidStash:$($stashResult.DidStash) -DryRun:$DryRun
@@ -810,7 +829,29 @@ if ([string]::IsNullOrEmpty($scriptPath)) { throw "Cannot resolve script path. R
 $scriptDir = Split-Path -Path $scriptPath -Parent
 $repoRoot  = Split-Path -Path $scriptDir -Parent
 
-Invoke-ManageSubtrees -RepoRoot $repoRoot -NoSquash:$SubtreesNoSquash -DryRun:$SubtreesDryRun -AutoStash:$SubtreesAutoStash
+$subtreePrompt = "Soll der Ordner 'subtrees/' erstellt oder aktualisiert werden? (yes/no)"
+$updateSubtreesResponse = Read-Host $subtreePrompt
+$shouldUpdateSubtrees = $true
+if (-not [string]::IsNullOrWhiteSpace($updateSubtreesResponse)) {
+    $shouldUpdateSubtrees = $updateSubtreesResponse -match '^(?i)y(es)?$'
+}
+
+$releaseRefs = $null
+if ($shouldUpdateSubtrees) {
+    $releaseRefs = Invoke-ManageSubtrees -RepoRoot $repoRoot -NoSquash:$SubtreesNoSquash -DryRun:$SubtreesDryRun -AutoStash:$SubtreesAutoStash
+} else {
+    Write-Host "Überspringe Erstellung/Aktualisierung von 'subtrees/'."
+}
+
+if ($null -eq $releaseRefs) {
+    $releaseRefs = Get-ReleaseRefs -DryRun:$SubtreesDryRun
+}
+
+if ($null -eq $releaseRefs) {
+    $releaseRefs = @{}
+}
+
+Update-ModMetadataFile -RepoRoot $repoRoot -ReleaseRefs $releaseRefs -DryRun:$SubtreesDryRun
 
 # --- Interactive update of NewVersion based on LatestCsmTmpeSyncReleaseTag ---
 $modMetadataPath = Join-Path $repoRoot 'src/CSM.TmpeSync/Mod/ModMetadata.cs'
