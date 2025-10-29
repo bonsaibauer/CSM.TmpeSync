@@ -785,8 +785,8 @@ function Get-OutputDirectory {
     return Join-Path $projectDirectory ("bin/{0}/net35" -f $Configuration)
 }
 
-. (Join-Path $PSScriptRoot 'update-build.ps1')
-. (Join-Path $PSScriptRoot 'install-build.ps1')
+. (Join-Path $PSScriptRoot 'update.ps1')
+. (Join-Path $PSScriptRoot 'install.ps1')
 
 if (-not ($Update -or $Build -or $Install -or $Configure)) {
     Write-Host "[CSM.TmpeSync] No action specified. Use -Update, -Build, -Install and/or -Configure." -ForegroundColor Yellow
