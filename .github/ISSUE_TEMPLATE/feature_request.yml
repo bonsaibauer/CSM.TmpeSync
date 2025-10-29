@@ -1,0 +1,22 @@
+name: "Feature"
+description: "Kurzer Wunsch für ein neues Feature."
+title: "Feature: "
+labels:
+  - enhancement
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Halte dich kurz und sag was du brauchst.
+  - type: input
+    id: idee
+    attributes:
+      label: Was soll dazu kommen?
+      placeholder: Ein Satz reicht.
+    validations:
+      required: true
+  - type: textarea
+    id: nutzen
+    attributes:
+      label: Warum?
+      description: Welchen Vorteil bringt es?
