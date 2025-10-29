@@ -472,6 +472,25 @@ function Test-SubtreeExists {
     return $items -ne $null
 }
 
+function Test-SubtreeInitialized {
+    param([string]$PrefixRelative)
+
+    $candidates = @($PrefixRelative)
+    if ($PrefixRelative -match '\\') {
+        $candidates += ($PrefixRelative -replace '\\', '/')
+    }
+
+    foreach ($candidate in $candidates) {
+        $needle = "git-subtree-dir: $candidate"
+        $result = Invoke-CommandHelper -Command @('git', 'log', '-n', '1', '--grep', $needle, '--format=%H') -Check:$false -PrintOutput:$false
+        if (-not [string]::IsNullOrWhiteSpace($result.StdOut)) {
+            return $true
+        }
+    }
+
+    return $false
+}
+
 function Invoke-SubtreeAdd {
     param(
         [string]$PrefixRelative,
@@ -624,7 +643,13 @@ function Vendor-SubmodulesRecursively {
             New-Item -ItemType Directory -Path $parentDir -Force | Out-Null
         }
 
-        if (Test-SubtreeExists -FullPath $subFull) {
+        $hasExisting = Test-SubtreeExists -FullPath $subFull
+        $isInitialized = $false
+        if ($hasExisting) {
+            $isInitialized = Test-SubtreeInitialized -PrefixRelative $subRelative
+        }
+
+        if ($hasExisting -and $isInitialized) {
             Invoke-SubtreePull -PrefixRelative $subRelative -Url $subUrl -Branch $branch -Squash:$Squash -DryRun:$DryRun
             $changed = Commit-PrefixIfNeeded -PrefixRelative $subRelative -Message "chore(subtree): pull $subUrl ($branch) -> $subRelative" -DryRun:$DryRun
             if (-not $changed) {
@@ -632,6 +657,9 @@ function Vendor-SubmodulesRecursively {
             }
         }
         else {
+            if ($hasExisting) {
+                Write-Host "Prefix '$subRelative' wurde noch nicht als Subtree hinzugefügt – verwende subtree add."
+            }
             Invoke-SubtreeAdd -PrefixRelative $subRelative -Url $subUrl -Branch $branch -Squash:$Squash -DryRun:$DryRun
             $changed = Commit-PrefixIfNeeded -PrefixRelative $subRelative -Message "chore(subtree): add $subUrl ($branch) -> $subRelative" -DryRun:$DryRun
             if (-not $changed) {
