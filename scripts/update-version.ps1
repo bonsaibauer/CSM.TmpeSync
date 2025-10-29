@@ -500,8 +500,9 @@ function Invoke-SubtreeAdd {
         [switch]$DryRun
     )
 
+    $prefixArg = $PrefixRelative -replace '\\', '/'
     Ensure-CleanForSubtree -StepDescription "add $PrefixRelative" -DryRun:$DryRun
-    $args = @('git', 'subtree', 'add', "--prefix=$PrefixRelative", $Url, $Branch)
+    $args = @('git', 'subtree', 'add', "--prefix=$prefixArg", $Url, $Branch)
     if ($Squash) { $args += '--squash' }
     Write-Host "==> ADD subtree: $PrefixRelative ($Url@$Branch)"
     Invoke-CommandHelper -Command $args -DryRun:$DryRun | Out-Null
@@ -516,8 +517,9 @@ function Invoke-SubtreePull {
         [switch]$DryRun
     )
 
+    $prefixArg = $PrefixRelative -replace '\\', '/'
     Ensure-CleanForSubtree -StepDescription "pull $PrefixRelative" -DryRun:$DryRun
-    $args = @('git', 'subtree', 'pull', "--prefix=$PrefixRelative", $Url, $Branch)
+    $args = @('git', 'subtree', 'pull', "--prefix=$prefixArg", $Url, $Branch)
     if ($Squash) { $args += '--squash' }
     Write-Host "==> PULL subtree: $PrefixRelative ($Url@$Branch)"
     Invoke-CommandHelper -Command $args -DryRun:$DryRun | Out-Null
