@@ -1,0 +1,28 @@
+name: "Bug"
+description: "Kurzer Bericht über einen Fehler."
+title: "Bug: "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Bitte nur das Wichtigste eintragen.
+  - type: input
+    id: kurz
+    attributes:
+      label: Was ist kaputt?
+      placeholder: Kurzer Satz.
+    validations:
+      required: true
+  - type: textarea
+    id: details
+    attributes:
+      label: Was passiert?
+      description: Nur die wichtigsten Punkte.
+  - type: textarea
+    id: log
+    attributes:
+      label: Logauszug
+      description: Relevante Zeilen aus dem Log.
+      render: shell
