@@ -1033,6 +1033,11 @@ function Invoke-ManageSubtrees {
     }
 }
 
+if ($MyInvocation.InvocationName -eq '.') {
+    # Skip main execution path when sourced from another script (e.g. build.ps1)
+    return
+}
+
 # --- Build step ---
 $buildScript = Join-Path $PSScriptRoot 'build.ps1'
 if (-not (Test-Path $buildScript)) {
