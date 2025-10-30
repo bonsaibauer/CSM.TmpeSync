@@ -82,7 +82,7 @@ namespace CSM.TmpeSync.Services.UI
             ApplyActionButtonState();
 
             _closeButton = this.CreateButton("Close", new Vector2(buttonX, closeButtonY), width: (int)buttonWidth, height: (int)buttonHeight);
-            _closeButton.eventClicked += (_, __) => Hide();
+            _closeButton.eventClicked += (_, __) => ClosePanel();
         }
 
         private void SetTitle(string title)
@@ -129,6 +129,18 @@ namespace CSM.TmpeSync.Services.UI
 
             if (hasAction)
                 _actionButton.text = _actionText;
+        }
+
+        private void ClosePanel()
+        {
+            try
+            {
+                Hide();
+            }
+            finally
+            {
+                UnityEngine.Object.Destroy(gameObject);
+            }
         }
 
         private void OpenActionLink()

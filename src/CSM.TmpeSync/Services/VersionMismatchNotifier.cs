@@ -14,9 +14,6 @@ namespace CSM.TmpeSync.Services
         private const string PerspectiveHost = "Host";
         private const string PerspectiveClient = "Client";
 
-        private static readonly object SyncRoot = new object();
-        private static readonly HashSet<string> DisplayedContexts = new HashSet<string>();
-
         internal static void NotifyServerMismatch(int senderId, string reportedClientVersion, string serverVersion)
         {
             var context = new VersionMismatchContext
@@ -98,12 +95,6 @@ namespace CSM.TmpeSync.Services
             if (content.Message == null)
                 return;
 
-            lock (SyncRoot)
-            {
-                if (!DisplayedContexts.Add(key))
-                    return;
-            }
-
             ThreadPool.QueueUserWorkItem(_ =>
             {
                 var perspectiveLabel = IsNullOrWhiteSpace(perspective) ? "Unknown" : perspective;
@@ -116,7 +107,7 @@ namespace CSM.TmpeSync.Services
                     {
                         try
                         {
-                            var panel = PanelManager.ShowPanel<VersionMismatchPanel>();
+                            var panel = PanelManager.CreatePanel<VersionMismatchPanel>();
                             if (!panel)
                                 return;
 

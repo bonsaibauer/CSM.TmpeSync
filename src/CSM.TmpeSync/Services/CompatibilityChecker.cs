@@ -27,9 +27,6 @@ namespace CSM.TmpeSync.Services
 
         private static readonly Regex VersionPattern = new Regex("^\\D*(\\d+(?:\\.\\d+)*)", RegexOptions.Compiled);
 
-        private static readonly object WarningSyncRoot = new object();
-        private static bool _dependencyWarningsScheduled;
-
         internal static string LocalVersion => ModMetadata.NewVersion;
 
         internal static void LogMetadataSummary()
@@ -448,14 +445,6 @@ namespace CSM.TmpeSync.Services
 
         private static void ScheduleDependencyWarnings()
         {
-            lock (WarningSyncRoot)
-            {
-                if (_dependencyWarningsScheduled)
-                    return;
-
-                _dependencyWarningsScheduled = true;
-            }
-
             ThreadPool.QueueUserWorkItem(_ =>
             {
                 try
