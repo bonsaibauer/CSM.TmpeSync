@@ -77,13 +77,16 @@ namespace CSM.TmpeSync.Services
 
         internal static void HandleHandlersRegistered()
         {
+            var roleDescription = CsmBridge.DescribeCurrentRole();
+            Log.HandleRoleChanged(roleDescription);
+
             if (CsmBridge.IsServerInstance())
             {
-                Log.Info(LogCategory.Network, "Version compatibility handshake ready | role=Server version={0}", LocalVersion);
+                Log.Info(LogCategory.Network, "Version compatibility handshake ready | role={0} version={1}", roleDescription, LocalVersion);
             }
             else
             {
-                Log.Info(LogCategory.Network, "Dispatching version compatibility request | localVersion={0}", LocalVersion);
+                Log.Info(LogCategory.Network, "Dispatching version compatibility request | role={0} localVersion={1}", roleDescription, LocalVersion);
                 SendVersionRequest();
             }
 

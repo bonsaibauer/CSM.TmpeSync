@@ -50,6 +50,25 @@ namespace CSM.TmpeSync.Handlers.System
             {
                 VersionMismatchNotifier.NotifyServerMismatch(senderId, clientVersion, serverVersion);
                 FeatureBootstrapper.SuspendForVersionMismatch(clientVersion);
+                try
+                {
+                    CsmBridge.SendToAll(new VersionMismatchBroadcast
+                    {
+                        ServerVersion = serverVersion,
+                        ReportedClientVersion = clientVersion,
+                        TargetClientId = senderId
+                    });
+                }
+                catch (Exception ex)
+                {
+                    Log.Warn(
+                        LogCategory.Network,
+                        "Failed to broadcast version mismatch notification | targetId={0} clientVersion={1} serverVersion={2} error={3}",
+                        senderId,
+                        clientVersion ?? "<null>",
+                        serverVersion ?? "<null>",
+                        ex);
+                }
             }
 
             try

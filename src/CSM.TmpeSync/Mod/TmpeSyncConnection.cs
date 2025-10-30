@@ -37,6 +37,15 @@ namespace CSM.TmpeSync.Mod
         {
             using (CsmBridge.StartIgnore())
             {
+                var currentRole = CsmBridge.DescribeCurrentRole();
+                if (CsmBridge.IsServerInstance())
+                {
+                    Log.StartServerSessionLog();
+                }
+                else
+                {
+                    Log.HandleRoleChanged(currentRole);
+                }
                 Log.Info(LogCategory.Network, "Registering TM:PE synchronization handlers via CSM connection.");
                 FeatureBootstrapper.Register();
 
@@ -58,9 +67,8 @@ namespace CSM.TmpeSync.Mod
             using (CsmBridge.StartIgnore())
             {
                 Log.Info(LogCategory.Network, "Unregistering TM:PE synchronization handlers via CSM connection.");
-                
+                Log.HandleRoleChanged("Client");
             }
         }
     }
 }
-

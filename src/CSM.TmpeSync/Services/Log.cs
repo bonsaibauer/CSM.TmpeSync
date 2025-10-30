@@ -35,7 +35,7 @@ namespace CSM.TmpeSync.Services
         private static readonly TimeSpan LogOffset;
         private static readonly bool DebugEnabled;
         private const string LogFilePrefix = "log";
-        private const string DefaultRoleTag = "client";
+        private const string DefaultRoleTag = "Client";
         private static string _activeRoleTag = DefaultRoleTag;
         private static bool _initialised;
         private static string _dailyLogDateStamp = string.Empty;
@@ -107,7 +107,7 @@ namespace CSM.TmpeSync.Services
 
         internal static void StartServerSessionLog()
         {
-            if (SetActiveRole("host", out var previousRole, out var currentRole, out var path))
+            if (SetActiveRole("Host", out var previousRole, out var currentRole, out var path))
             {
                 Info(LogCategory.Lifecycle, "Logging role changed | from={0} to={1} file={2}", previousRole, currentRole, path);
             }
@@ -235,10 +235,33 @@ namespace CSM.TmpeSync.Services
                 return DefaultRoleTag;
             }
 
-            var normalized = role.Trim().ToLowerInvariant();
-            return string.Equals(normalized, "server", StringComparison.Ordinal)
-                ? "host"
-                : normalized;
+            var trimmed = role.Trim();
+
+            if (string.Equals(trimmed, "server", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(trimmed, "host", StringComparison.OrdinalIgnoreCase))
+            {
+                return "Host";
+            }
+
+            if (string.Equals(trimmed, "client", StringComparison.OrdinalIgnoreCase))
+            {
+                return "Client";
+            }
+
+            if (string.Equals(trimmed, "none", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(trimmed, "unknown", StringComparison.OrdinalIgnoreCase))
+            {
+                return DefaultRoleTag;
+            }
+
+            if (trimmed.Length == 0)
+            {
+                return DefaultRoleTag;
+            }
+
+            var first = char.ToUpperInvariant(trimmed[0]);
+            var remainder = trimmed.Length > 1 ? trimmed.Substring(1).ToLowerInvariant() : string.Empty;
+            return first + remainder;
         }
 
         private static bool IsNullOrWhiteSpace(string value)

@@ -11,6 +11,8 @@ namespace CSM.TmpeSync.Services
     internal static class VersionMismatchNotifier
     {
         private const int DefaultDisplayDelayMilliseconds = 3000;
+        private const string PerspectiveHost = "Host";
+        private const string PerspectiveClient = "Client";
 
         private static readonly object SyncRoot = new object();
         private static readonly HashSet<string> DisplayedContexts = new HashSet<string>();
@@ -19,29 +21,33 @@ namespace CSM.TmpeSync.Services
         {
             var context = new VersionMismatchContext
             {
-                Perspective = "Server",
+                Perspective = PerspectiveHost,
                 PeerDescription = senderId >= 0 ? string.Format("Client #{0}", senderId) : "Client",
                 LocalVersion = SafeVersion(serverVersion),
                 RemoteVersion = SafeVersion(reportedClientVersion),
                 PeerIdentifier = senderId >= 0 ? senderId.ToString() : null
             };
 
+            LogMismatchDetected(context);
+
             var content = BuildContent(context);
-            SchedulePanel(context.BuildKey(), content, DefaultDisplayDelayMilliseconds);
+            SchedulePanel(context.BuildKey(), content, DefaultDisplayDelayMilliseconds, context.Perspective);
         }
 
         internal static void NotifyClientMismatch(string serverReportedVersion, string localVersion)
         {
             var context = new VersionMismatchContext
             {
-                Perspective = "Client",
-                PeerDescription = "Server",
+                Perspective = PerspectiveClient,
+                PeerDescription = "Host",
                 LocalVersion = SafeVersion(localVersion),
                 RemoteVersion = SafeVersion(serverReportedVersion)
             };
 
+            LogMismatchDetected(context);
+
             var content = BuildContent(context);
-            SchedulePanel(context.BuildKey(), content, DefaultDisplayDelayMilliseconds);
+            SchedulePanel(context.BuildKey(), content, DefaultDisplayDelayMilliseconds, context.Perspective);
         }
 
         internal static void NotifyDependencyIssues(IList<CompatibilityChecker.CompatibilityStatus> issues)
@@ -58,7 +64,7 @@ namespace CSM.TmpeSync.Services
             }
 
             var messageBuilder = new StringBuilder();
-            messageBuilder.AppendLine("Dependency version issues detected:");
+            messageBuilder.AppendLine("CSM.TmpeSync - Dependency version issues detected:");
             messageBuilder.AppendLine();
 
             foreach (var issue in ordered)
@@ -71,6 +77,8 @@ namespace CSM.TmpeSync.Services
                 messageBuilder.AppendLine(info);
             }
 
+            messageBuilder.AppendLine();
+            messageBuilder.AppendLine("This usually means TM:PE, CSM, or Harmony was updated, and this version of CSM.TmpeSync might not support it yet.");
             messageBuilder.AppendLine();
             messageBuilder.AppendLine("Please update or verify the listed dependencies. If the issue persists, use the button below to open the GitHub issue template.");
 
@@ -85,7 +93,7 @@ namespace CSM.TmpeSync.Services
             SchedulePanel(keyBuilder.ToString(), content, DefaultDisplayDelayMilliseconds);
         }
 
-        private static void SchedulePanel(string key, VersionMismatchPanelContent content, int delayMilliseconds)
+        private static void SchedulePanel(string key, VersionMismatchPanelContent content, int delayMilliseconds, string perspective = null)
         {
             if (content.Message == null)
                 return;
@@ -98,6 +106,7 @@ namespace CSM.TmpeSync.Services
 
             ThreadPool.QueueUserWorkItem(_ =>
             {
+                var perspectiveLabel = IsNullOrWhiteSpace(perspective) ? "Unknown" : perspective;
                 try
                 {
                     if (delayMilliseconds > 0)
@@ -115,13 +124,13 @@ namespace CSM.TmpeSync.Services
                         }
                         catch (Exception ex)
                         {
-                            Log.Warn(LogCategory.Diagnostics, "Failed to display mismatch panel | key={0} error={1}", key, ex);
+                            Log.Warn(LogCategory.Diagnostics, "Failed to display mismatch panel | perspective={0} key={1} error={2}", perspectiveLabel, key, ex);
                         }
                     });
                 }
                 catch (Exception ex)
                 {
-                    Log.Warn(LogCategory.Diagnostics, "Failed to schedule mismatch panel | key={0} error={1}", key, ex);
+                    Log.Warn(LogCategory.Diagnostics, "Failed to schedule mismatch panel | perspective={0} key={1} error={2}", perspectiveLabel, key, ex);
                 }
             });
         }
@@ -134,7 +143,6 @@ namespace CSM.TmpeSync.Services
             titleBuilder.Append("CSM.TmpeSync - Version mismatch");
 
             builder.AppendLine("CSM.TmpeSync detected mismatching mod versions between you and the remote side.");
-            builder.AppendLine("This usually means TM:PE, CSM, or Harmony received an update that this version of CSM.TmpeSync does not support yet.");
             builder.AppendLine();
             builder.AppendFormat("Local version  : {0}", context.LocalVersion ?? "n/a");
             builder.AppendLine();
@@ -150,7 +158,7 @@ namespace CSM.TmpeSync.Services
 
             builder.AppendLine();
             builder.AppendLine("Warning: synchronization has been disabled until both sides install the same CSM.TmpeSync version.");
-            builder.AppendLine("Update the mod and restart the session. Use the button below to open the GitHub releases page.");
+            builder.AppendLine("Update the mod and restart the session. Use the button below to open the GitHub releases page or update on Steam Workshop.");
 
             return new VersionMismatchPanelContent
             {
@@ -201,6 +209,38 @@ namespace CSM.TmpeSync.Services
         private static string SafeVersion(string value)
         {
             return string.IsNullOrEmpty(value) ? "unknown" : value;
+        }
+
+        private static bool IsNullOrWhiteSpace(string value)
+        {
+            if (value == null)
+                return true;
+
+            for (var i = 0; i < value.Length; i++)
+            {
+                if (!char.IsWhiteSpace(value[i]))
+                    return false;
+            }
+
+            return true;
+        }
+
+        private static void LogMismatchDetected(VersionMismatchContext context)
+        {
+            var perspective = IsNullOrWhiteSpace(context.Perspective) ? "Unknown" : context.Perspective;
+            var peer = context.PeerDescription ?? "Unknown peer";
+            if (!string.IsNullOrEmpty(context.PeerIdentifier))
+            {
+                peer = string.Format("{0} ({1})", peer, context.PeerIdentifier);
+            }
+
+            Log.Warn(
+                LogCategory.Diagnostics,
+                "Version mismatch detected | perspective={0} local_version={1} remote_version={2} peer={3}",
+                perspective,
+                context.LocalVersion ?? "unknown",
+                context.RemoteVersion ?? "unknown",
+                peer);
         }
 
         private struct VersionMismatchContext
