@@ -5,6 +5,7 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Text.RegularExpressions;
+using System.Threading;
 using ColossalFramework.Plugins;
 using CSM.TmpeSync.Mod;
 using CSM.TmpeSync.Messages.System;
@@ -25,6 +26,9 @@ namespace CSM.TmpeSync.Services
         }
 
         private static readonly Regex VersionPattern = new Regex("^\\D*(\\d+(?:\\.\\d+)*)", RegexOptions.Compiled);
+
+        private static readonly object WarningSyncRoot = new object();
+        private static bool _dependencyWarningsScheduled;
 
         internal static string LocalVersion => ModMetadata.NewVersion;
 
@@ -57,17 +61,17 @@ namespace CSM.TmpeSync.Services
 
         internal static void LogInstalledVersions()
         {
-            foreach (var result in BuildCompatibilityResults())
+            foreach (var status in GetCompatibilityStatuses())
             {
                 Log.Info(
                     LogCategory.Dependency,
                     "Compatibility | mod={0} installed={1} status={2} actualVersion={3} normalizedActual={4} latestTag={5}",
-                    result.DisplayName,
-                    result.Installed ? "Yes" : "No",
-                    result.Status,
-                    string.IsNullOrEmpty(result.ActualVersion) ? "n/a" : result.ActualVersion,
-                    string.IsNullOrEmpty(result.NormalizedVersion) ? "n/a" : result.NormalizedVersion,
-                    string.IsNullOrEmpty(result.LatestTag) ? "n/a" : result.LatestTag);
+                    status.DisplayName,
+                    status.Installed ? "Yes" : "No",
+                    status.Status,
+                    string.IsNullOrEmpty(status.ActualVersion) ? "n/a" : status.ActualVersion,
+                    string.IsNullOrEmpty(status.NormalizedVersion) ? "n/a" : status.NormalizedVersion,
+                    string.IsNullOrEmpty(status.LatestTag) ? "n/a" : status.LatestTag);
             }
         }
 
@@ -82,6 +86,26 @@ namespace CSM.TmpeSync.Services
                 Log.Info(LogCategory.Network, "Dispatching version compatibility request | localVersion={0}", LocalVersion);
                 SendVersionRequest();
             }
+
+            ScheduleDependencyWarnings();
+        }
+
+        internal static List<CompatibilityStatus> GetCompatibilityStatuses()
+        {
+            var results = new List<CompatibilityStatus>();
+
+            foreach (var result in BuildCompatibilityResults())
+            {
+                results.Add(new CompatibilityStatus(
+                    result.DisplayName,
+                    result.Installed,
+                    result.ActualVersion,
+                    result.NormalizedVersion,
+                    result.LatestTag,
+                    result.Status));
+            }
+
+            return results;
         }
 
         internal static bool CompareVersions(string versionA, string versionB)
@@ -133,7 +157,6 @@ namespace CSM.TmpeSync.Services
 
         private static IEnumerable<CompatibilityResult> BuildCompatibilityResults()
         {
-            yield return EvaluateLocalMod();
             yield return EvaluateFromPlugin(
                 "TM:PE",
                 new Func<PluginInfo>(Deps.GetActiveTmpePlugin),
@@ -146,16 +169,6 @@ namespace CSM.TmpeSync.Services
                 ModMetadata.LatestCsmReleaseTag,
                 ModMetadata.LegacyCsmReleaseTags);
             yield return EvaluateHarmony();
-        }
-
-        private static CompatibilityResult EvaluateLocalMod()
-        {
-            return BuildResult(
-                "CSM.TmpeSync",
-                true,
-                LocalVersion,
-                ModMetadata.LatestCsmTmpeSyncReleaseTag,
-                ModMetadata.LegacyCsmTmpeSyncReleaseTags);
         }
 
         private static CompatibilityResult EvaluateFromPlugin(
@@ -428,6 +441,93 @@ namespace CSM.TmpeSync.Services
             {
                 Log.Warn(LogCategory.Network, "Failed to send version compatibility request | error={0}", ex);
             }
+        }
+
+        private static void ScheduleDependencyWarnings()
+        {
+            lock (WarningSyncRoot)
+            {
+                if (_dependencyWarningsScheduled)
+                    return;
+
+                _dependencyWarningsScheduled = true;
+            }
+
+            ThreadPool.QueueUserWorkItem(_ =>
+            {
+                try
+                {
+                    var statuses = GetCompatibilityStatuses();
+                    var issues = new List<CompatibilityStatus>();
+
+                    foreach (var status in statuses)
+                    {
+                        if (!IsTrackedDependency(status.DisplayName))
+                            continue;
+
+                        if (!RequiresWarning(status.Status))
+                            continue;
+
+                        issues.Add(status);
+                    }
+
+                    if (issues.Count == 0)
+                        return;
+
+                    VersionMismatchNotifier.NotifyDependencyIssues(issues);
+                }
+                catch (Exception ex)
+                {
+                    Log.Warn(LogCategory.Diagnostics, "Failed to evaluate dependency warnings | error={0}", ex);
+                }
+            });
+        }
+
+        private static bool IsTrackedDependency(string displayName)
+        {
+            if (string.IsNullOrEmpty(displayName))
+                return false;
+
+            return string.Equals(displayName, "TM:PE", StringComparison.OrdinalIgnoreCase) ||
+                   string.Equals(displayName, "CSM", StringComparison.OrdinalIgnoreCase) ||
+                   string.Equals(displayName, "Cities Harmony", StringComparison.OrdinalIgnoreCase);
+        }
+
+        private static bool RequiresWarning(string status)
+        {
+            if (string.IsNullOrEmpty(status))
+                return false;
+
+            switch (status)
+            {
+                case "Mismatch":
+                case "Missing":
+                case "Legacy Match":
+                case "Unknown":
+                    return true;
+                default:
+                    return false;
+            }
+        }
+
+        internal sealed class CompatibilityStatus
+        {
+            internal CompatibilityStatus(string displayName, bool installed, string actualVersion, string normalizedVersion, string latestTag, string status)
+            {
+                DisplayName = displayName ?? string.Empty;
+                Installed = installed;
+                ActualVersion = actualVersion ?? string.Empty;
+                NormalizedVersion = normalizedVersion ?? string.Empty;
+                LatestTag = latestTag ?? string.Empty;
+                Status = status ?? string.Empty;
+            }
+
+            internal string DisplayName { get; }
+            internal bool Installed { get; }
+            internal string ActualVersion { get; }
+            internal string NormalizedVersion { get; }
+            internal string LatestTag { get; }
+            internal string Status { get; }
         }
     }
 }

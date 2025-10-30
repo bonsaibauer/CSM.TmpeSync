@@ -1,6 +1,7 @@
 using System;
 using CSM.API.Commands;
 using CSM.TmpeSync.Messages.System;
+using CSM.TmpeSync.Mod;
 using CSM.TmpeSync.Services;
 using Log = CSM.TmpeSync.Services.Log;
 
@@ -32,16 +33,24 @@ namespace CSM.TmpeSync.Handlers.System
                 return;
             }
 
+            var clientVersion = command?.Version;
             var serverVersion = CompatibilityChecker.LocalVersion;
-            var status = CompatibilityChecker.CompareVersions(command.Version, serverVersion) ? "Match" : "Mismatch";
+            var versionsMatch = CompatibilityChecker.CompareVersions(clientVersion, serverVersion);
+            var status = versionsMatch ? "Match" : "Mismatch";
 
             Log.Info(
                 LogCategory.Network,
                 "Client version comparison | senderId={0} clientVersion={1} serverVersion={2} status={3}",
                 senderId,
-                command?.Version ?? "<null>",
+                clientVersion ?? "<null>",
                 serverVersion ?? "<null>",
                 status);
+
+            if (!versionsMatch)
+            {
+                VersionMismatchNotifier.NotifyServerMismatch(senderId, clientVersion, serverVersion);
+                FeatureBootstrapper.SuspendForVersionMismatch(clientVersion);
+            }
 
             try
             {
@@ -76,15 +85,23 @@ namespace CSM.TmpeSync.Handlers.System
                 return;
             }
 
+            var serverVersion = command?.Version;
             var localVersion = CompatibilityChecker.LocalVersion;
-            var status = CompatibilityChecker.CompareVersions(command.Version, localVersion) ? "Match" : "Mismatch";
+            var versionsMatch = CompatibilityChecker.CompareVersions(serverVersion, localVersion);
+            var status = versionsMatch ? "Match" : "Mismatch";
 
             Log.Info(
                 LogCategory.Network,
                 "Server version comparison | serverVersion={0} localVersion={1} status={2}",
-                command?.Version ?? "<null>",
+                serverVersion ?? "<null>",
                 localVersion ?? "<null>",
                 status);
+
+            if (!versionsMatch)
+            {
+                VersionMismatchNotifier.NotifyClientMismatch(serverVersion, localVersion);
+                FeatureBootstrapper.SuspendForVersionMismatch(serverVersion);
+            }
         }
     }
 }
