@@ -21,6 +21,10 @@
       <HintPath>$(RepoRoot)\lib\TMPE\TrafficManager.dll</HintPath>
       <Private>false</Private>
     </Reference>
+    <Reference Include="CSUtil.Commons" Condition="Exists('$(RepoRoot)\lib\TMPE\CSUtil.Commons.dll')">
+      <HintPath>$(RepoRoot)\lib\TMPE\CSUtil.Commons.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
     <Reference Include="TMPE.API" Condition="Exists('$(RepoRoot)\lib\TMPE\TMPE.API.dll')">
       <HintPath>$(RepoRoot)\lib\TMPE\TMPE.API.dll</HintPath>
       <Private>false</Private>

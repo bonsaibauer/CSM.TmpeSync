@@ -46,12 +46,45 @@ namespace CSM.TmpeSync.ToggleTrafficLights.Services
                     return true;
 
                 if (!mgr.CanToggleTrafficLight(nodeId))
+                {
+                    Log.Warn(
+                        LogCategory.Bridge,
+                        LogRole.Host,
+                        "ToggleTrafficLights Apply skipped | nodeId={0} target={1} current={2} reason=cannot_toggle",
+                        nodeId,
+                        enabled,
+                        current);
                     return false;
+                }
 
                 using (LocalIgnore.Scoped())
                 {
-                    return mgr.ToggleTrafficLight(nodeId);
+                    if (!mgr.ToggleTrafficLight(nodeId))
+                    {
+                        Log.Warn(
+                            LogCategory.Bridge,
+                            LogRole.Host,
+                            "ToggleTrafficLights Apply failed | nodeId={0} target={1} reason=toggle_failed",
+                            nodeId,
+                            enabled);
+                        return false;
+                    }
                 }
+
+                var after = mgr.HasTrafficLight(nodeId);
+                if (after != enabled)
+                {
+                    Log.Warn(
+                        LogCategory.Bridge,
+                        LogRole.Host,
+                        "ToggleTrafficLights Apply mismatch | nodeId={0} target={1} actual={2}",
+                        nodeId,
+                        enabled,
+                        after);
+                    return false;
+                }
+
+                return true;
             }
             catch (Exception ex)
             {

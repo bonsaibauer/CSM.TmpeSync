@@ -29,12 +29,16 @@ namespace CSM.TmpeSync.JunctionRestrictions.Services
                 patched |= TryPatchAllOverloads("SetEnteringBlockedJunctionAllowed");
                 patched |= TryPatchAllOverloads("SetPedestrianCrossingAllowed");
                 patched |= TryPatchAllOverloads("SetTurnOnRedAllowed");
+                patched |= TryPatchAllOverloads("SetNearTurnOnRedAllowed");
+                patched |= TryPatchAllOverloads("SetFarTurnOnRedAllowed");
                 // Also patch toggles used by UI
                 patched |= TryPatchAllOverloads("ToggleUturnAllowed");
                 patched |= TryPatchAllOverloads("ToggleLaneChangingAllowedWhenGoingStraight");
                 patched |= TryPatchAllOverloads("ToggleEnteringBlockedJunctionAllowed");
                 patched |= TryPatchAllOverloads("TogglePedestrianCrossingAllowed");
                 patched |= TryPatchAllOverloads("ToggleTurnOnRedAllowed");
+                patched |= TryPatchAllOverloads("ToggleNearTurnOnRedAllowed");
+                patched |= TryPatchAllOverloads("ToggleFarTurnOnRedAllowed");
 
                 if (!patched)
                 {

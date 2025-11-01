@@ -74,9 +74,31 @@ namespace CSM.TmpeSync.ToggleTrafficLights.Handlers
 
                     // Read back actual state and broadcast to all
                     bool resultingEnabled = command.Enabled;
-                    if (!ToggleTrafficLightsSynchronization.TryRead(command.NodeId, out resultingEnabled))
+                    bool readBackSuccess = ToggleTrafficLightsSynchronization.TryRead(command.NodeId, out resultingEnabled);
+                    if (!readBackSuccess)
                     {
                         Log.Warn(LogCategory.Synchronization, LogRole.Host, "Traffic light verify failed | nodeId={0}", command.NodeId);
+                    }
+
+                    if (readBackSuccess && resultingEnabled != command.Enabled)
+                    {
+                        Log.Warn(
+                            LogCategory.Synchronization,
+                            LogRole.Host,
+                            "Traffic light apply mismatch | nodeId={0} requested={1} actual={2}",
+                            command.NodeId,
+                            command.Enabled,
+                            resultingEnabled);
+
+                        if (senderId >= 0)
+                        {
+                            CsmBridge.SendToClient(senderId, new RequestRejected
+                            {
+                                Reason = "tmpe_apply_mismatch",
+                                EntityId = command.NodeId,
+                                EntityType = 3
+                            });
+                        }
                     }
 
                     Log.Info(

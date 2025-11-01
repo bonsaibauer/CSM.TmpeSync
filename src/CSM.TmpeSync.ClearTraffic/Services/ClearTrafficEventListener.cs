@@ -1,9 +1,9 @@
 using System;
-using System.Linq;
 using System.Reflection;
 using HarmonyLib;
 using CSM.TmpeSync.ClearTraffic.Messages;
 using CSM.TmpeSync.Services;
+
 namespace CSM.TmpeSync.ClearTraffic.Services
 {
     /// <summary>
@@ -24,7 +24,7 @@ namespace CSM.TmpeSync.ClearTraffic.Services
             {
                 _harmony = new Harmony(HarmonyId);
 
-                var method = FindClearTrafficMethod();
+                var method = ClearTrafficReflection.FindClearTrafficMethod();
                 if (method == null)
                 {
                     Log.Warn(LogCategory.Network, LogRole.Host, "[ClearTraffic] No TM:PE ClearTraffic method found. Listener disabled.");
@@ -64,50 +64,6 @@ namespace CSM.TmpeSync.ClearTraffic.Services
                 _harmony = null;
                 _enabled = false;
             }
-        }
-
-        private static MethodInfo FindClearTrafficMethod()
-        {
-            string[] candidateTypeNames =
-            {
-                "TrafficManager.Manager.Impl.UtilityManager",
-                "TrafficManager.Manager.UtilityManager",
-                "TrafficManager.State.UtilityManager"
-            };
-
-            foreach (var name in candidateTypeNames)
-            {
-                var type = Type.GetType(name, throwOnError: false);
-                var m = FindMethodOnType(type, "ClearTraffic", Type.EmptyTypes);
-                if (m != null) return m;
-            }
-
-            var asm = AppDomain.CurrentDomain
-                .GetAssemblies()
-                .FirstOrDefault(a => a.GetName().Name?.IndexOf("TrafficManager", StringComparison.OrdinalIgnoreCase) >= 0);
-            if (asm == null) return null;
-
-            foreach (var t in asm.GetTypes())
-            {
-                if (!t.IsClass) continue;
-                var m = FindMethodOnType(t, "ClearTraffic", Type.EmptyTypes);
-                if (m != null) return m;
-            }
-
-            return null;
-        }
-
-        private static MethodInfo FindMethodOnType(Type type, string name, params Type[] parameterTypes)
-        {
-            if (type == null) return null;
-            foreach (var m in type.GetMethods(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Static))
-            {
-                if (!string.Equals(m.Name, name, StringComparison.Ordinal)) continue;
-                var pars = m.GetParameters();
-                if (pars.Length != parameterTypes.Length) continue;
-                return m;
-            }
-            return null;
         }
 
         private static void PostClearTraffic()

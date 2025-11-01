@@ -126,6 +126,10 @@
       <HintPath>$(TmpeDir)\Cities_Data\Managed\TrafficManager.dll</HintPath>
       <Private>false</Private>
     </Reference>
+    <Reference Include="CSUtil.Commons" Condition=" '$(TmpeDir)'!='' AND Exists('$(TmpeDir)\Cities_Data\Managed\CSUtil.Commons.dll') ">
+      <HintPath>$(TmpeDir)\Cities_Data\Managed\CSUtil.Commons.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
 
   </ItemGroup>
   <PropertyGroup>

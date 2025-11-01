@@ -35,6 +35,15 @@ namespace CSM.TmpeSync.VehicleRestrictions.Services
                 for (int i = 0; i < lanes.Length; i++)
                 {
                     var laneInfo = lanes[i];
+                    if (laneInfo == null)
+                    {
+                        Log.Warn(LogCategory.Bridge,
+                            LogRole.Host,
+                            "[VehicleRestrictions] TryGet skipped: lane info missing | seg={0} ord={1}",
+                            segmentId,
+                            i);
+                        continue;
+                    }
                     if (!IsLaneConfigurable(laneInfo))
                         continue;
                     var ext = mgr.GetAllowedVehicleTypes(segmentId, info, (uint)i, laneInfo, VehicleRestrictionsMode.Configured);
@@ -102,6 +111,16 @@ namespace CSM.TmpeSync.VehicleRestrictions.Services
                         }
 
                         var laneInfo = info.m_lanes[idx];
+                        if (laneInfo == null)
+                        {
+                            Log.Warn(LogCategory.Synchronization,
+                                LogRole.Host,
+                                "[VehicleRestrictions] Apply skipped: lane info missing | seg={0} ord={1}",
+                                segmentId,
+                                idx);
+                            okAll = false;
+                            continue;
+                        }
                         if (!IsLaneConfigurable(laneInfo))
                         {
                             Log.Warn(LogCategory.Synchronization, LogRole.Host, "[VehicleRestrictions] Not a vehicle lane, skip | seg={0} ord={1}", segmentId, idx);
@@ -149,6 +168,7 @@ namespace CSM.TmpeSync.VehicleRestrictions.Services
         private static bool SignatureMatches(NetInfo.Lane laneInfo, VehicleRestrictionsAppliedCommand.LaneSignature sig)
         {
             if (sig == null) return true; // tolerate missing signature
+            if (laneInfo == null) return false;
             return sig.LaneTypeRaw == (int)laneInfo.m_laneType &&
                    sig.VehicleTypeRaw == (int)laneInfo.m_vehicleType &&
                    sig.DirectionRaw == (int)laneInfo.m_direction;
@@ -232,8 +252,14 @@ namespace CSM.TmpeSync.VehicleRestrictions.Services
 
         private static bool IsLaneConfigurable(NetInfo.Lane laneInfo)
         {
-            // Mirror TM:PE tool logic at a high level: only consider lanes that carry vehicles.
-            return (laneInfo.m_laneType & NetInfo.LaneType.Vehicle) != 0;
+            if (laneInfo == null)
+                return false;
+
+            const NetInfo.LaneType SupportedTypes =
+                NetInfo.LaneType.Vehicle | NetInfo.LaneType.TransportVehicle;
+
+            // Mirror TM:PE tool logic at a high level: only consider lanes that carry managed vehicles.
+            return (laneInfo.m_laneType & SupportedTypes) != 0;
         }
 
         private static class LocalIgnore

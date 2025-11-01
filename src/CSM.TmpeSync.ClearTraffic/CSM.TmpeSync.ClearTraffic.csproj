@@ -211,6 +211,7 @@
     <Compile Include="Services\ClearTrafficEventListener.cs" />
     <Compile Include="Services\ClearTrafficSynchronization.cs" />
     <Compile Include="Services\ClearTrafficTmpeAdapter.cs" />
+    <Compile Include="Services\ClearTrafficReflection.cs" />
   </ItemGroup>
 
 </Project>

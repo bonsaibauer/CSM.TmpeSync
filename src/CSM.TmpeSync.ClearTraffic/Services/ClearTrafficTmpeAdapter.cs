@@ -37,41 +37,22 @@ namespace CSM.TmpeSync.ClearTraffic.Services
             if (_clearTrafficMi != null)
                 return;
 
-            string[] candidateTypeNames =
-            {
-                "TrafficManager.Manager.Impl.UtilityManager",
-                "TrafficManager.Manager.UtilityManager",
-                "TrafficManager.State.UtilityManager"
-            };
+            var method = ClearTrafficReflection.FindClearTrafficMethod();
+            if (method == null)
+                throw new MissingMemberException("TM:PE ClearTraffic() not found");
 
-            Type type = null;
-            foreach (var name in candidateTypeNames)
+            _clearTrafficMi = method;
+            if (_clearTrafficMi.IsStatic)
             {
-                type = Type.GetType(name, throwOnError: false);
-                if (type != null) break;
+                _managerInstance = null;
+                return;
             }
 
-            if (type == null)
-                throw new MissingMemberException("TM:PE UtilityManager type not found");
+            var managerType = _clearTrafficMi.DeclaringType;
+            _managerInstance = ClearTrafficReflection.ResolveSingleton(managerType);
 
-            _clearTrafficMi = type.GetMethod("ClearTraffic", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic, null, Type.EmptyTypes, null);
-            if (_clearTrafficMi == null)
-                throw new MissingMethodException(type.FullName, "ClearTraffic()");
-
-            var instProp = type.GetProperty("Instance", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static);
-            if (instProp != null)
-            {
-                _managerInstance = instProp.GetValue(null, null);
-            }
-            else
-            {
-                var instField = type.GetField("Instance", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static);
-                if (instField != null)
-                    _managerInstance = instField.GetValue(null);
-            }
-
-            if (_managerInstance == null && !_clearTrafficMi.IsStatic)
-                throw new MissingMemberException(type.FullName, "Instance");
+            if (_managerInstance == null)
+                throw new MissingMemberException(managerType?.FullName ?? "TM:PE UtilityManager", "Instance");
         }
 
         private static class LocalIgnore

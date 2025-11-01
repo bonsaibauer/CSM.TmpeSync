@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using ColossalFramework;
@@ -16,6 +17,8 @@ namespace CSM.TmpeSync.ToggleTrafficLights.Services
         private const string HarmonyId = "CSM.TmpeSync.ToggleTrafficLights.EventGateway";
         private static Harmony _harmony;
         private static bool _enabled;
+        private static readonly Dictionary<ushort, bool> _lastDispatchedState = new Dictionary<ushort, bool>();
+        private static readonly object _dispatchLock = new object();
 
         internal static void Enable()
         {
@@ -217,37 +220,56 @@ namespace CSM.TmpeSync.ToggleTrafficLights.Services
                 return;
             }
 
-            if (CsmBridge.IsServerInstance())
+            SimulationManager.instance.AddAction(() =>
             {
+                if (ShouldSkipDispatch(nodeId, enabled))
+                    return;
+
+                if (CsmBridge.IsServerInstance())
+                {
+                    Log.Info(
+                        LogCategory.Synchronization,
+                        LogRole.Host,
+                        "[ToggleTrafficLights] Host applied toggle | node={0} enabled={1} context={2}",
+                        nodeId,
+                        enabled,
+                        context);
+
+                    ToggleTrafficLightsSynchronization.Dispatch(new ToggleTrafficLightsAppliedCommand
+                    {
+                        NodeId = nodeId,
+                        Enabled = enabled
+                    });
+                    return;
+                }
+
                 Log.Info(
-                    LogCategory.Synchronization,
-                    LogRole.Host,
-                    "[ToggleTrafficLights] Host applied toggle | node={0} enabled={1} context={2}",
+                    LogCategory.Network,
+                    LogRole.Client,
+                    "[ToggleTrafficLights] Client sent ToggleTrafficLightsUpdateRequest | node={0} enabled={1} context={2}",
                     nodeId,
                     enabled,
                     context);
 
-                ToggleTrafficLightsSynchronization.Dispatch(new ToggleTrafficLightsAppliedCommand
+                ToggleTrafficLightsSynchronization.Dispatch(new ToggleTrafficLightsUpdateRequest
                 {
                     NodeId = nodeId,
                     Enabled = enabled
                 });
-                return;
-            }
-
-            Log.Info(
-                LogCategory.Network,
-                LogRole.Client,
-                "[ToggleTrafficLights] Client sent ToggleTrafficLightsUpdateRequest | node={0} enabled={1} context={2}",
-                nodeId,
-                enabled,
-                context);
-
-            ToggleTrafficLightsSynchronization.Dispatch(new ToggleTrafficLightsUpdateRequest
-            {
-                NodeId = nodeId,
-                Enabled = enabled
             });
+        }
+
+        private static bool ShouldSkipDispatch(ushort nodeId, bool enabled)
+        {
+            lock (_dispatchLock)
+            {
+                bool hasState = _lastDispatchedState.TryGetValue(nodeId, out var lastState);
+                if (hasState && lastState == enabled)
+                    return true;
+
+                _lastDispatchedState[nodeId] = enabled;
+                return false;
+            }
         }
     }
 }
