@@ -16,7 +16,7 @@ namespace CSM.TmpeSync.ClearTraffic
                 return;
 
             ClearTrafficEventListener.Enable();
-            Log.Info(LogCategory.Network, "ClearTrafficSyncFeature ready: TM:PE listener enabled.");
+            Log.Info(LogCategory.Network, LogRole.Host, "ClearTrafficSyncFeature ready: TM:PE listener enabled.");
             _enabled = true;
         }
 
@@ -26,7 +26,7 @@ namespace CSM.TmpeSync.ClearTraffic
                 return;
 
             ClearTrafficEventListener.Disable();
-            Log.Info(LogCategory.Network, "ClearTrafficSyncFeature stopped: TM:PE listener disabled.");
+            Log.Info(LogCategory.Network, LogRole.Host, "ClearTrafficSyncFeature stopped: TM:PE listener disabled.");
             _enabled = false;
         }
     }

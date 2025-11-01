@@ -18,6 +18,7 @@ namespace CSM.TmpeSync.LaneConnector.Handlers
             if (cmd == null) return;
 
             Log.Info(LogCategory.Synchronization,
+                LogRole.Client,
                 "LaneConnectionsApplied received | nodeId={0} segmentId={1} startNode={2} items={3} origin={4}",
                 cmd.NodeId, cmd.SegmentId, cmd.StartNode, cmd.Items?.Count ?? 0, origin ?? "unknown");
 

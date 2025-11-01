@@ -36,6 +36,7 @@ namespace CSM.TmpeSync.PrioritySigns.Services
             catch (Exception ex)
             {
                 Log.Warn(LogCategory.Bridge,
+                    LogRole.Host,
                     "PrioritySigns TryGet failed | nodeId={0} segmentId={1} error={2}",
                     nodeId, segmentId, ex);
                 return false;
@@ -72,6 +73,7 @@ namespace CSM.TmpeSync.PrioritySigns.Services
             catch (Exception ex)
             {
                 Log.Warn(LogCategory.Bridge,
+                    LogRole.Host,
                     "PrioritySigns Apply failed | nodeId={0} segmentId={1} type={2} error={3}",
                     nodeId, segmentId, signType, ex);
                 return false;

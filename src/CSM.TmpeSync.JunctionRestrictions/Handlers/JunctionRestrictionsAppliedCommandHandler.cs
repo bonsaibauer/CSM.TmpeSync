@@ -17,6 +17,7 @@ namespace CSM.TmpeSync.JunctionRestrictions.Handlers
         {
             Log.Info(
                 LogCategory.Network,
+                LogRole.Client,
                 "JunctionRestrictionsApplied received | nodeId={0} segmentId={1} origin={2} state={3}",
                 nodeId,
                 segmentId,
@@ -25,7 +26,7 @@ namespace CSM.TmpeSync.JunctionRestrictions.Handlers
 
             if (!NetworkUtil.NodeExists(nodeId) || !NetworkUtil.SegmentExists(segmentId))
             {
-                Log.Warn(LogCategory.Synchronization, "JunctionRestrictionsApplied skipped | nodeId={0} segmentId={1} origin={2} reason=entity_missing", nodeId, segmentId, origin ?? "unknown");
+                Log.Warn(LogCategory.Synchronization, LogRole.Client, "JunctionRestrictionsApplied skipped | nodeId={0} segmentId={1} origin={2} reason=entity_missing", nodeId, segmentId, origin ?? "unknown");
                 return;
             }
 
@@ -33,7 +34,7 @@ namespace CSM.TmpeSync.JunctionRestrictions.Handlers
             {
                 if (!NetworkUtil.NodeExists(nodeId) || !NetworkUtil.SegmentExists(segmentId))
                 {
-                    Log.Warn(LogCategory.Synchronization, "JunctionRestrictionsApplied skipped during simulation | nodeId={0} segmentId={1} origin={2} reason=entity_missing", nodeId, segmentId, origin ?? "unknown");
+                    Log.Warn(LogCategory.Synchronization, LogRole.Client, "JunctionRestrictionsApplied skipped during simulation | nodeId={0} segmentId={1} origin={2} reason=entity_missing", nodeId, segmentId, origin ?? "unknown");
                     return;
                 }
 
@@ -41,11 +42,11 @@ namespace CSM.TmpeSync.JunctionRestrictions.Handlers
                 {
                     if (JunctionRestrictionsSynchronization.Apply(nodeId, segmentId, state))
                     {
-                        Log.Info(LogCategory.Synchronization, "JunctionRestrictionsApplied applied | nodeId={0} segmentId={1}", nodeId, segmentId);
+                        Log.Info(LogCategory.Synchronization, LogRole.Client, "JunctionRestrictionsApplied applied | nodeId={0} segmentId={1}", nodeId, segmentId);
                     }
                     else
                     {
-                        Log.Error(LogCategory.Synchronization, "JunctionRestrictionsApplied failed | nodeId={0} segmentId={1}", nodeId, segmentId);
+                        Log.Error(LogCategory.Synchronization, LogRole.Client, "JunctionRestrictionsApplied failed | nodeId={0} segmentId={1}", nodeId, segmentId);
                     }
                 }
             });

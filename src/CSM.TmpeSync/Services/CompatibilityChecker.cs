@@ -74,16 +74,13 @@ namespace CSM.TmpeSync.Services
 
         internal static void HandleHandlersRegistered()
         {
-            var roleDescription = CsmBridge.DescribeCurrentRole();
-            Log.HandleRoleChanged(roleDescription);
-
             if (CsmBridge.IsServerInstance())
             {
-                Log.Info(LogCategory.Network, "Version compatibility handshake ready | role={0} version={1}", roleDescription, LocalVersion);
+                Log.Info(LogCategory.Network, LogRole.Host, "Version compatibility handshake ready | version={0}", LocalVersion);
             }
             else
             {
-                Log.Info(LogCategory.Network, "Dispatching version compatibility request | role={0} localVersion={1}", roleDescription, LocalVersion);
+                Log.Info(LogCategory.Network, LogRole.Client, "Dispatching version compatibility request | localVersion={0}", LocalVersion);
                 SendVersionRequest();
             }
 
@@ -194,7 +191,7 @@ namespace CSM.TmpeSync.Services
             }
             catch (Exception ex)
             {
-                Log.Warn(LogCategory.Diagnostics, "Version lookup failed | mod={0} error={1}", displayName, ex);
+                Log.Warn(LogCategory.Diagnostics, LogRole.General, "Version lookup failed | mod={0} error={1}", displayName, ex);
             }
 
             return BuildResult(displayName, installed, version, latestTag, legacyTags, normalizedComponentLimit);
@@ -343,7 +340,7 @@ namespace CSM.TmpeSync.Services
             }
             catch (Exception ex)
             {
-                Log.Debug(LogCategory.Diagnostics, "Failed to read plugin version | plugin={0} error={1}", Deps.SafeName(plugin), ex);
+                Log.Debug(LogCategory.Diagnostics, LogRole.General, "Failed to read plugin version | plugin={0} error={1}", Deps.SafeName(plugin), ex);
             }
 
             return null;
@@ -383,7 +380,7 @@ namespace CSM.TmpeSync.Services
             }
             catch (Exception ex)
             {
-                Log.Warn(LogCategory.Diagnostics, "Harmony version lookup failed | error={0}", ex);
+                Log.Warn(LogCategory.Diagnostics, LogRole.General, "Harmony version lookup failed | error={0}", ex);
                 return null;
             }
         }
@@ -435,11 +432,11 @@ namespace CSM.TmpeSync.Services
             try
             {
                 CsmBridge.SendToServer(new VersionCheckRequest { Version = LocalVersion });
-                Log.Info(LogCategory.Network, "Version compatibility request dispatched | localVersion={0}", LocalVersion);
+                Log.Info(LogCategory.Network, LogRole.General, "Version compatibility request dispatched | localVersion={0}", LocalVersion);
             }
             catch (Exception ex)
             {
-                Log.Warn(LogCategory.Network, "Failed to send version compatibility request | error={0}", ex);
+                Log.Warn(LogCategory.Network, LogRole.General, "Failed to send version compatibility request | error={0}", ex);
             }
         }
 
@@ -470,7 +467,7 @@ namespace CSM.TmpeSync.Services
                 }
                 catch (Exception ex)
                 {
-                    Log.Warn(LogCategory.Diagnostics, "Failed to evaluate dependency warnings | error={0}", ex);
+                    Log.Warn(LogCategory.Diagnostics, LogRole.General, "Failed to evaluate dependency warnings | error={0}", ex);
                 }
             });
         }

@@ -115,13 +115,13 @@ namespace CSM.TmpeSync.Services
                         }
                         catch (Exception ex)
                         {
-                            Log.Warn(LogCategory.Diagnostics, "Failed to display mismatch panel | perspective={0} key={1} error={2}", perspectiveLabel, key, ex);
+                            Log.Warn(LogCategory.Diagnostics, LogRole.General, "Failed to display mismatch panel | perspective={0} key={1} error={2}", perspectiveLabel, key, ex);
                         }
                     });
                 }
                 catch (Exception ex)
                 {
-                    Log.Warn(LogCategory.Diagnostics, "Failed to schedule mismatch panel | perspective={0} key={1} error={2}", perspectiveLabel, key, ex);
+                    Log.Warn(LogCategory.Diagnostics, LogRole.General, "Failed to schedule mismatch panel | perspective={0} key={1} error={2}", perspectiveLabel, key, ex);
                 }
             });
         }

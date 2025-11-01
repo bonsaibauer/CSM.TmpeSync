@@ -37,16 +37,8 @@ namespace CSM.TmpeSync.Mod
         {
             using (CsmBridge.StartIgnore())
             {
-                var currentRole = CsmBridge.DescribeCurrentRole();
-                if (CsmBridge.IsServerInstance())
-                {
-                    Log.StartServerSessionLog();
-                }
-                else
-                {
-                    Log.HandleRoleChanged(currentRole);
-                }
-                Log.Info(LogCategory.Network, "Registering TM:PE synchronization handlers via CSM connection.");
+                var currentRole = CsmBridge.IsServerInstance() ? LogRole.Host : LogRole.Client;
+                Log.Info(LogCategory.Network, currentRole, "Registering TM:PE synchronization handlers via CSM connection.");
                 FeatureBootstrapper.Register();
 
                 try
@@ -55,7 +47,7 @@ namespace CSM.TmpeSync.Mod
                 }
                 catch (Exception ex)
                 {
-                    Log.Warn(LogCategory.Diagnostics, "Compatibility handshake setup failed during handler registration | error={0}", ex);
+                    Log.Warn(LogCategory.Diagnostics, currentRole, "Compatibility handshake setup failed during handler registration | error={0}", ex);
                 }
 
 
@@ -66,8 +58,8 @@ namespace CSM.TmpeSync.Mod
         {
             using (CsmBridge.StartIgnore())
             {
-                Log.Info(LogCategory.Network, "Unregistering TM:PE synchronization handlers via CSM connection.");
-                Log.HandleRoleChanged("Client");
+                var currentRole = CsmBridge.IsServerInstance() ? LogRole.Host : LogRole.Client;
+                Log.Info(LogCategory.Network, currentRole, "Unregistering TM:PE synchronization handlers via CSM connection.");
             }
         }
     }

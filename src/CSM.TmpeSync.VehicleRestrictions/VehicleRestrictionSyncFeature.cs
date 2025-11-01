@@ -13,7 +13,7 @@ namespace CSM.TmpeSync.VehicleRestrictions
                 return;
 
             VehicleRestrictionEventListener.Enable();
-            Log.Info(LogCategory.Network, "VehicleRestrictionSyncFeature ready: TM:PE listener enabled.");
+            Log.Info(LogCategory.Network, LogRole.Host, "VehicleRestrictionSyncFeature ready: TM:PE listener enabled.");
             _enabled = true;
         }
 
@@ -23,7 +23,7 @@ namespace CSM.TmpeSync.VehicleRestrictions
                 return;
 
             VehicleRestrictionEventListener.Disable();
-            Log.Info(LogCategory.Network, "VehicleRestrictionSyncFeature stopped: TM:PE listener disabled.");
+            Log.Info(LogCategory.Network, LogRole.Host, "VehicleRestrictionSyncFeature stopped: TM:PE listener disabled.");
             _enabled = false;
         }
     }

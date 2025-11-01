@@ -26,7 +26,7 @@ namespace CSM.TmpeSync.LaneArrows.Services
             }
             catch (Exception ex)
             {
-                Log.Warn(LogCategory.Bridge, "LaneArrows TryGet failed | laneId={0} error={1}", laneId, ex);
+                Log.Warn(LogCategory.Bridge, LogRole.Host, "LaneArrows TryGet failed | laneId={0} error={1}", laneId, ex);
                 return false;
             }
         }
@@ -64,7 +64,7 @@ namespace CSM.TmpeSync.LaneArrows.Services
             }
             catch (Exception ex)
             {
-                Log.Warn(LogCategory.Bridge, "LaneArrows Apply failed | laneId={0} arrows={1} error={2}", laneId, arrows, ex);
+                Log.Warn(LogCategory.Bridge, LogRole.Host, "LaneArrows Apply failed | laneId={0} arrows={1} error={2}", laneId, arrows, ex);
                 return false;
             }
         }

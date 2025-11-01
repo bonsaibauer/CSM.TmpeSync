@@ -17,7 +17,7 @@ namespace CSM.TmpeSync.PrioritySigns
                 return;
 
             PrioritySignEventListener.Enable();
-            Log.Info(LogCategory.Network, "PrioritySignSyncFeature ready: TM:PE listener enabled.");
+            Log.Info(LogCategory.Network, LogRole.Host, "PrioritySignSyncFeature ready: TM:PE listener enabled.");
             _enabled = true;
         }
 
@@ -27,7 +27,7 @@ namespace CSM.TmpeSync.PrioritySigns
                 return;
 
             PrioritySignEventListener.Disable();
-            Log.Info(LogCategory.Network, "PrioritySignSyncFeature stopped: TM:PE listener disabled.");
+            Log.Info(LogCategory.Network, LogRole.Host, "PrioritySignSyncFeature stopped: TM:PE listener disabled.");
             _enabled = false;
         }
     }

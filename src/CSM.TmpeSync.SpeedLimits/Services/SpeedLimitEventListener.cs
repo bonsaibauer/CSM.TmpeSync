@@ -28,7 +28,7 @@ namespace CSM.TmpeSync.SpeedLimits.Services
 
                 if (!patchedAny)
                 {
-                    Log.Warn(LogCategory.Network, "[SpeedLimits] No TM:PE speed-limit methods could be patched. Listener disabled.");
+                    Log.Warn(LogCategory.Network, LogRole.Host, "[SpeedLimits] No TM:PE speed-limit methods could be patched. Listener disabled.");
                     _harmony = null;
                     return;
                 }
@@ -37,7 +37,7 @@ namespace CSM.TmpeSync.SpeedLimits.Services
             }
             catch (Exception ex)
             {
-                Log.Error(LogCategory.Network, "[SpeedLimits] Event listener enable failed: {0}", ex);
+                Log.Error(LogCategory.Network, LogRole.Host, "[SpeedLimits] Event listener enable failed: {0}", ex);
             }
         }
 
@@ -49,11 +49,11 @@ namespace CSM.TmpeSync.SpeedLimits.Services
             try
             {
                 _harmony?.UnpatchAll(HarmonyId);
-                Log.Info(LogCategory.Network, "[SpeedLimits] Harmony listener disabled.");
+                Log.Info(LogCategory.Network, LogRole.Host, "[SpeedLimits] Harmony listener disabled.");
             }
             catch (Exception ex)
             {
-                Log.Warn(LogCategory.Network, "[SpeedLimits] Listener disable had issues: {0}", ex);
+                Log.Warn(LogCategory.Network, LogRole.Host, "[SpeedLimits] Listener disable had issues: {0}", ex);
             }
             finally
             {
@@ -80,7 +80,7 @@ namespace CSM.TmpeSync.SpeedLimits.Services
                 .GetMethod(nameof(SetLaneSpeedLimit_WithInfo_Postfix), BindingFlags.NonPublic | BindingFlags.Static);
 
             _harmony.Patch(method, postfix: new HarmonyMethod(postfix));
-            Log.Info(LogCategory.Network, "[SpeedLimits] Harmony patched {0}.{1} (with info).", method.DeclaringType?.FullName, method.Name);
+            Log.Info(LogCategory.Network, LogRole.Host, "[SpeedLimits] Harmony patched {0}.{1} (with info).", method.DeclaringType?.FullName, method.Name);
             return true;
         }
 
@@ -102,7 +102,7 @@ namespace CSM.TmpeSync.SpeedLimits.Services
                 .GetMethod(nameof(SetLaneSpeedLimit_Simple_Postfix), BindingFlags.NonPublic | BindingFlags.Static);
 
             _harmony.Patch(method, postfix: new HarmonyMethod(postfix));
-            Log.Info(LogCategory.Network, "[SpeedLimits] Harmony patched {0}.{1} (simple).", method.DeclaringType?.FullName, method.Name);
+            Log.Info(LogCategory.Network, LogRole.Host, "[SpeedLimits] Harmony patched {0}.{1} (simple).", method.DeclaringType?.FullName, method.Name);
             return true;
         }
 
@@ -176,7 +176,7 @@ namespace CSM.TmpeSync.SpeedLimits.Services
 
                 if (!SpeedLimitSynchronization.TryRead(segmentId, out var state))
                 {
-                    Log.Warn(LogCategory.Synchronization, "[SpeedLimits] TryRead failed | segment={0}", segmentId);
+                    Log.Warn(LogCategory.Synchronization, LogRole.Host, "[SpeedLimits] TryRead failed | segment={0}", segmentId);
                     return;
                 }
 
@@ -184,7 +184,7 @@ namespace CSM.TmpeSync.SpeedLimits.Services
             }
             catch (Exception ex)
             {
-                Log.Warn(LogCategory.Network, "[SpeedLimits] Event postfix error: {0}", ex);
+                Log.Warn(LogCategory.Network, LogRole.Host, "[SpeedLimits] Event postfix error: {0}", ex);
             }
         }
 
@@ -196,6 +196,7 @@ namespace CSM.TmpeSync.SpeedLimits.Services
             if (CsmBridge.IsServerInstance())
             {
                 Log.Info(LogCategory.Synchronization,
+                    LogRole.Host,
                     "[SpeedLimits] Host applied | seg={0} count={1} context={2}",
                     state.SegmentId, state.Items?.Count ?? 0, context);
 
@@ -208,6 +209,7 @@ namespace CSM.TmpeSync.SpeedLimits.Services
             }
 
             Log.Info(LogCategory.Network,
+                LogRole.Client,
                 "[SpeedLimits] Client sent SpeedLimitsUpdateRequest | seg={0} count={1} context={2}",
                 state.SegmentId, state.Items?.Count ?? 0, context);
 

@@ -14,21 +14,22 @@ namespace CSM.TmpeSync.ParkingRestrictions.Handlers
             var state = command.State ?? new ParkingRestrictionState();
 
             Log.Info(LogCategory.Network,
-                "ParkingRestrictionUpdateRequest received | segmentId={0} state={1} senderId={2} role={3}",
+                LogRole.Host,
+                "ParkingRestrictionUpdateRequest received | segmentId={0} state={1} senderId={2}",
                 command.SegmentId,
                 state,
-                senderId,
-                CsmBridge.DescribeCurrentRole());
+                senderId);
 
             if (!CsmBridge.IsServerInstance())
             {
-                Log.Debug(LogCategory.Network, "ParkingRestrictionUpdateRequest ignored | reason=not_server_instance");
+                Log.Debug(LogCategory.Network, LogRole.Client, "ParkingRestrictionUpdateRequest ignored | reason=not_server_instance");
                 return;
             }
 
             if (!NetworkUtil.SegmentExists(command.SegmentId))
             {
                 Log.Warn(LogCategory.Network,
+                    LogRole.Host,
                     "ParkingRestrictionUpdateRequest rejected | segmentId={0} reason=segment_missing",
                     command.SegmentId);
                 CsmBridge.SendToClient(senderId, new RequestRejected { Reason = "entity_missing", EntityId = command.SegmentId, EntityType = 2 });
@@ -40,6 +41,7 @@ namespace CSM.TmpeSync.ParkingRestrictions.Handlers
                 if (!NetworkUtil.SegmentExists(command.SegmentId))
                 {
                     Log.Warn(LogCategory.Synchronization,
+                        LogRole.Host,
                         "Parking restriction apply aborted | segmentId={0} reason=segment_missing_before_apply",
                         command.SegmentId);
                     return;
@@ -50,6 +52,7 @@ namespace CSM.TmpeSync.ParkingRestrictions.Handlers
                     if (!NetworkUtil.SegmentExists(command.SegmentId))
                     {
                         Log.Warn(LogCategory.Synchronization,
+                            LogRole.Host,
                             "Parking restriction apply skipped | segmentId={0} reason=segment_missing_while_locked",
                             command.SegmentId);
                         return;
@@ -61,6 +64,7 @@ namespace CSM.TmpeSync.ParkingRestrictions.Handlers
                         if (ParkingRestrictionSynchronization.TryRead(command.SegmentId, out var appliedState) && appliedState != null)
                             resultingState = appliedState.Clone();
                         Log.Info(LogCategory.Synchronization,
+                            LogRole.Host,
                             "Parking restriction applied | segmentId={0} state={1} action=broadcast",
                             command.SegmentId,
                             resultingState);
@@ -73,6 +77,7 @@ namespace CSM.TmpeSync.ParkingRestrictions.Handlers
                     else
                     {
                         Log.Error(LogCategory.Synchronization,
+                            LogRole.Host,
                             "Parking restriction apply failed | segmentId={0} senderId={1}",
                             command.SegmentId,
                             senderId);

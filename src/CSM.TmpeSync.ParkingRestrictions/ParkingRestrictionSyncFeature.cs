@@ -13,7 +13,7 @@ namespace CSM.TmpeSync.ParkingRestrictions
                 return;
 
             ParkingRestrictionEventListener.Enable();
-            Log.Info(LogCategory.Network, "ParkingRestrictionSyncFeature ready: TM:PE listener enabled.");
+            Log.Info(LogCategory.Network, LogRole.Host, "ParkingRestrictionSyncFeature ready: TM:PE listener enabled.");
             _enabled = true;
         }
 
@@ -23,7 +23,7 @@ namespace CSM.TmpeSync.ParkingRestrictions
                 return;
 
             ParkingRestrictionEventListener.Disable();
-            Log.Info(LogCategory.Network, "ParkingRestrictionSyncFeature stopped: TM:PE listener disabled.");
+            Log.Info(LogCategory.Network, LogRole.Host, "ParkingRestrictionSyncFeature stopped: TM:PE listener disabled.");
             _enabled = false;
         }
     }

@@ -25,7 +25,7 @@ namespace CSM.TmpeSync.ParkingRestrictions.Services
                 bool patched = TryPatchSetParkingAllowed();
                 if (!patched)
                 {
-                    Log.Warn(LogCategory.Network, "[ParkingRestrictions] No TM:PE methods could be patched. Listener disabled.");
+                    Log.Warn(LogCategory.Network, LogRole.Host, "[ParkingRestrictions] No TM:PE methods could be patched. Listener disabled.");
                     _harmony = null;
                     return;
                 }
@@ -33,7 +33,7 @@ namespace CSM.TmpeSync.ParkingRestrictions.Services
             }
             catch (Exception ex)
             {
-                Log.Error(LogCategory.Network, "[ParkingRestrictions] Gateway enable failed: {0}", ex);
+                Log.Error(LogCategory.Network, LogRole.Host, "[ParkingRestrictions] Gateway enable failed: {0}", ex);
             }
         }
 
@@ -45,11 +45,11 @@ namespace CSM.TmpeSync.ParkingRestrictions.Services
             try
             {
                 _harmony?.UnpatchAll(HarmonyId);
-                Log.Info(LogCategory.Network, "[ParkingRestrictions] Harmony gateway disabled.");
+                Log.Info(LogCategory.Network, LogRole.Host, "[ParkingRestrictions] Harmony gateway disabled.");
             }
             catch (Exception ex)
             {
-                Log.Warn(LogCategory.Network, "[ParkingRestrictions] Gateway disable had issues: {0}", ex);
+                Log.Warn(LogCategory.Network, LogRole.Host, "[ParkingRestrictions] Gateway disable had issues: {0}", ex);
             }
             finally
             {
@@ -87,7 +87,7 @@ namespace CSM.TmpeSync.ParkingRestrictions.Services
             if (method != null)
             {
                 _harmony.Patch(method, postfix: new HarmonyMethod(postfix));
-                Log.Info(LogCategory.Network, "[ParkingRestrictions] Harmony gateway patched {0}.{1} (dir overload).", method.DeclaringType?.FullName, method.Name);
+                Log.Info(LogCategory.Network, LogRole.Host, "[ParkingRestrictions] Harmony gateway patched {0}.{1} (dir overload).", method.DeclaringType?.FullName, method.Name);
             }
 
             var postfixAllDirs = typeof(ParkingRestrictionEventListener)
@@ -96,7 +96,7 @@ namespace CSM.TmpeSync.ParkingRestrictions.Services
             if (methodAllDirs != null)
             {
                 _harmony.Patch(methodAllDirs, postfix: new HarmonyMethod(postfixAllDirs));
-                Log.Info(LogCategory.Network, "[ParkingRestrictions] Harmony gateway patched {0}.{1} (all-dirs overload).", methodAllDirs.DeclaringType?.FullName, methodAllDirs.Name);
+                Log.Info(LogCategory.Network, LogRole.Host, "[ParkingRestrictions] Harmony gateway patched {0}.{1} (all-dirs overload).", methodAllDirs.DeclaringType?.FullName, methodAllDirs.Name);
             }
 
             return method != null || methodAllDirs != null;
@@ -160,7 +160,7 @@ namespace CSM.TmpeSync.ParkingRestrictions.Services
             }
             catch (Exception ex)
             {
-                Log.Warn(LogCategory.Network, "[ParkingRestrictions] SetParkingAllowed postfix error: {0}", ex);
+                Log.Warn(LogCategory.Network, LogRole.Host, "[ParkingRestrictions] SetParkingAllowed postfix error: {0}", ex);
             }
         }
 
@@ -178,7 +178,7 @@ namespace CSM.TmpeSync.ParkingRestrictions.Services
             }
             catch (Exception ex)
             {
-                Log.Warn(LogCategory.Network, "[ParkingRestrictions] SetParkingAllowed(all) postfix error: {0}", ex);
+                Log.Warn(LogCategory.Network, LogRole.Host, "[ParkingRestrictions] SetParkingAllowed(all) postfix error: {0}", ex);
             }
         }
 
@@ -189,7 +189,7 @@ namespace CSM.TmpeSync.ParkingRestrictions.Services
 
             if (!ParkingRestrictionSynchronization.TryRead(segmentId, out var state))
             {
-                Log.Warn(LogCategory.Synchronization, "[ParkingRestrictions] TryRead failed | segment={0}", segmentId);
+                Log.Warn(LogCategory.Synchronization, LogRole.Host, "[ParkingRestrictions] TryRead failed | segment={0}", segmentId);
                 return;
             }
 
@@ -201,6 +201,7 @@ namespace CSM.TmpeSync.ParkingRestrictions.Services
             if (CsmBridge.IsServerInstance())
             {
                 Log.Info(LogCategory.Synchronization,
+                    LogRole.Host,
                     "[ParkingRestrictions] Host applied | seg={0} state={1} context={2}",
                     segmentId, state, context);
 
@@ -213,6 +214,7 @@ namespace CSM.TmpeSync.ParkingRestrictions.Services
             }
 
             Log.Info(LogCategory.Network,
+                LogRole.Client,
                 "[ParkingRestrictions] Client sent ParkingRestrictionUpdateRequest | seg={0} state={1} context={2}",
                 segmentId, state, context);
 
