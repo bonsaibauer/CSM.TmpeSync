@@ -17,7 +17,7 @@ namespace CSM.TmpeSync.LaneConnector
                 return;
 
             LaneConnectorEventListener.Enable();
-            Log.Info(LogCategory.Network, "LaneConnectorSyncFeature ready: TM:PE listener enabled.");
+            Log.Info(LogCategory.Network, LogRole.Host, "LaneConnectorSyncFeature ready: TM:PE listener enabled.");
             _enabled = true;
         }
 
@@ -27,7 +27,7 @@ namespace CSM.TmpeSync.LaneConnector
                 return;
 
             LaneConnectorEventListener.Disable();
-            Log.Info(LogCategory.Network, "LaneConnectorSyncFeature stopped: TM:PE listener disabled.");
+            Log.Info(LogCategory.Network, LogRole.Host, "LaneConnectorSyncFeature stopped: TM:PE listener disabled.");
             _enabled = false;
         }
     }

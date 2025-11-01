@@ -141,7 +141,7 @@ namespace CSM.TmpeSync.SpeedLimits.Services
                 }
                 catch (Exception ex)
                 {
-                    Log.Warn(LogCategory.Bridge, "SpeedLimits init failed | error={0}", ex);
+                    Log.Warn(LogCategory.Bridge, LogRole.Host, "SpeedLimits init failed | error={0}", ex);
                 }
 
                 return _manager != null;
@@ -179,7 +179,7 @@ namespace CSM.TmpeSync.SpeedLimits.Services
             }
             catch (Exception ex)
             {
-                Log.Warn(LogCategory.Synchronization, "ApplySpeedLimit failed | error={0}", ex);
+                Log.Warn(LogCategory.Synchronization, LogRole.Host, "ApplySpeedLimit failed | error={0}", ex);
                 return false;
             }
         }
@@ -203,6 +203,7 @@ namespace CSM.TmpeSync.SpeedLimits.Services
                         {
                             hasOverride = true; kmh = ov;
                             Log.Info(LogCategory.Diagnostics,
+                                LogRole.Host,
                                 "[SpeedLimits][Probe] laneId={0} source=custom_override kmh={1:F1}",
                                 laneId, kmh);
                         }
@@ -210,6 +211,7 @@ namespace CSM.TmpeSync.SpeedLimits.Services
                         {
                             defaultKmh = def; if (!hasOverride) kmh = def;
                             Log.Info(LogCategory.Diagnostics,
+                                LogRole.Host,
                                 "[SpeedLimits][Probe] laneId={0} source=custom_default kmh={1:F1}",
                                 laneId, kmh);
                         }
@@ -256,7 +258,7 @@ namespace CSM.TmpeSync.SpeedLimits.Services
             }
             catch (Exception ex)
             {
-                Log.Warn(LogCategory.Synchronization, "TryGetSpeedLimit failed | error={0}", ex);
+                Log.Warn(LogCategory.Synchronization, LogRole.Host, "TryGetSpeedLimit failed | error={0}", ex);
                 return false;
             }
         }
@@ -295,7 +297,7 @@ namespace CSM.TmpeSync.SpeedLimits.Services
             }
             catch (Exception ex)
             {
-                Log.Debug(LogCategory.Bridge, "SpeedLimit override construction failed | error={0}", ex);
+                Log.Debug(LogCategory.Bridge, LogRole.Host, "SpeedLimit override construction failed | error={0}", ex);
             }
 
             return null;

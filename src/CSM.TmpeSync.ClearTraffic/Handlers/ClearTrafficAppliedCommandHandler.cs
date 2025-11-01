@@ -9,7 +9,7 @@ namespace CSM.TmpeSync.ClearTraffic.Handlers
     {
         protected override void Handle(ClearTrafficAppliedCommand command)
         {
-            Log.Info(LogCategory.Network, "ClearTrafficApplied received | origin=remote");
+            Log.Info(LogCategory.Network, LogRole.Client, "ClearTrafficApplied received | origin=remote");
 
             NetworkUtil.RunOnSimulation(() =>
             {
@@ -17,11 +17,11 @@ namespace CSM.TmpeSync.ClearTraffic.Handlers
                 {
                     if (ClearTrafficSynchronization.Apply())
                     {
-                        Log.Info(LogCategory.Synchronization, "Remote traffic clear applied | result=success");
+                        Log.Info(LogCategory.Synchronization, LogRole.Client, "Remote traffic clear applied | result=success");
                     }
                     else
                     {
-                        Log.Error(LogCategory.Synchronization, "Remote traffic clear applied | result=failed");
+                        Log.Error(LogCategory.Synchronization, LogRole.Client, "Remote traffic clear applied | result=failed");
                     }
                 }
             });

@@ -15,6 +15,7 @@ namespace CSM.TmpeSync.ParkingRestrictions.Handlers
         internal static void Process(ushort segmentId, ParkingRestrictionState state, string origin)
         {
             Log.Info(LogCategory.Network,
+                LogRole.Client,
                 "ParkingRestrictionApplied received | segmentId={0} origin={1} state={2}",
                 segmentId,
                 origin ?? "unknown",
@@ -23,6 +24,7 @@ namespace CSM.TmpeSync.ParkingRestrictions.Handlers
             if (!NetworkUtil.SegmentExists(segmentId))
             {
                 Log.Warn(LogCategory.Synchronization,
+                    LogRole.Client,
                     "ParkingRestrictionApplied skipped | segmentId={0} origin={1} reason=segment_missing",
                     segmentId,
                     origin ?? "unknown");
@@ -34,6 +36,7 @@ namespace CSM.TmpeSync.ParkingRestrictions.Handlers
                 if (!NetworkUtil.SegmentExists(segmentId))
                 {
                     Log.Warn(LogCategory.Synchronization,
+                        LogRole.Client,
                         "ParkingRestrictionApplied skipped during simulation | segmentId={0} origin={1} reason=entity_missing",
                         segmentId,
                         origin ?? "unknown");
@@ -45,12 +48,14 @@ namespace CSM.TmpeSync.ParkingRestrictions.Handlers
                     if (ParkingRestrictionSynchronization.Apply(segmentId, state ?? new ParkingRestrictionState()))
                     {
                         Log.Info(LogCategory.Synchronization,
+                            LogRole.Client,
                             "ParkingRestrictionApplied applied | segmentId={0}",
                             segmentId);
                     }
                     else
                     {
                         Log.Error(LogCategory.Synchronization,
+                            LogRole.Client,
                             "ParkingRestrictionApplied failed | segmentId={0}",
                             segmentId);
                     }

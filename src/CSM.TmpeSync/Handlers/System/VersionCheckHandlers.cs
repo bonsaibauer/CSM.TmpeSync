@@ -29,7 +29,7 @@ namespace CSM.TmpeSync.Handlers.System
 
             if (senderId < 0)
             {
-                Log.Warn(LogCategory.Network, "Version check request missing sender | reportedVersion={0}", command?.Version ?? "<null>");
+                Log.Warn(LogCategory.Network, LogRole.General, "Version check request missing sender | reportedVersion={0}", command?.Version ?? "<null>");
                 return;
             }
 
@@ -82,7 +82,7 @@ namespace CSM.TmpeSync.Handlers.System
             }
             catch (Exception ex)
             {
-                Log.Warn(LogCategory.Network, "Failed to send version check response | targetId={0} error={1}", senderId, ex);
+                Log.Warn(LogCategory.Network, LogRole.General, "Failed to send version check response | targetId={0} error={1}", senderId, ex);
             }
         }
     }
@@ -100,7 +100,7 @@ namespace CSM.TmpeSync.Handlers.System
 
             if (CsmBridge.IsServerInstance())
             {
-                Log.Debug(LogCategory.Network, "Version check response ignored | reason=server_instance senderId={0}", senderId);
+                Log.Debug(LogCategory.Network, LogRole.General, "Version check response ignored | reason=server_instance senderId={0}", senderId);
                 return;
             }
 

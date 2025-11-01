@@ -13,7 +13,7 @@ namespace CSM.TmpeSync.LaneArrows
                 return;
 
             LaneArrowEventListener.Enable();
-            Log.Info(LogCategory.Network, "LaneArrowsSyncFeature ready: TM:PE listener enabled.");
+            Log.Info(LogCategory.Network, LogRole.Host, "LaneArrowsSyncFeature ready: TM:PE listener enabled.");
             _enabled = true;
         }
 
@@ -23,7 +23,7 @@ namespace CSM.TmpeSync.LaneArrows
                 return;
 
             LaneArrowEventListener.Disable();
-            Log.Info(LogCategory.Network, "LaneArrowsSyncFeature stopped: TM:PE listener disabled.");
+            Log.Info(LogCategory.Network, LogRole.Host, "LaneArrowsSyncFeature stopped: TM:PE listener disabled.");
             _enabled = false;
         }
     }

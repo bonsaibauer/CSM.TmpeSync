@@ -35,7 +35,7 @@ namespace CSM.TmpeSync.LaneConnector.Services
 
                 if (!patchedAny)
                 {
-                    Log.Warn(LogCategory.Network, "[LaneConnector] No TM:PE lane-connector methods could be patched. Listener disabled.");
+                    Log.Warn(LogCategory.Network, LogRole.Host, "[LaneConnector] No TM:PE lane-connector methods could be patched. Listener disabled.");
                     _harmony = null;
                     return;
                 }
@@ -44,7 +44,7 @@ namespace CSM.TmpeSync.LaneConnector.Services
             }
             catch (Exception ex)
             {
-                Log.Error(LogCategory.Network, "[LaneConnector] Gateway enable failed: {0}", ex);
+                Log.Error(LogCategory.Network, LogRole.Host, "[LaneConnector] Gateway enable failed: {0}", ex);
             }
         }
 
@@ -56,11 +56,11 @@ namespace CSM.TmpeSync.LaneConnector.Services
             try
             {
                 _harmony?.UnpatchAll(HarmonyId);
-                Log.Info(LogCategory.Network, "[LaneConnector] Harmony gateway disabled.");
+                Log.Info(LogCategory.Network, LogRole.Host, "[LaneConnector] Harmony gateway disabled.");
             }
             catch (Exception ex)
             {
-                Log.Warn(LogCategory.Network, "[LaneConnector] Gateway disable had issues: {0}", ex);
+                Log.Warn(LogCategory.Network, LogRole.Host, "[LaneConnector] Gateway disable had issues: {0}", ex);
             }
             finally
             {
@@ -78,7 +78,7 @@ namespace CSM.TmpeSync.LaneConnector.Services
             var postfix = typeof(LaneConnectorEventListener).GetMethod(postfixName, BindingFlags.NonPublic | BindingFlags.Static);
             if (postfix == null) return false;
             _harmony.Patch(method, postfix: new HarmonyMethod(postfix));
-            Log.Info(LogCategory.Network, "[LaneConnector] Patched {0}.{1}", type.FullName, methodName);
+            Log.Info(LogCategory.Network, LogRole.Host, "[LaneConnector] Patched {0}.{1}", type.FullName, methodName);
             return true;
         }
 
@@ -102,7 +102,7 @@ namespace CSM.TmpeSync.LaneConnector.Services
             }
             catch (Exception ex)
             {
-                Log.Warn(LogCategory.Network, "[LaneConnector] Add/Remove postfix error: {0}", ex);
+                Log.Warn(LogCategory.Network, LogRole.Host, "[LaneConnector] Add/Remove postfix error: {0}", ex);
             }
         }
 
@@ -122,7 +122,7 @@ namespace CSM.TmpeSync.LaneConnector.Services
             }
             catch (Exception ex)
             {
-                Log.Warn(LogCategory.Network, "[LaneConnector] Clear postfix error: {0}", ex);
+                Log.Warn(LogCategory.Network, LogRole.Host, "[LaneConnector] Clear postfix error: {0}", ex);
             }
         }
 
@@ -136,7 +136,7 @@ namespace CSM.TmpeSync.LaneConnector.Services
             }
             catch (Exception ex)
             {
-                Log.Warn(LogCategory.Network, "[LaneConnector] Clear node postfix error: {0}", ex);
+                Log.Warn(LogCategory.Network, LogRole.Host, "[LaneConnector] Clear node postfix error: {0}", ex);
             }
         }
         private static void BroadcastEnd(ushort nodeId, ushort segmentIdOrZero, string context)

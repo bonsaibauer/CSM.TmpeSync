@@ -64,7 +64,7 @@ namespace CSM.TmpeSync.VehicleRestrictions.Services
             }
             catch (Exception ex)
             {
-                Log.Warn(LogCategory.Bridge, "VehicleRestrictions TryGet failed | segmentId={0} error={1}", segmentId, ex);
+                Log.Warn(LogCategory.Bridge, LogRole.Host, "VehicleRestrictions TryGet failed | segmentId={0} error={1}", segmentId, ex);
                 return false;
             }
         }
@@ -97,19 +97,19 @@ namespace CSM.TmpeSync.VehicleRestrictions.Services
                         var idx = item.LaneOrdinal;
                         if (idx < 0 || idx >= info.m_lanes.Length)
                         {
-                            Log.Warn(LogCategory.Synchronization, "[VehicleRestrictions] Apply skipped: invalid ordinal | seg={0} ord={1}", segmentId, idx);
+                            Log.Warn(LogCategory.Synchronization, LogRole.Host, "[VehicleRestrictions] Apply skipped: invalid ordinal | seg={0} ord={1}", segmentId, idx);
                             okAll = false; continue;
                         }
 
                         var laneInfo = info.m_lanes[idx];
                         if (!IsLaneConfigurable(laneInfo))
                         {
-                            Log.Warn(LogCategory.Synchronization, "[VehicleRestrictions] Not a vehicle lane, skip | seg={0} ord={1}", segmentId, idx);
+                            Log.Warn(LogCategory.Synchronization, LogRole.Host, "[VehicleRestrictions] Not a vehicle lane, skip | seg={0} ord={1}", segmentId, idx);
                             okAll = false; continue;
                         }
                         if (!SignatureMatches(laneInfo, item.Signature))
                         {
-                            Log.Warn(LogCategory.Synchronization, "[VehicleRestrictions] Signature mismatch, skip | seg={0} ord={1}", segmentId, idx);
+                            Log.Warn(LogCategory.Synchronization, LogRole.Host, "[VehicleRestrictions] Signature mismatch, skip | seg={0} ord={1}", segmentId, idx);
                             okAll = false; continue;
                         }
 
@@ -120,7 +120,7 @@ namespace CSM.TmpeSync.VehicleRestrictions.Services
                         // resolve laneId for ToggleAllowedType
                         if (!NetworkUtil.TryGetLaneId(segmentId, idx, out var laneId))
                         {
-                            Log.Warn(LogCategory.Synchronization, "[VehicleRestrictions] LaneId resolve failed | seg={0} ord={1}", segmentId, idx);
+                            Log.Warn(LogCategory.Synchronization, LogRole.Host, "[VehicleRestrictions] LaneId resolve failed | seg={0} ord={1}", segmentId, idx);
                             okAll = false; continue;
                         }
 
@@ -139,7 +139,7 @@ namespace CSM.TmpeSync.VehicleRestrictions.Services
             }
             catch (Exception ex)
             {
-                Log.Warn(LogCategory.Bridge, "VehicleRestrictions Apply failed | segmentId={0} error={1}", segmentId, ex);
+                Log.Warn(LogCategory.Bridge, LogRole.Host, "VehicleRestrictions Apply failed | segmentId={0} error={1}", segmentId, ex);
                 return false;
             }
         }

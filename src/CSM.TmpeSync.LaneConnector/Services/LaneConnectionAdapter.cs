@@ -57,7 +57,7 @@ namespace CSM.TmpeSync.LaneConnector.Services
             }
             catch (Exception ex)
             {
-                Log.Warn(LogCategory.Bridge, "LaneConnections TryGet failed | laneId={0} error={1}", laneId, ex);
+                Log.Warn(LogCategory.Bridge, LogRole.Host, "LaneConnections TryGet failed | laneId={0} error={1}", laneId, ex);
                 return false;
             }
         }
@@ -92,7 +92,7 @@ namespace CSM.TmpeSync.LaneConnector.Services
             }
             catch (Exception ex)
             {
-                Log.Warn(LogCategory.Bridge, "LaneConnections Apply failed | sourceLaneId={0} error={1}", sourceLaneId, ex);
+                Log.Warn(LogCategory.Bridge, LogRole.Host, "LaneConnections Apply failed | sourceLaneId={0} error={1}", sourceLaneId, ex);
                 return false;
             }
         }

@@ -13,12 +13,13 @@ namespace CSM.TmpeSync.LaneConnector.Handlers
         {
             var senderId = CsmBridge.GetSenderId(cmd);
             Log.Info(LogCategory.Network,
-                "LaneConnectionsEndUpdateRequest received | nodeId={0} segmentId={1} startNode={2} items={3} senderId={4} role={5}",
-                cmd.NodeId, cmd.SegmentId, cmd.StartNode, cmd.Items?.Count ?? 0, senderId, CsmBridge.DescribeCurrentRole());
+                LogRole.Host,
+                "LaneConnectionsEndUpdateRequest received | nodeId={0} segmentId={1} startNode={2} items={3} senderId={4}",
+                cmd.NodeId, cmd.SegmentId, cmd.StartNode, cmd.Items?.Count ?? 0, senderId);
 
             if (!CsmBridge.IsServerInstance())
             {
-                Log.Debug(LogCategory.Network, "Ignoring LaneConnectionsEndUpdateRequest | reason=not_server_instance");
+                Log.Debug(LogCategory.Network, LogRole.Client, "Ignoring LaneConnectionsEndUpdateRequest | reason=not_server_instance");
                 return;
             }
 

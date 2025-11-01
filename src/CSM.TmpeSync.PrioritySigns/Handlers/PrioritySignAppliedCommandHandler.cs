@@ -17,6 +17,7 @@ namespace CSM.TmpeSync.PrioritySigns.Handlers
         {
             Log.Info(
                 LogCategory.Network,
+                LogRole.Client,
                 "PrioritySignApplied received | nodeId={0} segmentId={1} sign={2} origin={3}",
                 nodeId,
                 segmentId,
@@ -27,6 +28,7 @@ namespace CSM.TmpeSync.PrioritySigns.Handlers
             {
                 Log.Warn(
                     LogCategory.Synchronization,
+                    LogRole.Client,
                     "PrioritySignApplied skipped | nodeId={0} segmentId={1} origin={2} reason=entity_missing",
                     nodeId,
                     segmentId,
@@ -40,6 +42,7 @@ namespace CSM.TmpeSync.PrioritySigns.Handlers
                 {
                     Log.Warn(
                         LogCategory.Synchronization,
+                        LogRole.Client,
                         "PrioritySignApplied skipped during simulation | nodeId={0} segmentId={1} origin={2} reason=entity_missing",
                         nodeId,
                         segmentId,
@@ -53,6 +56,7 @@ namespace CSM.TmpeSync.PrioritySigns.Handlers
                     {
                         Log.Info(
                             LogCategory.Synchronization,
+                            LogRole.Client,
                             "PrioritySignApplied applied | nodeId={0} segmentId={1} sign={2}",
                             nodeId,
                             segmentId,
@@ -62,6 +66,7 @@ namespace CSM.TmpeSync.PrioritySigns.Handlers
                     {
                         Log.Error(
                             LogCategory.Synchronization,
+                            LogRole.Client,
                             "PrioritySignApplied failed | nodeId={0} segmentId={1} sign={2}",
                             nodeId,
                             segmentId,

@@ -12,12 +12,13 @@ namespace CSM.TmpeSync.LaneArrows.Handlers
         {
             var senderId = CSM.TmpeSync.Services.CsmBridge.GetSenderId(cmd);
             Log.Info(LogCategory.Network,
-                "LaneArrowsEndUpdateRequest received | nodeId={0} segmentId={1} startNode={2} items={3} senderId={4} role={5}",
-                cmd.NodeId, cmd.SegmentId, cmd.StartNode, cmd.Items?.Count ?? 0, senderId, CSM.TmpeSync.Services.CsmBridge.DescribeCurrentRole());
+                LogRole.Host,
+                "LaneArrowsEndUpdateRequest received | nodeId={0} segmentId={1} startNode={2} items={3} senderId={4}",
+                cmd.NodeId, cmd.SegmentId, cmd.StartNode, cmd.Items?.Count ?? 0, senderId);
 
             if (!CSM.TmpeSync.Services.CsmBridge.IsServerInstance())
             {
-                Log.Debug(LogCategory.Network, "Ignoring LaneArrowsEndUpdateRequest | reason=not_server_instance");
+                Log.Debug(LogCategory.Network, LogRole.Client, "Ignoring LaneArrowsEndUpdateRequest | reason=not_server_instance");
                 return;
             }
 

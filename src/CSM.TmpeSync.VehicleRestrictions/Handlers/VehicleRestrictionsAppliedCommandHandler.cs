@@ -14,6 +14,7 @@ namespace CSM.TmpeSync.VehicleRestrictions.Handlers
         internal static void Process(VehicleRestrictionsAppliedCommand command, string origin)
         {
             Log.Info(LogCategory.Network,
+                LogRole.Client,
                 "VehicleRestrictionsApplied received | segmentId={0} items={1} origin={2}",
                 command.SegmentId,
                 command.Items?.Count ?? 0,
@@ -22,6 +23,7 @@ namespace CSM.TmpeSync.VehicleRestrictions.Handlers
             if (!NetworkUtil.SegmentExists(command.SegmentId))
             {
                 Log.Warn(LogCategory.Synchronization,
+                    LogRole.Client,
                     "VehicleRestrictionsApplied skipped | segmentId={0} origin={1} reason=segment_missing",
                     command.SegmentId,
                     origin ?? "unknown");
@@ -33,6 +35,7 @@ namespace CSM.TmpeSync.VehicleRestrictions.Handlers
                 if (!NetworkUtil.SegmentExists(command.SegmentId))
                 {
                     Log.Warn(LogCategory.Synchronization,
+                        LogRole.Client,
                         "VehicleRestrictionsApplied skipped during simulation | segmentId={0} origin={1} reason=entity_missing",
                         command.SegmentId,
                         origin ?? "unknown");
@@ -58,6 +61,7 @@ namespace CSM.TmpeSync.VehicleRestrictions.Handlers
                     if (VehicleRestrictionSynchronization.Apply(command.SegmentId, req))
                     {
                         Log.Info(LogCategory.Synchronization,
+                            LogRole.Client,
                             "VehicleRestrictionsApplied applied | segmentId={0} count={1}",
                             command.SegmentId,
                             req.Items?.Count ?? 0);
@@ -65,6 +69,7 @@ namespace CSM.TmpeSync.VehicleRestrictions.Handlers
                     else
                     {
                         Log.Error(LogCategory.Synchronization,
+                            LogRole.Client,
                             "VehicleRestrictionsApplied failed | segmentId={0}",
                             command.SegmentId);
                     }

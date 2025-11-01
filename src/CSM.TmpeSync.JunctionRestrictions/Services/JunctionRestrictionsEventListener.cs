@@ -38,17 +38,17 @@ namespace CSM.TmpeSync.JunctionRestrictions.Services
 
                 if (!patched)
                 {
-                    Log.Warn(LogCategory.Network, "[JunctionRestrictions] No TM:PE methods patched. Listener disabled.");
+                    Log.Warn(LogCategory.Network, LogRole.Host, "[JunctionRestrictions] No TM:PE methods patched. Listener disabled.");
                     _harmony = null;
                     return;
                 }
 
                 _enabled = true;
-                Log.Info(LogCategory.Network, "[JunctionRestrictions] Harmony gateway enabled.");
+                Log.Info(LogCategory.Network, LogRole.Host, "[JunctionRestrictions] Harmony gateway enabled.");
             }
             catch (Exception ex)
             {
-                Log.Error(LogCategory.Network, "[JunctionRestrictions] Gateway enable failed: {0}", ex);
+                Log.Error(LogCategory.Network, LogRole.Host, "[JunctionRestrictions] Gateway enable failed: {0}", ex);
             }
         }
 
@@ -59,11 +59,11 @@ namespace CSM.TmpeSync.JunctionRestrictions.Services
             try
             {
                 _harmony?.UnpatchAll(HarmonyId);
-                Log.Info(LogCategory.Network, "[JunctionRestrictions] Harmony gateway disabled.");
+                Log.Info(LogCategory.Network, LogRole.Host, "[JunctionRestrictions] Harmony gateway disabled.");
             }
             catch (Exception ex)
             {
-                Log.Warn(LogCategory.Network, "[JunctionRestrictions] Gateway disable issues: {0}", ex);
+                Log.Warn(LogCategory.Network, LogRole.Host, "[JunctionRestrictions] Gateway disable issues: {0}", ex);
             }
             finally
             {
@@ -86,7 +86,7 @@ namespace CSM.TmpeSync.JunctionRestrictions.Services
                 if (!string.Equals(mi.Name, methodName, StringComparison.Ordinal))
                     continue;
                 _harmony.Patch(mi, postfix: new HarmonyMethod(postfix));
-                Log.Info(LogCategory.Network, "[JunctionRestrictions] Patched {0}.{1}({2})", type.FullName, mi.Name, string.Join(", ", mi.GetParameters().Select(p => p.ParameterType.Name).ToArray()));
+                Log.Info(LogCategory.Network, LogRole.Host, "[JunctionRestrictions] Patched {0}.{1}({2})", type.FullName, mi.Name, string.Join(", ", mi.GetParameters().Select(p => p.ParameterType.Name).ToArray()));
                 count++;
             }
             return count > 0;
@@ -128,7 +128,7 @@ namespace CSM.TmpeSync.JunctionRestrictions.Services
             }
             catch (Exception ex)
             {
-                Log.Warn(LogCategory.Network, "[JunctionRestrictions] Setter postfix error: {0}", ex);
+                Log.Warn(LogCategory.Network, LogRole.Host, "[JunctionRestrictions] Setter postfix error: {0}", ex);
             }
         }
 
@@ -147,7 +147,7 @@ namespace CSM.TmpeSync.JunctionRestrictions.Services
                 }
                 else
                 {
-                    Log.Warn(LogCategory.Synchronization, "[JunctionRestrictions] TryRead failed | node={0} seg={1}", nodeId, segId);
+                    Log.Warn(LogCategory.Synchronization, LogRole.Host, "[JunctionRestrictions] TryRead failed | node={0} seg={1}", nodeId, segId);
                 }
             }
         }
@@ -156,7 +156,7 @@ namespace CSM.TmpeSync.JunctionRestrictions.Services
         {
             if (CsmBridge.IsServerInstance())
             {
-                Log.Info(LogCategory.Synchronization, "[JunctionRestrictions] Host applied | node={0} seg={1} ctx={2} state={3}", nodeId, segmentId, context, state);
+                Log.Info(LogCategory.Synchronization, LogRole.Host, "[JunctionRestrictions] Host applied | node={0} seg={1} ctx={2} state={3}", nodeId, segmentId, context, state);
                 JunctionRestrictionsSynchronization.Dispatch(new JunctionRestrictionsAppliedCommand
                 {
                     NodeId = nodeId,
@@ -166,7 +166,7 @@ namespace CSM.TmpeSync.JunctionRestrictions.Services
             }
             else
             {
-                Log.Info(LogCategory.Network, "[JunctionRestrictions] Client sent update | node={0} seg={1} ctx={2} state={3}", nodeId, segmentId, context, state);
+                Log.Info(LogCategory.Network, LogRole.Client, "[JunctionRestrictions] Client sent update | node={0} seg={1} ctx={2} state={3}", nodeId, segmentId, context, state);
                 JunctionRestrictionsSynchronization.Dispatch(new JunctionRestrictionsUpdateRequest
                 {
                     NodeId = nodeId,

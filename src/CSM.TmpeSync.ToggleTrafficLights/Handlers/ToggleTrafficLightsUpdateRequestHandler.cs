@@ -13,15 +13,15 @@ namespace CSM.TmpeSync.ToggleTrafficLights.Handlers
             var senderId = CsmBridge.GetSenderId(command);
             Log.Info(
                 LogCategory.Network,
-                "TrafficLightUpdateRequest received | nodeId={0} enabled={1} senderId={2} role={3}",
+                LogRole.Host,
+                "TrafficLightUpdateRequest received | nodeId={0} enabled={1} senderId={2}",
                 command.NodeId,
                 command.Enabled,
-                senderId,
-                CsmBridge.DescribeCurrentRole());
+                senderId);
 
             if (!CsmBridge.IsServerInstance())
             {
-                Log.Debug(LogCategory.Network, "TrafficLightUpdateRequest ignored | reason=not_server_instance");
+                Log.Debug(LogCategory.Network, LogRole.Client, "TrafficLightUpdateRequest ignored | reason=not_server_instance");
                 return;
             }
 
@@ -76,7 +76,7 @@ namespace CSM.TmpeSync.ToggleTrafficLights.Handlers
                     bool resultingEnabled = command.Enabled;
                     if (!ToggleTrafficLightsSynchronization.TryRead(command.NodeId, out resultingEnabled))
                     {
-                        Log.Warn(LogCategory.Synchronization, "Traffic light verify failed | nodeId={0}", command.NodeId);
+                        Log.Warn(LogCategory.Synchronization, LogRole.Host, "Traffic light verify failed | nodeId={0}", command.NodeId);
                     }
 
                     Log.Info(

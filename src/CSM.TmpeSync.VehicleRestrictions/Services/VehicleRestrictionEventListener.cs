@@ -28,7 +28,7 @@ namespace CSM.TmpeSync.VehicleRestrictions.Services
 
                 if (!patchedAny)
                 {
-                    Log.Warn(LogCategory.Network, "[VehicleRestrictions] No TM:PE vehicle-restriction methods could be patched. Listener disabled.");
+                    Log.Warn(LogCategory.Network, LogRole.Host, "[VehicleRestrictions] No TM:PE vehicle-restriction methods could be patched. Listener disabled.");
                     _harmony = null;
                     return;
                 }
@@ -37,7 +37,7 @@ namespace CSM.TmpeSync.VehicleRestrictions.Services
             }
             catch (Exception ex)
             {
-                Log.Error(LogCategory.Network, "[VehicleRestrictions] Gateway enable failed: {0}", ex);
+                Log.Error(LogCategory.Network, LogRole.Host, "[VehicleRestrictions] Gateway enable failed: {0}", ex);
             }
         }
 
@@ -49,11 +49,11 @@ namespace CSM.TmpeSync.VehicleRestrictions.Services
             try
             {
                 _harmony?.UnpatchAll(HarmonyId);
-                Log.Info(LogCategory.Network, "[VehicleRestrictions] Harmony gateway disabled.");
+                Log.Info(LogCategory.Network, LogRole.Host, "[VehicleRestrictions] Harmony gateway disabled.");
             }
             catch (Exception ex)
             {
-                Log.Warn(LogCategory.Network, "[VehicleRestrictions] Gateway disable had issues: {0}", ex);
+                Log.Warn(LogCategory.Network, LogRole.Host, "[VehicleRestrictions] Gateway disable had issues: {0}", ex);
             }
             finally
             {
@@ -80,7 +80,7 @@ namespace CSM.TmpeSync.VehicleRestrictions.Services
                 .GetMethod(nameof(SetAllowedVehicleTypes_Postfix), BindingFlags.NonPublic | BindingFlags.Static);
 
             _harmony.Patch(method, postfix: new HarmonyMethod(postfix));
-            Log.Info(LogCategory.Network, "[VehicleRestrictions] Harmony gateway patched {0}.{1}.", method.DeclaringType?.FullName, method.Name);
+            Log.Info(LogCategory.Network, LogRole.Host, "[VehicleRestrictions] Harmony gateway patched {0}.{1}.", method.DeclaringType?.FullName, method.Name);
             return true;
         }
 
@@ -102,7 +102,7 @@ namespace CSM.TmpeSync.VehicleRestrictions.Services
                 .GetMethod(nameof(ToggleAllowedType_Postfix), BindingFlags.NonPublic | BindingFlags.Static);
 
             _harmony.Patch(method, postfix: new HarmonyMethod(postfix));
-            Log.Info(LogCategory.Network, "[VehicleRestrictions] Harmony gateway patched {0}.{1}.", method.DeclaringType?.FullName, method.Name);
+            Log.Info(LogCategory.Network, LogRole.Host, "[VehicleRestrictions] Harmony gateway patched {0}.{1}.", method.DeclaringType?.FullName, method.Name);
             return true;
         }
 
@@ -172,7 +172,7 @@ namespace CSM.TmpeSync.VehicleRestrictions.Services
 
                 if (!VehicleRestrictionSynchronization.TryRead(segmentId, out var state))
                 {
-                    Log.Warn(LogCategory.Synchronization, "[VehicleRestrictions] TryRead failed | segment={0}", segmentId);
+                    Log.Warn(LogCategory.Synchronization, LogRole.Host, "[VehicleRestrictions] TryRead failed | segment={0}", segmentId);
                     return;
                 }
 
@@ -180,7 +180,7 @@ namespace CSM.TmpeSync.VehicleRestrictions.Services
             }
             catch (Exception ex)
             {
-                Log.Warn(LogCategory.Network, "[VehicleRestrictions] Event postfix error: {0}", ex);
+                Log.Warn(LogCategory.Network, LogRole.Host, "[VehicleRestrictions] Event postfix error: {0}", ex);
             }
         }
 
@@ -192,6 +192,7 @@ namespace CSM.TmpeSync.VehicleRestrictions.Services
             if (CsmBridge.IsServerInstance())
             {
                 Log.Info(LogCategory.Synchronization,
+                    LogRole.Host,
                     "[VehicleRestrictions] Host applied | seg={0} count={1} context={2}",
                     state.SegmentId, state.Items?.Count ?? 0, context);
 
@@ -204,6 +205,7 @@ namespace CSM.TmpeSync.VehicleRestrictions.Services
             }
 
             Log.Info(LogCategory.Network,
+                LogRole.Client,
                 "[VehicleRestrictions] Client sent VehicleRestrictionsUpdateRequest | seg={0} count={1} context={2}",
                 state.SegmentId, state.Items?.Count ?? 0, context);
 

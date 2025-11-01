@@ -25,7 +25,7 @@ namespace CSM.TmpeSync.ToggleTrafficLights.Services
             }
             catch (Exception ex)
             {
-                Log.Warn(LogCategory.Bridge, "ToggleTrafficLights TryGet failed | nodeId={0} error={1}", nodeId, ex);
+                Log.Warn(LogCategory.Bridge, LogRole.Host, "ToggleTrafficLights TryGet failed | nodeId={0} error={1}", nodeId, ex);
                 return false;
             }
         }
@@ -55,7 +55,7 @@ namespace CSM.TmpeSync.ToggleTrafficLights.Services
             }
             catch (Exception ex)
             {
-                Log.Warn(LogCategory.Bridge, "ToggleTrafficLights Apply failed | nodeId={0} enabled={1} error={2}", nodeId, enabled, ex);
+                Log.Warn(LogCategory.Bridge, LogRole.Host, "ToggleTrafficLights Apply failed | nodeId={0} enabled={1} error={2}", nodeId, enabled, ex);
                 return false;
             }
         }

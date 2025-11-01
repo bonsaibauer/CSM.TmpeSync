@@ -27,6 +27,7 @@ namespace CSM.TmpeSync.Mod
                 {
                     Log.Warn(
                         LogCategory.Synchronization,
+                        GetCurrentRole(),
                         "Synchronization remains disabled | reason={0}",
                         string.IsNullOrEmpty(_suspendReason) ? "unknown" : _suspendReason);
                     return;
@@ -48,7 +49,7 @@ namespace CSM.TmpeSync.Mod
             ToggleTrafficLightsSyncFeature.Register();
             ClearTrafficSyncFeature.Register();
 
-            Log.Info(LogCategory.Synchronization, "Synchronization features enabled.");
+            Log.Info(LogCategory.Synchronization, GetCurrentRole(), "Synchronization features enabled.");
         }
 
         internal static void Unregister()
@@ -67,7 +68,7 @@ namespace CSM.TmpeSync.Mod
                 return;
 
             DisableAllFeatures();
-            Log.Info(LogCategory.Synchronization, "Synchronization features disabled.");
+            Log.Info(LogCategory.Synchronization, GetCurrentRole(), "Synchronization features disabled.");
         }
 
         internal static void SuspendForVersionMismatch(string remoteVersion)
@@ -95,7 +96,7 @@ namespace CSM.TmpeSync.Mod
             if (shouldDisable)
                 DisableAllFeatures();
 
-            Log.Warn(LogCategory.Synchronization, "Synchronization suspended | reason={0}", reason);
+            Log.Warn(LogCategory.Synchronization, GetCurrentRole(), "Synchronization suspended | reason={0}", reason);
         }
 
         private static void DisableAllFeatures()
@@ -119,9 +120,13 @@ namespace CSM.TmpeSync.Mod
             }
             catch (Exception ex)
             {
-                Log.Warn(LogCategory.Synchronization, "Feature shutdown failed | error={0}", ex);
+                Log.Warn(LogCategory.Synchronization, GetCurrentRole(), "Feature shutdown failed | error={0}", ex);
             }
         }
+
+        private static LogRole GetCurrentRole() =>
+            CsmBridge.IsServerInstance() ? LogRole.Host : LogRole.Client;
     }
+}
 }
 
