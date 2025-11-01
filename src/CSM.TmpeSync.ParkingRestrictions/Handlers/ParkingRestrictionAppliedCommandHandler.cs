@@ -45,18 +45,34 @@ namespace CSM.TmpeSync.ParkingRestrictions.Handlers
 
                 using (CsmBridge.StartIgnore())
                 {
-                    if (ParkingRestrictionSynchronization.Apply(segmentId, state ?? new ParkingRestrictionState()))
+                    var result = ParkingRestrictionSynchronization.Apply(
+                        segmentId,
+                        state ?? new ParkingRestrictionState(),
+                        null,
+                        $"applied_command:{origin ?? "unknown"}");
+
+                    if (!result.Succeeded)
                     {
-                        Log.Info(LogCategory.Synchronization,
+                        Log.Error(
+                            LogCategory.Synchronization,
                             LogRole.Client,
-                            "ParkingRestrictionApplied applied | segmentId={0}",
+                            "ParkingRestrictionApplied failed | segmentId={0}",
+                            segmentId);
+                    }
+                    else if (result.Deferred)
+                    {
+                        Log.Info(
+                            LogCategory.Synchronization,
+                            LogRole.Client,
+                            "ParkingRestrictionApplied deferred | segmentId={0}",
                             segmentId);
                     }
                     else
                     {
-                        Log.Error(LogCategory.Synchronization,
+                        Log.Info(
+                            LogCategory.Synchronization,
                             LogRole.Client,
-                            "ParkingRestrictionApplied failed | segmentId={0}",
+                            "ParkingRestrictionApplied applied | segmentId={0}",
                             segmentId);
                     }
                 }

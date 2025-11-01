@@ -58,23 +58,24 @@ namespace CSM.TmpeSync.ParkingRestrictions.Handlers
                         return;
                     }
 
-                    if (ParkingRestrictionSynchronization.Apply(command.SegmentId, state))
-                    {
-                        var resultingState = state?.Clone();
-                        if (ParkingRestrictionSynchronization.TryRead(command.SegmentId, out var appliedState) && appliedState != null)
-                            resultingState = appliedState.Clone();
-                        Log.Info(LogCategory.Synchronization,
-                            LogRole.Host,
-                            "Parking restriction applied | segmentId={0} state={1} action=broadcast",
-                            command.SegmentId,
-                            resultingState);
-                        CsmBridge.SendToAll(new ParkingRestrictionAppliedCommand
+                    var applyResult = ParkingRestrictionSynchronization.Apply(
+                        command.SegmentId,
+                        state,
+                        onApplied: () =>
                         {
-                            SegmentId = command.SegmentId,
-                            State = resultingState
-                        });
-                    }
-                    else
+                            Log.Info(
+                                LogCategory.Synchronization,
+                                LogRole.Host,
+                                "Parking restriction applied | segmentId={0} action=broadcast senderId={1}",
+                                command.SegmentId,
+                                senderId);
+                            ParkingRestrictionSynchronization.BroadcastSegment(
+                                command.SegmentId,
+                                $"host_broadcast:sender={senderId}");
+                        },
+                        origin: $"update_request:sender={senderId}");
+
+                    if (!applyResult.Succeeded)
                     {
                         Log.Error(LogCategory.Synchronization,
                             LogRole.Host,
@@ -82,7 +83,24 @@ namespace CSM.TmpeSync.ParkingRestrictions.Handlers
                             command.SegmentId,
                             senderId);
                         CsmBridge.SendToClient(senderId, new RequestRejected { Reason = "tmpe_apply_failed", EntityId = command.SegmentId, EntityType = 2 });
+                        return;
                     }
+
+                    if (applyResult.Deferred)
+                    {
+                        Log.Info(LogCategory.Synchronization,
+                            LogRole.Host,
+                            "Parking restriction apply deferred | segmentId={0} senderId={1}",
+                            command.SegmentId,
+                            senderId);
+                        return;
+                    }
+
+                    Log.Info(LogCategory.Synchronization,
+                        LogRole.Host,
+                        "Parking restriction applied | segmentId={0} action=immediate senderId={1}",
+                        command.SegmentId,
+                        senderId);
                 }
             });
         }

@@ -3,7 +3,6 @@ using System.Linq;
 using System.Reflection;
 using ColossalFramework;
 using HarmonyLib;
-using CSM.TmpeSync.ParkingRestrictions.Messages;
 using CSM.TmpeSync.Services;
 
 namespace CSM.TmpeSync.ParkingRestrictions.Services
@@ -156,7 +155,7 @@ namespace CSM.TmpeSync.ParkingRestrictions.Services
                 if (segmentId == 0)
                     return;
 
-                BroadcastSegment(segmentId, "set");
+                ParkingRestrictionSynchronization.BroadcastSegment(segmentId, "set");
             }
             catch (Exception ex)
             {
@@ -174,55 +173,12 @@ namespace CSM.TmpeSync.ParkingRestrictions.Services
                 if (segmentId == 0)
                     return;
 
-                BroadcastSegment(segmentId, "set_all_dirs");
+                ParkingRestrictionSynchronization.BroadcastSegment(segmentId, "set_all_dirs");
             }
             catch (Exception ex)
             {
                 Log.Warn(LogCategory.Network, LogRole.Host, "[ParkingRestrictions] SetParkingAllowed(all) postfix error: {0}", ex);
             }
-        }
-
-        private static void BroadcastSegment(ushort segmentId, string context)
-        {
-            if (segmentId == 0)
-                return;
-
-            if (!ParkingRestrictionSynchronization.TryRead(segmentId, out var state))
-            {
-                Log.Warn(LogCategory.Synchronization, LogRole.Host, "[ParkingRestrictions] TryRead failed | segment={0}", segmentId);
-                return;
-            }
-
-            SendLocalChange(segmentId, state, context);
-        }
-
-        private static void SendLocalChange(ushort segmentId, CSM.TmpeSync.Messages.States.ParkingRestrictionState state, string context)
-        {
-            if (CsmBridge.IsServerInstance())
-            {
-                Log.Info(LogCategory.Synchronization,
-                    LogRole.Host,
-                    "[ParkingRestrictions] Host applied | seg={0} state={1} context={2}",
-                    segmentId, state, context);
-
-                ParkingRestrictionSynchronization.Dispatch(new ParkingRestrictionAppliedCommand
-                {
-                    SegmentId = segmentId,
-                    State = state
-                });
-                return;
-            }
-
-            Log.Info(LogCategory.Network,
-                LogRole.Client,
-                "[ParkingRestrictions] Client sent ParkingRestrictionUpdateRequest | seg={0} state={1} context={2}",
-                segmentId, state, context);
-
-            ParkingRestrictionSynchronization.Dispatch(new ParkingRestrictions.Messages.ParkingRestrictionUpdateRequest
-            {
-                SegmentId = segmentId,
-                State = state
-            });
         }
     }
 }
