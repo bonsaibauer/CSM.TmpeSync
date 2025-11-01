@@ -79,7 +79,7 @@ namespace CSM.TmpeSync.JunctionRestrictions.Handlers
                         return;
                     }
 
-                    if (applyResult.Deferred)
+                    if (applyResult.IsDeferred)
                     {
                         Log.Info(LogCategory.Synchronization, LogRole.Host, "JunctionRestrictions apply deferred | nodeId={0} segmentId={1} senderId={2}", command.NodeId, command.SegmentId, senderId);
                     }

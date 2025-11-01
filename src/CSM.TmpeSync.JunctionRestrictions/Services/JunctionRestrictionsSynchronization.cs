@@ -178,7 +178,7 @@ namespace CSM.TmpeSync.JunctionRestrictions.Services
         {
             internal bool Succeeded { get; }
             internal bool AppliedImmediately { get; }
-            internal bool Deferred => Succeeded && !AppliedImmediately;
+            internal bool IsDeferred => Succeeded && !AppliedImmediately;
 
             private ApplyAttemptResult(bool succeeded, bool appliedImmediately)
             {
@@ -186,9 +186,9 @@ namespace CSM.TmpeSync.JunctionRestrictions.Services
                 AppliedImmediately = appliedImmediately;
             }
 
-            internal static ApplyAttemptResult SuccessImmediate => new(true, true);
-            internal static ApplyAttemptResult Deferred => new(true, false);
-            internal static ApplyAttemptResult Failure => new(false, false);
+            internal static ApplyAttemptResult SuccessImmediate => new ApplyAttemptResult(true, true);
+            internal static ApplyAttemptResult Deferred => new ApplyAttemptResult(true, false);
+            internal static ApplyAttemptResult Failure => new ApplyAttemptResult(false, false);
         }
 
         private sealed class ApplyContext

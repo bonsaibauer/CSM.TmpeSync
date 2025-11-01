@@ -51,7 +51,7 @@ namespace CSM.TmpeSync.JunctionRestrictions.Handlers
                     {
                         Log.Error(LogCategory.Synchronization, LogRole.Client, "JunctionRestrictionsApplied failed | nodeId={0} segmentId={1}", nodeId, segmentId);
                     }
-                    else if (result.Deferred)
+                    else if (result.IsDeferred)
                     {
                         Log.Info(LogCategory.Synchronization, LogRole.Client, "JunctionRestrictionsApplied deferred | nodeId={0} segmentId={1}", nodeId, segmentId);
                     }
