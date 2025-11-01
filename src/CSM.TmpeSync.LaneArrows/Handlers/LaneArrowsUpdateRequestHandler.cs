@@ -10,27 +10,45 @@ namespace CSM.TmpeSync.LaneArrows.Handlers
     {
         protected override void Handle(LaneArrowsUpdateRequest cmd)
         {
-            var senderId = CSM.TmpeSync.Services.CsmBridge.GetSenderId(cmd);
-            Log.Info(LogCategory.Network,
-                LogRole.Host,
-                "LaneArrowsEndUpdateRequest received | nodeId={0} segmentId={1} startNode={2} items={3} senderId={4}",
-                cmd.NodeId, cmd.SegmentId, cmd.StartNode, cmd.Items?.Count ?? 0, senderId);
+            var senderId = CsmBridge.GetSenderId(cmd);
 
-            if (!CSM.TmpeSync.Services.CsmBridge.IsServerInstance())
+            Log.Info(
+                LogCategory.Network,
+                LogRole.Host,
+                "LaneArrowsUpdateRequest received | nodeId={0} segmentId={1} items={2} senderId={3}",
+                cmd.NodeId,
+                cmd.SegmentId,
+                cmd.Items?.Count ?? 0,
+                senderId);
+
+            if (!CsmBridge.IsServerInstance())
             {
-                Log.Debug(LogCategory.Network, LogRole.Client, "Ignoring LaneArrowsEndUpdateRequest | reason=not_server_instance");
+                Log.Debug(
+                    LogCategory.Network,
+                    LogRole.Client,
+                    "LaneArrowsUpdateRequest ignored | reason=not_server_instance");
                 return;
             }
 
             if (!NetworkUtil.NodeExists(cmd.NodeId))
             {
-                CSM.TmpeSync.Services.CsmBridge.SendToClient(senderId, new RequestRejected { Reason = "entity_missing", EntityId = cmd.NodeId, EntityType = 3 });
+                CsmBridge.SendToClient(senderId, new RequestRejected
+                {
+                    Reason = "entity_missing",
+                    EntityId = cmd.NodeId,
+                    EntityType = 3
+                });
                 return;
             }
 
             if (!NetworkUtil.SegmentExists(cmd.SegmentId))
             {
-                CSM.TmpeSync.Services.CsmBridge.SendToClient(senderId, new RequestRejected { Reason = "entity_missing", EntityId = cmd.SegmentId, EntityType = 2 });
+                CsmBridge.SendToClient(senderId, new RequestRejected
+                {
+                    Reason = "entity_missing",
+                    EntityId = cmd.SegmentId,
+                    EntityType = 2
+                });
                 return;
             }
 
@@ -45,51 +63,64 @@ namespace CSM.TmpeSync.LaneArrows.Handlers
                     if (!NetworkUtil.NodeExists(cmd.NodeId) || !NetworkUtil.SegmentExists(cmd.SegmentId))
                         return;
 
-                    if (!LaneArrowEndSelector.TryGetCandidates(cmd.NodeId, cmd.SegmentId, out var startNode, out var candidates))
-                        return;
-
-                    using (CSM.TmpeSync.Services.CsmBridge.StartIgnore())
+                    using (CsmBridge.StartIgnore())
                     {
-                        foreach (var item in cmd.Items)
-                        {
-                            if (item == null) continue;
-                            var idx = item.Ordinal;
-                            if (idx < 0 || idx >= candidates.Count) continue;
-                            var laneId = candidates[idx].LaneId;
-                            if (!NetworkUtil.LaneExists(laneId)) continue;
-                            if (!LaneArrowAdapter.ApplyLaneArrows(laneId, (int)item.Arrows))
+                        var applyResult = LaneArrowSynchronization.Apply(
+                            cmd,
+                            onApplied: () =>
                             {
-                                CSM.TmpeSync.Services.CsmBridge.SendToClient(senderId, new RequestRejected { Reason = "tmpe_apply_failed", EntityId = laneId, EntityType = 1 });
-                                return;
-                            }
-                        }
-                    }
+                                Log.Info(
+                                    LogCategory.Synchronization,
+                                    LogRole.Host,
+                                    "LaneArrows applied | nodeId={0} segmentId={1} action=broadcast senderId={2}",
+                                    cmd.NodeId,
+                                    cmd.SegmentId,
+                                    senderId);
+                                LaneArrowSynchronization.BroadcastEnd(
+                                    cmd.NodeId,
+                                    cmd.SegmentId,
+                                    "host_broadcast:sender=" + senderId);
+                            },
+                            origin: "update_request:sender=" + senderId);
 
-                    // After applying, broadcast authoritative end state for this segment end
-                    if (LaneArrowEndSelector.TryGetCandidates(cmd.NodeId, cmd.SegmentId, out startNode, out candidates))
-                    {
-                        var applied = new LaneArrowsAppliedCommand
+                        if (!applyResult.Succeeded)
                         {
-                            NodeId = cmd.NodeId,
-                            SegmentId = cmd.SegmentId,
-                            StartNode = startNode
-                        };
+                            Log.Error(
+                                LogCategory.Synchronization,
+                                LogRole.Host,
+                                "LaneArrows apply failed | nodeId={0} segmentId={1} senderId={2}",
+                                cmd.NodeId,
+                                cmd.SegmentId,
+                                senderId);
 
-                        for (int ord = 0; ord < candidates.Count; ord++)
-                        {
-                            var laneId = candidates[ord].LaneId;
-                            if (!LaneArrowAdapter.TryGetLaneArrows(laneId, out var arrows))
-                                continue;
-
-                            applied.Items.Add(new LaneArrowsAppliedCommand.Entry
+                            CsmBridge.SendToClient(senderId, new RequestRejected
                             {
-                                Ordinal = ord,
-                                Arrows = (CSM.TmpeSync.Messages.States.LaneArrowFlags)arrows
+                                Reason = "tmpe_apply_failed",
+                                EntityId = cmd.SegmentId,
+                                EntityType = 2
                             });
+                            return;
                         }
 
-                        if (applied.Items.Count > 0)
-                            LaneArrows.Services.LaneArrowSynchronization.Dispatch(applied);
+                        if (applyResult.Deferred)
+                        {
+                            Log.Info(
+                                LogCategory.Synchronization,
+                                LogRole.Host,
+                                "LaneArrows apply deferred | nodeId={0} segmentId={1} senderId={2}",
+                                cmd.NodeId,
+                                cmd.SegmentId,
+                                senderId);
+                            return;
+                        }
+
+                        Log.Info(
+                            LogCategory.Synchronization,
+                            LogRole.Host,
+                            "LaneArrows applied | nodeId={0} segmentId={1} action=immediate senderId={2}",
+                            cmd.NodeId,
+                            cmd.SegmentId,
+                            senderId);
                     }
                 }
             });

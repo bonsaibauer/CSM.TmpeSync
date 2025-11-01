@@ -3,7 +3,6 @@ using System.Linq;
 using System.Reflection;
 using ColossalFramework;
 using HarmonyLib;
-using CSM.TmpeSync.LaneArrows.Messages;
 using CSM.TmpeSync.Services;
 
 namespace CSM.TmpeSync.LaneArrows.Services
@@ -246,29 +245,8 @@ namespace CSM.TmpeSync.LaneArrows.Services
         {
             try
             {
-                if (!LaneArrowEndSelector.TryGetCandidates(nodeId, segmentId, out var start, out var candidates))
-                    return;
-
-                var msg = new Messages.LaneArrowsAppliedCommand
-                {
-                    NodeId = nodeId,
-                    SegmentId = segmentId,
-                    StartNode = start
-                };
-
-                for (int ord = 0; ord < candidates.Count; ord++)
-                {
-                    var lane = candidates[ord].LaneId;
-                    if (!LaneArrowAdapter.TryGetLaneArrows(lane, out var arrows))
-                        continue;
-                    msg.Items.Add(new Messages.LaneArrowsAppliedCommand.Entry
-                    {
-                        Ordinal = ord,
-                        Arrows = (CSM.TmpeSync.Messages.States.LaneArrowFlags)arrows
-                    });
-                }
-
-                LaneArrowSynchronization.Dispatch(msg);
+                var context = "tmpe_hook:" + origin + ":start=" + (startNode ? "1" : "0");
+                LaneArrowSynchronization.BroadcastEnd(nodeId, segmentId, context);
             }
             catch (Exception ex)
             {

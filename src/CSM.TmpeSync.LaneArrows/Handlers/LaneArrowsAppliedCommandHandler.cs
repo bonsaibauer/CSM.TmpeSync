@@ -14,17 +14,29 @@ namespace CSM.TmpeSync.LaneArrows.Handlers
 
         internal static void Process(LaneArrowsAppliedCommand cmd, string origin)
         {
-            if (cmd == null) return;
+            if (cmd == null)
+                return;
 
-            Log.Info(LogCategory.Network,
-                "LaneArrowsEndApplied received | nodeId={0} segmentId={1} startNode={2} items={3} origin={4}",
-                cmd.NodeId, cmd.SegmentId, cmd.StartNode, cmd.Items?.Count ?? 0, origin ?? "unknown");
+            var originLabel = origin ?? "unknown";
+
+            Log.Info(
+                LogCategory.Network,
+                LogRole.Client,
+                "LaneArrowsApplied received | nodeId={0} segmentId={1} items={2} origin={3}",
+                cmd.NodeId,
+                cmd.SegmentId,
+                cmd.Items?.Count ?? 0,
+                originLabel);
 
             if (!NetworkUtil.NodeExists(cmd.NodeId) || !NetworkUtil.SegmentExists(cmd.SegmentId))
             {
-                Log.Warn(LogCategory.Synchronization,
-                    "LaneArrowsEndApplied skipped | nodeId={0} segmentId={1} origin={2} reason=entity_missing",
-                    cmd.NodeId, cmd.SegmentId, origin ?? "unknown");
+                Log.Warn(
+                    LogCategory.Synchronization,
+                    LogRole.Client,
+                    "LaneArrowsApplied skipped | nodeId={0} segmentId={1} origin={2} reason=entity_missing",
+                    cmd.NodeId,
+                    cmd.SegmentId,
+                    originLabel);
                 return;
             }
 
@@ -32,31 +44,51 @@ namespace CSM.TmpeSync.LaneArrows.Handlers
             {
                 if (!NetworkUtil.NodeExists(cmd.NodeId) || !NetworkUtil.SegmentExists(cmd.SegmentId))
                 {
-                    Log.Warn(LogCategory.Synchronization,
-                        "LaneArrowsEndApplied skipped during simulation | nodeId={0} segmentId={1} origin={2} reason=entity_missing",
-                        cmd.NodeId, cmd.SegmentId, origin ?? "unknown");
+                    Log.Warn(
+                        LogCategory.Synchronization,
+                        LogRole.Client,
+                        "LaneArrowsApplied skipped during simulation | nodeId={0} segmentId={1} origin={2} reason=entity_missing",
+                        cmd.NodeId,
+                        cmd.SegmentId,
+                        originLabel);
                     return;
                 }
 
-                using (CSM.TmpeSync.Services.CsmBridge.StartIgnore())
+                using (CsmBridge.StartIgnore())
                 {
-                    if (!LaneArrowEndSelector.TryGetCandidates(cmd.NodeId, cmd.SegmentId, out var startNode, out var candidates))
-                        return;
+                    var request = LaneArrowSynchronization.CreateRequestFromApplied(cmd);
+                    var result = LaneArrowSynchronization.Apply(
+                        request,
+                        onApplied: null,
+                        origin: "applied_command:" + originLabel);
 
-                    // Apply per-ordinal
-                    foreach (var item in cmd.Items)
+                    if (!result.Succeeded)
                     {
-                        if (item == null) continue;
-                        var idx = item.Ordinal;
-                        if (idx < 0 || idx >= candidates.Count) continue;
-                        var laneId = candidates[idx].LaneId;
-                        if (!NetworkUtil.LaneExists(laneId)) continue;
-                        if (!LaneArrowAdapter.ApplyLaneArrows(laneId, (int)item.Arrows))
-                        {
-                            Log.Error(LogCategory.Synchronization,
-                                "Failed to apply lane arrows at end | nodeId={0} segmentId={1} ordinal={2} arrows={3}",
-                                cmd.NodeId, cmd.SegmentId, idx, item.Arrows);
-                        }
+                        Log.Error(
+                            LogCategory.Synchronization,
+                            LogRole.Client,
+                            "LaneArrowsApplied failed | nodeId={0} segmentId={1}",
+                            cmd.NodeId,
+                            cmd.SegmentId);
+                    }
+                    else if (result.Deferred)
+                    {
+                        Log.Info(
+                            LogCategory.Synchronization,
+                            LogRole.Client,
+                            "LaneArrowsApplied deferred | nodeId={0} segmentId={1}",
+                            cmd.NodeId,
+                            cmd.SegmentId);
+                    }
+                    else
+                    {
+                        Log.Info(
+                            LogCategory.Synchronization,
+                            LogRole.Client,
+                            "LaneArrowsApplied applied | nodeId={0} segmentId={1} items={2}",
+                            cmd.NodeId,
+                            cmd.SegmentId,
+                            request?.Items?.Count ?? 0);
                     }
                 }
             });
