@@ -46,63 +46,56 @@ namespace CSM.TmpeSync.LaneConnector.Handlers
                     if (!NetworkUtil.NodeExists(cmd.NodeId) || !NetworkUtil.SegmentExists(cmd.SegmentId))
                         return;
 
-                    if (!LaneConnectorEndSelector.TryGetCandidates(cmd.NodeId, cmd.SegmentId, out var startNode, out var candidates))
+                    var applyResult = LaneConnectorSynchronization.Apply(
+                        cmd,
+                        onApplied: () =>
+                        {
+                            Log.Info(
+                                LogCategory.Synchronization,
+                                LogRole.Host,
+                                "LaneConnections apply completed | nodeId={0} segmentId={1} action=broadcast senderId={2}",
+                                cmd.NodeId,
+                                cmd.SegmentId,
+                                senderId);
+                            LaneConnectorSynchronization.BroadcastEnd(
+                                cmd.NodeId,
+                                cmd.SegmentId,
+                                $"host_broadcast:sender={senderId}");
+                        },
+                        origin: $"update_request:sender={senderId}");
+
+                    if (!applyResult.Succeeded)
+                    {
+                        Log.Error(
+                            LogCategory.Synchronization,
+                            LogRole.Host,
+                            "LaneConnections apply failed | nodeId={0} segmentId={1} senderId={2}",
+                            cmd.NodeId,
+                            cmd.SegmentId,
+                            senderId);
+                        CsmBridge.SendToClient(senderId, new RequestRejected { Reason = "tmpe_apply_failed", EntityId = cmd.NodeId, EntityType = 3 });
                         return;
-
-                    using (CsmBridge.StartIgnore())
-                    {
-                        foreach (var item in cmd.Items ?? Enumerable.Empty<LaneConnectionsUpdateRequest.Entry>())
-                        {
-                            var srcOrd = item.SourceOrdinal;
-                            if (srcOrd < 0 || srcOrd >= candidates.Count) continue;
-                            var srcLaneId = candidates[srcOrd].LaneId;
-                            if (!NetworkUtil.LaneExists(srcLaneId)) continue;
-
-                            var targets = (item.TargetOrdinals ?? new System.Collections.Generic.List<int>())
-                                .Where(o => o >= 0 && o < candidates.Count)
-                                .Select(o => candidates[o].LaneId)
-                                .Where(NetworkUtil.LaneExists)
-                                .ToArray();
-
-                            if (!LaneConnectionAdapter.ApplyLaneConnections(srcLaneId, targets))
-                            {
-                                CsmBridge.SendToClient(senderId, new RequestRejected { Reason = "tmpe_apply_failed", EntityId = srcLaneId, EntityType = 1 });
-                                return;
-                            }
-                        }
                     }
 
-                    // Build authoritative end state after apply
-                    if (LaneConnectorEndSelector.TryGetCandidates(cmd.NodeId, cmd.SegmentId, out startNode, out candidates))
+                    if (applyResult.Deferred)
                     {
-                        var applied = new LaneConnectionsAppliedCommand
-                        {
-                            NodeId = cmd.NodeId,
-                            SegmentId = cmd.SegmentId,
-                            StartNode = startNode
-                        };
-
-                        for (int ord = 0; ord < candidates.Count; ord++)
-                        {
-                            var srcLaneId = candidates[ord].LaneId;
-                            if (!LaneConnectionAdapter.TryGetLaneConnections(srcLaneId, out var laneTargets))
-                                laneTargets = new uint[0];
-
-                            var targetOrdinals = laneTargets
-                                .Select(t => {
-                                    for (int i = 0; i < candidates.Count; i++) if (candidates[i].LaneId == t) return i; return -1; })
-                                .Where(ix => ix >= 0)
-                                .ToList();
-
-                            applied.Items.Add(new LaneConnectionsAppliedCommand.Entry
-                            {
-                                SourceOrdinal = ord,
-                                TargetOrdinals = targetOrdinals
-                            });
-                        }
-
-                        LaneConnector.Services.LaneConnectorSynchronization.Dispatch(applied);
+                        Log.Info(
+                            LogCategory.Synchronization,
+                            LogRole.Host,
+                            "LaneConnections apply deferred | nodeId={0} segmentId={1} senderId={2}",
+                            cmd.NodeId,
+                            cmd.SegmentId,
+                            senderId);
+                        return;
                     }
+
+                    Log.Info(
+                        LogCategory.Synchronization,
+                        LogRole.Host,
+                        "LaneConnections applied | nodeId={0} segmentId={1} senderId={2}",
+                        cmd.NodeId,
+                        cmd.SegmentId,
+                        senderId);
                 }
             });
         }

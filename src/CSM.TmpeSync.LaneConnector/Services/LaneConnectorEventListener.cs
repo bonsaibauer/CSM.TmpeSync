@@ -98,7 +98,7 @@ namespace CSM.TmpeSync.LaneConnector.Services
                 ushort nodeId = isStart ? seg.m_startNode : seg.m_endNode;
                 if (nodeId == 0) return;
 
-                BroadcastEnd(nodeId, segmentId, "change");
+                LaneConnectorSynchronization.BroadcastEnd(nodeId, segmentId, "change");
             }
             catch (Exception ex)
             {
@@ -118,7 +118,7 @@ namespace CSM.TmpeSync.LaneConnector.Services
                 bool isStart = LaneConnectionAdapter.ComputeIsStartNode(segmentId, laneIndex);
                 ushort nodeId = isStart ? seg.m_startNode : seg.m_endNode;
                 if (nodeId == 0) return;
-                BroadcastEnd(nodeId, segmentId, "clear");
+                LaneConnectorSynchronization.BroadcastEnd(nodeId, segmentId, "clear");
             }
             catch (Exception ex)
             {
@@ -132,71 +132,11 @@ namespace CSM.TmpeSync.LaneConnector.Services
             {
                 if (LaneConnectorSynchronization.IsLocalApplyActive)
                     return;
-                BroadcastEnd(nodeId, 0, "clear_node");
+                LaneConnectorSynchronization.BroadcastEnd(nodeId, 0, "clear_node");
             }
             catch (Exception ex)
             {
                 Log.Warn(LogCategory.Network, LogRole.Host, "[LaneConnector] Clear node postfix error: {0}", ex);
-            }
-        }
-        private static void BroadcastEnd(ushort nodeId, ushort segmentIdOrZero, string context)
-        {
-            if (nodeId == 0 || !NetworkUtil.NodeExists(nodeId))
-                return;
-
-            ref var node = ref NetManager.instance.m_nodes.m_buffer[nodeId];
-            for (int i = 0; i < 8; i++)
-            {
-                var segmentId = node.GetSegment(i);
-                if (segmentId == 0 || !NetworkUtil.SegmentExists(segmentId))
-                    continue;
-                if (segmentIdOrZero != 0 && segmentId != segmentIdOrZero)
-                    continue;
-
-                if (!LaneConnectorEndSelector.TryGetCandidates(nodeId, segmentId, out var startNode, out var candidates))
-                    continue;
-
-                var msg = new LaneConnectionsAppliedCommand
-                {
-                    NodeId = nodeId,
-                    SegmentId = segmentId,
-                    StartNode = startNode
-                };
-
-                for (int ord = 0; ord < candidates.Count; ord++)
-                {
-                    var srcLaneId = candidates[ord].LaneId;
-                    if (!LaneConnectionAdapter.TryGetLaneConnections(srcLaneId, out var laneTargets))
-                        laneTargets = new uint[0];
-
-                    var targetOrdinals = laneTargets
-                        .Select(t => {
-                            for (int j = 0; j < candidates.Count; j++) if (candidates[j].LaneId == t) return j; return -1; })
-                        .Where(ix => ix >= 0)
-                        .ToList();
-
-                    msg.Items.Add(new LaneConnectionsAppliedCommand.Entry
-                    {
-                        SourceOrdinal = ord,
-                        TargetOrdinals = targetOrdinals
-                    });
-                }
-
-                if (CsmBridge.IsServerInstance())
-                {
-                    LaneConnectorSynchronization.Dispatch(msg);
-                }
-                else
-                {
-                    var req = new LaneConnectionsUpdateRequest
-                    {
-                        NodeId = msg.NodeId,
-                        SegmentId = msg.SegmentId,
-                        StartNode = msg.StartNode,
-                        Items = msg.Items.Select(e => new LaneConnectionsUpdateRequest.Entry { SourceOrdinal = e.SourceOrdinal, TargetOrdinals = e.TargetOrdinals.ToList() }).ToList()
-                    };
-                    LaneConnectorSynchronization.Dispatch(req);
-                }
             }
         }
     }

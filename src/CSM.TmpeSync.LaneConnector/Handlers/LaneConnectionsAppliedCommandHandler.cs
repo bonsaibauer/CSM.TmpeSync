@@ -32,23 +32,38 @@ namespace CSM.TmpeSync.LaneConnector.Handlers
 
                 using (CsmBridge.StartIgnore())
                 {
-                    if (!LaneConnectorEndSelector.TryGetCandidates(cmd.NodeId, cmd.SegmentId, out var startNode, out var candidates))
-                        return;
+                    var request = LaneConnectorSynchronization.CreateUpdateRequest(cmd);
+                    var result = LaneConnectorSynchronization.Apply(
+                        request,
+                        onApplied: null,
+                        origin: $"applied_command:{origin ?? "unknown"}");
 
-                    foreach (var item in cmd.Items ?? Enumerable.Empty<LaneConnectionsAppliedCommand.Entry>())
+                    if (!result.Succeeded)
                     {
-                        var srcOrd = item.SourceOrdinal;
-                        if (srcOrd < 0 || srcOrd >= candidates.Count) continue;
-                        var srcLaneId = candidates[srcOrd].LaneId;
-                        if (!NetworkUtil.LaneExists(srcLaneId)) continue;
-
-                        var targets = (item.TargetOrdinals ?? new System.Collections.Generic.List<int>())
-                            .Where(o => o >= 0 && o < candidates.Count)
-                            .Select(o => candidates[o].LaneId)
-                            .Where(NetworkUtil.LaneExists)
-                            .ToArray();
-
-                        LaneConnectionAdapter.ApplyLaneConnections(srcLaneId, targets);
+                        Log.Error(
+                            LogCategory.Synchronization,
+                            LogRole.Client,
+                            "LaneConnectionsApplied failed | nodeId={0} segmentId={1}",
+                            cmd.NodeId,
+                            cmd.SegmentId);
+                    }
+                    else if (result.Deferred)
+                    {
+                        Log.Info(
+                            LogCategory.Synchronization,
+                            LogRole.Client,
+                            "LaneConnectionsApplied deferred | nodeId={0} segmentId={1}",
+                            cmd.NodeId,
+                            cmd.SegmentId);
+                    }
+                    else
+                    {
+                        Log.Info(
+                            LogCategory.Synchronization,
+                            LogRole.Client,
+                            "LaneConnectionsApplied applied | nodeId={0} segmentId={1}",
+                            cmd.NodeId,
+                            cmd.SegmentId);
                     }
                 }
             });
