@@ -128,5 +128,4 @@ namespace CSM.TmpeSync.Mod
             CsmBridge.IsServerInstance() ? LogRole.Host : LogRole.Client;
     }
 }
-}
 

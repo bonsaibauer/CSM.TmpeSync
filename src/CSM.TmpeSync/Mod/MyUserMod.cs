@@ -37,7 +37,6 @@ namespace CSM.TmpeSync.Mod
         public void OnDisabled()
         {
             Log.Info(LogCategory.Lifecycle, LogRole.General, "Mod disabled | begin_cleanup");
-            Log.EndServerSessionLog();
             // No shared shutdown required
             Log.Debug(LogCategory.Lifecycle, LogRole.General, "Mod disabled | awaiting_next_enable_cycle");
         }
