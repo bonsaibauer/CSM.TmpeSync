@@ -18,6 +18,19 @@ namespace CSM.TmpeSync.Mod
         private static bool _registered;
         private static bool _suspended;
         private static string _suspendReason = string.Empty;
+        // Toggle features for development: set Enabled to false to skip registration.
+        private static readonly FeatureToggle[] Features =
+        {
+            new FeatureToggle("SpeedLimits", true, SpeedLimitSyncFeature.Register, SpeedLimitSyncFeature.Unregister),
+            new FeatureToggle("LaneArrows", true, LaneArrowsSyncFeature.Register, LaneArrowsSyncFeature.Unregister),
+            new FeatureToggle("LaneConnector", true, LaneConnectorSyncFeature.Register, LaneConnectorSyncFeature.Unregister),
+            new FeatureToggle("JunctionRestrictions", true, JunctionRestrictionsSyncFeature.Register, JunctionRestrictionsSyncFeature.Unregister),
+            new FeatureToggle("PrioritySigns", true, PrioritySignSyncFeature.Register, PrioritySignSyncFeature.Unregister),
+            new FeatureToggle("ParkingRestrictions", true, ParkingRestrictionSyncFeature.Register, ParkingRestrictionSyncFeature.Unregister),
+            new FeatureToggle("VehicleRestrictions", true, VehicleRestrictionSyncFeature.Register, VehicleRestrictionSyncFeature.Unregister),
+            new FeatureToggle("ToggleTrafficLights", true, ToggleTrafficLightsSyncFeature.Register, ToggleTrafficLightsSyncFeature.Unregister),
+            new FeatureToggle("ClearTraffic", true, ClearTrafficSyncFeature.Register, ClearTrafficSyncFeature.Unregister)
+        };
 
         internal static void Register()
         {
@@ -39,15 +52,8 @@ namespace CSM.TmpeSync.Mod
                 _registered = true;
             }
 
-            SpeedLimitSyncFeature.Register();
-            LaneArrowsSyncFeature.Register();
-            LaneConnectorSyncFeature.Register();
-            JunctionRestrictionsSyncFeature.Register();
-            PrioritySignSyncFeature.Register();
-            ParkingRestrictionSyncFeature.Register();
-            VehicleRestrictionSyncFeature.Register();
-            ToggleTrafficLightsSyncFeature.Register();
-            ClearTrafficSyncFeature.Register();
+            foreach (var feature in Features)
+                EnableFeature(feature);
 
             Log.Info(LogCategory.Synchronization, GetCurrentRole(), "Synchronization features enabled.");
         }
@@ -101,31 +107,76 @@ namespace CSM.TmpeSync.Mod
 
         private static void DisableAllFeatures()
         {
-            TryRun(SpeedLimitSyncFeature.Unregister);
-            TryRun(LaneArrowsSyncFeature.Unregister);
-            TryRun(LaneConnectorSyncFeature.Unregister);
-            TryRun(JunctionRestrictionsSyncFeature.Unregister);
-            TryRun(PrioritySignSyncFeature.Unregister);
-            TryRun(ParkingRestrictionSyncFeature.Unregister);
-            TryRun(VehicleRestrictionSyncFeature.Unregister);
-            TryRun(ToggleTrafficLightsSyncFeature.Unregister);
-            TryRun(ClearTrafficSyncFeature.Unregister);
+            foreach (var feature in Features)
+                DisableFeature(feature);
         }
 
-        private static void TryRun(Action action)
+        private static void EnableFeature(FeatureToggle feature)
         {
+            if (!feature.Enabled)
+            {
+                Log.Info(LogCategory.Synchronization, GetCurrentRole(), "Feature disabled for development | feature={0}", feature.Name);
+                return;
+            }
+
             try
             {
-                action();
+                feature.Register();
+                feature.IsActive = true;
             }
             catch (Exception ex)
             {
-                Log.Warn(LogCategory.Synchronization, GetCurrentRole(), "Feature shutdown failed | error={0}", ex);
+                Log.Warn(
+                    LogCategory.Synchronization,
+                    GetCurrentRole(),
+                    "Feature startup failed | feature={0} | error={1}",
+                    feature.Name,
+                    ex);
+            }
+        }
+
+        private static void DisableFeature(FeatureToggle feature)
+        {
+            if (!feature.IsActive)
+                return;
+
+            try
+            {
+                feature.Unregister();
+            }
+            catch (Exception ex)
+            {
+                Log.Warn(
+                    LogCategory.Synchronization,
+                    GetCurrentRole(),
+                    "Feature shutdown failed | feature={0} | error={1}",
+                    feature.Name,
+                    ex);
+            }
+            finally
+            {
+                feature.IsActive = false;
             }
         }
 
         private static LogRole GetCurrentRole() =>
             CsmBridge.IsServerInstance() ? LogRole.Host : LogRole.Client;
+
+        private sealed class FeatureToggle
+        {
+            internal FeatureToggle(string name, bool enabled, Action register, Action unregister)
+            {
+                Name = name;
+                Enabled = enabled;
+                Register = register;
+                Unregister = unregister;
+            }
+
+            internal string Name { get; }
+            internal bool Enabled { get; }
+            internal Action Register { get; }
+            internal Action Unregister { get; }
+            internal bool IsActive { get; set; }
+        }
     }
 }
-
