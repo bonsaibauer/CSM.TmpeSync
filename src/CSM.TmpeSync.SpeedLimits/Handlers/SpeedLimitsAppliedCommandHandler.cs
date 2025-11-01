@@ -44,34 +44,37 @@ namespace CSM.TmpeSync.SpeedLimits.Handlers
 
                 using (CsmBridge.StartIgnore())
                 {
-                    var req = new SpeedLimitsUpdateRequest { SegmentId = command.SegmentId };
-                    if (command.Items != null)
-                    {
-                        foreach (var it in command.Items)
-                        {
-                            req.Items.Add(new SpeedLimitsUpdateRequest.Entry
-                            {
-                                LaneOrdinal = it.LaneOrdinal,
-                                Speed = it.Speed,
-                                Signature = it.Signature
-                            });
-                        }
-                    }
+                    var request = SpeedLimitSynchronization.CreateRequestFromApplied(command);
+                    var result = SpeedLimitSynchronization.Apply(
+                        command.SegmentId,
+                        request,
+                        onApplied: null,
+                        origin: $"applied_command:{origin ?? "unknown"}");
 
-                    if (SpeedLimitSynchronization.Apply(command.SegmentId, req))
+                    if (!result.Succeeded)
                     {
-                        Log.Info(LogCategory.Synchronization,
-                            LogRole.Client,
-                            "SpeedLimitsApplied applied | segmentId={0} count={1}",
-                            command.SegmentId,
-                            req.Items?.Count ?? 0);
-                    }
-                    else
-                    {
-                        Log.Error(LogCategory.Synchronization,
+                        Log.Error(
+                            LogCategory.Synchronization,
                             LogRole.Client,
                             "SpeedLimitsApplied failed | segmentId={0}",
                             command.SegmentId);
+                    }
+                    else if (result.Deferred)
+                    {
+                        Log.Info(
+                            LogCategory.Synchronization,
+                            LogRole.Client,
+                            "SpeedLimitsApplied deferred | segmentId={0}",
+                            command.SegmentId);
+                    }
+                    else
+                    {
+                        Log.Info(
+                            LogCategory.Synchronization,
+                            LogRole.Client,
+                            "SpeedLimitsApplied applied | segmentId={0} count={1}",
+                            command.SegmentId,
+                            request.Items?.Count ?? 0);
                     }
                 }
             });

@@ -180,50 +180,12 @@ namespace CSM.TmpeSync.SpeedLimits.Services
                     return;
                 }
 
-                SendLocalChange(state, context);
+                SpeedLimitSynchronization.BroadcastSegment(state, context);
             }
             catch (Exception ex)
             {
                 Log.Warn(LogCategory.Network, LogRole.Host, "[SpeedLimits] Event postfix error: {0}", ex);
             }
-        }
-
-        private static void SendLocalChange(SpeedLimitsAppliedCommand state, string context)
-        {
-            if (state == null)
-                return;
-
-            if (CsmBridge.IsServerInstance())
-            {
-                Log.Info(LogCategory.Synchronization,
-                    LogRole.Host,
-                    "[SpeedLimits] Host applied | seg={0} count={1} context={2}",
-                    state.SegmentId, state.Items?.Count ?? 0, context);
-
-                SpeedLimitSynchronization.Dispatch(new SpeedLimitsAppliedCommand
-                {
-                    SegmentId = state.SegmentId,
-                    Items = state.Items
-                });
-                return;
-            }
-
-            Log.Info(LogCategory.Network,
-                LogRole.Client,
-                "[SpeedLimits] Client sent SpeedLimitsUpdateRequest | seg={0} count={1} context={2}",
-                state.SegmentId, state.Items?.Count ?? 0, context);
-
-            var req = new SpeedLimitsUpdateRequest
-            {
-                SegmentId = state.SegmentId,
-                Items = state.Items.Select(i => new SpeedLimitsUpdateRequest.Entry
-                {
-                    LaneOrdinal = i.LaneOrdinal,
-                    Speed = i.Speed,
-                    Signature = i.Signature
-                }).ToList()
-            };
-            SpeedLimitSynchronization.Dispatch(req);
         }
     }
 }

@@ -367,6 +367,11 @@ namespace CSM.TmpeSync.SpeedLimits.Services
             return kmh / 50f;
         }
 
+        internal static bool IsReadyForApply()
+        {
+            return EnsureInit();
+        }
+
         private static bool TryGetLaneInfo(uint laneId, out ushort segmentId, out int laneIndex, out NetInfo.Lane laneInfo, out NetInfo segmentInfo)
         {
             segmentId = 0; laneIndex = -1; laneInfo = null; segmentInfo = null;

@@ -56,25 +56,21 @@ namespace CSM.TmpeSync.SpeedLimits.Handlers
                         return;
                     }
 
-                    if (SpeedLimitSynchronization.Apply(command.SegmentId, command))
-                    {
-                        if (!SpeedLimitSynchronization.TryRead(command.SegmentId, out var appliedState))
+                    var applyResult = SpeedLimitSynchronization.Apply(
+                        command.SegmentId,
+                        command,
+                        onApplied: () =>
                         {
-                            Log.Warn(LogCategory.Synchronization,
+                            Log.Info(LogCategory.Synchronization,
                                 LogRole.Host,
-                                "Speed limits applied but readback failed | segmentId={0}", command.SegmentId);
-                            appliedState = new SpeedLimitsAppliedCommand { SegmentId = command.SegmentId };
-                        }
+                                "Speed limits applied | segmentId={0} action=broadcast senderId={1}",
+                                command.SegmentId,
+                                senderId);
+                            SpeedLimitSynchronization.BroadcastSegment(command.SegmentId, $"host_broadcast:sender={senderId}");
+                        },
+                        origin: $"update_request:sender={senderId}");
 
-                        Log.Info(LogCategory.Synchronization,
-                            LogRole.Host,
-                            "Speed limits applied | segmentId={0} action=broadcast count={1}",
-                            command.SegmentId,
-                            (appliedState?.Items?.Count) ?? 0);
-
-                        CsmBridge.SendToAll(appliedState);
-                    }
-                    else
+                    if (!applyResult.Succeeded)
                     {
                         Log.Error(LogCategory.Synchronization,
                             LogRole.Host,
@@ -82,7 +78,24 @@ namespace CSM.TmpeSync.SpeedLimits.Handlers
                             command.SegmentId,
                             senderId);
                         CsmBridge.SendToClient(senderId, new RequestRejected { Reason = "tmpe_apply_failed", EntityId = command.SegmentId, EntityType = 2 });
+                        return;
                     }
+
+                    if (applyResult.Deferred)
+                    {
+                        Log.Info(LogCategory.Synchronization,
+                            LogRole.Host,
+                            "Speed limits apply deferred | segmentId={0} senderId={1}",
+                            command.SegmentId,
+                            senderId);
+                        return;
+                    }
+
+                    Log.Info(LogCategory.Synchronization,
+                        LogRole.Host,
+                        "Speed limits applied | segmentId={0} action=immediate senderId={1}",
+                        command.SegmentId,
+                        senderId);
                 }
             });
         }
