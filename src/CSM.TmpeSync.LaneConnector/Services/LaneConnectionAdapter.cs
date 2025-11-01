@@ -71,30 +71,172 @@ namespace CSM.TmpeSync.LaneConnector.Services
 
                 bool sourceStartNode = ComputeIsStartNode(segmentId, laneIndex);
 
-                var subInst = Implementations.ManagerFactory?.LaneConnectionManager;
-                var inst = subInst?.GetType();
-                if (inst == null) return false;
+                var manager = Implementations.ManagerFactory?.LaneConnectionManager;
+                var managerType = manager?.GetType();
+                if (managerType == null)
+                    return false;
 
-                var clear = inst.GetMethod("RemoveLaneConnections", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic, null, new[] { typeof(uint), typeof(bool), typeof(bool) }, null);
-                var add = inst.GetMethod("AddLaneConnection", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic, null, new[] { typeof(uint), typeof(uint), typeof(bool) }, null);
-                if (clear == null || add == null) return false;
+                var legacyClear = managerType.GetMethod(
+                    "RemoveLaneConnections",
+                    BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic,
+                    null,
+                    new[] { typeof(uint), typeof(bool), typeof(bool) },
+                    null);
+                var legacyAdd = managerType.GetMethod(
+                    "AddLaneConnection",
+                    BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic,
+                    null,
+                    new[] { typeof(uint), typeof(uint), typeof(bool) },
+                    null);
 
-                clear.Invoke(subInst, new object[] { sourceLaneId, sourceStartNode, false });
-
-                if (targets != null)
+                if (legacyClear != null && legacyAdd != null)
                 {
-                    foreach (var t in targets)
+                    legacyClear.Invoke(manager, new object[] { sourceLaneId, sourceStartNode, false });
+
+                    if (targets != null)
                     {
-                        add.Invoke(subInst, new object[] { sourceLaneId, t, sourceStartNode });
+                        foreach (var t in targets)
+                        {
+                            legacyAdd.Invoke(manager, new object[] { sourceLaneId, t, sourceStartNode });
+                        }
                     }
+
+                    return true;
                 }
-                return true;
+
+                return ApplyViaSubManagers(manager, segmentId, laneIndex, sourceLaneId, sourceStartNode, targets);
             }
             catch (Exception ex)
             {
                 Log.Warn(LogCategory.Bridge, LogRole.Host, "LaneConnections Apply failed | sourceLaneId={0} error={1}", sourceLaneId, ex);
                 return false;
             }
+        }
+
+        private static bool ApplyViaSubManagers(
+            object manager,
+            ushort segmentId,
+            int laneIndex,
+            uint sourceLaneId,
+            bool sourceStartNode,
+            uint[] targets)
+        {
+            ref var segment = ref NetManager.instance.m_segments.m_buffer[segmentId];
+            var segmentInfo = segment.Info;
+            if (segmentInfo?.m_lanes == null || laneIndex < 0 || laneIndex >= segmentInfo.m_lanes.Length)
+                return false;
+
+            var sourceLaneInfo = segmentInfo.m_lanes[laneIndex];
+
+            var managerType = manager.GetType();
+            var subManagers = new List<object>();
+
+            var roadField = managerType.GetField("Road", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+            var trackField = managerType.GetField("Track", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+
+            var road = roadField?.GetValue(manager);
+            var track = trackField?.GetValue(manager);
+
+            if (road != null) subManagers.Add(road);
+            if (track != null) subManagers.Add(track);
+            if (subManagers.Count == 0)
+                return false;
+
+            MethodInfo removeMethod = null;
+            MethodInfo addMethod = null;
+            MethodInfo supportsMethod = null;
+
+            foreach (var sub in subManagers)
+            {
+                var type = sub.GetType();
+                if (removeMethod == null)
+                {
+                    removeMethod = type.GetMethod(
+                        "RemoveLaneConnections",
+                        BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic,
+                        null,
+                        new[] { typeof(uint), typeof(bool), typeof(bool) },
+                        null);
+                }
+
+                if (addMethod == null)
+                {
+                    addMethod = type.GetMethod(
+                        "AddLaneConnection",
+                        BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic,
+                        null,
+                        new[] { typeof(uint), typeof(uint), typeof(bool) },
+                        null);
+                }
+
+                if (supportsMethod == null)
+                {
+                    supportsMethod = type.GetMethod(
+                        "Supports",
+                        BindingFlags.Instance | BindingFlags.Public,
+                        null,
+                        new[] { typeof(NetInfo.Lane) },
+                        null);
+                }
+            }
+
+            if (removeMethod == null || addMethod == null)
+                return false;
+
+            bool anyApplied = false;
+
+            foreach (var sub in subManagers)
+            {
+                if (supportsMethod != null)
+                {
+                    var supportsSource = supportsMethod.Invoke(sub, new object[] { sourceLaneInfo });
+                    if (supportsSource is bool supports && !supports)
+                        continue;
+                }
+
+                removeMethod.Invoke(sub, new object[] { sourceLaneId, sourceStartNode, false });
+                anyApplied = true;
+
+                if (targets == null)
+                    continue;
+
+                foreach (var targetLaneId in targets)
+                {
+                    if (targetLaneId == 0)
+                        continue;
+
+                    NetInfo.Lane targetLaneInfo = null;
+                    if (supportsMethod != null && TryResolveLaneInfo(targetLaneId, out var resolvedTargetInfo))
+                    {
+                        targetLaneInfo = resolvedTargetInfo;
+                        var supportsTarget = supportsMethod.Invoke(sub, new object[] { targetLaneInfo });
+                        if (supportsTarget is bool targetOk && !targetOk)
+                            continue;
+                    }
+
+                    var result = addMethod.Invoke(sub, new object[] { sourceLaneId, targetLaneId, sourceStartNode });
+                    if (result is bool added && added)
+                        anyApplied = true;
+                }
+            }
+
+            return anyApplied;
+        }
+
+        private static bool TryResolveLaneInfo(uint laneId, out NetInfo.Lane laneInfo)
+        {
+            laneInfo = null;
+
+            if (!NetworkUtil.TryGetLaneLocation(laneId, out var segmentId, out var laneIndex))
+                return false;
+
+            ref var segment = ref NetManager.instance.m_segments.m_buffer[segmentId];
+            var info = segment.Info;
+            if (info?.m_lanes == null || laneIndex < 0 || laneIndex >= info.m_lanes.Length)
+                return false;
+
+            laneInfo = info.m_lanes[laneIndex];
+            return laneInfo != null;
         }
 
         internal static bool ComputeIsStartNode(ushort segmentId, int laneIndex)

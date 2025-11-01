@@ -492,6 +492,17 @@ namespace CSM.TmpeSync.SpeedLimits.Services
                     context ?? "unknown");
 
                 var request = ConvertToRequest(payload);
+                if (request?.SegmentId > 0 && !NetworkUtil.SegmentExists(request.SegmentId))
+                {
+                    Log.Debug(
+                        LogCategory.Network,
+                        LogRole.Client,
+                        "[SpeedLimits] Skipped send, segment missing locally | segmentId={0} ctx={1}",
+                        request.SegmentId,
+                        context ?? "unknown");
+                    return;
+                }
+
                 Dispatch(request);
             }
         }

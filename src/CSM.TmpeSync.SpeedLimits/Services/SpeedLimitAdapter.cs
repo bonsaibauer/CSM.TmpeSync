@@ -64,6 +64,12 @@ namespace CSM.TmpeSync.SpeedLimits.Services
                     {
                         var instanceProp = _managerType.GetProperty("Instance", BindingFlags.Public | BindingFlags.Static);
                         _manager = instanceProp?.GetValue(null, null);
+
+                        if (_manager == null)
+                        {
+                            var instanceField = _managerType.GetField("Instance", BindingFlags.Public | BindingFlags.Static);
+                            _manager = instanceField?.GetValue(null);
+                        }
                     }
 
                     var ctxAsm = _managerType?.Assembly ?? tmpe;
