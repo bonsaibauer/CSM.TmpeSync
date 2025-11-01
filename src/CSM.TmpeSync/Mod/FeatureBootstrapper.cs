@@ -21,12 +21,12 @@ namespace CSM.TmpeSync.Mod
         // Toggle features for development: set Enabled to false to skip registration.
         private static readonly FeatureToggle[] Features =
         {
-            new FeatureToggle("SpeedLimits", true, SpeedLimitSyncFeature.Register, SpeedLimitSyncFeature.Unregister),
-            new FeatureToggle("LaneArrows", true, LaneArrowsSyncFeature.Register, LaneArrowsSyncFeature.Unregister),
-            new FeatureToggle("LaneConnector", true, LaneConnectorSyncFeature.Register, LaneConnectorSyncFeature.Unregister),
+            new FeatureToggle("SpeedLimits", false, SpeedLimitSyncFeature.Register, SpeedLimitSyncFeature.Unregister),
+            new FeatureToggle("LaneArrows", false, LaneArrowsSyncFeature.Register, LaneArrowsSyncFeature.Unregister),
+            new FeatureToggle("LaneConnector", false, LaneConnectorSyncFeature.Register, LaneConnectorSyncFeature.Unregister),
             new FeatureToggle("JunctionRestrictions", true, JunctionRestrictionsSyncFeature.Register, JunctionRestrictionsSyncFeature.Unregister),
             new FeatureToggle("PrioritySigns", true, PrioritySignSyncFeature.Register, PrioritySignSyncFeature.Unregister),
-            new FeatureToggle("ParkingRestrictions", true, ParkingRestrictionSyncFeature.Register, ParkingRestrictionSyncFeature.Unregister),
+            new FeatureToggle("ParkingRestrictions", false, ParkingRestrictionSyncFeature.Register, ParkingRestrictionSyncFeature.Unregister),
             new FeatureToggle("VehicleRestrictions", true, VehicleRestrictionSyncFeature.Register, VehicleRestrictionSyncFeature.Unregister),
             new FeatureToggle("ToggleTrafficLights", true, ToggleTrafficLightsSyncFeature.Register, ToggleTrafficLightsSyncFeature.Unregister),
             new FeatureToggle("ClearTraffic", true, ClearTrafficSyncFeature.Register, ClearTrafficSyncFeature.Unregister)
