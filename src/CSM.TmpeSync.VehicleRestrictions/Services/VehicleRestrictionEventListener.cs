@@ -64,17 +64,28 @@ namespace CSM.TmpeSync.VehicleRestrictions.Services
 
         private static bool TryPatchSetAllowedVehicleTypes()
         {
+            var typeNames = new[]
+            {
+                "TrafficManager.Manager.Impl.VehicleRestrictionsManager",
+                "TrafficManager.Manager.VehicleRestrictionsManager",
+            };
+
             var method = FindMethod(
-                new[]
-                {
-                    "TrafficManager.Manager.Impl.VehicleRestrictionsManager",
-                    "TrafficManager.Manager.VehicleRestrictionsManager",
-                },
+                typeNames,
                 "SetAllowedVehicleTypes",
-                typeof(ushort), typeof(NetInfo), typeof(uint), typeof(NetInfo.Lane), typeof(TrafficManager.API.Traffic.Enums.ExtVehicleType));
+                typeof(ushort), typeof(NetInfo), typeof(uint), typeof(NetInfo.Lane), typeof(uint), typeof(TrafficManager.API.Traffic.Enums.ExtVehicleType))
+                ?? FindMethod(
+                    typeNames,
+                    "SetAllowedVehicleTypes",
+                    typeof(ushort), typeof(NetInfo), typeof(uint), typeof(NetInfo.Lane), typeof(TrafficManager.API.Traffic.Enums.ExtVehicleType));
 
             if (method == null)
+            {
+                Log.Warn(LogCategory.Network,
+                    LogRole.Host,
+                    "[VehicleRestrictions] Harmony gateway could not find VehicleRestrictionsManager.SetAllowedVehicleTypes to patch (signature unsupported).");
                 return false;
+            }
 
             var postfix = typeof(VehicleRestrictionEventListener)
                 .GetMethod(nameof(SetAllowedVehicleTypes_Postfix), BindingFlags.NonPublic | BindingFlags.Static);

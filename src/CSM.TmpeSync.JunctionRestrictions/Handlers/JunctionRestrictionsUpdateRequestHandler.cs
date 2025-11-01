@@ -57,32 +57,31 @@ namespace CSM.TmpeSync.JunctionRestrictions.Handlers
                         return;
                     }
 
-                    if (!JunctionRestrictionsSynchronization.Apply(command.NodeId, command.SegmentId, command.State ?? new JunctionRestrictionsState()))
+                    var applyResult = JunctionRestrictionsSynchronization.Apply(
+                        command.NodeId,
+                        command.SegmentId,
+                        command.State ?? new JunctionRestrictionsState(),
+                        onApplied: () =>
+                        {
+                            Log.Info(
+                                LogCategory.Synchronization,
+                                LogRole.Host,
+                                "JunctionRestrictions applied | nodeId={0} action=broadcast_node senderId={1}",
+                                command.NodeId,
+                                senderId);
+                            JunctionRestrictionsSynchronization.BroadcastNode(command.NodeId, $"host_broadcast:sender={senderId}");
+                        },
+                        origin: $"update_request:sender={senderId}");
+
+                    if (!applyResult.Succeeded)
                     {
                         Log.Error(LogCategory.Synchronization, LogRole.Host, "JunctionRestrictions apply failed | nodeId={0} segmentId={1} senderId={2}", command.NodeId, command.SegmentId, senderId);
                         return;
                     }
 
-                    // Broadcast full node snapshot after apply
-                    ref var node = ref NetManager.instance.m_nodes.m_buffer[command.NodeId];
-                    for (int i = 0; i < 8; i++)
+                    if (applyResult.Deferred)
                     {
-                        ushort segId = node.GetSegment(i);
-                        if (segId == 0) continue;
-
-                        if (!JunctionRestrictionsSynchronization.TryRead(command.NodeId, segId, out var state))
-                        {
-                            Log.Warn(LogCategory.Synchronization, LogRole.Host, "JunctionRestrictions verify failed during node broadcast | nodeId={0} segmentId={1}", command.NodeId, segId);
-                            state = new JunctionRestrictionsState();
-                        }
-
-                        Log.Info(LogCategory.Synchronization, LogRole.Host, "JunctionRestrictions applied | nodeId={0} segmentId={1} action=broadcast_node", command.NodeId, segId);
-                        JunctionRestrictionsSynchronization.Dispatch(new JunctionRestrictionsAppliedCommand
-                        {
-                            NodeId = command.NodeId,
-                            SegmentId = segId,
-                            State = state
-                        });
+                        Log.Info(LogCategory.Synchronization, LogRole.Host, "JunctionRestrictions apply deferred | nodeId={0} segmentId={1} senderId={2}", command.NodeId, command.SegmentId, senderId);
                     }
                 }
             });

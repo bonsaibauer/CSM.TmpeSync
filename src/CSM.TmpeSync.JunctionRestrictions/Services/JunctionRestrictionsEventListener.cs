@@ -3,8 +3,6 @@ using System.Reflection;
 using System.Linq;
 using ColossalFramework;
 using HarmonyLib;
-using CSM.TmpeSync.JunctionRestrictions.Messages;
-using CSM.TmpeSync.Messages.States;
 using CSM.TmpeSync.Services;
 
 namespace CSM.TmpeSync.JunctionRestrictions.Services
@@ -100,6 +98,9 @@ namespace CSM.TmpeSync.JunctionRestrictions.Services
         {
             try
             {
+                if (JunctionRestrictionsSynchronization.IsLocalApplyActive)
+                    return;
+
                 // Extract segmentId and startNode from args
                 ushort segmentId = 0;
                 bool startNode = false;
@@ -128,55 +129,11 @@ namespace CSM.TmpeSync.JunctionRestrictions.Services
                 if (nodeId == 0)
                     return;
 
-                BroadcastNodeSnapshot(nodeId, "setter");
+                JunctionRestrictionsSynchronization.BroadcastNode(nodeId, "setter");
             }
             catch (Exception ex)
             {
                 Log.Warn(LogCategory.Network, LogRole.Host, "[JunctionRestrictions] Setter postfix error: {0}", ex);
-            }
-        }
-
-        private static void BroadcastNodeSnapshot(ushort nodeId, string context)
-        {
-            ref var node = ref NetManager.instance.m_nodes.m_buffer[nodeId];
-            for (int i = 0; i < 8; i++)
-            {
-                ushort segId = node.GetSegment(i);
-                if (segId == 0)
-                    continue;
-
-                if (JunctionRestrictionsSynchronization.TryRead(nodeId, segId, out var state))
-                {
-                    Send(nodeId, segId, state, context);
-                }
-                else
-                {
-                    Log.Warn(LogCategory.Synchronization, LogRole.Host, "[JunctionRestrictions] TryRead failed | node={0} seg={1}", nodeId, segId);
-                }
-            }
-        }
-
-        private static void Send(ushort nodeId, ushort segmentId, JunctionRestrictionsState state, string context)
-        {
-            if (CsmBridge.IsServerInstance())
-            {
-                Log.Info(LogCategory.Synchronization, LogRole.Host, "[JunctionRestrictions] Host applied | node={0} seg={1} ctx={2} state={3}", nodeId, segmentId, context, state);
-                JunctionRestrictionsSynchronization.Dispatch(new JunctionRestrictionsAppliedCommand
-                {
-                    NodeId = nodeId,
-                    SegmentId = segmentId,
-                    State = state
-                });
-            }
-            else
-            {
-                Log.Info(LogCategory.Network, LogRole.Client, "[JunctionRestrictions] Client sent update | node={0} seg={1} ctx={2} state={3}", nodeId, segmentId, context, state);
-                JunctionRestrictionsSynchronization.Dispatch(new JunctionRestrictionsUpdateRequest
-                {
-                    NodeId = nodeId,
-                    SegmentId = segmentId,
-                    State = state
-                });
             }
         }
     }

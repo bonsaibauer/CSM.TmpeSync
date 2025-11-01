@@ -40,13 +40,24 @@ namespace CSM.TmpeSync.JunctionRestrictions.Handlers
 
                 using (CsmBridge.StartIgnore())
                 {
-                    if (JunctionRestrictionsSynchronization.Apply(nodeId, segmentId, state))
+                    var result = JunctionRestrictionsSynchronization.Apply(
+                        nodeId,
+                        segmentId,
+                        state,
+                        onApplied: null,
+                        origin: $"applied_command:{origin ?? "unknown"}");
+
+                    if (!result.Succeeded)
                     {
-                        Log.Info(LogCategory.Synchronization, LogRole.Client, "JunctionRestrictionsApplied applied | nodeId={0} segmentId={1}", nodeId, segmentId);
+                        Log.Error(LogCategory.Synchronization, LogRole.Client, "JunctionRestrictionsApplied failed | nodeId={0} segmentId={1}", nodeId, segmentId);
+                    }
+                    else if (result.Deferred)
+                    {
+                        Log.Info(LogCategory.Synchronization, LogRole.Client, "JunctionRestrictionsApplied deferred | nodeId={0} segmentId={1}", nodeId, segmentId);
                     }
                     else
                     {
-                        Log.Error(LogCategory.Synchronization, LogRole.Client, "JunctionRestrictionsApplied failed | nodeId={0} segmentId={1}", nodeId, segmentId);
+                        Log.Info(LogCategory.Synchronization, LogRole.Client, "JunctionRestrictionsApplied applied | nodeId={0} segmentId={1}", nodeId, segmentId);
                     }
                 }
             });
