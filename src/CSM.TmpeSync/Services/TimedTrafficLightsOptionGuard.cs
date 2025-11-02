@@ -2,7 +2,6 @@ namespace CSM.TmpeSync.Services
 {
     using System;
     using System.Collections;
-    using System.Reflection;
     using TrafficManager.Manager.Impl;
     using TrafficManager.State;
 
@@ -68,6 +67,9 @@ namespace CSM.TmpeSync.Services
 
                 SavedGameOptions.Instance.timedLightsEnabled = false;
 
+                // TM:PE refreshes the corresponding checkbox after the option value changes,
+                // so the guard only needs to update the backing feature flag and can ignore
+                // any transient UI binding errors.
                 try
                 {
                     MaintenanceTab_FeaturesGroup.TimedLightsEnabled.Value = false;
@@ -83,7 +85,6 @@ namespace CSM.TmpeSync.Services
 #endif
                 }
 
-                TryRebuildOptionsMenu();
                 changed = true;
                 return true;
             }
@@ -95,58 +96,6 @@ namespace CSM.TmpeSync.Services
                     "Error while disabling timed traffic lights option | error={0}",
                     ex);
                 return false;
-            }
-        }
-
-        private static void TryRebuildOptionsMenu()
-        {
-            try
-            {
-                MethodInfo rebuildMenu =
-                    typeof(OptionsManager).GetMethod(
-                        "RebuildMenu",
-                        BindingFlags.Instance | BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic);
-                if (rebuildMenu == null)
-                    return;
-
-                object target = null;
-                if (!rebuildMenu.IsStatic)
-                {
-                    PropertyInfo instanceProperty =
-                        typeof(OptionsManager).GetProperty(
-                            "Instance",
-                            BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic);
-                    target = instanceProperty?.GetValue(null, null);
-                    if (target == null)
-                        return;
-                }
-
-                ParameterInfo[] parameters = rebuildMenu.GetParameters();
-                object[] args;
-                if (parameters.Length == 0)
-                {
-                    args = new object[0];
-                }
-                else if (parameters.Length == 1 && parameters[0].ParameterType == typeof(bool))
-                {
-                    args = new object[] { false };
-                }
-                else
-                {
-                    return;
-                }
-
-                rebuildMenu.Invoke(target, args);
-            }
-            catch (Exception ex)
-            {
-#if DEBUG
-                Log.Debug(
-                    LogCategory.Menu,
-                    LogRole.General,
-                    "Timed traffic lights option guard could not rebuild TM:PE menu | error={0}",
-                    ex);
-#endif
             }
         }
     }
