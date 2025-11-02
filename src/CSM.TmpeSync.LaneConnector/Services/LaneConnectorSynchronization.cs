@@ -823,7 +823,7 @@ namespace CSM.TmpeSync.LaneConnector.Services
                 var method = instance.GetType()
                     .GetMethod(methodName, BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
 
-                method?.Invoke(instance, Array.Empty<object>());
+                method?.Invoke(instance, null);
             }
 
             private static string DescribeManager(object manager) =>
