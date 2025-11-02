@@ -280,8 +280,12 @@
     <Compile Remove="Snapshot\**\*.cs" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Messages\DefaultSpeedLimitAppliedCommand.cs" />
+    <Compile Include="Messages\DefaultSpeedLimitUpdateRequest.cs" />
     <Compile Include="Messages\SpeedLimitsAppliedCommand.cs" />
     <Compile Include="Messages\SpeedLimitsUpdateRequest.cs" />
+    <Compile Include="Handlers\DefaultSpeedLimitAppliedCommandHandler.cs" />
+    <Compile Include="Handlers\DefaultSpeedLimitUpdateRequestHandler.cs" />
     <Compile Include="Handlers\SpeedLimitsAppliedCommandHandler.cs" />
     <Compile Include="Handlers\SpeedLimitsUpdateRequestHandler.cs" />
     <Compile Include="Services\SpeedLimitSynchronization.cs" />

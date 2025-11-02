@@ -19,6 +19,8 @@ namespace CSM.TmpeSync.SpeedLimits.Services
         private static MethodInfo _calcCustom;
         private static MethodInfo _calcSimple;
         private static MethodInfo _getDefault;
+        private static MethodInfo _setCustomNetinfo;
+        private static MethodInfo _resetCustomNetinfo;
 
         private static Type _speedValueType;
         private static MethodInfo _speedValueFromKmph;
@@ -114,6 +116,19 @@ namespace CSM.TmpeSync.SpeedLimits.Services
                                                  m.GetParameters().Length == 2 &&
                                                  m.GetParameters()[0].ParameterType == typeof(uint) &&
                                                  m.GetParameters()[1].ParameterType == typeof(NetInfo.Lane));
+
+                        _setCustomNetinfo = _managerType
+                            .GetMethods(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)
+                            .FirstOrDefault(m => m.Name == "SetCustomNetinfoSpeedLimit" &&
+                                                 m.GetParameters().Length == 2 &&
+                                                 m.GetParameters()[0].ParameterType == typeof(NetInfo) &&
+                                                 m.GetParameters()[1].ParameterType == typeof(float));
+
+                        _resetCustomNetinfo = _managerType
+                            .GetMethods(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)
+                            .FirstOrDefault(m => m.Name == "ResetCustomNetinfoSpeedLimit" &&
+                                                 m.GetParameters().Length == 1 &&
+                                                 m.GetParameters()[0].ParameterType == typeof(NetInfo));
                     }
 
                     if (_setActionType != null)
@@ -265,6 +280,56 @@ namespace CSM.TmpeSync.SpeedLimits.Services
             catch (Exception ex)
             {
                 Log.Warn(LogCategory.Synchronization, LogRole.Host, "TryGetSpeedLimit failed | error={0}", ex);
+                return false;
+            }
+        }
+
+        internal static bool TrySetNetinfoDefault(NetInfo netInfo, float gameUnits)
+        {
+            if (netInfo == null)
+                return false;
+
+            try
+            {
+                if (!EnsureInit() || _setCustomNetinfo == null)
+                    return false;
+
+                _setCustomNetinfo.Invoke(_manager, new object[] { netInfo, gameUnits });
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Log.Warn(
+                    LogCategory.Synchronization,
+                    LogRole.Host,
+                    "SetCustomNetinfoSpeedLimit failed | netInfo={0} error={1}",
+                    netInfo?.name ?? "<null>",
+                    ex);
+                return false;
+            }
+        }
+
+        internal static bool TryResetNetinfoDefault(NetInfo netInfo)
+        {
+            if (netInfo == null)
+                return false;
+
+            try
+            {
+                if (!EnsureInit() || _resetCustomNetinfo == null)
+                    return false;
+
+                _resetCustomNetinfo.Invoke(_manager, new object[] { netInfo });
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Log.Warn(
+                    LogCategory.Synchronization,
+                    LogRole.Host,
+                    "ResetCustomNetinfoSpeedLimit failed | netInfo={0} error={1}",
+                    netInfo?.name ?? "<null>",
+                    ex);
                 return false;
             }
         }

@@ -8,8 +8,8 @@
 *.sln.docstates
 
 # General diagnostics
-# logdiagnostics/
-# subtrees/
+logdiagnostics/
+subtrees/
 
 # User-specific files (MonoDevelop/Xamarin Studio)
 *.userprefs

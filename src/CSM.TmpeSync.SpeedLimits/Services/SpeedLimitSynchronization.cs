@@ -4,6 +4,8 @@ using CSM.API.Commands;
 using CSM.TmpeSync.Messages.States;
 using CSM.TmpeSync.Services;
 using CSM.TmpeSync.SpeedLimits.Messages;
+using ColossalFramework;
+using UnityEngine;
 
 namespace CSM.TmpeSync.SpeedLimits.Services
 {
@@ -11,6 +13,127 @@ namespace CSM.TmpeSync.SpeedLimits.Services
     {
         private const int MaxRetryAttempts = 6;
         private static readonly int[] RetryFrameDelays = { 5, 15, 30, 60, 120, 240 };
+
+        internal enum DefaultApplyError
+        {
+            None,
+            NetInfoMissing,
+            AdapterUnavailable,
+            Exception
+        }
+
+        internal static bool TryApplyDefault(
+            string netInfoName,
+            bool hasCustomSpeed,
+            float customGameSpeed,
+            string origin,
+            out DefaultApplyError error)
+        {
+            error = DefaultApplyError.None;
+
+            if (string.IsNullOrEmpty(netInfoName))
+            {
+                Log.Warn(
+                    LogCategory.Synchronization,
+                    CurrentRole(),
+                    "[SpeedLimits] Default apply skipped | netInfo=<null> origin={0}",
+                    origin ?? "unknown");
+                error = DefaultApplyError.NetInfoMissing;
+                return false;
+            }
+
+            NetInfo netInfo = PrefabCollection<NetInfo>.FindLoaded(netInfoName);
+            if (netInfo == null)
+            {
+                Log.Warn(
+                    LogCategory.Synchronization,
+                    CurrentRole(),
+                    "[SpeedLimits] Default apply skipped | netInfo={0} origin={1} reason=netinfo_missing",
+                    netInfoName,
+                    origin ?? "unknown");
+                error = DefaultApplyError.NetInfoMissing;
+                return false;
+            }
+
+            try
+            {
+                using (LocalApplyScope.Scoped())
+                {
+                    bool ok = hasCustomSpeed
+                        ? SpeedLimitAdapter.TrySetNetinfoDefault(netInfo, customGameSpeed)
+                        : SpeedLimitAdapter.TryResetNetinfoDefault(netInfo);
+
+                    if (!ok)
+                    {
+                        Log.Warn(
+                            LogCategory.Synchronization,
+                            CurrentRole(),
+                            "[SpeedLimits] Default apply failed | netInfo={0} origin={1} reason=adapter_unavailable",
+                            netInfoName,
+                            origin ?? "unknown");
+                        error = DefaultApplyError.AdapterUnavailable;
+                        return false;
+                    }
+                }
+
+                Log.Info(
+                    LogCategory.Synchronization,
+                    CurrentRole(),
+                    "[SpeedLimits] Default applied | netInfo={0} custom={1} value={2:F3} origin={3}",
+                    netInfoName,
+                    hasCustomSpeed,
+                    customGameSpeed,
+                    origin ?? "unknown");
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Log.Warn(
+                    LogCategory.Synchronization,
+                    CurrentRole(),
+                    "[SpeedLimits] Default apply exception | netInfo={0} origin={1} error={2}",
+                    netInfoName,
+                    origin ?? "unknown",
+                    ex);
+                error = DefaultApplyError.Exception;
+                return false;
+            }
+        }
+
+        internal static void BroadcastDefault(string netInfoName, float customGameSpeed, string context)
+        {
+            if (string.IsNullOrEmpty(netInfoName))
+                return;
+
+            var state = new DefaultSpeedLimitAppliedCommand
+            {
+                NetInfoName = netInfoName,
+                HasCustomSpeed = true,
+                CustomGameSpeed = customGameSpeed
+            };
+
+            BroadcastDefault(state, context);
+        }
+
+        internal static void BroadcastDefaultReset(string netInfoName, string context)
+        {
+            if (string.IsNullOrEmpty(netInfoName))
+                return;
+
+            var state = new DefaultSpeedLimitAppliedCommand
+            {
+                NetInfoName = netInfoName,
+                HasCustomSpeed = false,
+                CustomGameSpeed = 0f
+            };
+
+            BroadcastDefault(state, context);
+        }
+
+        internal static void BroadcastDefault(DefaultSpeedLimitAppliedCommand state, string context)
+        {
+            Send(state, context);
+        }
 
         internal static bool TryRead(ushort segmentId, out SpeedLimitsAppliedCommand command)
         {
@@ -460,6 +583,71 @@ namespace CSM.TmpeSync.SpeedLimits.Services
                 VehicleTypeRaw = signature.VehicleTypeRaw,
                 DirectionRaw = signature.DirectionRaw
             };
+        }
+
+        private static DefaultSpeedLimitAppliedCommand CloneDefault(DefaultSpeedLimitAppliedCommand source)
+        {
+            if (source == null)
+                return null;
+
+            return new DefaultSpeedLimitAppliedCommand
+            {
+                NetInfoName = source.NetInfoName,
+                HasCustomSpeed = source.HasCustomSpeed,
+                CustomGameSpeed = source.CustomGameSpeed
+            };
+        }
+
+        private static DefaultSpeedLimitUpdateRequest ConvertToDefaultRequest(DefaultSpeedLimitAppliedCommand applied)
+        {
+            if (applied == null)
+                return null;
+
+            return new DefaultSpeedLimitUpdateRequest
+            {
+                NetInfoName = applied.NetInfoName,
+                HasCustomSpeed = applied.HasCustomSpeed,
+                CustomGameSpeed = applied.CustomGameSpeed
+            };
+        }
+
+        private static void Send(DefaultSpeedLimitAppliedCommand state, string context)
+        {
+            if (state == null || string.IsNullOrEmpty(state.NetInfoName))
+                return;
+
+            var payload = CloneDefault(state);
+
+            if (CsmBridge.IsServerInstance())
+            {
+                Log.Info(
+                    LogCategory.Synchronization,
+                    LogRole.Host,
+                    "[SpeedLimits] Host applied default | netInfo={0} custom={1} value={2:F3} ctx={3}",
+                    payload.NetInfoName,
+                    payload.HasCustomSpeed,
+                    payload.CustomGameSpeed,
+                    context ?? "unknown");
+
+                Dispatch(payload);
+            }
+            else
+            {
+                Log.Info(
+                    LogCategory.Network,
+                    LogRole.Client,
+                    "[SpeedLimits] Client sent default update | netInfo={0} custom={1} value={2:F3} ctx={3}",
+                    payload.NetInfoName,
+                    payload.HasCustomSpeed,
+                    payload.CustomGameSpeed,
+                    context ?? "unknown");
+
+                var request = ConvertToDefaultRequest(payload);
+                if (request == null)
+                    return;
+
+                Dispatch(request);
+            }
         }
 
         private static void Send(SpeedLimitsAppliedCommand state, string context)

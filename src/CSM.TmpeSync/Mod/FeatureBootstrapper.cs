@@ -18,6 +18,7 @@ namespace CSM.TmpeSync.Mod
         private static bool _registered;
         private static bool _suspended;
         private static string _suspendReason = string.Empty;
+        private const string TimedTrafficLightsFeatureName = "TimedTrafficLights";
         // Toggle features for development: set Enabled to false to skip registration.
         private static readonly FeatureToggle[] Features =
         {
@@ -29,6 +30,7 @@ namespace CSM.TmpeSync.Mod
             new FeatureToggle("ParkingRestrictions", true, ParkingRestrictionSyncFeature.Register, ParkingRestrictionSyncFeature.Unregister),
             new FeatureToggle("VehicleRestrictions", true, VehicleRestrictionSyncFeature.Register, VehicleRestrictionSyncFeature.Unregister),
             new FeatureToggle("ToggleTrafficLights", true, ToggleTrafficLightsSyncFeature.Register, ToggleTrafficLightsSyncFeature.Unregister),
+            new FeatureToggle("TimedTrafficLights", false, TimedTrafficLightsSyncFeature.Register, TimedTrafficLightsSyncFeature.Unregister),
             new FeatureToggle("ClearTraffic", true, ClearTrafficSyncFeature.Register, ClearTrafficSyncFeature.Unregister)
         };
 
@@ -54,6 +56,9 @@ namespace CSM.TmpeSync.Mod
 
             foreach (var feature in Features)
                 EnableFeature(feature);
+
+            if (!IsFeatureEnabled(TimedTrafficLightsFeatureName))
+                TimedTrafficLightsOptionGuard.ScheduleDisable();
 
             Log.Info(LogCategory.Synchronization, GetCurrentRole(), "Synchronization features enabled.");
         }
@@ -157,6 +162,17 @@ namespace CSM.TmpeSync.Mod
             {
                 feature.IsActive = false;
             }
+        }
+
+        private static bool IsFeatureEnabled(string featureName)
+        {
+            foreach (var feature in Features)
+            {
+                if (string.Equals(feature.Name, featureName, StringComparison.Ordinal))
+                    return feature.Enabled;
+            }
+
+            return false;
         }
 
         private static LogRole GetCurrentRole() =>

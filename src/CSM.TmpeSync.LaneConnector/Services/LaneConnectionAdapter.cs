@@ -91,7 +91,8 @@ namespace CSM.TmpeSync.LaneConnector.Services
 
                 if (legacyClear != null && legacyAdd != null)
                 {
-                    legacyClear.Invoke(manager, new object[] { sourceLaneId, sourceStartNode, false });
+                    // trigger TM:PE's recalculation/publish pipeline so visuals and routing refresh
+                    legacyClear.Invoke(manager, new object[] { sourceLaneId, sourceStartNode, true });
 
                     if (targets != null)
                     {
@@ -194,7 +195,8 @@ namespace CSM.TmpeSync.LaneConnector.Services
                         continue;
                 }
 
-                removeMethod.Invoke(sub, new object[] { sourceLaneId, sourceStartNode, false });
+                // allow TM:PE to recalc/publish after clearing existing lane connections
+                removeMethod.Invoke(sub, new object[] { sourceLaneId, sourceStartNode, true });
                 anyApplied = true;
 
                 if (targets == null)

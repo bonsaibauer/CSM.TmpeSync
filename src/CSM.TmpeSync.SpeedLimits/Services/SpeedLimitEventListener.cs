@@ -4,6 +4,7 @@ using System.Reflection;
 using HarmonyLib;
 using CSM.TmpeSync.SpeedLimits.Messages;
 using CSM.TmpeSync.Services;
+using UnityEngine;
 
 namespace CSM.TmpeSync.SpeedLimits.Services
 {
@@ -25,6 +26,8 @@ namespace CSM.TmpeSync.SpeedLimits.Services
                 bool patchedAny = false;
                 patchedAny |= TryPatchSetLaneSpeedLimit_WithInfo();
                 patchedAny |= TryPatchSetLaneSpeedLimit_Simple();
+                patchedAny |= TryPatchSetCustomNetinfoSpeedLimit();
+                patchedAny |= TryPatchResetCustomNetinfoSpeedLimit();
 
                 if (!patchedAny)
                 {
@@ -106,6 +109,51 @@ namespace CSM.TmpeSync.SpeedLimits.Services
             return true;
         }
 
+        private static bool TryPatchSetCustomNetinfoSpeedLimit()
+        {
+            var method = FindMethod(
+                new[]
+                {
+                    "TrafficManager.Manager.Impl.SpeedLimitManager",
+                    "TrafficManager.Manager.SpeedLimitManager",
+                },
+                "SetCustomNetinfoSpeedLimit",
+                typeof(NetInfo),
+                typeof(float));
+
+            if (method == null)
+                return false;
+
+            var postfix = typeof(SpeedLimitEventListener)
+                .GetMethod(nameof(SetCustomNetinfoSpeedLimit_Postfix), BindingFlags.NonPublic | BindingFlags.Static);
+
+            _harmony.Patch(method, postfix: new HarmonyMethod(postfix));
+            Log.Info(LogCategory.Network, LogRole.Host, "[SpeedLimits] Harmony patched {0}.{1} (netinfo set).", method.DeclaringType?.FullName, method.Name);
+            return true;
+        }
+
+        private static bool TryPatchResetCustomNetinfoSpeedLimit()
+        {
+            var method = FindMethod(
+                new[]
+                {
+                    "TrafficManager.Manager.Impl.SpeedLimitManager",
+                    "TrafficManager.Manager.SpeedLimitManager",
+                },
+                "ResetCustomNetinfoSpeedLimit",
+                typeof(NetInfo));
+
+            if (method == null)
+                return false;
+
+            var postfix = typeof(SpeedLimitEventListener)
+                .GetMethod(nameof(ResetCustomNetinfoSpeedLimit_Postfix), BindingFlags.NonPublic | BindingFlags.Static);
+
+            _harmony.Patch(method, postfix: new HarmonyMethod(postfix));
+            Log.Info(LogCategory.Network, LogRole.Host, "[SpeedLimits] Harmony patched {0}.{1} (netinfo reset).", method.DeclaringType?.FullName, method.Name);
+            return true;
+        }
+
         private static MethodInfo FindMethod(string[] typeNames, string methodName, params Type[] parameterTypes)
         {
             foreach (var tn in typeNames)
@@ -164,6 +212,16 @@ namespace CSM.TmpeSync.SpeedLimits.Services
             TryBroadcast(segmentId, "set_simple");
         }
 
+        private static void SetCustomNetinfoSpeedLimit_Postfix(NetInfo netinfo, float customSpeedLimit)
+        {
+            TryBroadcastDefault(netinfo, hasCustomSpeed: true, customGameSpeed: customSpeedLimit, context: "set_netinfo");
+        }
+
+        private static void ResetCustomNetinfoSpeedLimit_Postfix(NetInfo netinfo)
+        {
+            TryBroadcastDefault(netinfo, hasCustomSpeed: false, customGameSpeed: 0f, context: "reset_netinfo");
+        }
+
         private static void TryBroadcast(ushort segmentId, string context)
         {
             try
@@ -187,6 +245,30 @@ namespace CSM.TmpeSync.SpeedLimits.Services
                 Log.Warn(LogCategory.Network, LogRole.Host, "[SpeedLimits] Event postfix error: {0}", ex);
             }
         }
+
+        private static void TryBroadcastDefault(NetInfo netinfo, bool hasCustomSpeed, float customGameSpeed, string context)
+        {
+            try
+            {
+                if (SpeedLimitSynchronization.IsLocalApplyActive)
+                    return;
+
+                if (netinfo == null || string.IsNullOrEmpty(netinfo.name))
+                    return;
+
+                if (hasCustomSpeed)
+                {
+                    SpeedLimitSynchronization.BroadcastDefault(netinfo.name, customGameSpeed, context);
+                }
+                else
+                {
+                    SpeedLimitSynchronization.BroadcastDefaultReset(netinfo.name, context);
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Warn(LogCategory.Network, LogRole.Host, "[SpeedLimits] Default event postfix error: {0}", ex);
+            }
+        }
     }
 }
-
