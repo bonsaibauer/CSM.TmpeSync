@@ -50,7 +50,7 @@ This document is bilingual. German (DE) first, English (EN) follows.
 | --- | --- | --- | --- | --- |
 | `VehicleRestrictionsUpdateRequest` (Proto: `SetVehicleRestrictionsRequest`) | Client → Server | `SegmentId` | `ushort` | Segment-ID des betroffenen Segments. |
 |  |  | `Items` | `List<Entry>` | Liste von Einträgen für betroffene Spuren. |
-|  |  | `Items[i].LaneOrdinal` | `int` | Ordinal der Spur innerhalb `segment.Info.m_lanes` (nur `LaneType.Vehicle`). |
+|  |  | `Items[i].LaneOrdinal` | `int` | Ordinal der Spur innerhalb `segment.Info.m_lanes` (nur `LaneType.Vehicle` bzw. `LaneType.TransportVehicle`). |
 |  |  | `Items[i].Restrictions` | `VehicleRestrictionFlags` | Bitmaske der erlaubten Fahrzeugtypen. |
 |  |  | `Items[i].Signature.LaneTypeRaw` | `int` | Rohwert von `NetInfo.Lane.m_laneType`. |
 |  |  | `Items[i].Signature.VehicleTypeRaw` | `int` | Rohwert von `NetInfo.Lane.m_vehicleType`. |
@@ -62,7 +62,7 @@ This document is bilingual. German (DE) first, English (EN) follows.
 |  |  | `Reason` | `string` | Grund, z. B. `entity_missing`, `tmpe_apply_failed`. |
 
 Hinweise
-- Nur Spuren mit `LaneType.Vehicle` werden berücksichtigt; Fußwege/Parkspuren werden übersprungen.
+- Berücksichtigt werden Spuren mit `LaneType.Vehicle` oder `LaneType.TransportVehicle`; Fußwege/Parkspuren werden übersprungen.
 - Die Lane-Signatur verhindert Fehlauswahl bei Layout-Varianten; bei Abweichung wird der Eintrag übersprungen.
 - Lokale Applies nutzen einen Ignore-Scope, damit die Harmony-Hooks nicht erneut feuern.
 
@@ -114,7 +114,7 @@ Hinweise
 | --- | --- | --- | --- | --- |
 | `VehicleRestrictionsUpdateRequest` (Proto: `SetVehicleRestrictionsRequest`) | Client → Server | `SegmentId` | `ushort` | Segment ID of the affected segment. |
 |  |  | `Items` | `List<Entry>` | List of entries for affected lanes. |
-|  |  | `Items[i].LaneOrdinal` | `int` | Lane ordinal within `segment.Info.m_lanes` (only `LaneType.Vehicle`). |
+|  |  | `Items[i].LaneOrdinal` | `int` | Lane ordinal within `segment.Info.m_lanes` (only `LaneType.Vehicle`/`LaneType.TransportVehicle`). |
 |  |  | `Items[i].Restrictions` | `VehicleRestrictionFlags` | Bitmask of allowed vehicle types. |
 |  |  | `Items[i].Signature.LaneTypeRaw` | `int` | Raw `NetInfo.Lane.m_laneType` value. |
 |  |  | `Items[i].Signature.VehicleTypeRaw` | `int` | Raw `NetInfo.Lane.m_vehicleType` value. |
@@ -126,7 +126,7 @@ Hinweise
 |  |  | `Reason` | `string` | Reason, e.g., `entity_missing`, `tmpe_apply_failed`. |
 
 Notes
-- Only lanes with `LaneType.Vehicle` are considered; footpaths/parking shoulders are skipped.
+- Only lanes with `LaneType.Vehicle` or `LaneType.TransportVehicle` are considered; footpaths/parking shoulders are skipped.
 - The lane signature prevents mismatches with prefab variants; entries are skipped on signature mismatch.
 - Local applies use an ignore scope so listener hooks do not fire again.
 
