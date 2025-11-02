@@ -67,23 +67,8 @@ namespace CSM.TmpeSync.Services
 
                 SavedGameOptions.Instance.timedLightsEnabled = false;
 
-                // TM:PE refreshes the corresponding checkbox after the option value changes,
-                // so the guard only needs to update the backing feature flag and can ignore
-                // any transient UI binding errors.
-                try
-                {
-                    MaintenanceTab_FeaturesGroup.TimedLightsEnabled.Value = false;
-                }
-                catch (Exception ex)
-                {
-#if DEBUG
-                    Log.Debug(
-                        LogCategory.Menu,
-                        LogRole.General,
-                        "Timed traffic lights option guard could not update checkbox state | error={0}",
-                        ex);
-#endif
-                }
+                // TM:PE refreshes the checkbox automatically after the option value changes,
+                // so there's no need to poke the UI-specific feature flag here.
 
                 changed = true;
                 return true;
