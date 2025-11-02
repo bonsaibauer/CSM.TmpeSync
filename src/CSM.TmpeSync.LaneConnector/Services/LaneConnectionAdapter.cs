@@ -13,7 +13,7 @@ namespace CSM.TmpeSync.LaneConnector.Services
         internal static bool TryGetLaneConnections(uint laneId, bool startNode, out uint[] targets)
         {
             var list = new List<uint>();
-            targets = Array.Empty<uint>();
+            targets = new uint[0];
             try
             {
                 if (!NetworkUtil.TryGetLaneLocation(laneId, out var segmentId, out _))
