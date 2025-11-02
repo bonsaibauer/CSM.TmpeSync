@@ -121,21 +121,21 @@ The installer clears any existing copy of the mod and copies the DLL (and option
 
 1. Enable Harmony, CSM, TM:PE, and CSM.TmpeSync (Beta) in the Cities: Skylines Content Manager.
 2. Start or join a CSM session. Once connected, every TM:PE edit made by the host is validated, applied through the feature-specific bridge, and broadcast to all clients.
-3. Monitor the logs (`%LOCALAPPDATA%\Colossal Order\Cities_Skylines\CSM.TmpeSync\csm.tmpe-sync.log`) for warnings while the Beta stabilises.
+3. Monitor the daily log files (`%LOCALAPPDATA%\Colossal Order\Cities_Skylines\CSM.TmpeSync\log-<YYYY-MM-DD>.log`) for warnings while the Beta stabilises.
 
 ## Logging
 
-Operational logs are written to:
+Operational logs are written to daily rolling files:
 
 ```
-%LOCALAPPDATA%\Colossal Order\Cities_Skylines\CSM.TmpeSync\csm.tmpe-sync.log
+%LOCALAPPDATA%\Colossal Order\Cities_Skylines\CSM.TmpeSync\log-<YYYY-MM-DD>.log
 ```
 
 Debug-level entries are always written, so you get full bridge traces without additional setup.
 
 ## Contributing feedback
 
-File issues with reproduction steps, `csm.tmpe-sync.log`, and the feature name that triggered the problem. The modular architecture lets us iterate on one feature at a time, so accurate reports keep the Beta moving forward.
+File issues with reproduction steps, the latest `log-<YYYY-MM-DD>.log`, and the feature name that triggered the problem. The modular architecture lets us iterate on one feature at a time, so accurate reports keep the Beta moving forward.
 
 ## Buy Me A Coffee
 If this project has helped you in any way, do buy me a coffee so I can continue to build more of such projects in the future and share them with the community!
