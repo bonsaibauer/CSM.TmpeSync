@@ -6,16 +6,16 @@ namespace CSM.TmpeSync.LaneConnector.Services
 {
     internal static class LaneConnectorTmpeAdapter
     {
-        internal static bool TryGetLaneConnections(uint laneId, out uint[] targets)
+        internal static bool TryGetLaneConnections(uint laneId, bool startNode, out uint[] targets)
         {
-            return LaneConnectionAdapter.TryGetLaneConnections(laneId, out targets);
+            return LaneConnectionAdapter.TryGetLaneConnections(laneId, startNode, out targets);
         }
 
-        internal static bool ApplyLaneConnections(uint sourceLaneId, uint[] targets)
+        internal static bool ApplyLaneConnections(uint sourceLaneId, uint[] targets, bool sourceStartNode)
         {
             using (LocalIgnore.Scoped())
             {
-                return LaneConnectionAdapter.ApplyLaneConnections(sourceLaneId, targets);
+                return LaneConnectionAdapter.ApplyLaneConnections(sourceLaneId, targets, sourceStartNode);
             }
         }
 

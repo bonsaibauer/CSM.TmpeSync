@@ -1,20 +1,20 @@
-# CSM TM:PE Sync - Lane Connector / Fahrbahnverbindungen
+# CSM TM:PE Sync – Lane Connector / Fahrbahnverbindungen
 
 This document is bilingual. German (DE) first, English (EN) follows.
 
 ---
 
-## DE - Deutsch
+## DE – Deutsch
 
 ### 1) Kurzbeschreibung
-- Synchronisiert TM:PE-Lane-Connector-Verbindungen zwischen Host und Clients in CSM-Sitzungen (Segmentende → Zielspuren).
-- Nutzt das Segmentend-Schema wie Lane Arrows: Kommunikation pro `(NodeId, SegmentId, StartNode)` mit stabilen Spur-Ordinals (kein Versand von `laneId`/`laneIndex`).
-- Resiliente Apply-Pipeline: Apply-Koordinator sammelt Requests pro Segmentende, überprüft TM:PE-Manager (LaneConnectionManager + Datenbank), führt Backoff-Retrys aus und verhindert Echo über Ignore-Scope.
+- Synchronisiert TM:PE-Lane-Connector-Verbindungen zwischen Host und Clients in CSM-Sitzungen (Segmentende -> Zielspuren).
+- Bildet stabile Spur-Ordinals pro `(NodeId, SegmentId, StartNode)` anhand der TM:PE-Lane-Metadaten (LaneTypes/VehicleTypes) und `LaneConnectionManager.GetLaneEndPoint`; `laneId`/`laneIndex` werden nicht übertragen.
+- Resiliente Apply-Pipeline: Apply-Koordinator bündelt Requests pro Segmentende, prüft LaneConnectionManager + Connection-Datenbank, führt Backoff-Retrys aus und verhindert Echo per Ignore-Scope.
 
 ### 2) Dateistruktur
 - `src/CSM.TmpeSync.LaneConnector/`
-  - `LaneConnectorSyncFeature.cs` – Feature-Bootstrap (aktiviert Listener).
-  - `Handlers/` – CSM-Command-Handler für Server/Client (inkl. Retry-Integration).
+  - `LaneConnectorSyncFeature.cs` – Feature-Bootstrap (aktiviert den Listener).
+  - `Handlers/` – CSM-Command-Handler für Server/Client inkl. Retry-Integration.
   - `Messages/` – Netzwerkbefehle (ProtoBuf-Verträge) für Requests/Broadcasts.
   - `Services/` – Harmony-Listener, End-Selektor, Apply-Koordinator, TM:PE-Adapter.
 
@@ -22,114 +22,115 @@ This document is bilingual. German (DE) first, English (EN) follows.
 | Datei | Zweck |
 | --- | --- |
 | `LaneConnectorSyncFeature.cs` | Registriert/aktiviert das Feature und den TM:PE-Listener. |
-| `Handlers/LaneConnectionsAppliedCommandHandler.cs` | Client: verarbeitet Host-Broadcasts und nutzt den Apply-Koordinator zum lokalen Anwenden (inkl. Retry). |
+| `Handlers/LaneConnectionsAppliedCommandHandler.cs` | Client: verarbeitet Host-Broadcasts, nutzt den Apply-Koordinator (Retry + Merge). |
 | `Handlers/LaneConnectionsUpdateRequestHandler.cs` | Server: validiert Requests, wendet sie via Apply-Koordinator an und broadcastet nach Erfolg. |
-| `Messages/LaneConnectionsAppliedCommand.cs` | Server → Alle: angewandter Zustand eines Segmentendes (Ordinals + Ziel-Ordinals). |
-| `Messages/LaneConnectionsUpdateRequest.cs` | Client → Server: gewünschter Zustand eines Segmentendes (Ordinals + Ziel-Ordinals). |
-| `Services/LaneConnectorEventListener.cs` | Harmony-Hooks auf TM:PE, erkennt lokale Änderungen und erstellt Snapshot pro Segmentende. |
+| `Messages/LaneConnectionsAppliedCommand.cs` | Server -> Alle: angewandter Zustand eines Segmentendes (Ordinals + Ziel-Ordinals). |
+| `Messages/LaneConnectionsUpdateRequest.cs` | Client -> Server: gewünschter Zustand eines Segmentendes (Ordinals + Ziel-Ordinals). |
+| `Services/LaneConnectorEventListener.cs` | Harmony-Hooks auf TM:PE; nutzt den von TM:PE gelieferten `sourceStartNode`, erstellt Snapshots pro Segmentende. |
 | `Services/LaneConnectorSynchronization.cs` | Gemeinsamer Versandweg, Apply-Koordinator mit Retry/Backoff, Merge-Logik für konkurrierende Requests. |
-| `Services/LaneConnectorTmpeAdapter.cs` | Apply-/Read-Fassade zu TM:PE (Ignore-Scope, LaneId-Auflösung). |
-| `Services/LaneConnectionAdapter.cs` | Niedrig-Level-Adapter für LaneConnectionManager (lesen/anwenden). |
-| `Services/LaneConnectorEndSelector.cs` | Ermittelt Kandidaten-Lanes eines Segmentendes in stabiler Reihenfolge (Ordinalbildung). |
+| `Services/LaneConnectorTmpeAdapter.cs` | Apply-/Read-Fassade zu TM:PE (Ignore-Scope, Übergang zu Lane IDs). |
+| `Services/LaneConnectionAdapter.cs` | Niedrig-Level-Adapter für LaneConnectionManager (Lesen/Anwenden via Reflection). |
+| `Services/LaneConnectorEndSelector.cs` | Selektiert TM:PE-kompatible Kandidaten-Spuren am Segmentende in stabiler Reihenfolge (Ordinalbildung). |
 
 ### 4) Workflow (Server/Host und Client)
 - **Host ändert Lane-Connections in TM:PE**
-  - Harmony-Postfix erkennt die Änderung, bestimmt `(nodeId, segmentId, startNode)` und erstellt einen Snapshot aller Querschnitts-Lanes inkl. Ziel-Ordinals.
-  - Synchronisation broadcastet `LaneConnectionsAppliedCommand`; Clients wenden den Zustand über den Apply-Koordinator an (Retry solange TM:PE-Manager/Datenbank nicht bereit).
+  - Harmony-Postfix erhält `sourceStartNode`, ermittelt `(nodeId, segmentId)` und erstellt einen Snapshot aller zulässigen Lanes (gefiltert über LaneTypes/VehicleTypes und `GetLaneEndPoint`).
+  - Synchronisation broadcastet `LaneConnectionsAppliedCommand`; Clients wenden den Zustand über den Apply-Koordinator an (Retry solange LaneConnectionManager/DB nicht bereit).
 
 - **Client ändert Lane-Connections in TM:PE**
   - Harmony-Postfix erstellt denselben Snapshot und sendet `LaneConnectionsUpdateRequest` an den Server.
   - Server validiert Knoten/Segment, übergibt den Request dem Apply-Koordinator.
-  - Apply-Koordinator prüft LaneConnectionManager + Connection-DB (Reflection), mappt Ordinals → lokale LaneIds und versucht das Apply. Bei `NullReferenceException`/fehlenden Managern werden bis zu sechs Versuche mit wachsender Frame-Verzögerung (5 → 240) gestartet; konkurrierende Requests werden zusammengeführt.
-  - Nach Erfolg broadcastet der Server `LaneConnectionsAppliedCommand` mit dem gelesenen Endzustand.
+  - Apply-Koordinator mappt Ordinals -> lokale Lane IDs, prüft LaneConnectionManager + Connection-DB und versucht das Apply. Bei Bedarf bis zu sechs Versuche mit wachsender Frame-Verzögerung (5/15/30/60/120/240); konkurrierende Requests werden zusammengeführt.
+  - Nach Erfolg broadcastet der Server `LaneConnectionsAppliedCommand` mit dem vom Manager gelesenen Endzustand.
 
 - **Abgelehnte Requests (Server)**
-  - Fehlende Entitäten oder endgültige TM:PE-Fehler führen zu `RequestRejected` (Grund + Entitätstyp/-ID).
+  - Fehlende Entitäten oder finale TM:PE-Fehler führen zu `RequestRejected` (Grund + Entitätstyp/-ID).
 
 ### 5) Datenaustausch (Nachrichten/Felder)
 | Nachricht | Richtung | Feld | Typ | Beschreibung |
 | --- | --- | --- | --- | --- |
-| `LaneConnectionsUpdateRequest` | Client → Server | `NodeId` | `ushort` | Knoten-ID der Kreuzung. |
+| `LaneConnectionsUpdateRequest` | Client -> Server | `NodeId` | `ushort` | Knoten-ID der Kreuzung. |
 |  |  | `SegmentId` | `ushort` | Segment-ID am Knoten (betroffenes Segmentende). |
 |  |  | `StartNode` | `bool` | `true` = Segmentanfang, `false` = Segmentende. |
 |  |  | `Items[]` | `List<Entry>` | Liste pro Querschnitts-Lane (siehe unten). |
 |  |  | `Items[].SourceOrdinal` | `int` | Ordinal (0..n-1) der Ausgangsspur am Segmentende. |
 |  |  | `Items[].TargetOrdinals` | `List<int>` | Ziel-Ordinals (0..n-1) innerhalb desselben Segmentendes. |
-| `LaneConnectionsAppliedCommand` | Server → Alle | `NodeId` | `ushort` | Knoten-ID der Kreuzung. |
+| `LaneConnectionsAppliedCommand` | Server -> Alle | `NodeId` | `ushort` | Knoten-ID der Kreuzung. |
 |  |  | `SegmentId` | `ushort` | Segment-ID am Knoten (Ziel-Segmentende). |
 |  |  | `StartNode` | `bool` | Wie oben. |
-|  |  | `Items[]` | `List<Entry>` | Effektiv angewandte Zuordnungen (SourceOrdinal → TargetOrdinals). |
-| `RequestRejected` | Server → Client | `EntityType` | `byte` | 3 = Node, 2 = Segment, 1 = Lane (kontextabhängig). |
+|  |  | `Items[]` | `List<Entry>` | Effektiv angewandte Zuordnungen (SourceOrdinal -> TargetOrdinals). |
+| `RequestRejected` | Server -> Client | `EntityType` | `byte` | 3 = Node, 2 = Segment, 1 = Lane (kontextabhängig). |
 |  |  | `EntityId` | `int` | Betroffene Entität. |
 |  |  | `Reason` | `string` | Grund, z. B. `entity_missing`, `tmpe_apply_failed`. |
 
 Hinweise
-- Keine Übertragung von `laneId`/`laneIndex`; Ordinals werden anhand des aktuellen Segmentendes (Sortierung nach `NetInfo.Lane.m_position`) gebildet.
-- Apply-Koordinator vereint konkurrierende Requests pro Segmentende, verwaltet einen Retry-Backoff und prüft die Lane-Connection-Datenbank per Reflection.
-- `LaneConnectorTmpeAdapter` nutzt Ignore-Scopes, damit eigene Applies nicht erneut Listener-Hooks triggern; fehlende Lanes werden übersprungen und durch den Host-Broadcast korrigiert.
+- Keine Übertragung von `laneId`/`laneIndex`; Ordinals werden anhand der TM:PE-Metadaten (Sortierung nach `NetInfo.Lane.m_position`, Filter über LaneTypes/VehicleTypes, Validierung via `GetLaneEndPoint`) abgeleitet.
+- Der Apply-Koordinator merged konkurrierende Requests pro Segmentende, führt Retry/Backoff (5/15/30/60/120/240 Frames) aus und prüft LaneConnectionManager + Connection-DB vor jedem Apply.
+- `LaneConnectorTmpeAdapter` kapselt TM:PE-Aufrufe mit Ignore-Scopes; fehlen während des Applys einzelne Lanes, korrigiert der autoritative Host-Broadcast den Zustand.
 
 ---
 
-## EN - English
+## EN – English
 
 ### 1) Summary
-- Synchronises TM:PE lane connector links between host and clients in CSM sessions (segment-end → target lanes).
-- Uses the lane-end schema like Lane Arrows: communication per `(NodeId, SegmentId, StartNode)` with stable ordinals (no `laneId`/`laneIndex` on the wire).
-- Resilient apply pipeline: an apply coordinator collects requests per segment end, checks LaneConnectionManager/readiness, retries with backoff, and shields against echo via ignore scope.
+- Synchronises TM:PE lane connections between host and clients during CSM sessions (segment end -> target lanes).
+- Builds stable lane ordinals per `(NodeId, SegmentId, StartNode)` using TM:PE lane metadata (`LaneTypes`, `VehicleTypes`, `GetLaneEndPoint`); no `laneId`/`laneIndex` values are transmitted.
+- Resilient apply pipeline: an apply coordinator batches per segment end, checks the LaneConnectionManager and connection database, applies retry/backoff, and suppresses local Harmony echoes.
 
-### 2) Directory Layout
+### 2) Folder layout
 - `src/CSM.TmpeSync.LaneConnector/`
-  - `LaneConnectorSyncFeature.cs` – Feature bootstrap (enables listener).
-  - `Handlers/` – CSM command handlers for server/client (retry-aware).
-  - `Messages/` – Network commands (ProtoBuf contracts) for requests/broadcasts.
-  - `Services/` – Harmony listener, end selector, apply coordinator, TM:PE adapters.
+  - `LaneConnectorSyncFeature.cs` – feature bootstrap (enables the listener).
+  - `Handlers/` – CSM command handlers for server/client (with retry integration).
+  - `Messages/` – network commands (ProtoBuf contracts) for requests/broadcasts.
+  - `Services/` – Harmony listener, end selector, apply coordinator, TM:PE adapter.
 
-### 3) File Overview
+### 3) File overview
 | File | Purpose |
 | --- | --- |
-| `LaneConnectorSyncFeature.cs` | Registers/enables the feature and the TM:PE listener. |
-| `Handlers/LaneConnectionsAppliedCommandHandler.cs` | Client: processes host broadcasts and applies locally via the retry-capable coordinator. |
-| `Handlers/LaneConnectionsUpdateRequestHandler.cs` | Server: validates, delegates to the apply coordinator, and broadcasts after success. |
-| `Messages/LaneConnectionsAppliedCommand.cs` | Server → All: applied state per segment end (source ordinal + target ordinals). |
-| `Messages/LaneConnectionsUpdateRequest.cs` | Client → Server: desired state per segment end (source ordinal + target ordinals). |
-| `Services/LaneConnectorEventListener.cs` | Harmony hooks into TM:PE and captures local changes as end snapshots. |
-| `Services/LaneConnectorSynchronization.cs` | Common dispatch path, apply coordinator with retry/backoff, merge logic for competing requests. |
-| `Services/LaneConnectorTmpeAdapter.cs` | Apply/read façade with ignore scope and laneId resolution. |
-| `Services/LaneConnectionAdapter.cs` | Low-level adapter to TM:PE’s LaneConnectionManager (read/apply). |
-| `Services/LaneConnectorEndSelector.cs` | Enumerates segment-end lanes in stable order (ordinal mapping). |
+| `LaneConnectorSyncFeature.cs` | Registers/enables the feature and TM:PE listener. |
+| `Handlers/LaneConnectionsAppliedCommandHandler.cs` | Client: consumes host broadcasts and runs the apply coordinator (retry + merge). |
+| `Handlers/LaneConnectionsUpdateRequestHandler.cs` | Server: validates requests, applies via coordinator, broadcasts on success. |
+| `Messages/LaneConnectionsAppliedCommand.cs` | Server -> all: applied state for a segment end (ordinals + target ordinals). |
+| `Messages/LaneConnectionsUpdateRequest.cs` | Client -> server: desired state for a segment end (ordinals + target ordinals). |
+| `Services/LaneConnectorEventListener.cs` | Harmony hooks on TM:PE; uses TM:PE-provided `sourceStartNode`, snapshots segment ends. |
+| `Services/LaneConnectorSynchronization.cs` | Shared transport, retry/backoff coordinator, merge logic for competing requests. |
+| `Services/LaneConnectorTmpeAdapter.cs` | TM:PE façade (ignore scope, translation to lane IDs). |
+| `Services/LaneConnectionAdapter.cs` | Low-level adapter for LaneConnectionManager (read/apply via reflection). |
+| `Services/LaneConnectorEndSelector.cs` | Selects TM:PE-compatible candidate lanes per segment end in a stable order. |
 
-### 4) Workflow (Server/Host and Client)
+### 4) Workflow (host and client)
 - **Host edits lane connections in TM:PE**
-  - Harmony postfix detects the change, determines `(nodeId, segmentId, startNode)`, builds a snapshot of all cross-section lanes including their target ordinals.
-  - Synchronisation broadcasts `LaneConnectionsAppliedCommand`; clients feed it into the apply coordinator, which retries until TM:PE managers/databases are ready.
+  - Harmony postfix receives `sourceStartNode`, resolves `(nodeId, segmentId)`, and snapshots all eligible lanes (filtered via LaneTypes/VehicleTypes + `GetLaneEndPoint`).
+  - Synchronisation broadcasts `LaneConnectionsAppliedCommand`; clients apply via the coordinator (retry until the manager/database is ready).
 
 - **Client edits lane connections in TM:PE**
-  - Harmony postfix builds the same snapshot and sends `LaneConnectionsUpdateRequest` to the server.
-  - The server validates node/segment and forwards the request to the apply coordinator.
-  - Apply coordinator checks LaneConnectionManager readiness (including connection database via reflection), maps ordinals → local lane IDs, and applies via TM:PE. `NullReferenceException` or missing managers trigger retries with increasing frame delays (5 → 240, up to six attempts); concurrent requests are merged.
-  - After success the server reads back the end state and broadcasts `LaneConnectionsAppliedCommand` to everyone.
+  - Harmony postfix creates the same snapshot and sends `LaneConnectionsUpdateRequest` to the server.
+  - Server validates the node/segment and queues the request in the coordinator.
+  - Coordinator maps ordinals -> local lane IDs, checks the LaneConnectionManager + connection DB, and tries to apply. Up to six attempts with increasing frame delay (5/15/30/60/120/240); concurrent requests are merged.
+  - On success the server broadcasts `LaneConnectionsAppliedCommand` with the authoritative state taken from TM:PE.
 
-- **Rejections (Server)**
-  - Missing entities or unrecoverable TM:PE failures result in `RequestRejected` (reason + entity info).
+- **Rejected requests (server)**
+  - Missing entities or unrecoverable TM:PE errors trigger `RequestRejected` (reason + entity type/id).
 
-### 5) Data Exchange (messages/fields)
+### 5) Message schema
 | Message | Direction | Field | Type | Description |
 | --- | --- | --- | --- | --- |
-| `LaneConnectionsUpdateRequest` | Client → Server | `NodeId` | `ushort` | Node ID of the junction. |
-|  |  | `SegmentId` | `ushort` | Segment ID at the node (segment end). |
-|  |  | `StartNode` | `bool` | `true` = segment start, `false` = segment end. |
-|  |  | `Items[]` | `List<Entry>` | Entries per cross-section lane (see below). |
-|  |  | `Items[].SourceOrdinal` | `int` | Ordinal (0..n-1) for the source lane. |
-|  |  | `Items[].TargetOrdinals` | `List<int>` | Target ordinals (0..n-1) within the same end. |
-| `LaneConnectionsAppliedCommand` | Server → All | `NodeId` | `ushort` | Node ID of the junction. |
-|  |  | `SegmentId` | `ushort` | Segment ID at the node (target end). |
-|  |  | `StartNode` | `bool` | Same semantics as above. |
-|  |  | `Items[]` | `List<Entry>` | Applied mapping (source ordinal → target ordinals). |
-| `RequestRejected` | Server → Client | `EntityType` | `byte` | 3 = node, 2 = segment, 1 = lane (context-dependent). |
+| `LaneConnectionsUpdateRequest` | Client -> server | `NodeId` | `ushort` | Node identifier. |
+|  |  | `SegmentId` | `ushort` | Segment identifier at the node (segment end). |
+|  |  | `StartNode` | `bool` | `true` = start node, `false` = end node. |
+|  |  | `Items[]` | `List<Entry>` | One entry per cross-section lane. |
+|  |  | `Items[].SourceOrdinal` | `int` | Ordinal (0..n-1) of the source lane at the segment end. |
+|  |  | `Items[].TargetOrdinals` | `List<int>` | Ordinals (0..n-1) of the target lanes at the same segment end. |
+| `LaneConnectionsAppliedCommand` | Server -> all | `NodeId` | `ushort` | Node identifier. |
+|  |  | `SegmentId` | `ushort` | Segment identifier at the node (segment end). |
+|  |  | `StartNode` | `bool` | As above. |
+|  |  | `Items[]` | `List<Entry>` | Applied mappings (SourceOrdinal -> TargetOrdinals). |
+| `RequestRejected` | Server -> client | `EntityType` | `byte` | 3 = node, 2 = segment, 1 = lane (context dependent). |
 |  |  | `EntityId` | `int` | Affected entity. |
 |  |  | `Reason` | `string` | Reason, e.g. `entity_missing`, `tmpe_apply_failed`. |
 
 Notes
-- No `laneId`/`laneIndex` is transmitted; ordinals are derived from the current segment end (sorted by `NetInfo.Lane.m_position`).
-- The apply coordinator merges concurrent requests per segment end, runs retry/backoff (5/15/30/60/120/240 frames), and checks LaneConnectionManager connection databases before applying.
-- `LaneConnectorTmpeAdapter` wraps TM:PE calls with ignore scopes; missing lanes are skipped and later corrected by the authoritative broadcast.
+- No `laneId`/`laneIndex` is transmitted; ordinals are derived from TM:PE metadata (sorted by `NetInfo.Lane.m_position`, filtered by LaneTypes/VehicleTypes, validated via `GetLaneEndPoint`).
+- The apply coordinator merges competing requests per segment end, runs retry/backoff (5/15/30/60/120/240 frames), and re-checks the LaneConnectionManager + connection DB before each attempt.
+- `LaneConnectorTmpeAdapter` wraps TM:PE calls with ignore scopes; if a lane vanishes during apply, the authoritative host broadcast restores the state once TM:PE is ready.
+

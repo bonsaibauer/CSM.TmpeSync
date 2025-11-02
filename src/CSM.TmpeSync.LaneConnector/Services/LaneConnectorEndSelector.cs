@@ -1,6 +1,8 @@
 using System.Collections.Generic;
 using System.Linq;
 using ColossalFramework;
+using TrafficManager.API;
+using TrafficManager.API.Manager;
 
 namespace CSM.TmpeSync.LaneConnector.Services
 {
@@ -33,30 +35,45 @@ namespace CSM.TmpeSync.LaneConnector.Services
             if (info?.m_lanes == null)
                 return false;
 
+            var laneManager = Implementations.ManagerFactory?.LaneConnectionManager;
+            if (laneManager == null)
+                return false;
+
+            var allowedLaneTypes = laneManager.LaneTypes;
+            var allowedVehicleTypes = laneManager.VehicleTypes;
+
             var list = new List<Candidate>();
             uint laneId = seg.m_lanes;
+            var laneBuffer = NetManager.instance.m_lanes.m_buffer;
+
             for (int li = 0; laneId != 0 && li < info.m_lanes.Length; li++)
             {
-                var flags = NetManager.instance.m_lanes.m_buffer[laneId].m_flags;
-                if ((flags & (uint)NetLane.Flags.Created) == 0)
-                {
-                    laneId = NetManager.instance.m_lanes.m_buffer[laneId].m_nextLane;
+                var currentLaneId = laneId;
+                laneId = laneBuffer[currentLaneId].m_nextLane;
+
+                if ((laneBuffer[currentLaneId].m_flags & (uint)NetLane.Flags.Created) == 0)
                     continue;
-                }
 
                 var laneInfo = info.m_lanes[li];
                 if (laneInfo == null)
-                {
-                    laneId = NetManager.instance.m_lanes.m_buffer[laneId].m_nextLane;
                     continue;
-                }
 
-                if (LaneConnectionAdapter.ComputeIsStartNode(segmentId, li) == isStart)
+                if ((laneInfo.m_laneType & allowedLaneTypes) == NetInfo.LaneType.None)
+                    continue;
+
+                if ((laneInfo.m_vehicleType & allowedVehicleTypes) == VehicleInfo.VehicleType.None)
+                    continue;
+
+                if (!LaneConnectionAdapter.TryGetLaneEndPoint(segmentId, isStart, li, currentLaneId, laneInfo, out var outgoing, out var incoming))
                 {
-                    list.Add(new Candidate { LaneIndex = li, LaneId = laneId, Position = laneInfo.m_position });
+                    outgoing = true;
+                    incoming = true;
                 }
 
-                laneId = NetManager.instance.m_lanes.m_buffer[laneId].m_nextLane;
+                if (!outgoing && !incoming)
+                    continue;
+
+                list.Add(new Candidate { LaneIndex = li, LaneId = currentLaneId, Position = laneInfo.m_position });
             }
 
             list = list.OrderBy(c => c.Position).ToList();
@@ -66,4 +83,3 @@ namespace CSM.TmpeSync.LaneConnector.Services
         }
     }
 }
-

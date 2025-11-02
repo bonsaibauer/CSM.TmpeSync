@@ -10,22 +10,23 @@ namespace CSM.TmpeSync.LaneConnector.Services
 {
     internal static class LaneConnectionAdapter
     {
-        internal static bool TryGetLaneConnections(uint laneId, out uint[] targets)
+        internal static bool TryGetLaneConnections(uint laneId, bool startNode, out uint[] targets)
         {
             var list = new List<uint>();
-            targets = new uint[0];
+            targets = Array.Empty<uint>();
             try
             {
-                if (!NetworkUtil.TryGetLaneLocation(laneId, out var segmentId, out var laneIndex))
+                if (!NetworkUtil.TryGetLaneLocation(laneId, out var segmentId, out _))
                     return false;
 
-                bool sourceStartNode = ComputeIsStartNode(segmentId, laneIndex);
                 var mgr = Implementations.ManagerFactory?.LaneConnectionManager;
                 if (mgr == null)
                     return false;
 
-                ushort nodeId = sourceStartNode ? NetManager.instance.m_segments.m_buffer[segmentId].m_startNode : NetManager.instance.m_segments.m_buffer[segmentId].m_endNode;
-                if (nodeId == 0) return false;
+                ref var segment = ref NetManager.instance.m_segments.m_buffer[segmentId];
+                ushort nodeId = startNode ? segment.m_startNode : segment.m_endNode;
+                if (nodeId == 0)
+                    return false;
 
                 ref var node = ref NetManager.instance.m_nodes.m_buffer[nodeId];
                 for (int i = 0; i < 8; i++)
@@ -45,7 +46,7 @@ namespace CSM.TmpeSync.LaneConnector.Services
                             continue;
                         }
 
-                        if (mgr.AreLanesConnected(laneId, currentLane, sourceStartNode))
+                        if (mgr.AreLanesConnected(laneId, currentLane, startNode))
                             list.Add(currentLane);
 
                         currentLane = NetManager.instance.m_lanes.m_buffer[currentLane].m_nextLane;
@@ -62,14 +63,12 @@ namespace CSM.TmpeSync.LaneConnector.Services
             }
         }
 
-        internal static bool ApplyLaneConnections(uint sourceLaneId, uint[] targets)
+        internal static bool ApplyLaneConnections(uint sourceLaneId, uint[] targets, bool sourceStartNode)
         {
             try
             {
                 if (!NetworkUtil.TryGetLaneLocation(sourceLaneId, out var segmentId, out var laneIndex))
                     return false;
-
-                bool sourceStartNode = ComputeIsStartNode(segmentId, laneIndex);
 
                 var manager = Implementations.ManagerFactory?.LaneConnectionManager;
                 var managerType = manager?.GetType();
@@ -241,17 +240,65 @@ namespace CSM.TmpeSync.LaneConnector.Services
             return laneInfo != null;
         }
 
-        internal static bool ComputeIsStartNode(ushort segmentId, int laneIndex)
+        internal static bool TryGetLaneEndPoint(
+            ushort segmentId,
+            bool startNode,
+            int laneIndex,
+            uint laneId,
+            NetInfo.Lane laneInfo,
+            out bool outgoing,
+            out bool incoming)
         {
-            ref var seg = ref NetManager.instance.m_segments.m_buffer[segmentId];
-            var info = seg.Info;
-            var laneInfo = info?.m_lanes?[laneIndex];
-            if (laneInfo == null)
-                return false;
+            outgoing = false;
+            incoming = false;
 
-            var forward = NetInfo.Direction.Forward;
-            var effectiveDirection = (seg.m_flags & NetSegment.Flags.Invert) == NetSegment.Flags.None ? forward : NetInfo.InvertDirection(forward);
-            return (laneInfo.m_finalDirection & effectiveDirection) == NetInfo.Direction.None;
+            try
+            {
+                var manager = Implementations.ManagerFactory?.LaneConnectionManager;
+                if (manager == null)
+                    return false;
+
+                var method = manager.GetType().GetMethod(
+                    "GetLaneEndPoint",
+                    BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+
+                if (method == null)
+                    return false;
+
+                var parameters = new object[]
+                {
+                    segmentId,
+                    startNode,
+                    (byte)laneIndex,
+                    (uint?)laneId,
+                    laneInfo,
+                    false,
+                    false,
+                    null
+                };
+
+                var result = method.Invoke(manager, parameters);
+                if (result is bool success && success)
+                {
+                    outgoing = parameters[5] is bool o && o;
+                    incoming = parameters[6] is bool i && i;
+                    return true;
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Warn(
+                    LogCategory.Bridge,
+                    LogRole.Host,
+                    "LaneConnections GetLaneEnd failed | segmentId={0} startNode={1} laneIndex={2} laneId={3} error={4}",
+                    segmentId,
+                    startNode,
+                    laneIndex,
+                    laneId,
+                    ex);
+            }
+
+            return false;
         }
     }
 }

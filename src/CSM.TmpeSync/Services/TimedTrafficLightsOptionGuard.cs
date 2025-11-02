@@ -23,28 +23,45 @@ namespace CSM.TmpeSync.Services
                 bool optionsLoaded;
                 bool changed;
                 bool success = TryDisable(out optionsLoaded, out changed);
-                if (success)
+                if (optionsLoaded)
                 {
-                    if (changed)
+                    bool isDisabled = SavedGameOptions.Instance != null && !SavedGameOptions.Instance.timedLightsEnabled;
+
+                    if (isDisabled)
                     {
-                        Log.Info(
-                            LogCategory.Menu,
-                            LogRole.General,
-                            "Timed traffic lights disabled in TM:PE options (multiplayer unsupported).");
+                        if (success && changed)
+                        {
+                            Log.Info(
+                                LogCategory.Menu,
+                                LogRole.General,
+                                "Timed traffic lights disabled in TM:PE options (multiplayer unsupported).");
+                        }
+
+                        yield break;
                     }
 
-                    yield break;
+                    if (attempt == MaxAttempts - 1)
+                    {
+                        Log.Warn(
+                            LogCategory.Menu,
+                            LogRole.General,
+                            "Timed traffic lights option disabling failed.");
+                    }
+
+                    continue;
                 }
 
                 if (!optionsLoaded)
-                    continue;
-
-                if (attempt == MaxAttempts - 1)
                 {
-                    Log.Warn(
-                        LogCategory.Menu,
-                        LogRole.General,
-                        "Timed traffic lights option could not be disabled automatically; value may remain enabled.");
+                    if (attempt == MaxAttempts - 1)
+                    {
+                        Log.Warn(
+                            LogCategory.Menu,
+                            LogRole.General,
+                            "Timed traffic lights option disabling failed. TM:PE options were never available.");
+                    }
+
+                    continue;
                 }
             }
         }

@@ -101,12 +101,11 @@ namespace CSM.TmpeSync.LaneConnector.Services
                     return;
 
                 // Broadcast the full end state for the segment end affected by source lane
-                if (!NetworkUtil.TryGetLaneLocation(sourceLaneId, out var segmentId, out var laneIndex))
+                if (!NetworkUtil.TryGetLaneLocation(sourceLaneId, out var segmentId, out _))
                     return;
 
                 ref var seg = ref NetManager.instance.m_segments.m_buffer[segmentId];
-                bool isStart = LaneConnectionAdapter.ComputeIsStartNode(segmentId, laneIndex);
-                ushort nodeId = isStart ? seg.m_startNode : seg.m_endNode;
+                ushort nodeId = sourceStartNode ? seg.m_startNode : seg.m_endNode;
                 if (nodeId == 0) return;
 
                 LaneConnectorSynchronization.BroadcastEnd(nodeId, segmentId, "change");
@@ -123,11 +122,10 @@ namespace CSM.TmpeSync.LaneConnector.Services
             {
                 if (LaneConnectorSynchronization.IsLocalApplyActive)
                     return;
-                if (!NetworkUtil.TryGetLaneLocation(laneId, out var segmentId, out var laneIndex))
+                if (!NetworkUtil.TryGetLaneLocation(laneId, out var segmentId, out _))
                     return;
                 ref var seg = ref NetManager.instance.m_segments.m_buffer[segmentId];
-                bool isStart = LaneConnectionAdapter.ComputeIsStartNode(segmentId, laneIndex);
-                ushort nodeId = isStart ? seg.m_startNode : seg.m_endNode;
+                ushort nodeId = startNode ? seg.m_startNode : seg.m_endNode;
                 if (nodeId == 0) return;
                 LaneConnectorSynchronization.BroadcastEnd(nodeId, segmentId, "clear");
             }

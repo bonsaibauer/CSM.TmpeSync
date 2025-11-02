@@ -166,7 +166,7 @@ namespace CSM.TmpeSync.LaneConnector.Services
             for (int ordinal = 0; ordinal < candidates.Count; ordinal++)
             {
                 var laneId = candidates[ordinal].LaneId;
-                if (!LaneConnectionAdapter.TryGetLaneConnections(laneId, out var laneTargets) || laneTargets == null)
+                if (!LaneConnectionAdapter.TryGetLaneConnections(laneId, startNode, out var laneTargets) || laneTargets == null)
                     laneTargets = new uint[0];
 
                 var targetOrdinals = laneTargets
@@ -461,7 +461,7 @@ namespace CSM.TmpeSync.LaneConnector.Services
                                 .Where(NetworkUtil.LaneExists)
                                 .ToArray();
 
-                            if (!LaneConnectorTmpeAdapter.ApplyLaneConnections(sourceLaneId, targetLaneIds))
+                            if (!LaneConnectorTmpeAdapter.ApplyLaneConnections(sourceLaneId, targetLaneIds, context.Request.StartNode))
                             {
                                 if (!NetworkUtil.LaneExists(sourceLaneId))
                                 {
