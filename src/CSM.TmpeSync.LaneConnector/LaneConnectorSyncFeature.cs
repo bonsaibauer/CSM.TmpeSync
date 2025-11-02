@@ -16,8 +16,10 @@ namespace CSM.TmpeSync.LaneConnector
             if (_enabled)
                 return;
 
+            var role = CsmBridge.IsServerInstance() ? LogRole.Host : LogRole.Client;
+            LaneConnectorSynchronization.EnsureEnvironmentWarmup("feature_register", role);
             LaneConnectorEventListener.Enable();
-            Log.Info(LogCategory.Network, LogRole.Host, "LaneConnectorSyncFeature ready: TM:PE listener enabled.");
+            Log.Info(LogCategory.Network, role, "LaneConnectorSyncFeature ready: TM:PE listener enabled.");
             _enabled = true;
         }
 
@@ -27,7 +29,8 @@ namespace CSM.TmpeSync.LaneConnector
                 return;
 
             LaneConnectorEventListener.Disable();
-            Log.Info(LogCategory.Network, LogRole.Host, "LaneConnectorSyncFeature stopped: TM:PE listener disabled.");
+            var role = CsmBridge.IsServerInstance() ? LogRole.Host : LogRole.Client;
+            Log.Info(LogCategory.Network, role, "LaneConnectorSyncFeature stopped: TM:PE listener disabled.");
             _enabled = false;
         }
     }

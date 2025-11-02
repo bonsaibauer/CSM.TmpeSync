@@ -13,6 +13,8 @@ namespace CSM.TmpeSync.LaneConnector.Services
     internal static class LaneConnectorSynchronization
     {
         private const int MaxRetryAttempts = 6;
+        private const string DatabaseNotReadyReason = "lane_connection_database_uninitialized";
+        private const string EntityMissingReason = "entity_missing";
         private static readonly int[] RetryFrameDelays = { 5, 15, 30, 60, 120, 240 };
 
         internal static ApplyAttemptResult Apply(
@@ -229,6 +231,7 @@ namespace CSM.TmpeSync.LaneConnector.Services
             internal int Attempt { get; set; }
             internal bool RetryQueued { get; set; }
             internal string LastFailure { get; set; }
+            internal string EntityWaitStage { get; set; }
 
             internal LaneEndKey Key => new LaneEndKey(Request.NodeId, Request.SegmentId);
 
@@ -392,13 +395,18 @@ namespace CSM.TmpeSync.LaneConnector.Services
                         yield break;
                     }
 
-                    if (!shouldRetry || context.Attempt >= MaxRetryAttempts - 1)
+                    bool ignoreRetryLimit =
+                        string.Equals(context.LastFailure, DatabaseNotReadyReason, StringComparison.Ordinal) ||
+                        string.Equals(context.LastFailure, EntityMissingReason, StringComparison.Ordinal);
+
+                    if (!shouldRetry || (!ignoreRetryLimit && context.Attempt >= MaxRetryAttempts - 1))
                     {
                         context.NotifyFailure();
                         yield break;
                     }
 
-                    context.Attempt++;
+                    if (context.Attempt < int.MaxValue)
+                        context.Attempt++;
                 }
             }
 
@@ -408,11 +416,13 @@ namespace CSM.TmpeSync.LaneConnector.Services
 
                 if (!NetworkUtil.NodeExists(context.Request.NodeId) || !NetworkUtil.SegmentExists(context.Request.SegmentId))
                 {
-                    context.LastFailure = "entity_missing";
+                    context.LastFailure = EntityMissingReason;
+                    shouldRetry = true;
+                    LogEntityWait(context, "network_entity_missing");
                     return false;
                 }
 
-                if (!EnsureLaneConnectionEnvironmentReady(Implementations.ManagerFactory, out var reason))
+                if (!EnsureLaneConnectionEnvironmentReady(Implementations.ManagerFactory, context, out var reason))
                 {
                     context.LastFailure = reason;
                     shouldRetry = true;
@@ -421,7 +431,9 @@ namespace CSM.TmpeSync.LaneConnector.Services
 
                 if (!LaneConnectorEndSelector.TryGetCandidates(context.Request.NodeId, context.Request.SegmentId, out var startNode, out var candidates))
                 {
-                    context.LastFailure = "candidate_selection_failed";
+                    context.LastFailure = EntityMissingReason;
+                    shouldRetry = true;
+                    LogEntityWait(context, "candidate_discovery");
                     return false;
                 }
 
@@ -451,6 +463,14 @@ namespace CSM.TmpeSync.LaneConnector.Services
 
                             if (!LaneConnectorTmpeAdapter.ApplyLaneConnections(sourceLaneId, targetLaneIds))
                             {
+                                if (!NetworkUtil.LaneExists(sourceLaneId))
+                                {
+                                    context.LastFailure = EntityMissingReason;
+                                    shouldRetry = true;
+                                    LogEntityWait(context, "source_lane_missing");
+                                    return false;
+                                }
+
                                 context.LastFailure = "tmpe_apply_returned_false";
                                 return false;
                             }
@@ -491,7 +511,13 @@ namespace CSM.TmpeSync.LaneConnector.Services
 
         #endregion
 
-        private static bool EnsureLaneConnectionEnvironmentReady(IManagerFactory managerFactory, out string reason)
+        internal static void EnsureEnvironmentWarmup(string origin, LogRole role) =>
+            LaneConnectionEnvironment.WarmUpOnce(origin ?? "unspecified", role);
+
+        private static bool EnsureLaneConnectionEnvironmentReady(
+            IManagerFactory managerFactory,
+            ApplyContext context,
+            out string reason)
         {
             reason = null;
 
@@ -510,9 +536,14 @@ namespace CSM.TmpeSync.LaneConnector.Services
 
             if (IsConnectionDatabaseMissing(laneConnectionManager))
             {
-                reason = "lane_connection_database_uninitialized";
+                var origin = context?.Origin ?? "unspecified";
+                var role = context?.Role ?? LogRole.Client;
+                LaneConnectionEnvironment.RequestWarmup(managerFactory, laneConnectionManager, origin, role);
+                reason = DatabaseNotReadyReason;
                 return false;
             }
+
+            LaneConnectionEnvironment.NotifyReady(laneConnectionManager, context?.Origin ?? "unspecified", context?.Role ?? LogRole.Client);
 
             return true;
         }
@@ -635,6 +666,168 @@ namespace CSM.TmpeSync.LaneConnector.Services
                     _depth--;
                 }
             }
+        }
+
+        private static void LogEntityWait(ApplyContext context, string stage)
+        {
+            if (context == null)
+                return;
+
+            var normalizedStage = stage ?? "unspecified";
+            if (string.Equals(context.EntityWaitStage, normalizedStage, StringComparison.Ordinal))
+                return;
+
+            context.EntityWaitStage = normalizedStage;
+
+            Log.Info(
+                LogCategory.Synchronization,
+                context.Role,
+                "[LaneConnector] Waiting for TM:PE entities ({0}) | nodeId={1} segmentId={2} origin={3}",
+                normalizedStage,
+                context.Request.NodeId,
+                context.Request.SegmentId,
+                context.Origin);
+        }
+
+        private static class LaneConnectionEnvironment
+        {
+            private enum WarmupState
+            {
+                Unknown,
+                Missing,
+                Ready
+            }
+
+            private const double WarmupCooldownSeconds = 1.5;
+            private static readonly object SyncRoot = new object();
+            private static WarmupState _state = WarmupState.Unknown;
+            private static DateTime _lastWarmupUtc = DateTime.MinValue;
+            private static bool _warmupEnqueued;
+
+            internal static void WarmUpOnce(string origin, LogRole role)
+            {
+                var factory = Implementations.ManagerFactory;
+                var manager = factory?.LaneConnectionManager;
+                if (factory == null || manager == null)
+                    return;
+
+                if (IsConnectionDatabaseMissing(manager))
+                {
+                    RequestWarmup(factory, manager, origin, role);
+                }
+                else
+                {
+                    NotifyReady(manager, origin, role);
+                }
+            }
+
+            internal static void RequestWarmup(
+                IManagerFactory factory,
+                object manager,
+                string origin,
+                LogRole role)
+            {
+                origin = origin ?? "unspecified";
+                if (role == LogRole.General)
+                    role = CsmBridge.IsServerInstance() ? LogRole.Host : LogRole.Client;
+
+                bool shouldSchedule;
+                lock (SyncRoot)
+                {
+                    if (_state != WarmupState.Missing)
+                    {
+                        Log.Warn(
+                            LogCategory.Synchronization,
+                            role,
+                            "[LaneConnector] TM:PE lane connection database not ready (origin={0}, manager={1}); requesting warm-up.",
+                            origin,
+                            DescribeManager(manager));
+                        _state = WarmupState.Missing;
+                    }
+
+                    var now = DateTime.UtcNow;
+                    shouldSchedule = !_warmupEnqueued || (now - _lastWarmupUtc).TotalSeconds >= WarmupCooldownSeconds;
+                    if (shouldSchedule)
+                    {
+                        _lastWarmupUtc = now;
+                        _warmupEnqueued = true;
+                    }
+                }
+
+                if (!shouldSchedule)
+                    return;
+
+                var target = manager ?? factory?.LaneConnectionManager;
+                if (target == null)
+                {
+                    lock (SyncRoot)
+                        _warmupEnqueued = false;
+                    return;
+                }
+
+                NetworkUtil.RunOnSimulation(() =>
+                {
+                    try
+                    {
+                        InvokeLifecycle(target, "OnBeforeLoadData");
+                    }
+                    catch (Exception ex)
+                    {
+                        Log.Warn(
+                            LogCategory.Synchronization,
+                            role,
+                            "[LaneConnector] TM:PE warm-up failed (origin={0}, manager={1}) | error={2}",
+                            origin,
+                            DescribeManager(target),
+                            ex);
+                    }
+                    finally
+                    {
+                        lock (SyncRoot)
+                        {
+                            _warmupEnqueued = false;
+                        }
+                    }
+                });
+            }
+
+            internal static void NotifyReady(object manager, string origin, LogRole role)
+            {
+                origin = origin ?? "unspecified";
+                if (role == LogRole.General)
+                    role = CsmBridge.IsServerInstance() ? LogRole.Host : LogRole.Client;
+
+                bool shouldLogReady;
+                lock (SyncRoot)
+                {
+                    shouldLogReady = _state == WarmupState.Missing;
+                    _state = WarmupState.Ready;
+                }
+
+                if (shouldLogReady)
+                {
+                    Log.Info(
+                        LogCategory.Synchronization,
+                        role,
+                        "[LaneConnector] TM:PE lane connection database ready (origin={0}, manager={1}).",
+                        origin,
+                        DescribeManager(manager));
+                }
+            }
+
+            private static void InvokeLifecycle(object instance, string methodName)
+            {
+                if (instance == null)
+                    return;
+
+                var method = instance.GetType()
+                    .GetMethod(methodName, BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+
+                method?.Invoke(instance, Array.Empty<object>());
+            }
+
+            private static string DescribeManager(object manager) =>
+                manager?.GetType().FullName ?? "null";
         }
     }
 }
