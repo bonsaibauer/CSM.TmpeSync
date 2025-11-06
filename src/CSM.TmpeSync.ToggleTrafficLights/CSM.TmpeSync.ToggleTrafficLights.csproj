@@ -1,0 +1,203 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net35</TargetFramework>
+    <OutputType>Library</OutputType>
+    <RootNamespace>CSM.TmpeSync</RootNamespace>
+    <AssemblyName>CSM.TmpeSync.ToggleTrafficLights</AssemblyName>
+
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <Nullable>disable</Nullable>
+    <LangVersion>7.3</LangVersion>
+
+    <RepoRoot>$([System.IO.Path]::GetFullPath('$(MSBuildProjectDirectory)\..\..'))</RepoRoot>
+
+    <!-- ===== Cities: Skylines (Game) ===== -->
+    <CitiesSkylinesDir Condition="'$(CitiesSkylinesDir)'!=''">$(CitiesSkylinesDir)</CitiesSkylinesDir>
+    <CitiesSkylinesDir Condition="'$(CitiesSkylinesDir)'=='' and Exists('$(RepoRoot)\lib\CitiesSkylines\Cities_Data\Managed\ICities.dll')">$(RepoRoot)\lib\CitiesSkylines</CitiesSkylinesDir>
+    <CitiesSkylinesDir Condition="'$(CitiesSkylinesDir)'=='' and Exists('C:\Program Files (x86)\Steam\steamapps\common\Cities_Skylines\Cities_Data\Managed\ICities.dll')">C:\Program Files (x86)\Steam\steamapps\common\Cities_Skylines</CitiesSkylinesDir>
+    <CitiesSkylinesDir Condition="'$(CitiesSkylinesDir)'=='' and Exists('D:\SteamLibrary\steamapps\common\Cities_Skylines\Cities_Data\Managed\ICities.dll')">D:\SteamLibrary\steamapps\common\Cities_Skylines</CitiesSkylinesDir>
+    <ManagedDir>$(CitiesSkylinesDir)\Cities_Data\Managed</ManagedDir>
+
+    <!-- ===== Harmony (CitiesHarmony) ===== -->
+    <HarmonyDllDir Condition="'$(HarmonyDllDir)'!=''">$(HarmonyDllDir)</HarmonyDllDir>
+    <HarmonyDllDir Condition="'$(HarmonyDllDir)'=='' and Exists('$(RepoRoot)\lib\Harmony\CitiesHarmony.Harmony.dll')">$(RepoRoot)\lib\Harmony</HarmonyDllDir>
+    <HarmonyDllDir Condition="'$(HarmonyDllDir)'=='' and Exists('C:\Program Files (x86)\Steam\steamapps\workshop\content\255710\2040656402\CitiesHarmony.Harmony.dll')">C:\Program Files (x86)\Steam\steamapps\workshop\content\255710\2040656402</HarmonyDllDir>
+    <HarmonyDllDir Condition="'$(HarmonyDllDir)'=='' and Exists('D:\SteamLibrary\steamapps\workshop\content\255710\2040656402\CitiesHarmony.Harmony.dll')">D:\SteamLibrary\steamapps\workshop\content\255710\2040656402</HarmonyDllDir>
+
+    <!-- ===== CSM.API.dll ===== -->
+    <CsmApiDllPath Condition="'$(CsmApiDllPath)'!=''">$(CsmApiDllPath)</CsmApiDllPath>
+    <CsmApiDllPath Condition="'$(CsmApiDllPath)'=='' and Exists('$(RepoRoot)\lib\CSM\CSM.API.dll')">$(RepoRoot)\lib\CSM\CSM.API.dll</CsmApiDllPath>
+    <CsmApiDllPath Condition="'$(CsmApiDllPath)'=='' and Exists('$(RepoRoot)\lib\CSM.API.dll')">$(RepoRoot)\lib\CSM.API.dll</CsmApiDllPath>
+    <CsmApiDllPath Condition="'$(CsmApiDllPath)'=='' and Exists('$(RepoRoot)\submodules\CSM\src\api\bin\Release\CSM.API.dll')">$(RepoRoot)\submodules\CSM\src\api\bin\Release\CSM.API.dll</CsmApiDllPath>
+
+    <!-- ===== TM:PE (optional – only needed when using TM:PE types directly) ===== -->
+    <TmpeDir Condition="'$(TmpeDir)'!=''">$(TmpeDir)</TmpeDir>
+    <TmpeDir Condition="'$(TmpeDir)'=='' and Exists('$(RepoRoot)\lib\TMPE\Cities_Data\Managed\TrafficManager.dll')">$(RepoRoot)\lib\TMPE</TmpeDir>
+    <TmpeDir Condition="'$(TmpeDir)'=='' and Exists('C:\Program Files (x86)\Steam\steamapps\workshop\content\255710\1637663252\Cities_Data\Managed\TrafficManager.dll')">C:\Program Files (x86)\Steam\steamapps\workshop\content\255710\1637663252</TmpeDir>
+    <TmpeDir Condition="'$(TmpeDir)'=='' and Exists('D:\SteamLibrary\steamapps\workshop\content\255710\1637663252\Cities_Data\Managed\TrafficManager.dll')">D:\SteamLibrary\steamapps\workshop\content\255710\1637663252</TmpeDir>
+
+    <!-- ===== Mod output folder ===== -->
+    <ModsOutDir>$(LOCALAPPDATA)\Colossal Order\Cities_Skylines\Addons\Mods\CSM.TmpeSync</ModsOutDir>
+
+    <!-- ===== Steam installation (optional) ===== -->
+    <SteamModsDir Condition="'$(SteamModsDir)'!=''">$(SteamModsDir)</SteamModsDir>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)'=='Debug'">
+    <DefineConstants>TRACE;DEBUG;GAME</DefineConstants>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)'!='Debug'">
+    <DefineConstants>TRACE;RELEASE;GAME</DefineConstants>
+  </PropertyGroup>
+
+  <Target Name="CheckRefs" BeforeTargets="ResolveReferences">
+    <Error Condition=" '$(CitiesSkylinesDir)'=='' " Text="ICities.dll missing. Specify /p:CitiesSkylinesDir=&quot;PATH_TO_CITIES_SKYLINES&quot;." />
+    <Error Condition=" !Exists('$(ManagedDir)\ICities.dll') " Text="Missing: $(ManagedDir)\ICities.dll — verify CitiesSkylinesDir." />
+    <Error Condition=" !Exists('$(ManagedDir)\ColossalManaged.dll') " Text="Missing: $(ManagedDir)\ColossalManaged.dll — verify CitiesSkylinesDir." />
+    <Error Condition=" !Exists('$(ManagedDir)\UnityEngine.dll') " Text="Missing: $(ManagedDir)\UnityEngine.dll — verify CitiesSkylinesDir." />
+    <Error Condition=" !Exists('$(ManagedDir)\Assembly-CSharp.dll') " Text="Missing: $(ManagedDir)\Assembly-CSharp.dll — verify CitiesSkylinesDir." />
+
+    <Error Condition=" '$(HarmonyDllDir)'=='' " Text="CitiesHarmony.Harmony.dll missing. Specify /p:HarmonyDllDir=&quot;PATH_TO_WORKSHOP_2040656402&quot;." />
+    <Error Condition=" !Exists('$(HarmonyDllDir)\CitiesHarmony.Harmony.dll') " Text="Missing: $(HarmonyDllDir)\CitiesHarmony.Harmony.dll — verify HarmonyDllDir." />
+
+    <Error Condition=" '$(CsmApiDllPath)'=='' " Text="CSM.API.dll missing. Specify /p:CsmApiDllPath=&quot;PATH_TO_CSM.API.dll&quot; or copy it to lib/." />
+    <Error Condition=" !Exists('$(CsmApiDllPath)') " Text="Missing: $(CsmApiDllPath) — verify the CSM.API build path." />
+  </Target>
+
+    <Target Name="NormalizeFrameworkReferenceArchitecture" BeforeTargets="ResolveReferences">
+    <!--
+      Visual Studio resolves the .NET 3.5 reference assemblies from the Microsoft.NETFramework.ReferenceAssemblies.net35
+      package with a ProcessorArchitecture of x86. We ship an AnyCPU plugin that must load in a 64-bit Mono runtime,
+      so we explicitly normalise the metadata to match the real (AnyCPU) binaries and avoid architecture mismatch warnings.
+    -->
+    <ItemGroup>
+      <Reference Update="mscorlib">
+        <ProcessorArchitecture>MSIL</ProcessorArchitecture>
+      </Reference>
+      <Reference Update="System.Data">
+        <ProcessorArchitecture>MSIL</ProcessorArchitecture>
+      </Reference>
+    </ItemGroup>
+  </Target>
+
+    <Target Name="VerifyFrameworkReferenceArchitecture" AfterTargets="ResolveReferences">
+    <ItemGroup>
+      <_ArchitectureWarnings Include="@(ReferencePath)"
+                              Condition=" '%(ReferencePath.NuGetPackageId)' == 'Microsoft.NETFramework.ReferenceAssemblies.net35' and '%(ReferencePath.ProcessorArchitecture)' != 'MSIL' " />
+    </ItemGroup>
+    <Error Condition=" '@(_ArchitectureWarnings)' != '' "
+           Text="Framework reference %(Identity) resolved with processor architecture '%(ProcessorArchitecture)'. Update NormalizeFrameworkReferenceArchitecture to cover this case." />
+  </Target>
+
+  <!-- ==== References ==== -->
+  <ItemGroup>
+    <Reference Include="ICities"><HintPath>$(ManagedDir)\ICities.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="ColossalManaged"><HintPath>$(ManagedDir)\ColossalManaged.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="UnityEngine"><HintPath>$(ManagedDir)\UnityEngine.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="Assembly-CSharp"><HintPath>$(ManagedDir)\Assembly-CSharp.dll</HintPath><Private>false</Private></Reference>
+
+    <Reference Include="CitiesHarmony.Harmony"><HintPath>$(HarmonyDllDir)\CitiesHarmony.Harmony.dll</HintPath><Private>false</Private></Reference>
+
+    <Reference Include="CSM.API"><HintPath>$(CsmApiDllPath)</HintPath><Private>false</Private></Reference>
+
+    <Reference Include="TrafficManager" Condition=" '$(TmpeDir)'!='' AND Exists('$(TmpeDir)\Cities_Data\Managed\TrafficManager.dll') ">
+      <HintPath>$(TmpeDir)\Cities_Data\Managed\TrafficManager.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+
+  </ItemGroup>
+  <PropertyGroup>
+    <Net35ReferenceAssemblyDir>$(PkgMicrosoft_NETFramework_ReferenceAssemblies_net35)ref\.NETFramework\v3.5</Net35ReferenceAssemblyDir>
+    <Net35ReferenceAssemblyDir Condition="!Exists('$(Net35ReferenceAssemblyDir)\mscorlib.dll')">
+      $(PkgMicrosoft_NETFramework_ReferenceAssemblies_net35)build\.NETFramework\v3.5
+    </Net35ReferenceAssemblyDir>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Reference Include="mscorlib">
+      <HintPath>$(Net35ReferenceAssemblyDir)\mscorlib.dll</HintPath>
+      <Private>false</Private>
+      <ProcessorArchitecture>MSIL</ProcessorArchitecture>
+    </Reference>
+    <Reference Include="System">
+      <HintPath>$(Net35ReferenceAssemblyDir)\System.dll</HintPath>
+      <Private>false</Private>
+      <ProcessorArchitecture>MSIL</ProcessorArchitecture>
+    </Reference>
+    <Reference Include="System.Configuration">
+      <HintPath>$(Net35ReferenceAssemblyDir)\System.Configuration.dll</HintPath>
+      <Private>false</Private>
+      <ProcessorArchitecture>MSIL</ProcessorArchitecture>
+    </Reference>
+    <Reference Include="System.Core">
+      <HintPath>$(Net35ReferenceAssemblyDir)\System.Core.dll</HintPath>
+      <Private>false</Private>
+      <ProcessorArchitecture>MSIL</ProcessorArchitecture>
+    </Reference>
+    <Reference Include="System.Data">
+      <HintPath>$(Net35ReferenceAssemblyDir)\System.Data.dll</HintPath>
+      <Private>false</Private>
+      <ProcessorArchitecture>MSIL</ProcessorArchitecture>
+    </Reference>
+    <Reference Include="System.Drawing">
+      <HintPath>$(Net35ReferenceAssemblyDir)\System.Drawing.dll</HintPath>
+      <Private>false</Private>
+      <ProcessorArchitecture>MSIL</ProcessorArchitecture>
+    </Reference>
+    <Reference Include="System.Runtime.Serialization">
+      <HintPath>$(Net35ReferenceAssemblyDir)\System.Runtime.Serialization.dll</HintPath>
+      <Private>false</Private>
+      <ProcessorArchitecture>MSIL</ProcessorArchitecture>
+    </Reference>
+    <Reference Include="System.ServiceModel">
+      <HintPath>$(Net35ReferenceAssemblyDir)\System.ServiceModel.dll</HintPath>
+      <Private>false</Private>
+      <ProcessorArchitecture>MSIL</ProcessorArchitecture>
+    </Reference>
+    <Reference Include="System.Xml">
+      <HintPath>$(Net35ReferenceAssemblyDir)\System.Xml.dll</HintPath>
+      <Private>false</Private>
+      <ProcessorArchitecture>MSIL</ProcessorArchitecture>
+    </Reference>
+    <Reference Include="System.Xml.Linq">
+      <HintPath>$(Net35ReferenceAssemblyDir)\System.Xml.Linq.dll</HintPath>
+      <Private>false</Private>
+      <ProcessorArchitecture>MSIL</ProcessorArchitecture>
+    </Reference>
+
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="protobuf-net" Version="2.4.6" />
+    <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies.net35" Version="1.0.3" PrivateAssets="all" />
+
+  </ItemGroup>
+  <PropertyGroup>
+    <DisableImplicitFrameworkReferences>true</DisableImplicitFrameworkReferences>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="ToggleTrafficLightsSyncFeature.cs" />
+    <Compile Include="Services\ToggleTrafficLightsEventListener.cs" />
+    <Compile Include="Services\ToggleTrafficLightsSynchronization.cs" />
+    <Compile Include="Services\ToggleTrafficLightsTmpeAdapter.cs" />
+    <Compile Include="Messages\ToggleTrafficLightsUpdateRequest.cs" />
+    <Compile Include="Messages\ToggleTrafficLightsAppliedCommand.cs" />
+    <Compile Include="Handlers\ToggleTrafficLightsUpdateRequestHandler.cs" />
+    <Compile Include="Handlers\ToggleTrafficLightsAppliedCommandHandler.cs" />
+
+  </ItemGroup>
+  <Target Name="AfterBuild">
+    <MakeDir Directories="$(ModsOutDir)" />
+    <ItemGroup>
+      <ModFilesToCopy Include="$(TargetDir)*.*" />
+    </ItemGroup>
+    <Copy SourceFiles="@(ModFilesToCopy)" DestinationFolder="$(ModsOutDir)" SkipUnchangedFiles="true" />
+  </Target>
+
+</Project>
+
+
+

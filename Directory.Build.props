@@ -1,0 +1,33 @@
+<Project>
+  <PropertyGroup>
+    <ResolveAssemblyWarnOrErrorOnTargetArchitectureMismatch>None</ResolveAssemblyWarnOrErrorOnTargetArchitectureMismatch>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="$(RepoRoot)\src\CSM.TmpeSync\Services\**\*.cs"
+             Link="Infrastructure\Services\%(RecursiveDir)%(Filename)%(Extension)"
+             Condition="'$(MSBuildProjectName)' != 'CSM.TmpeSync'" />
+    <Compile Include="$(RepoRoot)\src\CSM.TmpeSync\Messages\**\*.cs"
+             Link="Infrastructure\Messages\%(RecursiveDir)%(Filename)%(Extension)"
+             Condition="'$(MSBuildProjectName)' != 'CSM.TmpeSync'" />
+    <Compile Include="$(RepoRoot)\src\CSM.TmpeSync\Mod\ModMetadata.cs"
+             Link="Infrastructure\Mod\ModMetadata.cs"
+             Condition="'$(MSBuildProjectName)' != 'CSM.TmpeSync'" />
+  </ItemGroup>
+
+  <!-- Local TM:PE references to satisfy compile-time API usage when TM:PE isn't installed under Steam paths. -->
+  <ItemGroup>
+    <Reference Include="TrafficManager" Condition="Exists('$(RepoRoot)\lib\TMPE\TrafficManager.dll')">
+      <HintPath>$(RepoRoot)\lib\TMPE\TrafficManager.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="CSUtil.Commons" Condition="Exists('$(RepoRoot)\lib\TMPE\CSUtil.Commons.dll')">
+      <HintPath>$(RepoRoot)\lib\TMPE\CSUtil.Commons.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="TMPE.API" Condition="Exists('$(RepoRoot)\lib\TMPE\TMPE.API.dll')">
+      <HintPath>$(RepoRoot)\lib\TMPE\TMPE.API.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+  </ItemGroup>
+</Project>

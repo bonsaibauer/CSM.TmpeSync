@@ -1,0 +1,28 @@
+name: "Bug"
+description: "Short bug report."
+title: "Bug: "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Keep it short and share the basics.
+  - type: input
+    id: summary
+    attributes:
+      label: What broke?
+      placeholder: One sentence.
+    validations:
+      required: true
+  - type: textarea
+    id: details
+    attributes:
+      label: What happened?
+      description: Key facts only.
+  - type: textarea
+    id: log
+    attributes:
+      label: Log snippet
+      description: Paste the relevant lines.
+      render: shell

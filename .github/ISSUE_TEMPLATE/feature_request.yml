@@ -1,0 +1,22 @@
+name: "Feature"
+description: "Quick note for a new idea."
+title: "Feature: "
+labels:
+  - enhancement
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Keep it brief and say what you need.
+  - type: input
+    id: idea
+    attributes:
+      label: What should we add?
+      placeholder: One sentence is enough.
+    validations:
+      required: true
+  - type: textarea
+    id: value
+    attributes:
+      label: Why?
+      description: What is the benefit?
