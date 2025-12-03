@@ -264,6 +264,29 @@ function Resolve-AbsolutePath {
     return (Join-Path $script:RepoRoot $Path)
 }
 
+function Resolve-ModDirectoryForConfiguration {
+    param(
+        [string]$BaseDirectory,
+        [string]$Configuration
+    )
+
+    if ([string]::IsNullOrWhiteSpace($BaseDirectory)) {
+        return $BaseDirectory
+    }
+
+    $resolved = Resolve-AbsolutePath -Path $BaseDirectory
+
+    if (-not [string]::IsNullOrWhiteSpace($Configuration) -and $Configuration -ieq 'Debug') {
+        $leafName = Split-Path $resolved -Leaf
+        if ($leafName -notmatch '\.Debug$') {
+            $parentDir = Split-Path $resolved -Parent
+            return Join-Path $parentDir ("{0}.Debug" -f $leafName)
+        }
+    }
+
+    return $resolved
+}
+
 function Get-AssemblyNameFromProject {
     param([string]$ProjectPath)
 
@@ -699,7 +722,7 @@ function Invoke-BuildProject {
     }
 
     if ($Profile.ContainsKey('ModDirectory') -and -not [string]::IsNullOrWhiteSpace([string]$Profile.ModDirectory)) {
-        $modDir = Resolve-AbsolutePath -Path ([string]$Profile.ModDirectory)
+        $modDir = Resolve-ModDirectoryForConfiguration -BaseDirectory ([string]$Profile.ModDirectory) -Configuration $Configuration
         $propertySpecs += @(
             @{ Name = 'ModDirectory'; Value = $modDir },
             @{ Name = 'ModsOutDir'; Value = $modDir }

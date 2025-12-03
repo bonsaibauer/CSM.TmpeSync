@@ -185,10 +185,39 @@ namespace CSM.TmpeSync.LaneConnector.Services
 
         internal static void HandleListenerChange(ushort nodeId, ushort segmentId, bool startNode, string origin)
         {
-            if (!CsmBridge.IsServerInstance())
+            if (LaneConnectorTmpeAdapter.IsLocalApplyActive)
                 return;
 
-            if (LaneConnectorTmpeAdapter.IsLocalApplyActive)
+            if (!CsmBridge.IsServerInstance())
+            {
+                if (!NetworkUtil.NodeExists(nodeId) || !NetworkUtil.SegmentExists(segmentId))
+                    return;
+
+                if (!LaneConnectorTmpeAdapter.TryBuildSnapshot(nodeId, segmentId, out var snapshot))
+                {
+                    Log.Debug(
+                        LogCategory.Network,
+                        LogRole.Client,
+                        "[LaneConnector] Skipping client update, snapshot missing | node={0} segment={1} origin={2}",
+                        nodeId,
+                        segmentId,
+                        origin ?? "unspecified");
+                    return;
+                }
+
+                var request = ConvertToRequest(snapshot);
+                Log.Debug(
+                    LogCategory.Network,
+                    LogRole.Client,
+                    "[LaneConnector] Client sending update | node={0} segment={1} origin={2}",
+                    nodeId,
+                    segmentId,
+                    origin ?? "unspecified");
+                CsmBridge.SendToServer(request);
+                return;
+            }
+
+            if (!CsmBridge.IsServerInstance())
                 return;
 
             if (string.Equals(origin, "tmpe_node_clear", StringComparison.Ordinal))

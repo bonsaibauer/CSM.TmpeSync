@@ -13,7 +13,7 @@ function Invoke-InstallMod {
         throw "No mod installation directory configured. Run build.ps1 -Configure or pass -ModDirectory."
     }
 
-    $targetDirectory = Resolve-AbsolutePath -Path $targetDirectory
+    $targetDirectory = Resolve-ModDirectoryForConfiguration -BaseDirectory $targetDirectory -Configuration $Configuration
 
     $outputDir = Get-OutputDirectory -Configuration $Configuration
     Ensure-DirectoryExists -Path $outputDir -Description "Build output"
