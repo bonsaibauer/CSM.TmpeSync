@@ -12,20 +12,18 @@ param(
     [string]$TmpeDir = "",
     [string]$ModDirectory = "",
     [string]$ModRootDirectory = "",
-    [switch]$SubtreesNoSquash = $false,
-    [switch]$SubtreesDryRun = $false,
-    [switch]$SubtreesAutoStash = $false
+    [switch]$SubmodulesDryRun = $false
 )
 
 $ErrorActionPreference = "Stop"
 
-$Script:ManageSubtreeRepos = @(
+$Script:ManagedSubmoduleRepos = @(
     @{ Name = "TMPE"; Url = "https://github.com/CitiesSkylinesMods/TMPE"; UseLatestRelease = $true },
     @{ Name = "CSM"; Url = "https://github.com/CitiesSkylinesMultiplayer/CSM"; UseLatestRelease = $true },
     @{ Name = "CitiesHarmony"; Url = "https://github.com/boformer/CitiesHarmony"; UseLatestRelease = $true }
 )
 $Script:SelfRepoUrl = "https://github.com/bonsaibauer/CSM.TmpeSync"
-$Script:BasePrefixRelative = "subtrees"
+$Script:SubmoduleBaseRelative = "submodule"
 $Script:ModMetadataRelativePath = "src/CSM.TmpeSync/Mod/ModMetadata.cs"
 
 function Update-Dependencies {
@@ -200,53 +198,13 @@ function Commit-RepoIfDirty {
     )
 
     if (Test-RepoIsClean) {
-        Write-Host "Repo ist clean – kein Commit nötig."
+        Write-Host "Repo is clean - no commit needed."
         return $false
     }
-    Write-Host "Repo ist dirty – committe ALLES …"
+    Write-Host "Repo is dirty - committing everything..."
     Invoke-CommandHelper -Command @('git', 'add', '-A') -DryRun:$DryRun | Out-Null
     Invoke-CommandHelper -Command @('git', 'commit', '-m', $Message) -DryRun:$DryRun | Out-Null
     return $true
-}
-
-function Ensure-CleanForSubtree {
-    param(
-        [string]$StepDescription,
-        [switch]$DryRun
-    )
-
-    Commit-RepoIfDirty -Message "chore(subtree): prepare $StepDescription" -DryRun:$DryRun | Out-Null
-}
-
-function Invoke-MaybeAutoStash {
-    param(
-        [switch]$Enable,
-        [switch]$DryRun
-    )
-
-    if (-not $Enable) {
-        if (-not (Test-RepoIsClean)) {
-            throw "Working Tree ist nicht clean. Entweder committen/stashen oder nutze --SubtreesAutoStash."
-        }
-        return @{ DidStash = $false; Name = "" }
-    }
-
-    $name = 'auto-stash-before-subtrees'
-    Write-Host "Auto-Stash aktiv. Stashe lokale Änderungen ($name) …"
-    Invoke-CommandHelper -Command @('git', 'stash', 'push', '-u', '-m', $name) -DryRun:$DryRun | Out-Null
-    return @{ DidStash = $true; Name = $name }
-}
-
-function Invoke-MaybeAutoStashPop {
-    param(
-        [bool]$DidStash,
-        [switch]$DryRun
-    )
-
-    if ($DidStash) {
-        Write-Host "Stelle Stash wieder her …"
-        Invoke-CommandHelper -Command @('git', 'stash', 'pop') -DryRun:$DryRun -Check:$false -Capture:$false | Out-Null
-    }
 }
 
 function Commit-PrefixIfNeeded {
@@ -259,11 +217,11 @@ function Commit-PrefixIfNeeded {
     Invoke-CommandHelper -Command @('git', 'add', '-A', '--', $PrefixRelative) -DryRun:$DryRun | Out-Null
     $diff = Invoke-CommandHelper -Command @('git', 'diff', '--cached', '--quiet', '--', $PrefixRelative) -Check:$false -Capture:$false -PrintOutput:$false
     if ($diff.ExitCode -eq 1) {
-        Write-Host "Committe Änderungen unter $PrefixRelative …"
+        Write-Host "Committing changes under $PrefixRelative ..."
         Invoke-CommandHelper -Command @('git', 'commit', '-m', $Message) -DryRun:$DryRun | Out-Null
         return $true
     }
-    Write-Host "Nichts zu committen unter $PrefixRelative."
+    Write-Host "Nothing to commit under $PrefixRelative."
     return $false
 }
 
@@ -434,7 +392,7 @@ function Get-ReleaseRefs {
 
     $releaseRefs = @{}
 
-    foreach ($repo in $Script:ManageSubtreeRepos) {
+    foreach ($repo in $Script:ManagedSubmoduleRepos) {
         $name = $repo.Name
         $tag = ''
         if ($repo.ContainsKey('UseLatestRelease') -and $repo.UseLatestRelease) {
@@ -548,7 +506,7 @@ function Get-LatestReleaseTag {
     }
 
     $apiUrl = "https://api.github.com/repos/$($parsed.Owner)/$($parsed.Repo)/releases/latest"
-    Write-Host "Prüfe neuesten Release für $($parsed.Owner)/$($parsed.Repo) …"
+    Write-Host "Checking latest release for $($parsed.Owner)/$($parsed.Repo) ..."
 
     try {
         $response = Invoke-WebRequest -Uri $apiUrl -Headers @{ 'Accept' = 'application/vnd.github+json'; 'User-Agent' = 'CSM.TmpeSync-update-script' } -ErrorAction Stop
@@ -556,14 +514,14 @@ function Get-LatestReleaseTag {
     catch [System.Net.WebException] {
         $webEx = $_.Exception
         if ($webEx.Response -and $webEx.Response.StatusCode.value__ -eq 404) {
-            Write-Host "Keine Releases für $($parsed.Owner)/$($parsed.Repo) gefunden."
+            Write-Host "No releases found for $($parsed.Owner)/$($parsed.Repo)."
             return ''
         }
-        Write-Host "Netzwerkfehler beim Abruf der Releases."
+        Write-Host "Network error while fetching releases."
         return ''
     }
     catch {
-        Write-Host "Unerwarteter Fehler beim Abruf der Releases: $($_.Exception.Message)"
+        Write-Host "Unexpected error while fetching releases: $($_.Exception.Message)"
         return ''
     }
 
@@ -589,7 +547,7 @@ function Get-LatestReleaseTag {
         return $tag
     }
     catch {
-        Write-Host "Konnte API-Antwort nicht lesen."
+        Write-Host "Could not read API response."
         return ''
     }
 }
@@ -611,7 +569,7 @@ function Get-AllReleaseTags {
     $perPage = 100
     $tags = @()
 
-    Write-Host "Rufe alle Release-Tags für $owner/$repo ab …"
+    Write-Host "Fetching all release tags for $owner/$repo ..."
 
     while ($true) {
         $apiUrl = "https://api.github.com/repos/$owner/$repo/releases?per_page=$perPage&page=$page"
@@ -621,14 +579,14 @@ function Get-AllReleaseTags {
         catch [System.Net.WebException] {
             $webEx = $_.Exception
             if ($webEx.Response -and $webEx.Response.StatusCode.value__ -eq 404) {
-                Write-Host "Keine Releases für $owner/$repo gefunden."
+                Write-Host "No releases found for $owner/$repo."
                 return @()
             }
-            Write-Host "Netzwerkfehler beim Abruf der Releases für $owner/$repo."
+            Write-Host "Network error while fetching releases for $owner/$repo."
             return @()
         }
         catch {
-            Write-Host "Unerwarteter Fehler beim Abruf der Releases für $($owner)/$($repo): $($_.Exception.Message)"
+            Write-Host "Unexpected error while fetching releases for $($owner)/$($repo): $($_.Exception.Message)"
             return @()
         }
 
@@ -649,7 +607,7 @@ function Get-AllReleaseTags {
             }
         }
         catch {
-            Write-Host "Konnte API-Antwort für alle Releases nicht lesen."
+            Write-Host "Could not read API response for all releases."
             break
         }
 
@@ -672,7 +630,7 @@ function Get-AllReleaseTags {
 
         $page += 1
         if ($page -gt 10) {
-            Write-Host "Beende Abruf nach 10 Seiten, um übermäßige API-Aufrufe zu vermeiden."
+            Write-Host "Stopping after 10 pages to avoid excessive API calls."
             break
         }
     }
@@ -693,7 +651,7 @@ function Get-LegacyReleaseRefs {
 
     $legacyRefs = @{}
 
-    foreach ($repo in $Script:ManageSubtreeRepos) {
+    foreach ($repo in $Script:ManagedSubmoduleRepos) {
         $name = $repo.Name
         $url = $repo.Url
         $allTags = Get-AllReleaseTags -RepoUrl $url -DryRun:$DryRun
@@ -720,67 +678,6 @@ function Get-LegacyReleaseRefs {
     }
 
     return $legacyRefs
-}
-
-function Test-SubtreeExists {
-    param([string]$FullPath)
-
-    if (-not (Test-Path $FullPath -PathType Container)) { return $false }
-    $items = Get-ChildItem -Path $FullPath -Force -ErrorAction SilentlyContinue | Select-Object -First 1
-    return $items -ne $null
-}
-
-function Test-SubtreeInitialized {
-    param([string]$PrefixRelative)
-
-    $candidates = @($PrefixRelative)
-    if ($PrefixRelative -match '\\') {
-        $candidates += ($PrefixRelative -replace '\\', '/')
-    }
-
-    foreach ($candidate in $candidates) {
-        $needle = "git-subtree-dir: $candidate"
-        $result = Invoke-CommandHelper -Command @('git', 'log', '-n', '1', '--grep', $needle, '--format=%H') -Check:$false -PrintOutput:$false
-        if (-not [string]::IsNullOrWhiteSpace($result.StdOut)) {
-            return $true
-        }
-    }
-
-    return $false
-}
-
-function Invoke-SubtreeAdd {
-    param(
-        [string]$PrefixRelative,
-        [string]$Url,
-        [string]$Branch,
-        [bool]$Squash,
-        [switch]$DryRun
-    )
-
-    $prefixArg = $PrefixRelative -replace '\\', '/'
-    Ensure-CleanForSubtree -StepDescription "add $PrefixRelative" -DryRun:$DryRun
-    $args = @('git', 'subtree', 'add', "--prefix=$prefixArg", $Url, $Branch)
-    if ($Squash) { $args += '--squash' }
-    Write-Host "==> ADD subtree: $PrefixRelative ($Url@$Branch)"
-    Invoke-CommandHelper -Command $args -DryRun:$DryRun | Out-Null
-}
-
-function Invoke-SubtreePull {
-    param(
-        [string]$PrefixRelative,
-        [string]$Url,
-        [string]$Branch,
-        [bool]$Squash,
-        [switch]$DryRun
-    )
-
-    $prefixArg = $PrefixRelative -replace '\\', '/'
-    Ensure-CleanForSubtree -StepDescription "pull $PrefixRelative" -DryRun:$DryRun
-    $args = @('git', 'subtree', 'pull', "--prefix=$prefixArg", $Url, $Branch)
-    if ($Squash) { $args += '--squash' }
-    Write-Host "==> PULL subtree: $PrefixRelative ($Url@$Branch)"
-    Invoke-CommandHelper -Command $args -DryRun:$DryRun | Out-Null
 }
 
 function Parse-GitModules {
@@ -851,181 +748,90 @@ function Test-EmptyDirectory {
     return $items -eq $null
 }
 
-function Vendor-SubmodulesRecursively {
+function Test-SubmoduleRegistered {
+    param([string]$RelativePath)
+
+    $normalized = ($RelativePath ?? '').Replace('\\', '/').Trim('/')
+    if ([string]::IsNullOrWhiteSpace($normalized)) { return $false }
+
+    $result = Invoke-CommandHelper -Command @('git', 'config', '-f', '.gitmodules', '--get', "submodule.$normalized.url") -Check:$false -PrintOutput:$false
+    return -not [string]::IsNullOrWhiteSpace($result.StdOut)
+}
+
+function Ensure-SubmoduleBranchConfig {
     param(
-        [string]$RepoRoot,
-        [string]$RootPrefixFull,
-        [string]$ParentRepoUrl,
-        [bool]$Squash,
-        [switch]$DryRun,
-        [System.Collections.Generic.HashSet[string]]$Visited
+        [string]$RelativePath,
+        [string]$Branch,
+        [switch]$DryRun
     )
 
-    if ($null -eq $Visited) {
-        $Visited = [System.Collections.Generic.HashSet[string]]::new()
+    if ([string]::IsNullOrWhiteSpace($Branch)) { return }
+    $normalized = ($RelativePath ?? '').Replace('\\', '/').Trim('/')
+    Invoke-CommandHelper -Command @('git', 'config', '-f', '.gitmodules', "submodule.$normalized.branch", $Branch) -DryRun:$DryRun -Check:$false -PrintOutput:$false | Out-Null
+    Invoke-CommandHelper -Command @('git', 'submodule', 'sync', '--', $normalized) -DryRun:$DryRun | Out-Null
+}
+
+function Invoke-AddOrUpdateSubmodule {
+    param(
+        [string]$RepoRoot,
+        [string]$Name,
+        [string]$Url,
+        [string]$Branch,
+        [switch]$DryRun
+    )
+
+    $relativePath = Join-Path $Script:SubmoduleBaseRelative $Name
+    $normalizedPath = ($relativePath ?? '').Replace('\\', '/')
+    $fullPath = Join-Path $RepoRoot $relativePath
+
+    $parentDir = Split-Path -Path $fullPath -Parent
+    if (-not (Test-Path $parentDir)) {
+        New-Item -ItemType Directory -Path $parentDir -Force | Out-Null
     }
 
-    $gitmodulesPath = Join-Path $RootPrefixFull '.gitmodules'
-    $mods = Parse-GitModules -Path $gitmodulesPath
-    $displayRoot = Get-RelativePath -BasePath $RepoRoot -TargetPath $RootPrefixFull
-    if ($mods.Count -eq 0) {
-        Write-Host "Keine .gitmodules in $displayRoot gefunden."
-        return
+    $isRegistered = Test-SubmoduleRegistered -RelativePath $normalizedPath
+
+    if (-not $isRegistered -and (Test-Path $fullPath)) {
+        if (-not (Test-EmptyDirectory -Path $fullPath)) {
+            throw "Path '$normalizedPath' already exists and is not an empty directory. Please clean it up or configure it as a submodule."
+        }
+        if (-not $DryRun) {
+            Remove-Item -Path $fullPath -Force
+        }
     }
 
-    Write-Host "Gefundene Submodule in ${displayRoot}:"
-    foreach ($m in $mods) {
-        $branchInfo = if ($m.ContainsKey('branch') -and -not [string]::IsNullOrWhiteSpace($m['branch'])) { " [branch=$($m['branch'])]" } else { '' }
-        Write-Host "  - $($m['path']) ($($m['url']))$branchInfo"
+    if (-not $isRegistered) {
+        Write-Host "Adding submodule '$Name' ($Url@$Branch) -> $normalizedPath"
+        Invoke-CommandHelper -Command @('git', 'submodule', 'add', '-b', $Branch, $Url, $normalizedPath) -DryRun:$DryRun | Out-Null
     }
-
-    foreach ($m in $mods) {
-        $rel = ($m['path']).Replace('\\', '/').Trim('/')
-        $subFull = Join-Path $RootPrefixFull $rel
-        $subRelative = Get-RelativePath -BasePath $RepoRoot -TargetPath $subFull
-        $subUrl = Resolve-SubmoduleUrl -ParentUrl $ParentRepoUrl -SubUrl $m['url']
-        $branch = if ($m.ContainsKey('branch') -and $m['branch']) { $m['branch'] } else { Get-DefaultBranch -RepoUrl $subUrl -DryRun:$DryRun }
-
-        $key = ([System.IO.Path]::GetFullPath($subFull) + '|' + $subUrl)
-        if ($Visited.Contains($key)) { continue }
-        $Visited.Add($key) | Out-Null
-
-        if ((Test-Path -Path $subFull -PathType Container) -and (Test-EmptyDirectory -Path $subFull)) {
-            Write-Host "Leerer Ordner vorhanden, entferne vor Subtree-ADD: $subFull"
-            if (-not $DryRun) {
-                Remove-Item -Path $subFull -Force
-            }
-            Ensure-CleanForSubtree -StepDescription "prepare $subRelative" -DryRun:$DryRun
-        }
-
-        $parentDir = Split-Path -Path $subFull -Parent
-        if (-not (Test-Path $parentDir)) {
-            New-Item -ItemType Directory -Path $parentDir -Force | Out-Null
-        }
-
-        $hasExisting = Test-SubtreeExists -FullPath $subFull
-        $isInitialized = $false
-        if ($hasExisting) {
-            $isInitialized = Test-SubtreeInitialized -PrefixRelative $subRelative
-        }
-
-        $shouldAdd = -not ($hasExisting -and $isInitialized)
-
-        if (-not $shouldAdd) {
-            try {
-                Invoke-SubtreePull -PrefixRelative $subRelative -Url $subUrl -Branch $branch -Squash:$Squash -DryRun:$DryRun
-                $changed = Commit-PrefixIfNeeded -PrefixRelative $subRelative -Message "chore(subtree): pull $subUrl ($branch) -> $subRelative" -DryRun:$DryRun
-                if (-not $changed) {
-                    Commit-RepoIfDirty -Message "chore(subtree): finalize pull $subUrl ($branch)" -DryRun:$DryRun | Out-Null
-                }
-            }
-            catch {
-                if ($_.Exception.Message -match "was never added") {
-                    Write-Host "git subtree meldet: '$subRelative' wurde noch nicht hinzugefügt – falle zurück auf subtree add."
-                    $shouldAdd = $true
-                }
-                else {
-                    throw
-                }
-            }
-        }
-
-        if ($shouldAdd) {
-            if ($hasExisting) {
-                Write-Host "Prefix '$subRelative' wurde noch nicht als Subtree hinzugefügt – verwende subtree add."
-            }
-            Invoke-SubtreeAdd -PrefixRelative $subRelative -Url $subUrl -Branch $branch -Squash:$Squash -DryRun:$DryRun
-            $changed = Commit-PrefixIfNeeded -PrefixRelative $subRelative -Message "chore(subtree): add $subUrl ($branch) -> $subRelative" -DryRun:$DryRun
-            if (-not $changed) {
-                Commit-RepoIfDirty -Message "chore(subtree): finalize add $subUrl ($branch)" -DryRun:$DryRun | Out-Null
-            }
-        }
-
-        Vendor-SubmodulesRecursively -RepoRoot $RepoRoot -RootPrefixFull $subFull -ParentRepoUrl $subUrl -Squash:$Squash -DryRun:$DryRun -Visited $Visited
+    else {
+        Write-Host "Aktualisiere Submodule '$Name' ($Url@$Branch) unter $normalizedPath"
+        Ensure-SubmoduleBranchConfig -RelativePath $normalizedPath -Branch $Branch -DryRun:$DryRun
+        Invoke-CommandHelper -Command @('git', 'submodule', 'update', '--init', '--recursive', '--remote', '--progress', '--', $normalizedPath) -DryRun:$DryRun | Out-Null
     }
 }
 
-function Invoke-ManageSubtrees {
+function Invoke-ManageSubmodules {
     param(
         [string]$RepoRoot,
-        [switch]$NoSquash,
-        [switch]$DryRun,
-        [switch]$AutoStash
+        [switch]$DryRun
     )
 
     Push-Location $RepoRoot
     try {
-        $root = Ensure-GitRootAndChdir
-        $squash = -not $NoSquash
-        $stashResult = Invoke-MaybeAutoStash -Enable:$AutoStash -DryRun:$DryRun
-        try {
-            $basePrefixFull = Join-Path $RepoRoot $Script:BasePrefixRelative
-            if (-not (Test-Path $basePrefixFull)) {
-                New-Item -ItemType Directory -Path $basePrefixFull -Force | Out-Null
+        Ensure-GitRootAndChdir | Out-Null
+
+        $basePath = Join-Path $RepoRoot $Script:SubmoduleBaseRelative
+        if (-not (Test-Path $basePath)) {
+            Write-Host "Creating folder '$($Script:SubmoduleBaseRelative)' for submodules."
+            if (-not $DryRun) {
+                New-Item -ItemType Directory -Path $basePath -Force | Out-Null
             }
-            Write-Host "Starte Subtree-Update unter '$($Script:BasePrefixRelative)' ..."
-            $releaseRefs = Get-ReleaseRefs -DryRun:$DryRun
-            foreach ($repo in $Script:ManageSubtreeRepos) {
-                $name = $repo.Name
-                $url = $repo.Url
-                $releaseTag = ''
-                if ($releaseRefs.ContainsKey($name)) {
-                    $releaseTag = $releaseRefs[$name]
-                }
-                $branch = if (-not [string]::IsNullOrEmpty($releaseTag)) { $releaseTag } elseif ($repo.ContainsKey('Branch') -and $repo.Branch) { $repo.Branch } else { Get-DefaultBranch -RepoUrl $url -DryRun:$DryRun }
-                $prefixFull = Join-Path $basePrefixFull $name
-                $prefixRelative = Get-RelativePath -BasePath $RepoRoot -TargetPath $prefixFull
-
-                $releaseRefs[$name] = $releaseTag
-
-                Write-Host "Repository: $name  $url  (Ref: $branch)"
-
-                $hasExisting = Test-SubtreeExists -FullPath $prefixFull
-                $isInitialized = $false
-                if ($hasExisting) {
-                    $isInitialized = Test-SubtreeInitialized -PrefixRelative $prefixRelative
-                }
-
-                $shouldAdd = -not ($hasExisting -and $isInitialized)
-
-                if (-not $shouldAdd) {
-                    try {
-                        Invoke-SubtreePull -PrefixRelative $prefixRelative -Url $url -Branch $branch -Squash:$squash -DryRun:$DryRun
-                        $changed = Commit-PrefixIfNeeded -PrefixRelative $prefixRelative -Message "chore(subtree): pull $url ($branch) -> $prefixRelative" -DryRun:$DryRun
-                        if (-not $changed) {
-                            Commit-RepoIfDirty -Message "chore(subtree): finalize pull $url ($branch)" -DryRun:$DryRun | Out-Null
-                        }
-                    }
-                    catch {
-                        if ($_.Exception.Message -match "was never added") {
-                            Write-Host "git subtree meldet: '$prefixRelative' wurde noch nicht hinzugefügt – falle zurück auf subtree add."
-                            $shouldAdd = $true
-                        }
-                        else {
-                            throw
-                        }
-                    }
-                }
-
-                if ($shouldAdd) {
-                    if ($hasExisting) {
-                        Write-Host "Prefix '$prefixRelative' wurde noch nicht als Subtree hinzugefügt – verwende subtree add."
-                    }
-                    Invoke-SubtreeAdd -PrefixRelative $prefixRelative -Url $url -Branch $branch -Squash:$squash -DryRun:$DryRun
-                    $changed = Commit-PrefixIfNeeded -PrefixRelative $prefixRelative -Message "chore(subtree): add $url ($branch) -> $prefixRelative" -DryRun:$DryRun
-                    if (-not $changed) {
-                        Commit-RepoIfDirty -Message "chore(subtree): finalize add $url ($branch)" -DryRun:$DryRun | Out-Null
-                    }
-                }
-
-                Vendor-SubmodulesRecursively -RepoRoot $RepoRoot -RootPrefixFull $prefixFull -ParentRepoUrl $url -Squash:$squash -DryRun:$DryRun
-            }
-
-            Write-Host 'Fertig.'
-            return $releaseRefs
         }
-        finally {
-            Invoke-MaybeAutoStashPop -DidStash:$($stashResult.DidStash) -DryRun:$DryRun
+
+        foreach ($repo in $Script:ManagedSubmoduleRepos) {
+            $branch = if ($repo.ContainsKey('Branch') -and $repo.Branch) { $repo.Branch } else { Get-DefaultBranch -RepoUrl $repo.Url -DryRun:$DryRun }
+            Invoke-AddOrUpdateSubmodule -RepoRoot $RepoRoot -Name $repo.Name -Url $repo.Url -Branch $branch -DryRun:$DryRun
         }
     }
     finally {
@@ -1048,9 +854,7 @@ function Invoke-CsmTmpeSyncUpdate {
         [string]$TmpeDir = "",
         [string]$ModDirectory = "",
         [string]$ModRootDirectory = "",
-        [switch]$SubtreesNoSquash = $false,
-        [switch]$SubtreesDryRun = $false,
-        [switch]$SubtreesAutoStash = $false,
+        [switch]$SubmodulesDryRun = $false,
         [switch]$SkipBuildStep = $false
     )
 
@@ -1088,31 +892,13 @@ function Invoke-CsmTmpeSyncUpdate {
     $scriptDir = Split-Path -Path $scriptPath -Parent
     $repoRoot  = Split-Path -Path $scriptDir -Parent
 
-    $subtreePrompt = "Soll der Ordner 'subtrees/' erstellt oder aktualisiert werden? (yes/no)"
-    $updateSubtreesResponse = Read-Host $subtreePrompt
-    $shouldUpdateSubtrees = $true
-    if (-not [string]::IsNullOrWhiteSpace($updateSubtreesResponse)) {
-        $shouldUpdateSubtrees = $updateSubtreesResponse -match '^(?i)y(es)?$'
-    }
-
-    $releaseRefs = $null
-    if ($shouldUpdateSubtrees) {
-        $releaseRefs = Invoke-ManageSubtrees -RepoRoot $repoRoot -NoSquash:$SubtreesNoSquash -DryRun:$SubtreesDryRun -AutoStash:$SubtreesAutoStash
-    } else {
-        Write-Host "Überspringe Erstellung/Aktualisierung von 'subtrees/'."
-    }
-
-    if ($null -eq $releaseRefs) {
-        $releaseRefs = Get-ReleaseRefs -DryRun:$SubtreesDryRun
-    }
-
+    $releaseRefs = Get-ReleaseRefs -DryRun:$SubmodulesDryRun
+    Invoke-ManageSubmodules -RepoRoot $repoRoot -DryRun:$SubmodulesDryRun
     if ($null -eq $releaseRefs) {
         $releaseRefs = @{}
     }
-
-    $legacyReleaseRefs = Get-LegacyReleaseRefs -LatestReleaseRefs $releaseRefs -DryRun:$SubtreesDryRun
-
-    Update-ModMetadataFile -RepoRoot $repoRoot -ReleaseRefs $releaseRefs -LegacyReleaseRefs $legacyReleaseRefs -DryRun:$SubtreesDryRun
+    $legacyReleaseRefs = Get-LegacyReleaseRefs -LatestReleaseRefs $releaseRefs -DryRun:$SubmodulesDryRun
+    Update-ModMetadataFile -RepoRoot $repoRoot -ReleaseRefs $releaseRefs -LegacyReleaseRefs $legacyReleaseRefs -DryRun:$SubmodulesDryRun
 
     # --- Interactive update of NewVersion based on LatestCsmTmpeSyncReleaseTag ---
     $modMetadataPath = Join-Path $repoRoot 'src/CSM.TmpeSync/Mod/ModMetadata.cs'

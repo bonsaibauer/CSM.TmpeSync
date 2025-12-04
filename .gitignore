@@ -9,7 +9,6 @@
 
 # General diagnostics
 logdiagnostics/
-subtrees/
 
 # User-specific files (MonoDevelop/Xamarin Studio)
 *.userprefs

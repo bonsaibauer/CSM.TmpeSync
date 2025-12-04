@@ -911,9 +911,6 @@ if ($Update) {
         TmpeDir            = $TmpeDir
         ModDirectory       = $ModDirectory
         ModRootDirectory   = $ModRootDirectory
-        SubtreesNoSquash   = $false
-        SubtreesDryRun     = $false
-        SubtreesAutoStash  = $false
     }
 
     Invoke-CsmTmpeSyncUpdate @updateScriptParams
