@@ -30,26 +30,17 @@ namespace CSM.TmpeSync.Mod
             if (container == null)
                 return;
 
-            var scroll = container.AddUIComponent<UIScrollablePanel>();
-            scroll.clipChildren = true;
-            scroll.autoLayout = false;
-            scroll.width = container.width - 10f;
-            scroll.height = 420f;
-            scroll.position = new Vector3(0, 0);
-            scroll.autoLayoutDirection = LayoutDirection.Vertical;
-            scroll.autoLayoutPadding = new RectOffset(0, 0, 0, 4);
-
-            var label = scroll.AddUIComponent<UILabel>();
+            var label = container.AddUIComponent<UILabel>();
+            label.autoSize = false;
             label.wordWrap = true;
             label.autoHeight = true;
-            label.width = scroll.width - 18f;
+            label.width = container.width - 10f;
             label.textScale = 1.0f;
             label.padding = new RectOffset(6, 6, 6, 6);
             label.relativePosition = Vector3.zero;
-            label.text = BuildChangelogText(ModMetadata.NewVersion);
+            label.text = BuildChangelogText();
             label.Invalidate();
-            scroll.Invalidate();
-            container.AddScrollbar(scroll);
+            container.Invalidate();
         }
 
         public void OnEnabled()
@@ -82,19 +73,11 @@ namespace CSM.TmpeSync.Mod
             Log.Debug(LogCategory.Lifecycle, LogRole.General, "Mod disabled | awaiting_next_enable_cycle");
         }
 
-        private static string BuildChangelogText(string targetVersion)
+        private static string BuildChangelogText()
         {
             var entries = ChangelogService.GetAllEntries()
                 .OrderByDescending(e => SafeVersion(e.Version))
                 .ToList();
-
-            if (!string.IsNullOrEmpty(targetVersion))
-            {
-                var target = SafeVersion(targetVersion);
-                var match = entries.FirstOrDefault(e => SafeVersion(e.Version) == target);
-                if (match != null)
-                    entries = new[] { match }.ToList();
-            }
 
             var builder = new StringBuilder();
             foreach (var entry in entries)
@@ -107,12 +90,12 @@ namespace CSM.TmpeSync.Mod
                 {
                     foreach (var change in entry.Changes.Where(c => !string.IsNullOrEmpty(c)))
                     {
-                        builder.AppendLine($"  • {change.Trim()}");
+                        builder.AppendLine($"- {change.Trim()}");
                     }
                 }
                 else
                 {
-                    builder.AppendLine("  • No details provided.");
+                    builder.AppendLine("- No details provided.");
                 }
 
                 builder.AppendLine();
