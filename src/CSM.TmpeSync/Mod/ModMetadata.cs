@@ -14,7 +14,7 @@ namespace CSM.TmpeSync.Mod
         /// <summary>
         /// Latest release tag for CSM TM:PE Sync.
         /// </summary>
-        internal const string LatestCsmTmpeSyncReleaseTag = "v1.0.1.0";
+        internal const string LatestCsmTmpeSyncReleaseTag = "v1.0.0.0";
 
         /// <summary>
         /// Legacy release tags for CSM TM:PE Sync (excluding the latest).
@@ -102,13 +102,15 @@ namespace CSM.TmpeSync.Mod
         /// <summary>
         /// Latest release tag for Cities: Skylines Multiplayer.
         /// </summary>
-        internal const string LatestCsmReleaseTag = "v2309.286";
+        internal const string LatestCsmReleaseTag = "v2511.301";
 
         /// <summary>
         /// Legacy release tags for Cities: Skylines Multiplayer (excluding the latest).
         /// </summary>
         internal static readonly string[] LegacyCsmReleaseTags = new[]
         {
+            "v2511.296",
+            "v2309.286",
             "v2305.270",
             "v2304.267",
             "v2211.229",
@@ -143,3 +145,4 @@ namespace CSM.TmpeSync.Mod
 
     }
 }
+
