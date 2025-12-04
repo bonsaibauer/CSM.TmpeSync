@@ -36,6 +36,8 @@ namespace CSM.TmpeSync.Mod
             scroll.width = container.width - 10f;
             scroll.height = 420f;
             scroll.position = new Vector3(0, 0);
+            scroll.autoLayoutDirection = LayoutDirection.Vertical;
+            scroll.autoLayoutPadding = new RectOffset(0, 0, 0, 4);
 
             var label = scroll.AddUIComponent<UILabel>();
             label.wordWrap = true;
