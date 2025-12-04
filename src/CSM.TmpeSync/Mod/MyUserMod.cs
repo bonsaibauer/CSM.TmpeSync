@@ -7,6 +7,12 @@ namespace CSM.TmpeSync.Mod
 {
     public class MyUserMod : IUserMod
     {
+        public MyUserMod()
+        {
+            // Ensure settings storage is registered early.
+            var _ = ModSettings.Instance;
+        }
+
         public string Name => "CSM TM:PE Sync (Beta)";
 
         public string Description => "Beta build of the TM:PE sync for CSM.";
