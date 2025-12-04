@@ -197,7 +197,7 @@ namespace CSM.TmpeSync.Services.UI
         private UIScrollablePanel _messageContainer;
         private UIButton _closeButton;
 
-        private string _title = "CSM.TmpeSync Update - Changelog";
+        private string _title = "CSM.TmpeSync Update";
         private string _message = "No changelog available.";
 
         internal void Configure(ChangelogEntry entry)
@@ -207,7 +207,7 @@ namespace CSM.TmpeSync.Services.UI
 
             var titleVersion = string.IsNullOrEmpty(entry.Version) ? "unknown" : entry.Version;
             var titleDate = string.IsNullOrEmpty(entry.Date) ? string.Empty : string.Format(" ({0})", entry.Date);
-            SetTitle(string.Format("CSM.TmpeSync Update Changelog v{0}{1}", titleVersion, titleDate));
+            SetTitle(string.Format("CSM.TmpeSync Update v{0}{1}", titleVersion, titleDate));
 
             var builder = new StringBuilder();
             if (!string.IsNullOrEmpty(entry.Date))
@@ -233,28 +233,28 @@ namespace CSM.TmpeSync.Services.UI
             AddUIComponent(typeof(UIDragHandle));
 
             backgroundSprite = "GenericPanel";
-            color = new Color32(40, 40, 40, 235);
+            color = new Color32(110, 110, 110, 255);
 
-            width = 480;
-            height = 360;
+            width = 460;
+            height = 440;
             relativePosition = PanelManager.GetCenterPosition(this);
 
-            _titleLabel = this.CreateTitleLabel(_title, new Vector2(40, -20));
+            _titleLabel = this.CreateTitleLabel(_title, new Vector2(160, -20));
             _titleLabel.autoSize = true;
             SetTitle(_title);
 
             _messageContainer = AddUIComponent<UIScrollablePanel>();
-            _messageContainer.width = width - 40;
-            _messageContainer.height = height - 140;
+            _messageContainer.width = width - 30;
+            _messageContainer.height = height - 230;
             _messageContainer.clipChildren = true;
-            _messageContainer.position = new Vector2(20, -70);
+            _messageContainer.position = new Vector2(15, -80);
             _messageContainer.autoLayout = false;
 
             _messageLabel = _messageContainer.AddUIComponent<UILabel>();
             _messageLabel.autoSize = false;
-            _messageLabel.width = _messageContainer.width - 14;
+            _messageLabel.width = _messageContainer.width - 16;
             _messageLabel.text = _message;
-            _messageLabel.position = new Vector2(2, 0);
+            _messageLabel.position = new Vector2(4, 0);
             _messageLabel.wordWrap = true;
             _messageLabel.autoHeight = true;
             _messageLabel.textAlignment = UIHorizontalAlignment.Left;
@@ -262,12 +262,13 @@ namespace CSM.TmpeSync.Services.UI
 
             this.AddScrollbar(_messageContainer);
 
-            var buttonWidth = 200;
-            var buttonHeight = 45;
+            var buttonWidth = 340f;
+            var buttonHeight = 50f;
+            var bottomPadding = 18f;
             var buttonX = (width - buttonWidth) / 2f;
-            var buttonY = -height + buttonHeight + 25f;
+            var buttonY = -height + buttonHeight + bottomPadding;
 
-            _closeButton = this.CreateButton("Close", new Vector2(buttonX, buttonY), buttonWidth, buttonHeight);
+            _closeButton = this.CreateButton("Close", new Vector2(buttonX, buttonY), (int)buttonWidth, (int)buttonHeight);
             _closeButton.eventClicked += (_, __) => ClosePanel();
         }
 
