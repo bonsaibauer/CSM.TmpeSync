@@ -46,7 +46,7 @@ namespace CSM.TmpeSync.Mod
             label.textScale = 1.0f;
             label.padding = new RectOffset(6, 6, 6, 6);
             label.relativePosition = Vector3.zero;
-            label.text = BuildChangelogText();
+            label.text = BuildChangelogText(ModMetadata.NewVersion);
             label.Invalidate();
             scroll.Invalidate();
             container.AddScrollbar(scroll);
@@ -82,11 +82,19 @@ namespace CSM.TmpeSync.Mod
             Log.Debug(LogCategory.Lifecycle, LogRole.General, "Mod disabled | awaiting_next_enable_cycle");
         }
 
-        private static string BuildChangelogText()
+        private static string BuildChangelogText(string targetVersion)
         {
             var entries = ChangelogService.GetAllEntries()
                 .OrderByDescending(e => SafeVersion(e.Version))
                 .ToList();
+
+            if (!string.IsNullOrEmpty(targetVersion))
+            {
+                var target = SafeVersion(targetVersion);
+                var match = entries.FirstOrDefault(e => SafeVersion(e.Version) == target);
+                if (match != null)
+                    entries = new[] { match }.ToList();
+            }
 
             var builder = new StringBuilder();
             foreach (var entry in entries)
