@@ -1,6 +1,11 @@
 using System;
+using System.Linq;
+using System.Text;
+using ColossalFramework.UI;
 using ICities;
 using CSM.TmpeSync.Services;
+using CSM.TmpeSync.Services.UI;
+using UnityEngine;
 using Log = CSM.TmpeSync.Services.Log;
 
 namespace CSM.TmpeSync.Mod
@@ -16,6 +21,34 @@ namespace CSM.TmpeSync.Mod
         public string Name => "CSM TM:PE Sync (Beta)";
 
         public string Description => "Beta build of the TM:PE sync for CSM.";
+
+        public void OnSettingsUI(UIHelperBase helper)
+        {
+            var group = helper.AddGroup("Changelog");
+            var uiHelper = group as UIHelper;
+            var container = uiHelper?.self as UIPanel;
+            if (container == null)
+                return;
+
+            var scroll = container.AddUIComponent<UIScrollablePanel>();
+            scroll.clipChildren = true;
+            scroll.autoLayout = false;
+            scroll.width = container.width - 10f;
+            scroll.height = 420f;
+            scroll.position = new Vector3(0, 0);
+
+            var label = scroll.AddUIComponent<UILabel>();
+            label.wordWrap = true;
+            label.autoHeight = true;
+            label.width = scroll.width - 18f;
+            label.textScale = 1.0f;
+            label.padding = new RectOffset(6, 6, 6, 6);
+            label.relativePosition = Vector3.zero;
+            label.text = BuildChangelogText();
+            label.Invalidate();
+            scroll.Invalidate();
+            container.AddScrollbar(scroll);
+        }
 
         public void OnEnabled()
         {
@@ -45,6 +78,56 @@ namespace CSM.TmpeSync.Mod
             Log.Info(LogCategory.Lifecycle, LogRole.General, "Mod disabled | begin_cleanup");
             // No shared shutdown required
             Log.Debug(LogCategory.Lifecycle, LogRole.General, "Mod disabled | awaiting_next_enable_cycle");
+        }
+
+        private static string BuildChangelogText()
+        {
+            var entries = ChangelogService.GetAllEntries()
+                .OrderByDescending(e => SafeVersion(e.Version))
+                .ToList();
+
+            var builder = new StringBuilder();
+            foreach (var entry in entries)
+            {
+                var version = string.IsNullOrEmpty(entry.Version) ? "unknown" : entry.Version;
+                var date = string.IsNullOrEmpty(entry.Date) ? string.Empty : $" ({entry.Date})";
+                builder.AppendLine($"v{version}{date}");
+
+                if (entry.Changes != null && entry.Changes.Count > 0)
+                {
+                    foreach (var change in entry.Changes.Where(c => !string.IsNullOrEmpty(c)))
+                    {
+                        builder.AppendLine($"  • {change.Trim()}");
+                    }
+                }
+                else
+                {
+                    builder.AppendLine("  • No details provided.");
+                }
+
+                builder.AppendLine();
+            }
+
+            return builder.Length > 0 ? builder.ToString() : "No changelog entries found.";
+        }
+
+        private static Version SafeVersion(string text)
+        {
+            if (string.IsNullOrEmpty(text))
+                return new Version(0, 0, 0, 0);
+
+            try
+            {
+                var normalized = text.Trim();
+                if (normalized.StartsWith("v", StringComparison.OrdinalIgnoreCase))
+                    normalized = normalized.Substring(1);
+
+                return new Version(normalized);
+            }
+            catch
+            {
+                return new Version(0, 0, 0, 0);
+            }
         }
     }
 }
