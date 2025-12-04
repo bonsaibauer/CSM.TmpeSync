@@ -771,6 +771,21 @@ function Ensure-SubmoduleBranchConfig {
     Invoke-CommandHelper -Command @('git', 'submodule', 'sync', '--', $normalized) -DryRun:$DryRun | Out-Null
 }
 
+function Update-SubmoduleRecursive {
+    param(
+        [string]$RelativePath,
+        [switch]$Remote,
+        [switch]$DryRun
+    )
+
+    $normalized = ($RelativePath ?? '').Replace('\\', '/').Trim('/')
+    if ([string]::IsNullOrWhiteSpace($normalized)) { return }
+
+    $args = @('git', 'submodule', 'update', '--init', '--recursive', '--progress', '--', $normalized)
+    if ($Remote) { $args = @('git', 'submodule', 'update', '--init', '--recursive', '--remote', '--progress', '--', $normalized) }
+    Invoke-CommandHelper -Command $args -DryRun:$DryRun | Out-Null
+}
+
 function Invoke-AddOrUpdateSubmodule {
     param(
         [string]$RepoRoot,
@@ -792,22 +807,37 @@ function Invoke-AddOrUpdateSubmodule {
     $isRegistered = Test-SubmoduleRegistered -RelativePath $normalizedPath
 
     if (-not $isRegistered -and (Test-Path $fullPath)) {
+        $allowForceAdd = $false
         if (-not (Test-EmptyDirectory -Path $fullPath)) {
-            throw "Path '$normalizedPath' already exists and is not an empty directory. Please clean it up or configure it as a submodule."
+            $repoCheck = Invoke-CommandHelper -Command @('git', '-C', $fullPath, 'rev-parse', '--is-inside-work-tree') -Check:$false -PrintOutput:$false
+            if ($repoCheck.ExitCode -eq 0) {
+                $allowForceAdd = $true
+                Write-Host "Reusing existing git directory at '$normalizedPath' while registering submodule."
+            }
+            else {
+                throw "Path '$normalizedPath' already exists and is not an empty directory. Please clean it up or configure it as a submodule."
+            }
         }
         if (-not $DryRun) {
-            Remove-Item -Path $fullPath -Force
+            if (-not $allowForceAdd -and (Test-EmptyDirectory -Path $fullPath)) {
+                Remove-Item -Path $fullPath -Force
+            }
         }
     }
 
     if (-not $isRegistered) {
         Write-Host "Adding submodule '$Name' ($Url@$Branch) -> $normalizedPath"
-        Invoke-CommandHelper -Command @('git', 'submodule', 'add', '-b', $Branch, $Url, $normalizedPath) -DryRun:$DryRun | Out-Null
+        $addArgs = @('git', 'submodule', 'add', '-b', $Branch, $Url, $normalizedPath)
+        if ((Test-Path $fullPath -PathType Container) -and -not (Test-EmptyDirectory -Path $fullPath)) {
+            $addArgs = @('git', 'submodule', 'add', '--force', '-b', $Branch, $Url, $normalizedPath)
+        }
+        Invoke-CommandHelper -Command $addArgs -DryRun:$DryRun | Out-Null
+        Update-SubmoduleRecursive -RelativePath $normalizedPath -Remote:$true -DryRun:$DryRun
     }
     else {
-        Write-Host "Aktualisiere Submodule '$Name' ($Url@$Branch) unter $normalizedPath"
+        Write-Host "Updating submodule '$Name' ($Url@$Branch) under $normalizedPath"
         Ensure-SubmoduleBranchConfig -RelativePath $normalizedPath -Branch $Branch -DryRun:$DryRun
-        Invoke-CommandHelper -Command @('git', 'submodule', 'update', '--init', '--recursive', '--remote', '--progress', '--', $normalizedPath) -DryRun:$DryRun | Out-Null
+        Update-SubmoduleRecursive -RelativePath $normalizedPath -Remote:$true -DryRun:$DryRun
     }
 }
 
