@@ -281,10 +281,6 @@
     <Compile Include="Messages\**\*.cs" />
   </ItemGroup>
 
-  <ItemGroup>
-    <EmbeddedResource Include="Mod\changelog.json" />
-  </ItemGroup>
-
   <!-- ==== Post-Build: Copy the add-on into the local mod directory ==== -->
   <Target Name="AfterBuild">
     <MakeDir Directories="$(ModsOutDir)" />

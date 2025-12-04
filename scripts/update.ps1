@@ -924,7 +924,8 @@ function Invoke-CsmTmpeSyncUpdate {
     $scriptDir = Split-Path -Path $scriptPath -Parent
     $repoRoot  = Split-Path -Path $scriptDir -Parent
 
-    $releaseRefs = Get-ReleaseRefs -DryRun:$SubmodulesDryRun
+    # Always resolve real release tags; SubmodulesDryRun should only influence submodule handling.
+    $releaseRefs = Get-ReleaseRefs -DryRun:$false
     $shouldManageSubmodules = -not $SkipSubmodules
     if (-not $SkipSubmodules -and $Host.UI -and $Host.UI.RawUI) {
         $prompt = Read-Host "Initialize/update submodules? (yes/no) [yes]"
@@ -942,8 +943,8 @@ function Invoke-CsmTmpeSyncUpdate {
     if ($null -eq $releaseRefs) {
         $releaseRefs = @{}
     }
-    $legacyReleaseRefs = Get-LegacyReleaseRefs -LatestReleaseRefs $releaseRefs -DryRun:$SubmodulesDryRun
-    Update-ModMetadataFile -RepoRoot $repoRoot -ReleaseRefs $releaseRefs -LegacyReleaseRefs $legacyReleaseRefs -DryRun:$SubmodulesDryRun
+    $legacyReleaseRefs = Get-LegacyReleaseRefs -LatestReleaseRefs $releaseRefs -DryRun:$false
+    Update-ModMetadataFile -RepoRoot $repoRoot -ReleaseRefs $releaseRefs -LegacyReleaseRefs $legacyReleaseRefs -DryRun:$false
 
     # --- Interactive update of NewVersion based on LatestCsmTmpeSyncReleaseTag ---
     $modMetadataPath = Join-Path $repoRoot 'src/CSM.TmpeSync/Mod/ModMetadata.cs'

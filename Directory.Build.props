@@ -35,16 +35,5 @@
       <HintPath>$(RepoRoot)\lib\TMPE\TMPE.API.dll</HintPath>
       <Private>false</Private>
     </Reference>
-    <!-- JSON serializer for changelog -->
-    <Reference Include="System.Web.Extensions"
-               Condition="Exists('$(Net35ReferenceAssemblyDir)\System.Web.Extensions.dll')">
-      <HintPath>$(Net35ReferenceAssemblyDir)\System.Web.Extensions.dll</HintPath>
-      <Private>false</Private>
-    </Reference>
-    <Reference Include="System.Web.Extensions"
-               Condition="Exists('$(PkgMicrosoft_NETFramework_ReferenceAssemblies_net35)build\.NETFramework\v3.5\System.Web.Extensions.dll')">
-      <HintPath>$(PkgMicrosoft_NETFramework_ReferenceAssemblies_net35)build\.NETFramework\v3.5\System.Web.Extensions.dll</HintPath>
-      <Private>false</Private>
-    </Reference>
   </ItemGroup>
 </Project>

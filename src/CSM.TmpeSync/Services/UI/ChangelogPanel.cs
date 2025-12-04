@@ -1,9 +1,8 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Reflection;
-using System.Runtime.Serialization;
-using System.Runtime.Serialization.Json;
 using System.Text;
 using System.Threading;
 using ColossalFramework.Threading;
@@ -15,22 +14,44 @@ using ICities;
 
 namespace CSM.TmpeSync.Services.UI
 {
-    [DataContract]
+#pragma warning disable 0649
+    [Serializable]
     internal class ChangelogEntry
     {
-        [DataMember(Name = "version")]
-        internal string Version { get; set; }
+        [SerializeField] private string version;
+        [SerializeField] private string date;
+        [SerializeField] private List<string> changes;
 
-        [DataMember(Name = "date")]
-        internal string Date { get; set; }
+        internal string Version
+        {
+            get => version ?? string.Empty;
+            set => version = value;
+        }
 
-        [DataMember(Name = "changes")]
-        internal List<string> Changes { get; set; }
+        internal string Date
+        {
+            get => date ?? string.Empty;
+            set => date = value;
+        }
+
+        internal List<string> Changes
+        {
+            get => changes ?? (changes = new List<string>());
+            set => changes = value;
+        }
     }
+
+    [Serializable]
+    internal class ChangelogEntries
+    {
+        [SerializeField] internal List<ChangelogEntry> entries = new List<ChangelogEntry>();
+
+        internal IList<ChangelogEntry> Entries => entries ?? (entries = new List<ChangelogEntry>());
+    }
+#pragma warning restore 0649
 
     internal static class ChangelogService
     {
-        private const string ResourceName = "CSM.TmpeSync.Mod.changelog.json";
         private static IList<ChangelogEntry> _entries;
         private static int _hasAttemptedDisplay;
 
@@ -39,7 +60,7 @@ namespace CSM.TmpeSync.Services.UI
             if (Interlocked.Exchange(ref _hasAttemptedDisplay, 1) == 1)
                 return;
 
-            var latestEntry = GetLatestEntry();
+            var latestEntry = GetEntryForCurrentVersion();
             var latestVersion = GetLatestVersion(latestEntry);
             if (latestEntry == null || latestVersion == null)
                 return;
@@ -50,27 +71,44 @@ namespace CSM.TmpeSync.Services.UI
             if (lastSeenVersion != null && latestVersion <= lastSeenVersion)
                 return;
 
-            ThreadHelper.dispatcher.Dispatch(() =>
+            try
             {
-                try
-                {
-                    var panel = PanelManager.CreatePanel<ChangelogPanel>();
-                    if (!panel)
-                        return;
+                var panel = PanelManager.CreatePanel<ChangelogPanel>();
+                if (!panel)
+                    return;
 
-                    panel.Configure(latestEntry);
-                    ModSettings.Instance.LastSeenChangelogVersion.value = latestVersion.ToString();
-                }
-                catch (Exception ex)
-                {
-                    Log.Warn(LogCategory.Diagnostics, LogRole.General, "Failed to display changelog | error={0}", ex);
-                }
-            });
+                panel.Configure(latestEntry);
+                ModSettings.Instance.LastSeenChangelogVersion.value = latestVersion.ToString();
+            }
+            catch (Exception ex)
+            {
+                Log.Warn(LogCategory.Diagnostics, LogRole.General, "Failed to display changelog | error={0}", ex);
+            }
         }
 
         private static ChangelogEntry GetLatestEntry()
         {
-            return GetEntries().FirstOrDefault();
+            var entries = GetEntries();
+            return entries
+                .OrderByDescending(e => ParseVersionOrDefault(e.Version))
+                .FirstOrDefault();
+        }
+
+        private static ChangelogEntry GetEntryForCurrentVersion()
+        {
+            var entries = GetEntries();
+            var current = ParseVersionOrNull(Mod.ModMetadata.NewVersion);
+            if (current != null)
+            {
+                foreach (var entry in entries)
+                {
+                    var version = ParseVersionOrNull(entry.Version);
+                    if (version != null && version == current)
+                        return entry;
+                }
+            }
+
+            return GetLatestEntry();
         }
 
         private static Version GetLatestVersion(ChangelogEntry entry)
@@ -88,7 +126,11 @@ namespace CSM.TmpeSync.Services.UI
 
             try
             {
-                return new Version(text);
+                var normalized = text.Trim();
+                if (normalized.StartsWith("v", StringComparison.OrdinalIgnoreCase))
+                    normalized = normalized.Substring(1);
+
+                return new Version(normalized);
             }
             catch
             {
@@ -110,26 +152,41 @@ namespace CSM.TmpeSync.Services.UI
             return _entries;
         }
 
+        internal static IList<ChangelogEntry> GetAllEntries()
+        {
+            return GetEntries().ToList();
+        }
+
         private static IList<ChangelogEntry> LoadEntries()
         {
-            try
+            // Minimal inline changelog; source of truth mirrors Mod/ModMetadata.NewVersion.
+            var entries = new List<ChangelogEntry>
             {
-                var assembly = Assembly.GetExecutingAssembly();
-                using (var stream = assembly.GetManifestResourceStream(ResourceName))
+                new ChangelogEntry
                 {
-                    if (stream == null)
-                        return new List<ChangelogEntry>();
-
-                    var serializer = new DataContractJsonSerializer(typeof(List<ChangelogEntry>));
-                    var loaded = serializer.ReadObject(stream) as List<ChangelogEntry>;
-                    return loaded ?? new List<ChangelogEntry>();
+                    Version = "1.0.1.0",
+                    Date = "2025-12-04",
+                    Changes = new List<string>
+                    {
+                        "Add minimal in-game changelog popup.",
+                        "Fix lane connection handling for clients."
+                    }
+                },
+                new ChangelogEntry
+                {
+                    Version = "1.0.0.0",
+                    Date = "2025-11-06",
+                    Changes = new List<string>
+                    {
+                        "Host-authoritative bridge between CSM and TM:PE with retry/backoff so every state stays in sync.",
+                        "Supports Clear Traffic, Junction Restrictions, Lane Arrows, Lane Connector, Parking Restrictions, Priority Signs, Speed Limits, Toggle Traffic Lights, and Vehicle Restrictions.",
+                        "Timed traffic lights remain disabled as synchronizing them would generate disproportionate multiplayer traffic.",
+                        "Modular per-feature architecture with dedicated logging, guard scopes, and explicit client error feedback."
+                    }
                 }
-            }
-            catch (Exception ex)
-            {
-                Log.Warn(LogCategory.Diagnostics, LogRole.General, "Failed to load changelog entries | error={0}", ex);
-                return new List<ChangelogEntry>();
-            }
+            };
+
+            return entries;
         }
     }
 
@@ -140,7 +197,7 @@ namespace CSM.TmpeSync.Services.UI
         private UIScrollablePanel _messageContainer;
         private UIButton _closeButton;
 
-        private string _title = "CSM.TmpeSync - Update";
+        private string _title = "CSM.TmpeSync Update - Changelog";
         private string _message = "No changelog available.";
 
         internal void Configure(ChangelogEntry entry)
@@ -150,7 +207,7 @@ namespace CSM.TmpeSync.Services.UI
 
             var titleVersion = string.IsNullOrEmpty(entry.Version) ? "unknown" : entry.Version;
             var titleDate = string.IsNullOrEmpty(entry.Date) ? string.Empty : string.Format(" ({0})", entry.Date);
-            SetTitle(string.Format("CSM.TmpeSync v{0}{1}", titleVersion, titleDate));
+            SetTitle(string.Format("CSM.TmpeSync Update Changelog v{0}{1}", titleVersion, titleDate));
 
             var builder = new StringBuilder();
             if (!string.IsNullOrEmpty(entry.Date))
