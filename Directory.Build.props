@@ -15,6 +15,12 @@
              Condition="'$(MSBuildProjectName)' != 'CSM.TmpeSync'" />
   </ItemGroup>
 
+  <!-- UI changelog panel is only built in the main assembly. -->
+  <ItemGroup>
+    <Compile Remove="$(RepoRoot)\src\CSM.TmpeSync\Services\UI\ChangelogPanel.cs"
+             Condition="'$(MSBuildProjectName)' != 'CSM.TmpeSync'" />
+  </ItemGroup>
+
   <!-- Local TM:PE references to satisfy compile-time API usage when TM:PE isn't installed under Steam paths. -->
   <ItemGroup>
     <Reference Include="TrafficManager" Condition="Exists('$(RepoRoot)\lib\TMPE\TrafficManager.dll')">
@@ -27,6 +33,17 @@
     </Reference>
     <Reference Include="TMPE.API" Condition="Exists('$(RepoRoot)\lib\TMPE\TMPE.API.dll')">
       <HintPath>$(RepoRoot)\lib\TMPE\TMPE.API.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <!-- JSON serializer for changelog -->
+    <Reference Include="System.Web.Extensions"
+               Condition="Exists('$(Net35ReferenceAssemblyDir)\System.Web.Extensions.dll')">
+      <HintPath>$(Net35ReferenceAssemblyDir)\System.Web.Extensions.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="System.Web.Extensions"
+               Condition="Exists('$(PkgMicrosoft_NETFramework_ReferenceAssemblies_net35)build\.NETFramework\v3.5\System.Web.Extensions.dll')">
+      <HintPath>$(PkgMicrosoft_NETFramework_ReferenceAssemblies_net35)build\.NETFramework\v3.5\System.Web.Extensions.dll</HintPath>
       <Private>false</Private>
     </Reference>
   </ItemGroup>

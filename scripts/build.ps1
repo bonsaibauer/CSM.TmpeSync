@@ -15,7 +15,8 @@ param(
     [string]$ModRootDirectory = "",
     [string]$HarmonySourceDir = "",
     [string]$CsmSourceDir = "",
-    [string]$TmpeSourceDir = ""
+    [string]$TmpeSourceDir = "",
+    [switch]$SkipSubmodules = $false
 )
 
 $ErrorActionPreference = "Stop"
@@ -911,6 +912,7 @@ if ($Update) {
         TmpeDir            = $TmpeDir
         ModDirectory       = $ModDirectory
         ModRootDirectory   = $ModRootDirectory
+        SkipSubmodules     = $SkipSubmodules
     }
 
     Invoke-CsmTmpeSyncUpdate @updateScriptParams

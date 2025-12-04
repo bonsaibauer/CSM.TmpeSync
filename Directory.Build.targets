@@ -1,0 +1,27 @@
+<Project>
+  <PropertyGroup>
+    <Net35JsonRefDir Condition="Exists('$(PkgMicrosoft_NETFramework_ReferenceAssemblies_net35)build\.NETFramework\v3.5\System.ServiceModel.Web.dll')">
+      $(PkgMicrosoft_NETFramework_ReferenceAssemblies_net35)build\.NETFramework\v3.5
+    </Net35JsonRefDir>
+    <Net35JsonRefDir Condition="'$(Net35JsonRefDir)' == '' and Exists('$(Net35ReferenceAssemblyDir)\System.ServiceModel.Web.dll')">$(Net35ReferenceAssemblyDir)</Net35JsonRefDir>
+    <Net35JsonRefDir Condition="'$(Net35JsonRefDir)' == '' and '$(NuGetPackageRoot)' != '' and Exists('$(NuGetPackageRoot)microsoft.netframework.referenceassemblies.net35\1.0.3\build\.NETFramework\v3.5\System.ServiceModel.Web.dll')">
+      $(NuGetPackageRoot)microsoft.netframework.referenceassemblies.net35\1.0.3\build\.NETFramework\v3.5
+    </Net35JsonRefDir>
+    <Net35JsonRefDir Condition="'$(Net35JsonRefDir)' == ''">
+      $(UserProfile)\.nuget\packages\microsoft.netframework.referenceassemblies.net35\1.0.3\build\.NETFramework\v3.5
+    </Net35JsonRefDir>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Reference Include="System.ServiceModel.Web">
+      <HintPath>$(Net35JsonRefDir)\System.ServiceModel.Web.dll</HintPath>
+      <Private>false</Private>
+      <ProcessorArchitecture>MSIL</ProcessorArchitecture>
+    </Reference>
+    <Reference Include="System.Web.Extensions">
+      <HintPath>$(Net35JsonRefDir)\System.Web.Extensions.dll</HintPath>
+      <Private>false</Private>
+      <ProcessorArchitecture>MSIL</ProcessorArchitecture>
+    </Reference>
+  </ItemGroup>
+</Project>

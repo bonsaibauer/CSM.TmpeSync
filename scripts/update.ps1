@@ -12,7 +12,8 @@ param(
     [string]$TmpeDir = "",
     [string]$ModDirectory = "",
     [string]$ModRootDirectory = "",
-    [switch]$SubmodulesDryRun = $false
+    [switch]$SubmodulesDryRun = $false,
+    [switch]$SkipSubmodules = $false
 )
 
 $ErrorActionPreference = "Stop"
@@ -885,6 +886,7 @@ function Invoke-CsmTmpeSyncUpdate {
         [string]$ModDirectory = "",
         [string]$ModRootDirectory = "",
         [switch]$SubmodulesDryRun = $false,
+        [switch]$SkipSubmodules = $false,
         [switch]$SkipBuildStep = $false
     )
 
@@ -923,7 +925,20 @@ function Invoke-CsmTmpeSyncUpdate {
     $repoRoot  = Split-Path -Path $scriptDir -Parent
 
     $releaseRefs = Get-ReleaseRefs -DryRun:$SubmodulesDryRun
-    Invoke-ManageSubmodules -RepoRoot $repoRoot -DryRun:$SubmodulesDryRun
+    $shouldManageSubmodules = -not $SkipSubmodules
+    if (-not $SkipSubmodules -and $Host.UI -and $Host.UI.RawUI) {
+        $prompt = Read-Host "Initialize/update submodules? (yes/no) [yes]"
+        if ($prompt -match '^(?i)n(o)?$') {
+            $shouldManageSubmodules = $false
+        }
+    }
+
+    if ($shouldManageSubmodules) {
+        Invoke-ManageSubmodules -RepoRoot $repoRoot -DryRun:$SubmodulesDryRun
+    }
+    else {
+        Write-Host "Skipping submodule initialization/update."
+    }
     if ($null -eq $releaseRefs) {
         $releaseRefs = @{}
     }

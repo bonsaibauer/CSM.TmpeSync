@@ -275,9 +275,14 @@
     <Compile Include="Mod\MultiplayerThreadingExtension.cs" />
     <Compile Include="Mod\FeatureBootstrapper.cs" />
     <Compile Include="Mod\ModMetadata.cs" />
+    <Compile Include="Mod\ModSettings.cs" />
     <Compile Include="Services\**\*.cs" />
     <Compile Include="Handlers\**\*.cs" />
     <Compile Include="Messages\**\*.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="Mod\changelog.json" />
   </ItemGroup>
 
   <!-- ==== Post-Build: Copy the add-on into the local mod directory ==== -->
