@@ -14,7 +14,7 @@ namespace CSM.TmpeSync.Mod
         /// <summary>
         /// Latest release tag for CSM TM:PE Sync.
         /// </summary>
-        internal const string LatestCsmTmpeSyncReleaseTag = "";
+        internal const string LatestCsmTmpeSyncReleaseTag = "v1.0.0.0";
 
         /// <summary>
         /// Legacy release tags for CSM TM:PE Sync (excluding the latest).
@@ -24,7 +24,7 @@ namespace CSM.TmpeSync.Mod
         /// <summary>
         /// Latest release tag for Traffic Manager: President Edition.
         /// </summary>
-        internal const string LatestTmpeReleaseTag = "";
+        internal const string LatestTmpeReleaseTag = "11.9.3.0";
 
         /// <summary>
         /// Legacy release tags for Traffic Manager: President Edition (excluding the latest).
@@ -102,7 +102,7 @@ namespace CSM.TmpeSync.Mod
         /// <summary>
         /// Latest release tag for Cities: Skylines Multiplayer.
         /// </summary>
-        internal const string LatestCsmReleaseTag = "";
+        internal const string LatestCsmReleaseTag = "v2511.301";
 
         /// <summary>
         /// Legacy release tags for Cities: Skylines Multiplayer (excluding the latest).
@@ -129,7 +129,7 @@ namespace CSM.TmpeSync.Mod
         /// <summary>
         /// Latest release tag for Cities Harmony.
         /// </summary>
-        internal const string LatestCitiesHarmonyReleaseTag = "";
+        internal const string LatestCitiesHarmonyReleaseTag = "v2.2.2-0";
 
         /// <summary>
         /// Legacy release tags for Cities Harmony (excluding the latest).
