@@ -6,10 +6,10 @@
 *.user
 *.userosscache
 *.sln.docstates
+*.txt
 
 # General diagnostics
 logdiagnostics/
-subtrees/
 
 # User-specific files (MonoDevelop/Xamarin Studio)
 *.userprefs

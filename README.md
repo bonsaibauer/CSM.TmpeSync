@@ -44,7 +44,7 @@ Check the corresponding `src/CSM.TmpeSync.<FeatureName>/` project when you exten
 | `src/CSM.TmpeSync.<Feature>/` | Independent feature modules created by the restructure. Each module owns handlers, messages, services, and tests where applicable. |
 | `docs/` | Bilingual feature manuals and architectural notes generated during the rewrite. |
 | `scripts/` | PowerShell helpers to configure, build, install, and update dependencies. |
-| `subtrees/` | Upstream references (for example TM:PE) vendored as Git subtrees for comparison only. |
+| `submodule/` | Git submodules for TM:PE, CSM, and CitiesHarmony. |
 
 ## Prerequisites
 
@@ -70,7 +70,7 @@ During configuration the script explicitly asks you to confirm these subscriptio
 
 ## Initial setup
 
-1. Clone the repository (subtrees are optional because the build pulls libraries from Steam):
+1. Clone the repository (submodules will be initialized by the update script):
 
    ```powershell
    git clone https://github.com/bonsaibauer/CSM.TmpeSync.git

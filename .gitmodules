@@ -1,0 +1,12 @@
+[submodule "submodule/TMPE"]
+	path = submodule/TMPE
+	url = https://github.com/CitiesSkylinesMods/TMPE
+	branch = master
+[submodule "submodule/CSM"]
+	path = submodule/CSM
+	url = https://github.com/CitiesSkylinesMultiplayer/CSM
+	branch = master
+[submodule "submodule/CitiesHarmony"]
+	path = submodule/CitiesHarmony
+	url = https://github.com/boformer/CitiesHarmony
+	branch = master

@@ -1,15 +1,47 @@
 using System;
+using System.Linq;
+using System.Text;
+using ColossalFramework.UI;
 using ICities;
 using CSM.TmpeSync.Services;
+using CSM.TmpeSync.Services.UI;
+using UnityEngine;
 using Log = CSM.TmpeSync.Services.Log;
 
 namespace CSM.TmpeSync.Mod
 {
     public class MyUserMod : IUserMod
     {
+        public MyUserMod()
+        {
+            // Ensure settings storage is registered early.
+            var _ = ModSettings.Instance;
+        }
+
         public string Name => "CSM TM:PE Sync (Beta)";
 
         public string Description => "Beta build of the TM:PE sync for CSM.";
+
+        public void OnSettingsUI(UIHelperBase helper)
+        {
+            var group = helper.AddGroup("Changelog");
+            var uiHelper = group as UIHelper;
+            var container = uiHelper?.self as UIPanel;
+            if (container == null)
+                return;
+
+            var label = container.AddUIComponent<UILabel>();
+            label.autoSize = false;
+            label.wordWrap = true;
+            label.autoHeight = true;
+            label.width = container.width - 10f;
+            label.textScale = 1.0f;
+            label.padding = new RectOffset(6, 6, 6, 6);
+            label.relativePosition = Vector3.zero;
+            label.text = BuildChangelogText();
+            label.Invalidate();
+            container.Invalidate();
+        }
 
         public void OnEnabled()
         {
@@ -39,6 +71,56 @@ namespace CSM.TmpeSync.Mod
             Log.Info(LogCategory.Lifecycle, LogRole.General, "Mod disabled | begin_cleanup");
             // No shared shutdown required
             Log.Debug(LogCategory.Lifecycle, LogRole.General, "Mod disabled | awaiting_next_enable_cycle");
+        }
+
+        private static string BuildChangelogText()
+        {
+            var entries = ChangelogService.GetAllEntries()
+                .OrderByDescending(e => SafeVersion(e.Version))
+                .ToList();
+
+            var builder = new StringBuilder();
+            foreach (var entry in entries)
+            {
+                var version = string.IsNullOrEmpty(entry.Version) ? "unknown" : entry.Version;
+                var date = string.IsNullOrEmpty(entry.Date) ? string.Empty : $" ({entry.Date})";
+                builder.AppendLine($"v{version}{date}");
+
+                if (entry.Changes != null && entry.Changes.Count > 0)
+                {
+                    foreach (var change in entry.Changes.Where(c => !string.IsNullOrEmpty(c)))
+                    {
+                        builder.AppendLine($"- {change.Trim()}");
+                    }
+                }
+                else
+                {
+                    builder.AppendLine("- No details provided.");
+                }
+
+                builder.AppendLine();
+            }
+
+            return builder.Length > 0 ? builder.ToString() : "No changelog entries found.";
+        }
+
+        private static Version SafeVersion(string text)
+        {
+            if (string.IsNullOrEmpty(text))
+                return new Version(0, 0, 0, 0);
+
+            try
+            {
+                var normalized = text.Trim();
+                if (normalized.StartsWith("v", StringComparison.OrdinalIgnoreCase))
+                    normalized = normalized.Substring(1);
+
+                return new Version(normalized);
+            }
+            catch
+            {
+                return new Version(0, 0, 0, 0);
+            }
         }
     }
 }
