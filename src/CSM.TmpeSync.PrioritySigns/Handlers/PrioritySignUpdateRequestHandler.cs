@@ -118,19 +118,22 @@ namespace CSM.TmpeSync.PrioritySigns.Handlers
                         }
 
                         Log.Info(
-                            LogCategory.Synchronization,
-                            LogRole.Host,
-                            "Priority sign applied | nodeId={0} segmentId={1} sign={2} action=broadcast_node",
-                            command.NodeId,
-                            segId,
-                            signAtEnd);
+                        LogCategory.Synchronization,
+                        LogRole.Host,
+                        "Priority sign applied | nodeId={0} segmentId={1} sign={2} action=broadcast_node",
+                        command.NodeId,
+                        segId,
+                        signAtEnd);
 
-                        PrioritySignSynchronization.Dispatch(new PrioritySignAppliedCommand
+                        var applied = new PrioritySignAppliedCommand
                         {
                             NodeId = command.NodeId,
                             SegmentId = segId,
                             SignType = signAtEnd
-                        });
+                        };
+
+                        PrioritySignStateCache.Store(applied);
+                        PrioritySignSynchronization.Dispatch(PrioritySignSynchronization.CloneApplied(applied));
                     }
                 }
             });

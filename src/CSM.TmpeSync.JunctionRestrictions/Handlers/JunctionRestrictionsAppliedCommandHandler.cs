@@ -1,4 +1,5 @@
 using CSM.API.Commands;
+using CSM.API.Networking;
 using CSM.TmpeSync.JunctionRestrictions.Messages;
 using CSM.TmpeSync.JunctionRestrictions.Services;
 using CSM.TmpeSync.Messages.States;
@@ -11,6 +12,11 @@ namespace CSM.TmpeSync.JunctionRestrictions.Handlers
         protected override void Handle(JunctionRestrictionsAppliedCommand command)
         {
             ProcessEntry(command.NodeId, command.SegmentId, command.State ?? new JunctionRestrictionsState(), "single_command");
+        }
+
+        public override void OnClientConnect(Player player)
+        {
+            JunctionRestrictionsSynchronization.HandleClientConnect(player);
         }
 
         internal static void ProcessEntry(ushort nodeId, ushort segmentId, JunctionRestrictionsState state, string origin)

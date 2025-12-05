@@ -1,4 +1,5 @@
 using CSM.API.Commands;
+using CSM.API.Networking;
 using CSM.TmpeSync.VehicleRestrictions.Messages;
 using CSM.TmpeSync.VehicleRestrictions.Services;
 using CSM.TmpeSync.Services;
@@ -9,6 +10,11 @@ namespace CSM.TmpeSync.VehicleRestrictions.Handlers
         protected override void Handle(VehicleRestrictionsAppliedCommand command)
         {
             Process(command, "single_command");
+        }
+
+        public override void OnClientConnect(Player player)
+        {
+            VehicleRestrictionSynchronization.HandleClientConnect(player);
         }
 
         internal static void Process(VehicleRestrictionsAppliedCommand command, string origin)

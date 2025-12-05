@@ -107,11 +107,14 @@ namespace CSM.TmpeSync.ToggleTrafficLights.Handlers
                         command.NodeId,
                         resultingEnabled);
 
-                    ToggleTrafficLightsSynchronization.Dispatch(new ToggleTrafficLightsAppliedCommand
+                    var applied = new ToggleTrafficLightsAppliedCommand
                     {
                         NodeId = command.NodeId,
                         Enabled = resultingEnabled
-                    });
+                    };
+
+                    ToggleTrafficLightsStateCache.Store(applied);
+                    ToggleTrafficLightsSynchronization.Dispatch(ToggleTrafficLightsSynchronization.CloneApplied(applied));
                 }
             });
         }

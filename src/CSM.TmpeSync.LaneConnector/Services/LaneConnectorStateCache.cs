@@ -60,6 +60,17 @@ namespace CSM.TmpeSync.LaneConnector.Services
             }
         }
 
+        internal static List<LaneConnectorAppliedCommand> GetAll()
+        {
+            lock (SyncRoot)
+            {
+                return Cache
+                    .Values
+                    .Select(LaneConnectorSynchronization.CloneApplied)
+                    .ToList();
+            }
+        }
+
         internal static List<LaneConnectorAppliedCommand> GetByNode(ushort nodeId)
         {
             lock (SyncRoot)

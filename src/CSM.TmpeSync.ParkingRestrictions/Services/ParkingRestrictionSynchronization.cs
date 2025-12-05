@@ -15,6 +15,30 @@ namespace CSM.TmpeSync.ParkingRestrictions.Services
         private const int MaxRetryAttempts = 6;
         private static readonly int[] RetryFrameDelays = { 5, 15, 30, 60, 120, 240 };
 
+        internal static void HandleClientConnect(CSM.API.Networking.Player player)
+        {
+            if (!CsmBridge.IsServerInstance())
+                return;
+
+            int clientId = CsmBridge.TryGetClientId(player);
+            if (clientId < 0)
+                return;
+
+            var cached = ParkingRestrictionStateCache.GetAll();
+            if (cached == null || cached.Count == 0)
+                return;
+
+            Log.Info(
+                LogCategory.Synchronization,
+                LogRole.Host,
+                "[ParkingRestrictions] Resync for reconnecting client | target={0} items={1}",
+                clientId,
+                cached.Count);
+
+            foreach (var state in cached)
+                CsmBridge.SendToClient(clientId, state);
+        }
+
         internal static bool TryRead(ushort segmentId, out ParkingRestrictionState state)
         {
             return ParkingRestrictionTmpeAdapter.TryGet(segmentId, out state);
@@ -399,11 +423,14 @@ namespace CSM.TmpeSync.ParkingRestrictions.Services
                     payload,
                     context ?? "unknown");
 
-                Dispatch(new ParkingRestrictionAppliedCommand
+                var applied = new ParkingRestrictionAppliedCommand
                 {
                     SegmentId = segmentId,
                     State = payload
-                });
+                };
+
+                ParkingRestrictionStateCache.Store(applied);
+                Dispatch(applied);
             }
             else
             {

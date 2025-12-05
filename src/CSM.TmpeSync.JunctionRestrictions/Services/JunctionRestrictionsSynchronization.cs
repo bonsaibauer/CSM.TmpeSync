@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Reflection;
 using CSM.API.Commands;
+using CSM.API.Networking;
 using CSM.TmpeSync.JunctionRestrictions.Messages;
 using CSM.TmpeSync.Messages.States;
 using CSM.TmpeSync.Services;
@@ -15,6 +16,30 @@ namespace CSM.TmpeSync.JunctionRestrictions.Services
     {
         private const int MaxRetryAttempts = 6;
         private static readonly int[] RetryFrameDelays = { 5, 15, 30, 60, 120, 240 };
+
+        internal static void HandleClientConnect(Player player)
+        {
+            if (!CsmBridge.IsServerInstance())
+                return;
+
+            int clientId = CsmBridge.TryGetClientId(player);
+            if (clientId < 0)
+                return;
+
+            var cached = JunctionRestrictionsStateCache.GetAll();
+            if (cached == null || cached.Count == 0)
+                return;
+
+            Log.Info(
+                LogCategory.Synchronization,
+                LogRole.Host,
+                "[JunctionRestrictions] Resync for reconnecting client | target={0} items={1}",
+                clientId,
+                cached.Count);
+
+            foreach (var state in cached)
+                CsmBridge.SendToClient(clientId, state);
+        }
 
         internal static bool TryRead(ushort nodeId, ushort segmentId, out JunctionRestrictionsState state)
         {
@@ -127,12 +152,15 @@ namespace CSM.TmpeSync.JunctionRestrictions.Services
                     context ?? "unknown",
                     state);
 
-                Dispatch(new JunctionRestrictionsAppliedCommand
+                var applied = new JunctionRestrictionsAppliedCommand
                 {
                     NodeId = nodeId,
                     SegmentId = segmentId,
                     State = state.Clone()
-                });
+                };
+
+                JunctionRestrictionsStateCache.Store(applied);
+                Dispatch(applied);
             }
             else
             {
@@ -163,6 +191,19 @@ namespace CSM.TmpeSync.JunctionRestrictions.Services
                 CsmBridge.SendToAll(command);
             else
                 CsmBridge.SendToServer(command);
+        }
+
+        internal static JunctionRestrictionsAppliedCommand CloneApplied(JunctionRestrictionsAppliedCommand source)
+        {
+            if (source == null)
+                return null;
+
+            return new JunctionRestrictionsAppliedCommand
+            {
+                NodeId = source.NodeId,
+                SegmentId = source.SegmentId,
+                State = source.State?.Clone()
+            };
         }
 
         #region Apply coordinator

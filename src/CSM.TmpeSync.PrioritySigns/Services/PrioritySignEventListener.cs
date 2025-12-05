@@ -266,12 +266,15 @@ namespace CSM.TmpeSync.PrioritySigns.Services
                     signType,
                     context);
 
-                PrioritySignSynchronization.Dispatch(new PrioritySignAppliedCommand
+                var applied = new PrioritySignAppliedCommand
                 {
                     NodeId = nodeId,
                     SegmentId = segmentId,
                     SignType = signType
-                });
+                };
+
+                PrioritySignStateCache.Store(applied);
+                PrioritySignSynchronization.Dispatch(PrioritySignSynchronization.CloneApplied(applied));
                 return;
             }
 

@@ -1,4 +1,5 @@
 using CSM.API.Commands;
+using CSM.API.Networking;
 using CSM.TmpeSync.ToggleTrafficLights.Messages;
 using CSM.TmpeSync.ToggleTrafficLights.Services;
 using CSM.TmpeSync.Services;
@@ -10,6 +11,11 @@ namespace CSM.TmpeSync.ToggleTrafficLights.Handlers
         protected override void Handle(ToggleTrafficLightsAppliedCommand command)
         {
             ProcessEntry(command.NodeId, command.Enabled, "single_command");
+        }
+
+        public override void OnClientConnect(Player player)
+        {
+            ToggleTrafficLightsSynchronization.HandleClientConnect(player);
         }
 
         internal static void ProcessEntry(ushort nodeId, bool enabled, string origin)
