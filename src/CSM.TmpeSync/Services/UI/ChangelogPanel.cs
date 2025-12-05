@@ -164,6 +164,16 @@ namespace CSM.TmpeSync.Services.UI
             {
                 new ChangelogEntry
                 {
+                    Version = "1.1.0.0",
+                    Date = "2025-12-06",
+                    Changes = new List<string>
+                    {
+                        "Improve resync logic: when a client rejoins, the host replays all TM:PE changes made since the host came online, including those performed while the client was offline.",
+                        "Includes the 1.0.1.0 updates: in-game changelog popup and client lane connection fix."
+                    }
+                },
+                new ChangelogEntry
+                {
                     Version = "1.0.1.0",
                     Date = "2025-12-04",
                     Changes = new List<string>
