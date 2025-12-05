@@ -19,7 +19,10 @@ namespace CSM.TmpeSync.Mod
         /// <summary>
         /// Legacy release tags for CSM TM:PE Sync (excluding the latest).
         /// </summary>
-        internal static readonly string[] LegacyCsmTmpeSyncReleaseTags = new string[0];
+        internal static readonly string[] LegacyCsmTmpeSyncReleaseTags = new[]
+        {
+            "v1.0.1.0",
+        };
 
         /// <summary>
         /// Latest release tag for Traffic Manager: President Edition.
