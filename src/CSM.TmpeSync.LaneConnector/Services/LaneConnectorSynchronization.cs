@@ -1,6 +1,7 @@
 using System;
 using System.Linq;
 using CSM.API.Commands;
+using CSM.API.Networking;
 using CSM.TmpeSync.LaneConnector.Messages;
 using CSM.TmpeSync.Messages.System;
 using CSM.TmpeSync.Services;
@@ -9,6 +10,30 @@ namespace CSM.TmpeSync.LaneConnector.Services
 {
     internal static class LaneConnectorSynchronization
     {
+        internal static void HandleClientConnect(Player player)
+        {
+            if (!CsmBridge.IsServerInstance())
+                return;
+
+            int clientId = CsmBridge.TryGetClientId(player);
+            if (clientId < 0)
+                return;
+
+            var cachedStates = LaneConnectorStateCache.GetAll();
+            if (cachedStates == null || cachedStates.Count == 0)
+                return;
+
+            Log.Info(
+                LogCategory.Synchronization,
+                LogRole.Host,
+                "[LaneConnector] Resync for reconnecting client | target={0} items={1}",
+                clientId,
+                cachedStates.Count);
+
+            foreach (var state in cachedStates)
+                CsmBridge.SendToClient(clientId, state);
+        }
+
         internal static void HandleAppliedCommand(LaneConnectorAppliedCommand command)
         {
             if (command == null)

@@ -110,6 +110,45 @@ namespace CSM.TmpeSync.Services
         internal static bool IsServerInstance() => Command.CurrentRole == MultiplayerRole.Server;
         internal static string DescribeCurrentRole() => Command.CurrentRole.ToString();
 
+        internal static int TryGetClientId(Player player)
+        {
+            try
+            {
+                var netPeer = player?.GetType().GetProperty("NetPeer")?.GetValue(player, null);
+                var idObj = netPeer?.GetType().GetProperty("Id")?.GetValue(netPeer, null);
+                if (idObj is int id)
+                    return id;
+
+                var username = player?.GetType().GetProperty("Username")?.GetValue(player, null) as string;
+                if (!string.IsNullOrEmpty(username))
+                {
+                    var mmType = Type.GetType("CSM.Networking.MultiplayerManager");
+                    var mmInstance = mmType?.GetProperty("Instance", BindingFlags.Public | BindingFlags.Static)?.GetValue(null, null);
+                    var currentServer = mmType?.GetProperty("CurrentServer", BindingFlags.Public | BindingFlags.Instance)?.GetValue(mmInstance, null);
+                    var players = currentServer?.GetType().GetProperty("ConnectedPlayers", BindingFlags.Public | BindingFlags.Instance)?.GetValue(currentServer, null) as IDictionary;
+                    if (players != null)
+                    {
+                        foreach (DictionaryEntry entry in players)
+                        {
+                            var value = entry.Value;
+                            var uname = value?.GetType().GetProperty("Username")?.GetValue(value, null) as string;
+                            if (string.Equals(uname, username, StringComparison.Ordinal))
+                            {
+                                if (entry.Key is int keyId)
+                                    return keyId;
+                            }
+                        }
+                    }
+                }
+            }
+            catch
+            {
+                // ignored
+            }
+
+            return -1;
+        }
+
         internal static IDisposable StartIgnore()
         {
             try

@@ -1,4 +1,5 @@
 using CSM.API.Commands;
+using CSM.API.Networking;
 using CSM.TmpeSync.Messages.States;
 using CSM.TmpeSync.PrioritySigns.Messages;
 using CSM.TmpeSync.PrioritySigns.Services;
@@ -11,6 +12,11 @@ namespace CSM.TmpeSync.PrioritySigns.Handlers
         protected override void Handle(PrioritySignAppliedCommand command)
         {
             ProcessEntry(command.NodeId, command.SegmentId, command.SignType, "single_command");
+        }
+
+        public override void OnClientConnect(Player player)
+        {
+            PrioritySignSynchronization.HandleClientConnect(player);
         }
 
         internal static void ProcessEntry(ushort nodeId, ushort segmentId, PrioritySignType signType, string origin)

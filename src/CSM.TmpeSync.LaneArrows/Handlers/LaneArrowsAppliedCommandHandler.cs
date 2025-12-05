@@ -1,4 +1,5 @@
 using CSM.API.Commands;
+using CSM.API.Networking;
 using CSM.TmpeSync.LaneArrows.Messages;
 using CSM.TmpeSync.LaneArrows.Services;
 using CSM.TmpeSync.Services;
@@ -10,6 +11,11 @@ namespace CSM.TmpeSync.LaneArrows.Handlers
         protected override void Handle(LaneArrowsAppliedCommand cmd)
         {
             Process(cmd, "single_command");
+        }
+
+        public override void OnClientConnect(Player player)
+        {
+            LaneArrowSynchronization.HandleClientConnect(player);
         }
 
         internal static void Process(LaneArrowsAppliedCommand cmd, string origin)

@@ -585,7 +585,7 @@ namespace CSM.TmpeSync.SpeedLimits.Services
             };
         }
 
-        private static DefaultSpeedLimitAppliedCommand CloneDefault(DefaultSpeedLimitAppliedCommand source)
+        internal static DefaultSpeedLimitAppliedCommand CloneDefault(DefaultSpeedLimitAppliedCommand source)
         {
             if (source == null)
                 return null;
@@ -629,6 +629,7 @@ namespace CSM.TmpeSync.SpeedLimits.Services
                     payload.CustomGameSpeed,
                     context ?? "unknown");
 
+                SpeedLimitStateCache.StoreDefault(payload);
                 Dispatch(payload);
             }
             else
@@ -667,6 +668,7 @@ namespace CSM.TmpeSync.SpeedLimits.Services
                     payload.Items?.Count ?? 0,
                     context ?? "unknown");
 
+                SpeedLimitStateCache.StoreSegment(payload);
                 Dispatch(payload);
             }
             else
@@ -695,7 +697,7 @@ namespace CSM.TmpeSync.SpeedLimits.Services
             }
         }
 
-        private static SpeedLimitsAppliedCommand CloneApplied(SpeedLimitsAppliedCommand source)
+        internal static SpeedLimitsAppliedCommand CloneApplied(SpeedLimitsAppliedCommand source)
         {
             if (source == null)
                 return null;

@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using CSM.API.Commands;
+using CSM.API.Networking;
 using CSM.TmpeSync.LaneArrows.Messages;
 using CSM.TmpeSync.Messages.States;
 using CSM.TmpeSync.Services;
@@ -15,6 +16,30 @@ namespace CSM.TmpeSync.LaneArrows.Services
     {
         private const int MaxRetryAttempts = 6;
         private static readonly int[] RetryFrameDelays = { 5, 15, 30, 60, 120, 240 };
+
+        internal static void HandleClientConnect(Player player)
+        {
+            if (!CsmBridge.IsServerInstance())
+                return;
+
+            int clientId = CsmBridge.TryGetClientId(player);
+            if (clientId < 0)
+                return;
+
+            var cached = LaneArrowStateCache.GetAll();
+            if (cached == null || cached.Count == 0)
+                return;
+
+            Log.Info(
+                LogCategory.Synchronization,
+                LogRole.Host,
+                "[LaneArrows] Resync for reconnecting client | target={0} items={1}",
+                clientId,
+                cached.Count);
+
+            foreach (var state in cached)
+                CsmBridge.SendToClient(clientId, state);
+        }
 
         internal static bool TryRead(ushort nodeId, ushort segmentId, out LaneArrowsAppliedCommand state)
         {
@@ -593,6 +618,7 @@ namespace CSM.TmpeSync.LaneArrows.Services
                     count,
                     context ?? "unknown");
 
+                LaneArrowStateCache.Store(payload);
                 Dispatch(payload);
             }
             else
@@ -611,7 +637,7 @@ namespace CSM.TmpeSync.LaneArrows.Services
             }
         }
 
-        private static LaneArrowsAppliedCommand CloneApplied(LaneArrowsAppliedCommand source)
+        internal static LaneArrowsAppliedCommand CloneApplied(LaneArrowsAppliedCommand source)
         {
             if (source == null)
                 return null;

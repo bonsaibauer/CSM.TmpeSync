@@ -72,7 +72,8 @@ namespace CSM.TmpeSync.VehicleRestrictions.Handlers
                             command.SegmentId,
                             (appliedState?.Items?.Count) ?? 0);
 
-                        CsmBridge.SendToAll(appliedState);
+                        VehicleRestrictionStateCache.Store(appliedState);
+                        CsmBridge.SendToAll(VehicleRestrictionStateCache.Clone(appliedState));
                     }
                     else
                     {

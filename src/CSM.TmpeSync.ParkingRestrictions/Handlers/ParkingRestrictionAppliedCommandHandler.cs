@@ -1,4 +1,5 @@
 using CSM.API.Commands;
+using CSM.API.Networking;
 using CSM.TmpeSync.ParkingRestrictions.Messages;
 using CSM.TmpeSync.ParkingRestrictions.Services;
 using CSM.TmpeSync.Messages.States;
@@ -10,6 +11,11 @@ namespace CSM.TmpeSync.ParkingRestrictions.Handlers
         protected override void Handle(ParkingRestrictionAppliedCommand command)
         {
             Process(command.SegmentId, command.State, "single_command");
+        }
+
+        public override void OnClientConnect(Player player)
+        {
+            ParkingRestrictionSynchronization.HandleClientConnect(player);
         }
 
         internal static void Process(ushort segmentId, ParkingRestrictionState state, string origin)
