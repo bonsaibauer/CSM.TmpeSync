@@ -28,6 +28,16 @@ bld/
 lib/
 msbuild.binlog
 build.log
+output/
+scripts/logs
+scripts/logs/
+scripts/package
+scripts/package/
+scripts/*.dll
+scripts/siteserverui
+scripts/siteserverui/
+scripts/public/
+scripts/public
 
 # Visual Studio 2015 cache/options directory
 .vs/
