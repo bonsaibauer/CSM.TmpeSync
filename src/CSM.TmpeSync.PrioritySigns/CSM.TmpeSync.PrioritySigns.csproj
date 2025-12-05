@@ -273,6 +273,7 @@
     <Compile Include="Handlers\PrioritySignAppliedCommandHandler.cs" />
     <Compile Include="Handlers\PrioritySignUpdateRequestHandler.cs" />
     <Compile Include="Services\PrioritySignSynchronization.cs" />
+    <Compile Include="Services\PrioritySignStateCache.cs" />
     <Compile Include="Services\PrioritySignTmpeAdapter.cs" />
     <Compile Include="Services\PrioritySignEventListener.cs" />
   </ItemGroup>

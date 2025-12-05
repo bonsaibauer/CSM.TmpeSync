@@ -302,6 +302,7 @@
     <Compile Include="Handlers\ParkingRestrictionAppliedCommandHandler.cs" />
     <Compile Include="Handlers\ParkingRestrictionUpdateRequestHandler.cs" />
     <Compile Include="Services\ParkingRestrictionSynchronization.cs" />
+    <Compile Include="Services\ParkingRestrictionStateCache.cs" />
     <Compile Include="Services\ParkingRestrictionTmpeAdapter.cs" />
     <Compile Include="Services\ParkingRestrictionEventListener.cs" />
   </ItemGroup>

@@ -182,6 +182,7 @@
     <Compile Include="ToggleTrafficLightsSyncFeature.cs" />
     <Compile Include="Services\ToggleTrafficLightsEventListener.cs" />
     <Compile Include="Services\ToggleTrafficLightsSynchronization.cs" />
+    <Compile Include="Services\ToggleTrafficLightsStateCache.cs" />
     <Compile Include="Services\ToggleTrafficLightsTmpeAdapter.cs" />
     <Compile Include="Messages\ToggleTrafficLightsUpdateRequest.cs" />
     <Compile Include="Messages\ToggleTrafficLightsAppliedCommand.cs" />

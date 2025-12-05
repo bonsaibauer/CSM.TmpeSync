@@ -282,6 +282,7 @@
     <Compile Include="Handlers\VehicleRestrictionsAppliedCommandHandler.cs" />
     <Compile Include="Handlers\VehicleRestrictionsUpdateRequestHandler.cs" />
     <Compile Include="Services\VehicleRestrictionSynchronization.cs" />
+    <Compile Include="Services\VehicleRestrictionStateCache.cs" />
     <Compile Include="Services\VehicleRestrictionTmpeAdapter.cs" />
     <Compile Include="Services\VehicleRestrictionEventListener.cs" />
   </ItemGroup>

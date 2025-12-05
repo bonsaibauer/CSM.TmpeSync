@@ -277,6 +277,7 @@
     <Compile Include="Handlers\JunctionRestrictionsAppliedCommandHandler.cs" />
     <Compile Include="Handlers\JunctionRestrictionsUpdateRequestHandler.cs" />
     <Compile Include="Services\JunctionRestrictionsSynchronization.cs" />
+    <Compile Include="Services\JunctionRestrictionsStateCache.cs" />
     <Compile Include="Services\JunctionRestrictionsEventListener.cs" />
     <Compile Include="Bridge\**\*.cs" />
   </ItemGroup>
