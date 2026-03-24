@@ -9,18 +9,19 @@ namespace CSM.TmpeSync.Mod
         /// <summary>
         /// Current version of the CSM TM:PE Sync mod. Update this value when publishing new builds.
         /// </summary>
-        internal const string NewVersion = "v1.1.0.0";
+        internal const string NewVersion = "v1.2.0.0";
 
         /// <summary>
         /// Latest release tag for CSM TM:PE Sync.
         /// </summary>
-        internal const string LatestCsmTmpeSyncReleaseTag = "v1.1.0.0";
+        internal const string LatestCsmTmpeSyncReleaseTag = "v1.2.0.0";
 
         /// <summary>
         /// Legacy release tags for CSM TM:PE Sync (excluding the latest).
         /// </summary>
         internal static readonly string[] LegacyCsmTmpeSyncReleaseTags = new[]
         {
+            "v1.1.0.0",
             "v1.0.1.0",
             "v1.0.0.0",
         };
@@ -28,13 +29,14 @@ namespace CSM.TmpeSync.Mod
         /// <summary>
         /// Latest release tag for Traffic Manager: President Edition.
         /// </summary>
-        internal const string LatestTmpeReleaseTag = "11.9.3.0";
+        internal const string LatestTmpeReleaseTag = "11.9.4.1";
 
         /// <summary>
         /// Legacy release tags for Traffic Manager: President Edition (excluding the latest).
         /// </summary>
         internal static readonly string[] LegacyTmpeReleaseTags = new[]
         {
+            "11.9.3.0",
             "11.9.2.0",
             "11.9.1.0",
             "11.9.0.0",
@@ -106,13 +108,14 @@ namespace CSM.TmpeSync.Mod
         /// <summary>
         /// Latest release tag for Cities: Skylines Multiplayer.
         /// </summary>
-        internal const string LatestCsmReleaseTag = "v2511.301";
+        internal const string LatestCsmReleaseTag = "v2603.307";
 
         /// <summary>
         /// Legacy release tags for Cities: Skylines Multiplayer (excluding the latest).
         /// </summary>
         internal static readonly string[] LegacyCsmReleaseTags = new[]
         {
+            "v2511.301",
             "v2511.296",
             "v2309.286",
             "v2305.270",

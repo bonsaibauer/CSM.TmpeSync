@@ -1,6 +1,7 @@
 <Project>
   <PropertyGroup>
     <ResolveAssemblyWarnOrErrorOnTargetArchitectureMismatch>None</ResolveAssemblyWarnOrErrorOnTargetArchitectureMismatch>
+    <RepoRoot Condition="'$(RepoRoot)'==''">$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)\..'))</RepoRoot>
   </PropertyGroup>
 
   <ItemGroup>
@@ -21,18 +22,18 @@
              Condition="'$(MSBuildProjectName)' != 'CSM.TmpeSync'" />
   </ItemGroup>
 
-  <!-- Local TM:PE references to satisfy compile-time API usage when TM:PE isn't installed under Steam paths. -->
-  <ItemGroup>
-    <Reference Include="TrafficManager" Condition="Exists('$(RepoRoot)\lib\TMPE\TrafficManager.dll')">
-      <HintPath>$(RepoRoot)\lib\TMPE\TrafficManager.dll</HintPath>
+  <!-- Global TM:PE references when TmpeDir is provided via command line -->
+  <ItemGroup Condition="'$(TmpeDir)'!=''">
+    <Reference Include="TrafficManager.API" Condition="Exists('$(TmpeDir)\Cities_Data\Managed\TrafficManager.API.dll')">
+      <HintPath>$(TmpeDir)\Cities_Data\Managed\TrafficManager.API.dll</HintPath>
       <Private>false</Private>
     </Reference>
-    <Reference Include="CSUtil.Commons" Condition="Exists('$(RepoRoot)\lib\TMPE\CSUtil.Commons.dll')">
-      <HintPath>$(RepoRoot)\lib\TMPE\CSUtil.Commons.dll</HintPath>
+    <Reference Include="TMPE.API" Condition="Exists('$(TmpeDir)\Cities_Data\Managed\TMPE.API.dll')">
+      <HintPath>$(TmpeDir)\Cities_Data\Managed\TMPE.API.dll</HintPath>
       <Private>false</Private>
     </Reference>
-    <Reference Include="TMPE.API" Condition="Exists('$(RepoRoot)\lib\TMPE\TMPE.API.dll')">
-      <HintPath>$(RepoRoot)\lib\TMPE\TMPE.API.dll</HintPath>
+    <Reference Include="CSUtil.Commons" Condition="Exists('$(TmpeDir)\Cities_Data\Managed\CSUtil.Commons.dll')">
+      <HintPath>$(TmpeDir)\Cities_Data\Managed\CSUtil.Commons.dll</HintPath>
       <Private>false</Private>
     </Reference>
   </ItemGroup>
