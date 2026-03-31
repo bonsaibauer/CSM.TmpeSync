@@ -12,7 +12,8 @@
       "HarmonyDllDir": "A:\\17 Cloud\\OneDrive\\Documents\\GitHub\\CSM.TmpeSync\\lib\\Harmony",
       "TmpeDir": "A:\\17 Cloud\\OneDrive\\Documents\\GitHub\\CSM.TmpeSync\\lib\\TMPE",
       "CsmLibDir": "A:\\17 Cloud\\OneDrive\\Documents\\GitHub\\CSM.TmpeSync\\lib\\CSM",
-      "CsmApiDllPath": "A:\\17 Cloud\\OneDrive\\Documents\\GitHub\\CSM.TmpeSync\\lib\\CSM\\CSM.API.dll"
+      "CsmApiDllPath": "A:\\17 Cloud\\OneDrive\\Documents\\GitHub\\CSM.TmpeSync\\lib\\CSM\\CSM.API.dll",
+      "CitiesSkylinesDir": "A:\\17 Cloud\\OneDrive\\Documents\\GitHub\\CSM.TmpeSync\\lib\\CS"
     },
     "Custom": {
       "GameDirectory": "C:\\Program Files\\Epic Games\\CitiesSkylines",

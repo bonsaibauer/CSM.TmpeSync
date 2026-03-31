@@ -702,27 +702,9 @@ function Invoke-BuildProject {
         [string]$Configuration
     )
 
-    $citiesDir = Resolve-AbsolutePath -Path ([string]$Profile.GameDirectory)
-    $harmonyDir = Resolve-AbsolutePath -Path ([string]$Profile.HarmonyDllDir)
-    $csmApiPath = Resolve-AbsolutePath -Path ([string]$Profile.CsmApiDllPath)
+    $propertySpecs = @()
 
-    $propertySpecs = @(
-        @{ Name = 'CitiesSkylinesDir'; Value = $citiesDir },
-        @{ Name = 'HarmonyDllDir'; Value = $harmonyDir },
-        @{ Name = 'CsmApiDllPath'; Value = $csmApiPath }
-    )
-
-    if ($Profile.ContainsKey('TmpeDir') -and -not [string]::IsNullOrWhiteSpace([string]$Profile.TmpeDir)) {
-        $tmpeDir = Resolve-AbsolutePath -Path ([string]$Profile.TmpeDir)
-        $propertySpecs += @{ Name = 'TmpeDir'; Value = $tmpeDir }
-    }
-
-    if ($Profile.ContainsKey('SteamModsDir') -and -not [string]::IsNullOrWhiteSpace([string]$Profile.SteamModsDir)) {
-        $steamMods = Resolve-AbsolutePath -Path ([string]$Profile.SteamModsDir)
-        $propertySpecs += @{ Name = 'SteamModsDir'; Value = $steamMods }
-    }
-
-    if ($Profile.ContainsKey('ModDirectory') -and -not [string]::IsNullOrWhiteSpace([string]$Profile.ModDirectory)) {
+    if ($null -ne $Profile -and $Profile.ContainsKey('ModDirectory') -and -not [string]::IsNullOrWhiteSpace([string]$Profile.ModDirectory)) {
         $modDir = Resolve-ModDirectoryForConfiguration -BaseDirectory ([string]$Profile.ModDirectory) -Configuration $Configuration
         $propertySpecs += @(
             @{ Name = 'ModDirectory'; Value = $modDir },
@@ -821,7 +803,7 @@ $settings = Load-BuildSettings
 $availableProfiles = Get-AvailableProfiles
 $profileName = Determine-ActiveProfile -Settings $settings -RequestedProfile $Profile
 $shouldConfigure = $Configure
-$requiresConfiguredProfile = ($Update -or $Build -or $Install)
+$requiresConfiguredProfile = ($Update -or $Install)
 $promptedForProfile = $false
 
 if ($requiresConfiguredProfile) {
@@ -919,8 +901,7 @@ if ($Update) {
 }
 
 if ($Build) {
-    $configuredProfile = Ensure-ConfiguredProfile -Settings $settings -ProfileName $profileName
-    Invoke-BuildProject -Profile $configuredProfile -Configuration $Configuration
+    Invoke-BuildProject -Profile $profile -Configuration $Configuration
 }
 
 if ($Install) {

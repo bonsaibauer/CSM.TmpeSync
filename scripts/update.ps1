@@ -30,16 +30,37 @@ $Script:ModMetadataRelativePath = "src/CSM.TmpeSync/Mod/ModMetadata.cs"
 function Update-Dependencies {
     param([hashtable]$Profile)
 
-    $gameDir = [string]$Profile.GameDirectory
-    Ensure-DirectoryExists -Path $gameDir -Description "Cities: Skylines game directory"
+    $citiesLibDir = Join-Path $script:LibRoot 'CS'
+    $citiesManagedLibDir = Join-Path (Join-Path $citiesLibDir 'Cities_Data') 'Managed'
+    $requiredCitiesAssemblies = @('ICities.dll', 'ColossalManaged.dll', 'UnityEngine.dll', 'UnityEngine.UI.dll', 'Assembly-CSharp.dll')
 
-    $managedSource = Join-Path (Join-Path $gameDir 'Cities_Data') 'Managed'
-    Ensure-DirectoryExists -Path $managedSource -Description "Cities: Skylines managed assemblies"
+    $gameDir = if ($Profile.ContainsKey('GameDirectory')) { [string]$Profile.GameDirectory } else { '' }
+    if (-not [string]::IsNullOrWhiteSpace($gameDir)) {
+        Ensure-DirectoryExists -Path $gameDir -Description "Cities: Skylines game directory"
 
-    foreach ($file in @('ICities.dll', 'ColossalManaged.dll', 'UnityEngine.dll', 'UnityEngine.UI.dll', 'Assembly-CSharp.dll')) {
-        $sourcePath = Join-Path $managedSource $file
-        if (-not (Test-Path $sourcePath)) {
-            throw "Missing required Cities: Skylines assembly: $sourcePath"
+        $managedSource = Join-Path (Join-Path $gameDir 'Cities_Data') 'Managed'
+        Ensure-DirectoryExists -Path $managedSource -Description "Cities: Skylines managed assemblies"
+
+        foreach ($file in $requiredCitiesAssemblies) {
+            $sourcePath = Join-Path $managedSource $file
+            if (-not (Test-Path $sourcePath)) {
+                throw "Missing required Cities: Skylines assembly: $sourcePath"
+            }
+        }
+
+        if (-not (Test-Path $citiesManagedLibDir)) {
+            New-Item -ItemType Directory -Path $citiesManagedLibDir -Force | Out-Null
+        }
+
+        foreach ($file in $requiredCitiesAssemblies) {
+            Copy-Item -LiteralPath (Join-Path $managedSource $file) -Destination (Join-Path $citiesManagedLibDir $file) -Force
+        }
+    }
+
+    foreach ($file in $requiredCitiesAssemblies) {
+        $targetPath = Join-Path $citiesManagedLibDir $file
+        if (-not (Test-Path $targetPath)) {
+            throw "Missing required Cities: Skylines assembly in lib/CS: $targetPath. Configure GameDirectory and run -Update."
         }
     }
 
@@ -72,9 +93,23 @@ function Update-Dependencies {
         throw "CSM.API.dll not found after dependency sync: $csmApiPath"
     }
 
+    $harmonyDllPath = Join-Path (Join-Path $script:LibRoot 'Harmony') 'CitiesHarmony.Harmony.dll'
+    if (-not (Test-Path $harmonyDllPath)) {
+        throw "CitiesHarmony.Harmony.dll not found in lib/Harmony: $harmonyDllPath"
+    }
+
+    $tmpeLibDir = Join-Path $script:LibRoot 'TMPE'
+    foreach ($file in @('TrafficManager.dll', 'CSUtil.Commons.dll', 'TMPE.API.dll')) {
+        $tmpePath = Join-Path $tmpeLibDir $file
+        if (-not (Test-Path $tmpePath)) {
+            throw "Required TM:PE dependency missing in lib/TMPE: $tmpePath"
+        }
+    }
+
+    Set-ProfileValue -Profile $Profile -Key 'CitiesSkylinesDir' -Value $citiesLibDir
     Set-ProfileValue -Profile $Profile -Key 'CsmApiDllPath' -Value $csmApiPath
     Set-ProfileValue -Profile $Profile -Key 'HarmonyDllDir' -Value (Join-Path $script:LibRoot 'Harmony')
-    Set-ProfileValue -Profile $Profile -Key 'TmpeDir' -Value (Join-Path $script:LibRoot 'TMPE')
+    Set-ProfileValue -Profile $Profile -Key 'TmpeDir' -Value $tmpeLibDir
     Set-ProfileValue -Profile $Profile -Key 'CsmLibDir' -Value $csmLibDir
 
     Write-Host "[CSM.TmpeSync] Dependencies copied into lib/." -ForegroundColor Cyan

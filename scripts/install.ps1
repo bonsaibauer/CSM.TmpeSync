@@ -7,6 +7,11 @@ function Invoke-InstallMod {
         [string]$OverrideModDirectory
     )
 
+    $repoRoot = if (Get-Variable -Name RepoRoot -Scope Script -ErrorAction SilentlyContinue) { $script:RepoRoot } else { Split-Path $PSScriptRoot -Parent }
+    if ([string]::IsNullOrWhiteSpace($repoRoot)) {
+        throw "Repository root could not be resolved."
+    }
+
     $targetDirectory = if (-not [string]::IsNullOrWhiteSpace($OverrideModDirectory)) { $OverrideModDirectory } elseif ($Profile.ContainsKey('ModDirectory')) { [string]$Profile.ModDirectory } else { '' }
 
     if ([string]::IsNullOrWhiteSpace($targetDirectory)) {
@@ -47,6 +52,15 @@ function Invoke-InstallMod {
 
     Write-Host "[CSM.TmpeSync] Installing build to $targetDirectory" -ForegroundColor Cyan
     Copy-DirectoryContents -Source $outputDir -Destination $targetDirectory -ExcludeExtensions '.pdb'
+
+    $outputRoot = Join-Path $repoRoot "output"
+    if (-not (Test-Path $outputRoot)) {
+        New-Item -ItemType Directory -Path $outputRoot -Force | Out-Null
+    }
+
+    $mirrorDestination = Join-Path $outputRoot (Split-Path $targetDirectory -Leaf)
+    Write-Host "[CSM.TmpeSync] Mirroring build to $mirrorDestination" -ForegroundColor Cyan
+    Copy-DirectoryContents -Source $outputDir -Destination $mirrorDestination -ExcludeExtensions '.pdb'
 
     Write-Host "[CSM.TmpeSync] Installation complete." -ForegroundColor Green
 }
