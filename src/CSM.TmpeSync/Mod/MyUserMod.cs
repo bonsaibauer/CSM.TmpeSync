@@ -39,7 +39,7 @@ namespace CSM.TmpeSync.Mod
 
             var generalTab = tabStrip.AddTabPage("General");
             var generalGroup = generalTab.AddGroup("Health Check");
-            generalGroup.AddButton("Check Dependencies (TMPE/Harmony/CSM)", CompatibilityChecker.RunDependencyCheckNow);
+            generalGroup.AddButton("Check Dependencies (CS/TMPE/Harmony/CSM)", CompatibilityChecker.RunDependencyCheckNow);
             generalGroup.AddButton("Check Mod Compatibility (Host/Client)", CompatibilityChecker.RunVersionCompatibilityCheckNow);
             generalGroup.AddButton("Show What's New", ChangelogService.ShowLatestNow);
 
@@ -66,10 +66,25 @@ namespace CSM.TmpeSync.Mod
             CompatibilityChecker.LogMetadataSummary();
             CompatibilityChecker.LogInstalledVersions();
 
-            var missing = Deps.GetMissingDependencies();
-            if (missing.Length > 0)
+            var missing = new List<string>(Deps.GetMissingDependencies());
+            string csActualVersion;
+            string csExpectedLine;
+            string csStatus;
+            if (!CompatibilityChecker.IsCitiesSkylinesVersionSupported(out csActualVersion, out csExpectedLine, out csStatus))
             {
-                Log.Error(LogCategory.Dependency, LogRole.General, "Missing dependencies detected | items={0}", string.Join(", ", missing));
+                missing.Add(string.Format("Cities: Skylines ({0})", csExpectedLine));
+                Log.Error(
+                    LogCategory.Dependency,
+                    LogRole.General,
+                    "Unsupported Cities: Skylines version detected | actual={0} expected={1} status={2}",
+                    csActualVersion,
+                    csExpectedLine,
+                    csStatus);
+            }
+
+            if (missing.Count > 0)
+            {
+                Log.Error(LogCategory.Dependency, LogRole.General, "Missing dependencies detected | items={0}", string.Join(", ", missing.ToArray()));
                 Deps.DisableSelf(this);
                 return;
             }

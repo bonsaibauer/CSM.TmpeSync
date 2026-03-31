@@ -12,15 +12,31 @@ namespace CSM.TmpeSync.Mod
         internal const string NewVersion = "v1.1.1.0";
 
         /// <summary>
+        /// Expected Cities: Skylines runtime version (BuildConfig.APPLICATION_VERSION) used as reference.
+        /// </summary>
+        internal const uint ExpectedCitiesSkylinesGameVersionU = 222553360U;
+
+        /// <summary>
+        /// Expected Cities: Skylines compatibility line (for example 1.21.x).
+        /// </summary>
+        internal const string ExpectedCitiesSkylinesVersionMajorMinor = "1.21.x";
+
+        /// <summary>
+        /// Full detected Cities: Skylines version string (for display/debug in checks).
+        /// </summary>
+        internal const string ExpectedCitiesSkylinesVersionRaw = "1.21.1-f7-steam-win";
+
+        /// <summary>
         /// Latest release tag for CSM TM:PE Sync.
         /// </summary>
-        internal const string LatestCsmTmpeSyncReleaseTag = "v1.1.0.0";
+        internal const string LatestCsmTmpeSyncReleaseTag = "v1.1.1.0";
 
         /// <summary>
         /// Legacy release tags for CSM TM:PE Sync (excluding the latest).
         /// </summary>
         internal static readonly string[] LegacyCsmTmpeSyncReleaseTags = new[]
         {
+            "v1.1.0.0",
             "v1.0.1.0",
             "v1.0.0.0",
         };
@@ -152,5 +168,4 @@ namespace CSM.TmpeSync.Mod
 
     }
 }
-
 
