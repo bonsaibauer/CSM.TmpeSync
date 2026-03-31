@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using ColossalFramework.UI;
 using CSM.TmpeSync.Services;
@@ -6,96 +7,64 @@ using UnityEngine;
 
 namespace CSM.TmpeSync.Services.UI
 {
-    internal class VersionMismatchPanel : UIPanel
+    internal class VersionMismatchPanel : StyleModalPanelBase
     {
         internal const string IssueUrl = "https://github.com/bonsaibauer/CSM.TmpeSync/issues/new?template=version_mismatch.yml";
         internal const string ReleasesUrl = "https://github.com/bonsaibauer/CSM.TmpeSync/releases";
-        private UILabel _titleLabel;
         private UILabel _messageLabel;
         private UIButton _closeButton;
         private UIButton _actionButton;
-        private UIScrollablePanel _messageContainer;
+        private UIPanel _tagsRow;
+        private readonly List<UILabel> _tagLabels = new List<UILabel>();
 
-        private string _title = "Version mismatch detected";
+        private string _title = "Version compatibility check";
         private string _message = string.Empty;
         private string _actionText = "Open GitHub issue";
         private string _actionUrl = IssueUrl;
+        private VersionMismatchPanelTag[] _tags = new VersionMismatchPanelTag[0];
+
+        protected override float PanelWidth => 750f;
+        protected override float PanelHeight => 500f;
+        protected override float FooterHeight => 116f;
+        protected override string InitialTitle => _title;
 
         internal void Configure(VersionMismatchPanelContent content)
         {
             if (content.Title != null)
-                SetTitle(content.Title);
+            {
+                _title = content.Title;
+                SetTitle(_title);
+            }
 
             if (content.Message != null)
                 SetMessage(content.Message);
 
             if (content.ActionText != null || content.ActionUrl != null)
                 SetAction(content.ActionText, content.ActionUrl);
+
+            SetTags(content.Tags);
         }
 
-        public override void Start()
+        protected override void BuildContent(UIScrollablePanel contentPanel)
         {
-            AddUIComponent(typeof(UIDragHandle));
+            _tagsRow = contentPanel.AddUIComponent<UIPanel>();
+            _tagsRow.autoLayout = true;
+            _tagsRow.autoLayoutDirection = LayoutDirection.Horizontal;
+            _tagsRow.autoFitChildrenHorizontally = true;
+            _tagsRow.autoFitChildrenVertically = true;
+            _tagsRow.autoLayoutPadding = new RectOffset(0, 6, 0, 0);
+            _tagsRow.width = contentPanel.width - 16f;
+            _tagsRow.height = 24f;
+            RebuildTags();
 
-            backgroundSprite = "GenericPanel";
-            color = new Color32(110, 110, 110, 255);
+            _messageLabel = AddContentLabel(_message, 0.8f);
+        }
 
-            width = 460;
-            height = 440;
-            relativePosition = PanelManager.GetCenterPosition(this);
-
-            _titleLabel = this.CreateTitleLabel(_title, new Vector2(160, -20));
-            _titleLabel.autoSize = true;
-            _titleLabel.wordWrap = false;
-            SetTitle(_title);
-
-            _messageContainer = AddUIComponent<UIScrollablePanel>();
-            _messageContainer.name = "mismatchMessagePanel";
-            _messageContainer.width = width - 30;
-            _messageContainer.height = height - 230;
-            _messageContainer.clipChildren = true;
-            _messageContainer.position = new Vector2(15, -80);
-            _messageContainer.autoLayout = false;
-
-            _messageLabel = _messageContainer.AddUIComponent<UILabel>();
-            _messageLabel.autoSize = false;
-            _messageLabel.text = _message;
-            _messageLabel.position = new Vector2(4, 0);
-            _messageLabel.width = _messageContainer.width - 16;
-            _messageLabel.autoHeight = true;
-            _messageLabel.wordWrap = true;
-            _messageLabel.textAlignment = UIHorizontalAlignment.Left;
-            _messageLabel.verticalAlignment = UIVerticalAlignment.Top;
-
-            this.AddScrollbar(_messageContainer);
-
-            var buttonWidth = 340f;
-            var buttonHeight = 50f;
-            var buttonGap = 12f;
-            var bottomPadding = 18f;
-            var buttonX = (width - buttonWidth) / 2f;
-            var actionButtonY = -height + (buttonHeight * 2f) + buttonGap + bottomPadding;
-            var closeButtonY = -height + buttonHeight + bottomPadding;
-
-            _actionButton = this.CreateButton(_actionText, new Vector2(buttonX, actionButtonY), width: (int)buttonWidth, height: (int)buttonHeight);
-            _actionButton.eventClicked += (_, __) => OpenActionLink();
+        protected override void BuildFooter(UIPanel footerPanel)
+        {
+            _actionButton = AddFooterButton(_actionText, 10f, OpenActionLink);
+            _closeButton = AddFooterButton("Close", 62f, CloseModalPanel);
             ApplyActionButtonState();
-
-            _closeButton = this.CreateButton("Close", new Vector2(buttonX, closeButtonY), width: (int)buttonWidth, height: (int)buttonHeight);
-            _closeButton.eventClicked += (_, __) => ClosePanel();
-        }
-
-        private void SetTitle(string title)
-        {
-            _title = title ?? string.Empty;
-
-            if (_titleLabel)
-            {
-                _titleLabel.text = _title;
-                var position = _titleLabel.position;
-                position.x = (width - _titleLabel.width) / 2f;
-                _titleLabel.position = position;
-            }
         }
 
         private void SetMessage(string message)
@@ -108,7 +77,49 @@ namespace CSM.TmpeSync.Services.UI
                 _messageLabel.Invalidate();
             }
 
-            _messageContainer?.Invalidate();
+            ContentPanel?.Invalidate();
+        }
+
+        private void SetTags(VersionMismatchPanelTag[] tags)
+        {
+            _tags = tags ?? new VersionMismatchPanelTag[0];
+            RebuildTags();
+        }
+
+        private void RebuildTags()
+        {
+            if (_tagsRow == null)
+                return;
+
+            for (var i = 0; i < _tagLabels.Count; i++)
+            {
+                _tagLabels[i]?.Remove();
+            }
+
+            _tagLabels.Clear();
+            if (_tags.Length == 0)
+            {
+                _tagsRow.isVisible = false;
+                _tagsRow.height = 0f;
+                return;
+            }
+
+            _tagsRow.isVisible = true;
+            _tagsRow.height = 24f;
+
+            for (var i = 0; i < _tags.Length; i++)
+            {
+                var tag = _tags[i];
+                if (string.IsNullOrEmpty(tag.Text))
+                    continue;
+
+                var width = Mathf.Max(74f, 18f + (tag.Text.Length * 8f));
+                var label = AddTagBadge(_tagsRow, tag.Text, tag.Color, width);
+                if (label != null)
+                {
+                    _tagLabels.Add(label);
+                }
+            }
         }
 
         private void SetAction(string text, string url)
@@ -129,17 +140,11 @@ namespace CSM.TmpeSync.Services.UI
 
             if (hasAction)
                 _actionButton.text = _actionText;
-        }
-
-        private void ClosePanel()
-        {
-            try
+            if (_closeButton != null)
             {
-                Hide();
-            }
-            finally
-            {
-                UnityEngine.Object.Destroy(gameObject);
+                _closeButton.relativePosition = hasAction
+                    ? new Vector2(_closeButton.relativePosition.x, 62f)
+                    : new Vector2(_closeButton.relativePosition.x, 36f);
             }
         }
 
@@ -170,6 +175,19 @@ namespace CSM.TmpeSync.Services.UI
         internal string Message;
         internal string ActionText;
         internal string ActionUrl;
+        internal VersionMismatchPanelTag[] Tags;
+    }
+
+    internal struct VersionMismatchPanelTag
+    {
+        internal VersionMismatchPanelTag(string text, Color32 color)
+        {
+            Text = text ?? string.Empty;
+            Color = color;
+        }
+
+        internal string Text;
+        internal Color32 Color;
     }
 }
 

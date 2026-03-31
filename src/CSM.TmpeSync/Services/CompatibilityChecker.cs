@@ -1,11 +1,14 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
+using CSM.API.Commands;
 using ColossalFramework.Plugins;
 using CSM.TmpeSync.Mod;
 using CSM.TmpeSync.Messages.System;
@@ -26,6 +29,23 @@ namespace CSM.TmpeSync.Services
         }
 
         private static readonly Regex VersionPattern = new Regex("^\\D*(\\d+(?:\\.\\d+)*)", RegexOptions.Compiled);
+        private static readonly object ManualCompatibilityCheckLock = new object();
+
+        private const int ManualClientCheckTimeoutMilliseconds = 5000;
+        private const int ManualHostProbeTimeoutMilliseconds = 3500;
+
+        private static int _manualRequestSequence;
+        private static string _pendingManualClientRequestId;
+        private static ManualHostProbeSession _manualHostProbeSession;
+
+        private sealed class ManualHostProbeSession
+        {
+            internal string RequestId;
+            internal string HostVersion;
+            internal List<int> ExpectedClientIds;
+            internal Dictionary<int, string> ReportedClientVersions;
+            internal bool Completed;
+        }
 
         internal static string LocalVersion => ModMetadata.NewVersion;
 
@@ -69,6 +89,161 @@ namespace CSM.TmpeSync.Services
                     string.IsNullOrEmpty(status.ActualVersion) ? "n/a" : status.ActualVersion,
                     string.IsNullOrEmpty(status.NormalizedVersion) ? "n/a" : status.NormalizedVersion,
                     string.IsNullOrEmpty(status.LatestTag) ? "n/a" : status.LatestTag);
+            }
+        }
+
+        internal static void RunDependencyCheckNow()
+        {
+            try
+            {
+                var statuses = GetCompatibilityStatuses();
+                var issues = new List<CompatibilityStatus>();
+
+                foreach (var status in statuses)
+                {
+                    if (!IsTrackedDependency(status.DisplayName))
+                        continue;
+
+                    if (!RequiresWarning(status.Status))
+                        continue;
+
+                    issues.Add(status);
+                }
+
+                if (issues.Count > 0)
+                {
+                    VersionMismatchNotifier.ShowDependencyIssuesNow(issues);
+                    return;
+                }
+
+                var builder = new StringBuilder();
+                builder.AppendLine("No dependency issues detected.");
+                builder.AppendLine();
+                builder.AppendLine("Detected versions:");
+                foreach (var status in statuses.Where(s => IsTrackedDependency(s.DisplayName)))
+                {
+                    var actual = string.IsNullOrEmpty(status.ActualVersion) ? "unknown" : status.ActualVersion;
+                    var latest = string.IsNullOrEmpty(status.LatestTag) ? "unknown" : status.LatestTag;
+                    builder.AppendFormat("- {0}: installed {1}, latest {2}, status {3}", status.DisplayName, actual, latest, status.Status);
+                    builder.AppendLine();
+                }
+
+                VersionMismatchNotifier.ShowInfoPanel(
+                    "Dependency check",
+                    builder.ToString(),
+                    tags: VersionMismatchNotifier.BuildDependencyCheckTags("SUCCESS"));
+            }
+            catch (Exception ex)
+            {
+                Log.Warn(LogCategory.Diagnostics, LogRole.General, "Manual dependency check failed | error={0}", ex);
+                VersionMismatchNotifier.ShowInfoPanel(
+                    "Dependency check",
+                    "Dependency check failed. See output_log for details.",
+                    tags: VersionMismatchNotifier.BuildDependencyCheckTags("ERROR"));
+            }
+        }
+
+        internal static void RunVersionCompatibilityCheckNow()
+        {
+            try
+            {
+                if (Command.CurrentRole == MultiplayerRole.None)
+                {
+                    VersionMismatchNotifier.ShowInfoPanel(
+                        "Version compatibility check",
+                        "No active CSM multiplayer session detected (role: None).\n" +
+                        "Check Mod Compatibility is available only with an active Host/Client session.\n" +
+                        "Use 'Check Dependencies (TMPE/Harmony/CSM)' for local dependency checks.",
+                        tags: VersionMismatchNotifier.BuildCompatibilityInfoTags("OFFLINE", "Menu"));
+                    return;
+                }
+
+                if (CsmBridge.IsServerInstance())
+                {
+                    StartManualHostCompatibilityCheck();
+                    return;
+                }
+
+                StartManualClientCompatibilityCheck();
+            }
+            catch (Exception ex)
+            {
+                Log.Warn(LogCategory.Network, LogRole.General, "Manual version compatibility check failed | error={0}", ex);
+                VersionMismatchNotifier.ShowInfoPanel(
+                    "Version compatibility check",
+                    "Version check failed to start. See output_log for details.",
+                    tags: VersionMismatchNotifier.BuildCompatibilityInfoTags("ERROR", Command.CurrentRole.ToString()));
+            }
+        }
+
+        internal static void HandleManualClientCheckResult(string requestId, string localVersion, string serverVersion, bool versionsMatch)
+        {
+            if (string.IsNullOrEmpty(requestId))
+                return;
+
+            var shouldDisplay = false;
+            lock (ManualCompatibilityCheckLock)
+            {
+                if (string.Equals(_pendingManualClientRequestId, requestId, StringComparison.Ordinal))
+                {
+                    _pendingManualClientRequestId = null;
+                    shouldDisplay = true;
+                }
+            }
+
+            if (!shouldDisplay)
+                return;
+
+            var message = BuildClientManualResultMessage(localVersion, serverVersion);
+            if (versionsMatch)
+            {
+                VersionMismatchNotifier.ShowCompatibilityCheckSuccess(message, "Client");
+            }
+            else
+            {
+                VersionMismatchNotifier.ShowCompatibilityCheckMismatch(message, "Client");
+            }
+        }
+
+        internal static void HandleManualHostProbeResponse(int senderId, string requestId, string clientVersion, bool matchesHost)
+        {
+            if (senderId < 0 || string.IsNullOrEmpty(requestId))
+                return;
+
+            ManualHostProbeSession completedSession = null;
+            lock (ManualCompatibilityCheckLock)
+            {
+                var session = _manualHostProbeSession;
+                if (session == null || session.Completed || !string.Equals(session.RequestId, requestId, StringComparison.Ordinal))
+                    return;
+
+                if (session.ExpectedClientIds == null || !session.ExpectedClientIds.Contains(senderId))
+                    return;
+
+                if (!session.ReportedClientVersions.ContainsKey(senderId))
+                {
+                    session.ReportedClientVersions[senderId] = clientVersion ?? string.Empty;
+                    Log.Info(
+                        LogCategory.Network,
+                        LogRole.Host,
+                        "Manual compatibility probe response received | requestId={0} clientId={1} clientVersion={2} matchesHost={3}",
+                        requestId,
+                        senderId,
+                        clientVersion ?? "<null>",
+                        matchesHost ? "Yes" : "No");
+                }
+
+                if (session.ReportedClientVersions.Count >= session.ExpectedClientIds.Count)
+                {
+                    session.Completed = true;
+                    _manualHostProbeSession = null;
+                    completedSession = session;
+                }
+            }
+
+            if (completedSession != null)
+            {
+                ShowHostManualProbeResult(completedSession, timedOut: false);
             }
         }
 
@@ -427,12 +602,291 @@ namespace CSM.TmpeSync.Services
             }
         }
 
-        private static void SendVersionRequest()
+        private static void StartManualClientCompatibilityCheck()
+        {
+            var requestId = BuildManualRequestId("client");
+            lock (ManualCompatibilityCheckLock)
+            {
+                _pendingManualClientRequestId = requestId;
+            }
+
+            SendVersionRequest(isManualCheck: true, requestId: requestId);
+
+            ThreadPool.QueueUserWorkItem(_ =>
+            {
+                try
+                {
+                    Thread.Sleep(ManualClientCheckTimeoutMilliseconds);
+                }
+                catch
+                {
+                    return;
+                }
+
+                var timedOut = false;
+                lock (ManualCompatibilityCheckLock)
+                {
+                    if (string.Equals(_pendingManualClientRequestId, requestId, StringComparison.Ordinal))
+                    {
+                        _pendingManualClientRequestId = null;
+                        timedOut = true;
+                    }
+                }
+
+                if (!timedOut)
+                    return;
+
+                var builder = new StringBuilder();
+                builder.AppendLine("Role: Client");
+                builder.AppendFormat("Local version  : {0}", LocalVersion);
+                builder.AppendLine();
+                builder.AppendLine("Remote version : not received");
+                builder.AppendLine();
+                builder.AppendLine("Reason: no response from host (timeout).");
+
+                VersionMismatchNotifier.ShowCompatibilityCheckMismatch(builder.ToString(), "Client");
+            });
+        }
+
+        private static void StartManualHostCompatibilityCheck()
+        {
+            var connectedClients = GetConnectedClientIdsForHostProbe();
+            var hostVersion = LocalVersion;
+
+            if (connectedClients == null || connectedClients.Count == 0)
+            {
+                var builder = new StringBuilder();
+                builder.AppendLine("Role: Host");
+                builder.AppendFormat("Local version  : {0}", hostVersion);
+                builder.AppendLine();
+                builder.AppendLine("Remote clients : none connected");
+                VersionMismatchNotifier.ShowCompatibilityCheckSuccess(builder.ToString(), "Host");
+                return;
+            }
+
+            connectedClients = connectedClients.Distinct().OrderBy(id => id).ToList();
+            var session = new ManualHostProbeSession
+            {
+                RequestId = BuildManualRequestId("host"),
+                HostVersion = hostVersion,
+                ExpectedClientIds = connectedClients,
+                ReportedClientVersions = new Dictionary<int, string>()
+            };
+
+            lock (ManualCompatibilityCheckLock)
+            {
+                _manualHostProbeSession = session;
+            }
+
+            foreach (var clientId in connectedClients)
+            {
+                try
+                {
+                    CsmBridge.SendToClient(clientId, new VersionProbeRequest
+                    {
+                        RequestId = session.RequestId,
+                        HostVersion = hostVersion
+                    });
+                }
+                catch (Exception ex)
+                {
+                    Log.Warn(
+                        LogCategory.Network,
+                        LogRole.Host,
+                        "Failed to dispatch manual host compatibility probe | requestId={0} clientId={1} error={2}",
+                        session.RequestId,
+                        clientId,
+                        ex);
+                }
+            }
+
+            ThreadPool.QueueUserWorkItem(_ =>
+            {
+                try
+                {
+                    Thread.Sleep(ManualHostProbeTimeoutMilliseconds);
+                }
+                catch
+                {
+                    return;
+                }
+
+                ManualHostProbeSession timedOutSession = null;
+                lock (ManualCompatibilityCheckLock)
+                {
+                    if (_manualHostProbeSession != null &&
+                        !_manualHostProbeSession.Completed &&
+                        string.Equals(_manualHostProbeSession.RequestId, session.RequestId, StringComparison.Ordinal))
+                    {
+                        _manualHostProbeSession.Completed = true;
+                        timedOutSession = _manualHostProbeSession;
+                        _manualHostProbeSession = null;
+                    }
+                }
+
+                if (timedOutSession != null)
+                {
+                    ShowHostManualProbeResult(timedOutSession, timedOut: true);
+                }
+            });
+        }
+
+        private static List<int> GetConnectedClientIdsForHostProbe()
         {
             try
             {
-                CsmBridge.SendToServer(new VersionCheckRequest { Version = LocalVersion });
-                Log.Info(LogCategory.Network, LogRole.General, "Version compatibility request dispatched | localVersion={0}", LocalVersion);
+                var multiplayerManagerType = GetTypeFromAssemblies("CSM.Networking.MultiplayerManager");
+                if (multiplayerManagerType == null)
+                    return new List<int>();
+
+                var multiplayerManagerInstance = multiplayerManagerType
+                    .GetProperty("Instance", BindingFlags.Public | BindingFlags.Static)
+                    ?.GetValue(null, null);
+                if (multiplayerManagerInstance == null)
+                    return new List<int>();
+
+                var currentServer = multiplayerManagerType
+                    .GetProperty("CurrentServer", BindingFlags.Public | BindingFlags.Instance)
+                    ?.GetValue(multiplayerManagerInstance, null);
+                if (currentServer == null)
+                    return new List<int>();
+
+                var connectedPlayers = currentServer
+                    .GetType()
+                    .GetProperty("ConnectedPlayers", BindingFlags.Public | BindingFlags.Instance)
+                    ?.GetValue(currentServer, null) as IDictionary;
+                if (connectedPlayers == null || connectedPlayers.Count == 0)
+                    return new List<int>();
+
+                var clientIds = new List<int>(connectedPlayers.Count);
+                foreach (DictionaryEntry connectedPlayer in connectedPlayers)
+                {
+                    if (connectedPlayer.Key is int clientId && clientId >= 0)
+                    {
+                        clientIds.Add(clientId);
+                    }
+                }
+
+                return clientIds;
+            }
+            catch (Exception ex)
+            {
+                Log.Warn(
+                    LogCategory.Network,
+                    LogRole.Host,
+                    "Failed to enumerate connected clients for manual compatibility probe | error={0}",
+                    ex);
+                return new List<int>();
+            }
+        }
+
+        private static void ShowHostManualProbeResult(ManualHostProbeSession session, bool timedOut)
+        {
+            if (session == null)
+                return;
+
+            var hasMismatch = false;
+            var builder = new StringBuilder();
+            builder.AppendLine("Role: Host");
+            builder.AppendFormat("Local version  : {0}", session.HostVersion ?? LocalVersion);
+            builder.AppendLine();
+            builder.AppendLine("Remote clients:");
+
+            foreach (var clientId in session.ExpectedClientIds.OrderBy(id => id))
+            {
+                string clientVersion;
+                if (!session.ReportedClientVersions.TryGetValue(clientId, out clientVersion))
+                {
+                    hasMismatch = true;
+                    builder.AppendFormat("- Client #{0}: no response", clientId);
+                    builder.AppendLine();
+                    continue;
+                }
+
+                var isMatch = CompareVersions(session.HostVersion, clientVersion);
+                if (!isMatch)
+                    hasMismatch = true;
+
+                builder.AppendFormat(
+                    "- Client #{0}: {1} ({2})",
+                    clientId,
+                    string.IsNullOrEmpty(clientVersion) ? "unknown" : clientVersion,
+                    isMatch ? "MATCH" : "MISMATCH");
+                builder.AppendLine();
+            }
+
+            builder.AppendLine();
+            if (timedOut)
+            {
+                builder.AppendLine("Note: check completed after timeout; some clients may not have answered in time.");
+            }
+
+            if (hasMismatch)
+            {
+                VersionMismatchNotifier.ShowCompatibilityCheckMismatch(builder.ToString(), "Host");
+            }
+            else
+            {
+                VersionMismatchNotifier.ShowCompatibilityCheckSuccess(builder.ToString(), "Host");
+            }
+        }
+
+        private static string BuildClientManualResultMessage(string localVersion, string serverVersion)
+        {
+            var builder = new StringBuilder();
+            builder.AppendLine("Role: Client");
+            builder.AppendFormat("Local version  : {0}", string.IsNullOrEmpty(localVersion) ? "unknown" : localVersion);
+            builder.AppendLine();
+            builder.AppendFormat("Remote version : {0}", string.IsNullOrEmpty(serverVersion) ? "unknown" : serverVersion);
+            builder.AppendLine();
+            return builder.ToString();
+        }
+
+        private static string BuildManualRequestId(string prefix)
+        {
+            return string.Format(
+                "{0}-{1}-{2}",
+                string.IsNullOrEmpty(prefix) ? "manual" : prefix,
+                DateTime.UtcNow.Ticks,
+                Interlocked.Increment(ref _manualRequestSequence));
+        }
+
+        private static Type GetTypeFromAssemblies(string typeName)
+        {
+            if (string.IsNullOrEmpty(typeName))
+                return null;
+
+            var type = Type.GetType(typeName);
+            if (type != null)
+                return type;
+
+            foreach (var assembly in AppDomain.CurrentDomain.GetAssemblies())
+            {
+                type = assembly.GetType(typeName);
+                if (type != null)
+                    return type;
+            }
+
+            return null;
+        }
+
+        private static void SendVersionRequest(bool isManualCheck = false, string requestId = null)
+        {
+            try
+            {
+                CsmBridge.SendToServer(new VersionCheckRequest
+                {
+                    Version = LocalVersion,
+                    IsManualCheck = isManualCheck,
+                    RequestId = requestId
+                });
+                Log.Info(
+                    LogCategory.Network,
+                    LogRole.General,
+                    "Version compatibility request dispatched | localVersion={0} manual={1} requestId={2}",
+                    LocalVersion,
+                    isManualCheck ? "Yes" : "No",
+                    requestId ?? "<null>");
             }
             catch (Exception ex)
             {

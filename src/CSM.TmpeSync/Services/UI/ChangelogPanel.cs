@@ -86,6 +86,26 @@ namespace CSM.TmpeSync.Services.UI
             }
         }
 
+        internal static void ShowLatestNow()
+        {
+            var latestEntry = GetEntryForCurrentVersion();
+            if (latestEntry == null)
+                return;
+
+            try
+            {
+                var panel = PanelManager.CreatePanel<ChangelogPanel>();
+                if (!panel)
+                    return;
+
+                panel.Configure(latestEntry);
+            }
+            catch (Exception ex)
+            {
+                Log.Warn(LogCategory.Diagnostics, LogRole.General, "Failed to display changelog (manual) | error={0}", ex);
+            }
+        }
+
         private static ChangelogEntry GetLatestEntry()
         {
             var entries = GetEntries();
@@ -168,10 +188,10 @@ namespace CSM.TmpeSync.Services.UI
                     Date = "2026-03-24",
                     Changes = new List<string>
                     {
-                        "Compatibility: Update for Cities: Skylines 1.21, CSM 2603.307, and TM:PE 11.9.4.1.",
-                        "Stability: Added defensive bounds checks for node and segment IDs to prevent 'Array index out of range' crashes.",
-                        "Robustness: Improved internal CSM type resolution using cross-assembly reflection.",
-                        "Linux Support: Fixed .NET 3.5 build errors and added a new automated build script."
+                        "[Updated] [Fixed] Compatibility: Update for Cities: Skylines 1.21, CSM 2603.307, and TM:PE 11.9.4.1.",
+                        "[Fixed] Stability: Added defensive bounds checks for node and segment IDs to prevent 'Array index out of range' crashes.",
+                        "[New] Robustness: Improved internal CSM type resolution using cross-assembly reflection.",
+                        "[New] Linux Support: Fixed .NET 3.5 build errors and added a new automated build script."
                     }
                 },
                 new ChangelogEntry
@@ -180,8 +200,8 @@ namespace CSM.TmpeSync.Services.UI
                     Date = "2025-12-06",
                     Changes = new List<string>
                     {
-                        "Improve resync logic: when a client rejoins, the host replays all TM:PE changes made since the host came online, including those performed while the client was offline.",
-                        "Includes the 1.0.1.0 updates: in-game changelog popup and client lane connection fix."
+                        "[Updated] Improve resync logic: when a client rejoins, the host replays all TM:PE changes made since the host came online, including those performed while the client was offline.",
+                        "[Updated] Includes the 1.0.1.0 updates: in-game changelog popup and client lane connection fix."
                     }
                 },
                 new ChangelogEntry
@@ -190,8 +210,8 @@ namespace CSM.TmpeSync.Services.UI
                     Date = "2025-12-04",
                     Changes = new List<string>
                     {
-                        "Add minimal in-game changelog popup.",
-                        "Fix lane connection handling for clients."
+                        "[New] Add minimal in-game changelog popup.",
+                        "[Fixed] Fix lane connection handling for clients."
                     }
                 },
                 new ChangelogEntry
@@ -200,10 +220,10 @@ namespace CSM.TmpeSync.Services.UI
                     Date = "2025-11-06",
                     Changes = new List<string>
                     {
-                        "Host-authoritative bridge between CSM and TM:PE with retry/backoff so every state stays in sync.",
-                        "Supports Clear Traffic, Junction Restrictions, Lane Arrows, Lane Connector, Parking Restrictions, Priority Signs, Speed Limits, Toggle Traffic Lights, and Vehicle Restrictions.",
-                        "Timed traffic lights remain disabled as synchronizing them would generate disproportionate multiplayer traffic.",
-                        "Modular per-feature architecture with dedicated logging, guard scopes, and explicit client error feedback."
+                        "[New] Host-authoritative bridge between CSM and TM:PE with retry/backoff so every state stays in sync.",
+                        "[New] Supports Clear Traffic, Junction Restrictions, Lane Arrows, Lane Connector, Parking Restrictions, Priority Signs, Speed Limits, Toggle Traffic Lights, and Vehicle Restrictions.",
+                        "[Removed] Timed traffic lights remain disabled as synchronizing them would generate disproportionate multiplayer traffic.",
+                        "[New] Modular per-feature architecture with dedicated logging, guard scopes, and explicit client error feedback."
                     }
                 }
             };
@@ -212,124 +232,251 @@ namespace CSM.TmpeSync.Services.UI
         }
     }
 
-    internal class ChangelogPanel : UIPanel
+    internal class ChangelogPanel : StyleModalPanelBase
     {
-        private UILabel _titleLabel;
         private UILabel _messageLabel;
-        private UIScrollablePanel _messageContainer;
-        private UIButton _closeButton;
+        private ChangelogEntry _entry;
 
         private string _title = "CSM.TmpeSync Update";
         private string _message = "No changelog available.";
+        private static readonly Color32 TagBlue = new Color32(3, 106, 225, 255);
+        private static readonly Color32 TagGreen = new Color32(40, 178, 72, 255);
+        private static readonly Color32 TagRed = new Color32(224, 61, 76, 255);
+        private static readonly Color32 TagNeutral = new Color32(119, 119, 119, 255);
+
+        protected override float PanelWidth => 750f;
+        protected override float PanelHeight => 500f;
+        protected override float FooterHeight => 72f;
+        protected override string InitialTitle => _title;
 
         internal void Configure(ChangelogEntry entry)
         {
             if (entry == null)
                 return;
 
-            var titleVersion = string.IsNullOrEmpty(entry.Version) ? "unknown" : entry.Version;
-            var titleDate = string.IsNullOrEmpty(entry.Date) ? string.Empty : string.Format(" ({0})", entry.Date);
-            SetTitle(string.Format("CSM.TmpeSync Update v{0}{1}", titleVersion, titleDate));
+            SetTitle("CSM.TmpeSync Update");
+            _entry = entry;
+            RebuildContent();
+        }
 
-            var builder = new StringBuilder();
-            if (!string.IsNullOrEmpty(entry.Date))
-                builder.AppendFormat("Date: {0}", entry.Date).AppendLine().AppendLine();
+        protected override void BuildContent(UIScrollablePanel contentPanel)
+        {
+            contentPanel.autoLayoutPadding = new RectOffset(0, 0, 4, 2);
+            RebuildContent();
+        }
 
-            if (entry.Changes != null)
+        private void RebuildContent()
+        {
+            if (ContentPanel == null)
+                return;
+
+            ClearContentPanel();
+
+            if (_entry == null)
             {
-                foreach (var change in entry.Changes)
+                _messageLabel = AddContentLabel(_message, 0.8f);
+                return;
+            }
+
+            AddVersionTags();
+            AddChangeRows();
+            ContentPanel.Invalidate();
+        }
+
+        private void ClearContentPanel()
+        {
+            var components = ContentPanel.components;
+            if (components == null || components.Count == 0)
+                return;
+
+            var toRemove = new List<UIComponent>(components.Count);
+            for (var i = 0; i < components.Count; i++)
+            {
+                var component = components[i];
+                if (component != null)
+                    toRemove.Add(component);
+            }
+
+            for (var i = 0; i < toRemove.Count; i++)
+            {
+                toRemove[i].Remove();
+            }
+        }
+
+        private void AddVersionTags()
+        {
+            var row = ContentPanel.AddUIComponent<UIPanel>();
+            row.autoLayout = true;
+            row.autoLayoutDirection = LayoutDirection.Horizontal;
+            row.autoFitChildrenHorizontally = true;
+            row.autoFitChildrenVertically = true;
+            row.autoLayoutPadding = new RectOffset(0, 6, 0, 0);
+            row.width = ContentPanel.width - 16f;
+
+            var versionText = string.IsNullOrEmpty(_entry.Version) ? "UNKNOWN" : _entry.Version;
+            AddTagBadge(row, "VERSION " + versionText, TagBlue, 170f);
+
+            if (!string.IsNullOrEmpty(_entry.Date))
+            {
+                AddTagBadge(row, _entry.Date, TagNeutral, 124f);
+            }
+        }
+
+        private void AddChangeRows()
+        {
+            var hasEntries = false;
+            if (_entry.Changes != null)
+            {
+                foreach (var rawChange in _entry.Changes)
                 {
-                    if (string.IsNullOrEmpty(change))
+                    if (string.IsNullOrEmpty(rawChange))
                         continue;
 
-                    builder.Append("- ").AppendLine(change.Trim());
+                    hasEntries = true;
+                    string changeText;
+                    List<VersionMismatchPanelTag> tags;
+                    var hasExplicitTag = TryExtractChangeTags(rawChange, out tags, out changeText);
+                    if (!hasExplicitTag)
+                    {
+                        tags = new List<VersionMismatchPanelTag> { DetectChangeTag(changeText) };
+                    }
+
+                    var row = ContentPanel.AddUIComponent<UIPanel>();
+                    row.autoLayout = true;
+                    row.autoLayoutDirection = LayoutDirection.Horizontal;
+                    row.autoFitChildrenHorizontally = false;
+                    row.autoFitChildrenVertically = true;
+                    row.autoLayoutPadding = new RectOffset(0, 8, 0, 0);
+                    row.width = Mathf.Max(160f, ContentPanel.width - 16f);
+
+                    var tagsContainer = row.AddUIComponent<UIPanel>();
+                    tagsContainer.autoLayout = true;
+                    tagsContainer.autoLayoutDirection = LayoutDirection.Horizontal;
+                    tagsContainer.autoFitChildrenHorizontally = true;
+                    tagsContainer.autoFitChildrenVertically = true;
+                    tagsContainer.autoLayoutPadding = new RectOffset(0, 6, 0, 0);
+
+                    var badgeWidthTotal = 0f;
+                    for (var tagIndex = 0; tagIndex < tags.Count; tagIndex++)
+                    {
+                        var tag = tags[tagIndex];
+                        var badgeWidth = Mathf.Max(74f, 14f + (tag.Text.Length * 7f));
+                        AddTagBadge(tagsContainer, tag.Text, tag.Color, badgeWidth);
+                        badgeWidthTotal += badgeWidth + 6f;
+                    }
+
+                    var label = row.AddUIComponent<UILabel>();
+                    label.autoSize = false;
+                    label.wordWrap = true;
+                    label.autoHeight = true;
+                    label.width = Mathf.Max(60f, row.width - badgeWidthTotal - 8f);
+                    label.textScale = 0.8f;
+                    label.textColor = PrimaryTextColor;
+                    label.text = changeText;
                 }
             }
 
-            var builtMessage = builder.Length > 0 ? builder.ToString() : "No changelog entries found.";
-            SetMessage(builtMessage);
-        }
-
-        public override void Start()
-        {
-            AddUIComponent(typeof(UIDragHandle));
-
-            backgroundSprite = "GenericPanel";
-            color = new Color32(110, 110, 110, 255);
-
-            width = 460;
-            height = 440;
-            relativePosition = PanelManager.GetCenterPosition(this);
-
-            _titleLabel = this.CreateTitleLabel(_title, new Vector2(160, -20));
-            _titleLabel.autoSize = true;
-            SetTitle(_title);
-
-            _messageContainer = AddUIComponent<UIScrollablePanel>();
-            _messageContainer.width = width - 30;
-            _messageContainer.height = height - 230;
-            _messageContainer.clipChildren = true;
-            _messageContainer.position = new Vector2(15, -80);
-            _messageContainer.autoLayout = false;
-
-            _messageLabel = _messageContainer.AddUIComponent<UILabel>();
-            _messageLabel.autoSize = false;
-            _messageLabel.width = _messageContainer.width - 16;
-            _messageLabel.text = _message;
-            _messageLabel.position = new Vector2(4, 0);
-            _messageLabel.wordWrap = true;
-            _messageLabel.autoHeight = true;
-            _messageLabel.textAlignment = UIHorizontalAlignment.Left;
-            _messageLabel.verticalAlignment = UIVerticalAlignment.Top;
-
-            this.AddScrollbar(_messageContainer);
-
-            var buttonWidth = 340f;
-            var buttonHeight = 50f;
-            var bottomPadding = 18f;
-            var buttonX = (width - buttonWidth) / 2f;
-            var buttonY = -height + buttonHeight + bottomPadding;
-
-            _closeButton = this.CreateButton("Close", new Vector2(buttonX, buttonY), (int)buttonWidth, (int)buttonHeight);
-            _closeButton.eventClicked += (_, __) => ClosePanel();
-        }
-
-        private void SetTitle(string title)
-        {
-            _title = title ?? string.Empty;
-
-            if (_titleLabel)
+            if (!hasEntries)
             {
-                _titleLabel.text = _title;
-                var pos = _titleLabel.position;
-                pos.x = (width - _titleLabel.width) / 2f;
-                _titleLabel.position = pos;
+                _messageLabel = AddContentLabel("No changelog entries found.", 0.8f);
             }
         }
 
-        private void SetMessage(string message)
+        private static string NormalizeChangeText(string change)
         {
-            _message = string.IsNullOrEmpty(message) ? "No changelog available." : message;
-
-            if (_messageLabel)
+            var trimmed = string.IsNullOrEmpty(change) ? string.Empty : change.Trim();
+            if (trimmed.Length > 2 && trimmed[0] == '[')
             {
-                _messageLabel.text = _message;
-                _messageLabel.Invalidate();
+                var endIndex = trimmed.IndexOf(']');
+                if (endIndex > 0 && endIndex + 1 < trimmed.Length)
+                {
+                    trimmed = trimmed.Substring(endIndex + 1).Trim();
+                }
             }
 
-            _messageContainer?.Invalidate();
+            return trimmed;
         }
 
-        private void ClosePanel()
+        private static bool TryExtractChangeTags(
+            string rawChange,
+            out List<VersionMismatchPanelTag> tags,
+            out string changeText)
         {
-            try
+            tags = new List<VersionMismatchPanelTag>();
+            changeText = NormalizeChangeText(rawChange);
+            var trimmed = string.IsNullOrEmpty(rawChange) ? string.Empty : rawChange.Trim();
+            if (trimmed.Length < 3 || trimmed[0] != '[')
+                return false;
+
+            var remaining = trimmed;
+            while (remaining.Length >= 3 && remaining[0] == '[')
             {
-                Hide();
+                var endIndex = remaining.IndexOf(']');
+                if (endIndex <= 1)
+                    break;
+
+                var marker = remaining.Substring(1, endIndex - 1).Trim();
+                if (!IsKnownTag(marker))
+                    break;
+
+                var tag = BuildTag(marker);
+                if (!tags.Any(t => string.Equals(t.Text, tag.Text, StringComparison.OrdinalIgnoreCase)))
+                {
+                    tags.Add(tag);
+                }
+
+                remaining = remaining.Substring(endIndex + 1).TrimStart();
             }
-            finally
+
+            if (tags.Count == 0)
+                return false;
+
+            changeText = string.IsNullOrEmpty(remaining) ? NormalizeChangeText(rawChange) : remaining;
+            return true;
+        }
+
+        private static VersionMismatchPanelTag BuildTag(string tag)
+        {
+            var normalized = string.IsNullOrEmpty(tag) ? "UPDATED" : tag.ToUpperInvariant();
+            switch (normalized)
             {
-                UnityEngine.Object.Destroy(gameObject);
+                case "NEW":
+                    return new VersionMismatchPanelTag("New", TagGreen);
+                case "FIXED":
+                    return new VersionMismatchPanelTag("Fixed", TagBlue);
+                case "REMOVED":
+                    return new VersionMismatchPanelTag("Removed", TagRed);
+                default:
+                    return new VersionMismatchPanelTag("Updated", TagBlue);
             }
+        }
+
+        private static bool IsKnownTag(string marker)
+        {
+            return string.Equals(marker, "New", StringComparison.OrdinalIgnoreCase) ||
+                   string.Equals(marker, "Fixed", StringComparison.OrdinalIgnoreCase) ||
+                   string.Equals(marker, "Updated", StringComparison.OrdinalIgnoreCase) ||
+                   string.Equals(marker, "Removed", StringComparison.OrdinalIgnoreCase);
+        }
+
+        private static VersionMismatchPanelTag DetectChangeTag(string changeText)
+        {
+            var text = string.IsNullOrEmpty(changeText) ? string.Empty : changeText.ToLowerInvariant();
+            if (text.StartsWith("fix") || text.Contains("crash") || text.Contains("exception"))
+                return new VersionMismatchPanelTag("Fixed", TagBlue);
+
+            if (text.StartsWith("add") || text.StartsWith("new"))
+                return new VersionMismatchPanelTag("New", TagGreen);
+
+            if (text.StartsWith("remove") || text.StartsWith("disabled") || text.StartsWith("disable"))
+                return new VersionMismatchPanelTag("Removed", TagRed);
+
+            return new VersionMismatchPanelTag("Updated", TagBlue);
+        }
+
+        protected override void BuildFooter(UIPanel footerPanel)
+        {
+            AddFooterButton("Close", 14f, CloseModalPanel);
         }
     }
 }
