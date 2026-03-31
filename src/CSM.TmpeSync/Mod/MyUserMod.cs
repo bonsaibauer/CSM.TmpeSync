@@ -24,9 +24,21 @@ namespace CSM.TmpeSync.Mod
 
         public void OnSettingsUI(UIHelperBase helper)
         {
-            var group = helper.AddGroup("Changelog");
-            var uiHelper = group as UIHelper;
-            var container = uiHelper?.self as UIPanel;
+            var baseHelper = helper as UIHelper;
+            if (baseHelper == null)
+                return;
+
+            var tabStrip = ModOptionsTabstrip.Create(baseHelper);
+            if (tabStrip == null)
+                return;
+
+            // First tab is intentionally empty for future compatibility settings.
+            tabStrip.AddTabPage("Compactibility");
+
+            var changelogTab = tabStrip.AddTabPage("Changelog");
+            var group = changelogTab.AddGroup("Changelog");
+            var groupHelper = group as UIHelper;
+            var container = groupHelper?.self as UIPanel;
             if (container == null)
                 return;
 
@@ -41,6 +53,7 @@ namespace CSM.TmpeSync.Mod
             label.text = BuildChangelogText();
             label.Invalidate();
             container.Invalidate();
+            tabStrip.Invalidate();
         }
 
         public void OnEnabled()
