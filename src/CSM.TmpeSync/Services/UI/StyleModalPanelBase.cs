@@ -170,14 +170,13 @@ namespace CSM.TmpeSync.Services.UI
             label.text = string.IsNullOrEmpty(text) ? string.Empty : text.ToUpperInvariant();
             label.textScale = 0.7f;
             label.textColor = Color.white;
-            label.backgroundSprite = "TextFieldPanel";
+            label.backgroundSprite = "GenericPanel";
             label.colorizeSprites = true;
             label.color = backgroundColor;
             label.minimumSize = new Vector2(minWidth, minHeight);
             label.textAlignment = UIHorizontalAlignment.Center;
             label.verticalAlignment = UIVerticalAlignment.Middle;
             label.padding = new RectOffset(4, 4, 5, 0);
-            label.atlas = GetIngameAtlas();
             return label;
         }
 
