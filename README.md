@@ -97,9 +97,11 @@ During configuration the script explicitly asks you to confirm these subscriptio
 `scripts/build.ps1` drives the entire process:
 
 ```powershell
-pwsh ./scripts/build.ps1 -Update -Build -Install   # refresh dependencies, build the mod, install to the configured directory
-pwsh ./scripts/build.ps1 -Build                    # build only (assumes dependencies are already mirrored)
-pwsh ./scripts/build.ps1 -Install                  # copy the latest build output into your mods folder
+pwsh ./scripts/build.ps1 -Update -Build -Install -Configuration Debug   # refresh dependencies, build the mod, build debug version and install to the configured directory
+pwsh ./scripts/build.ps1 -Update -Build -Install                        # refresh dependencies, build the mod, install to the configured directory
+pwsh ./scripts/build.ps1 -Build -Install                                # build the mod, install to the configured directory
+pwsh ./scripts/build.ps1 -Build                                         # build only (assumes dependencies are already mirrored)
+pwsh ./scripts/build.ps1 -Install                                       # copy the latest build output into your mods folder
 ```
 
 Key parameters:

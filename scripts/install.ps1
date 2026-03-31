@@ -1,5 +1,15 @@
 #!/bin/pwsh
 
+function Write-InstallInfo {
+    param([string]$Message)
+    Write-Host "[CSM.TmpeSync][Install] $Message" -ForegroundColor Cyan
+}
+
+function Write-InstallSuccess {
+    param([string]$Message)
+    Write-Host "[CSM.TmpeSync][Install] $Message" -ForegroundColor Green
+}
+
 function Invoke-InstallMod {
     param(
         [hashtable]$Profile,
@@ -47,10 +57,10 @@ function Invoke-InstallMod {
         }
 
         $sortedAssemblies = $presentAssemblyNames | Sort-Object -Unique
-        Write-Host "[CSM.TmpeSync] Installing assemblies: $($sortedAssemblies -join ', ')" -ForegroundColor Cyan
+        Write-InstallInfo "Installing assemblies: $($sortedAssemblies -join ', ')"
     }
 
-    Write-Host "[CSM.TmpeSync] Installing build to $targetDirectory" -ForegroundColor Cyan
+    Write-InstallInfo "Installing build output to $targetDirectory"
     Copy-DirectoryContents -Source $outputDir -Destination $targetDirectory -ExcludeExtensions '.pdb'
 
     $outputRoot = Join-Path $repoRoot "output"
@@ -59,8 +69,8 @@ function Invoke-InstallMod {
     }
 
     $mirrorDestination = Join-Path $outputRoot (Split-Path $targetDirectory -Leaf)
-    Write-Host "[CSM.TmpeSync] Mirroring build to $mirrorDestination" -ForegroundColor Cyan
+    Write-InstallInfo "Mirroring build output to $mirrorDestination"
     Copy-DirectoryContents -Source $outputDir -Destination $mirrorDestination -ExcludeExtensions '.pdb'
 
-    Write-Host "[CSM.TmpeSync] Installation complete." -ForegroundColor Green
+    Write-InstallSuccess "Installation complete."
 }

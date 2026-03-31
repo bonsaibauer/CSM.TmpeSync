@@ -30,6 +30,21 @@ $script:IsWindowsPlatform = [System.Runtime.InteropServices.RuntimeInformation]:
 $script:MsBuildPath = $null
 $script:ModProjectsCache = $null
 
+function Write-BuildInfo {
+    param([string]$Message)
+    Write-Host "[CSM.TmpeSync][Build] $Message" -ForegroundColor Cyan
+}
+
+function Write-BuildWarn {
+    param([string]$Message)
+    Write-Host "[CSM.TmpeSync][Build][WARN] $Message" -ForegroundColor Yellow
+}
+
+function Write-BuildSuccess {
+    param([string]$Message)
+    Write-Host "[CSM.TmpeSync][Build] $Message" -ForegroundColor Green
+}
+
 function Resolve-MsBuildPath {
     if (-not $script:IsWindowsPlatform) {
         return $null
@@ -208,7 +223,7 @@ function Load-BuildSettings {
         return $data
     }
     catch {
-        Write-Warning "[CSM.TmpeSync] Failed to read build-settings.json. A new configuration will be created."
+        Write-BuildWarn "Failed to read build-settings.json. A new configuration will be created."
         return @{ ActiveProfile = ""; Profiles = @{} }
     }
 }
@@ -414,9 +429,9 @@ function Prompt-ForProfileSelection {
         return $AvailableProfiles[0]
     }
 
-    Write-Host "Select Cities: Skylines game version:" -ForegroundColor Cyan
+    Write-BuildInfo "Select Cities: Skylines game profile:"
     for ($i = 0; $i -lt $AvailableProfiles.Count; $i++) {
-        Write-Host ("[{0}] {1}" -f ($i + 1), $AvailableProfiles[$i])
+        Write-BuildInfo ("[{0}] {1}" -f ($i + 1), $AvailableProfiles[$i])
     }
 
     $currentIndex = [Array]::IndexOf($AvailableProfiles, $CurrentProfile)
@@ -503,7 +518,7 @@ function Prompt-ForConfirmation {
             'no' { return $false }
         }
 
-        Write-Host "Please answer with yes or no." -ForegroundColor Yellow
+        Write-BuildWarn "Please answer with yes or no."
     }
 }
 
@@ -584,7 +599,7 @@ function Configure-Profile {
         $script:SettingsChanged = $true
     }
 
-    Write-Host "[CSM.TmpeSync] Profile '$ProfileName' configured." -ForegroundColor Cyan
+    Write-BuildInfo "Profile '$ProfileName' configured."
 }
 
 function Determine-ActiveProfile {
@@ -749,7 +764,7 @@ function Invoke-BuildProject {
                 '/nologo'
             ) + $msbuildArguments
 
-            Write-Host "[CSM.TmpeSync] Building ($Configuration) with MSBuild..." -ForegroundColor Cyan
+            Write-BuildInfo "Building configuration '$Configuration' with MSBuild."
             & $msbuildPath @msbuildInvocation
             if ($LASTEXITCODE -ne 0) {
                 throw "MSBuild failed with exit code $LASTEXITCODE."
@@ -769,7 +784,7 @@ function Invoke-BuildProject {
             throw "dotnet CLI not found. Install the .NET SDK."
         }
 
-        Write-Host "[CSM.TmpeSync] Building ($Configuration) with dotnet..." -ForegroundColor Cyan
+        Write-BuildInfo "Building configuration '$Configuration' with dotnet."
         & $dotnet.Source @dotnetArguments
         if ($LASTEXITCODE -ne 0) {
             throw "dotnet build failed with exit code $LASTEXITCODE."
@@ -795,7 +810,7 @@ function Get-OutputDirectory {
 . (Join-Path $PSScriptRoot 'install.ps1')
 
 if (-not ($Update -or $Build -or $Install -or $Configure)) {
-    Write-Host "[CSM.TmpeSync] No action specified. Use -Update, -Build, -Install and/or -Configure." -ForegroundColor Yellow
+    Write-BuildWarn "No action specified. Use -Update, -Build, -Install and/or -Configure."
     exit 0
 }
 
@@ -820,7 +835,7 @@ if ($requiresConfiguredProfile) {
     }
 
     if (-not $shouldConfigure -and -not (Test-ProfileIsConfigured -Profile $existingProfile)) {
-        Write-Host "[CSM.TmpeSync] No configured profile found. Launching configuration." -ForegroundColor Yellow
+        Write-BuildWarn "No configured profile found. Launching configuration."
         $shouldConfigure = $true
     }
 }
@@ -880,11 +895,16 @@ if ($Update) {
     $configuredProfile = Ensure-ConfiguredProfile -Settings $settings -ProfileName $profileName
     Update-Dependencies -Profile $configuredProfile
 
+    $effectiveUpdateGameDirectory = $GameDirectory
+    if ([string]::IsNullOrWhiteSpace($effectiveUpdateGameDirectory) -and $configuredProfile.ContainsKey('GameDirectory')) {
+        $effectiveUpdateGameDirectory = [string]$configuredProfile.GameDirectory
+    }
+
     $updateScriptParams = @{
         SkipBuildStep      = $true
         Configure          = $Configure
         Profile            = $profileName
-        GameDirectory      = $GameDirectory
+        GameDirectory      = $effectiveUpdateGameDirectory
         SteamModsDir       = $SteamModsDir
         HarmonySourceDir   = $HarmonySourceDir
         CsmSourceDir       = $CsmSourceDir
@@ -901,14 +921,20 @@ if ($Update) {
 }
 
 if ($Build) {
+    if ($Configuration -ieq 'Debug') {
+        Write-BuildInfo "Debug build mode active (Configuration=Debug)."
+    }
     Invoke-BuildProject -Profile $profile -Configuration $Configuration
 }
 
 if ($Install) {
+    if ($Configuration -ieq 'Debug') {
+        Write-BuildInfo "Debug install mode active (target folder uses .Debug suffix)."
+    }
     $configuredProfile = Ensure-ConfiguredProfile -Settings $settings -ProfileName $profileName
     Invoke-InstallMod -Profile $configuredProfile -Configuration $Configuration -OverrideModDirectory $ModDirectory
 }
 
 Save-BuildSettings -Settings $settings
 
-Write-Host "[CSM.TmpeSync] Done." -ForegroundColor Green
+Write-BuildSuccess "Done."

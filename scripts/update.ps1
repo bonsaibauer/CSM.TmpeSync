@@ -27,6 +27,16 @@ $Script:SelfRepoUrl = "https://github.com/bonsaibauer/CSM.TmpeSync"
 $Script:SubmoduleBaseRelative = "submodule"
 $Script:ModMetadataRelativePath = "src/CSM.TmpeSync/Mod/ModMetadata.cs"
 
+function Write-UpdateInfo {
+    param([string]$Message)
+    Write-Host "[CSM.TmpeSync][Update] $Message" -ForegroundColor Cyan
+}
+
+function Write-UpdateWarn {
+    param([string]$Message)
+    Write-Host "[CSM.TmpeSync][Update][WARN] $Message" -ForegroundColor Yellow
+}
+
 function Update-Dependencies {
     param([hashtable]$Profile)
 
@@ -112,7 +122,7 @@ function Update-Dependencies {
     Set-ProfileValue -Profile $Profile -Key 'TmpeDir' -Value $tmpeLibDir
     Set-ProfileValue -Profile $Profile -Key 'CsmLibDir' -Value $csmLibDir
 
-    Write-Host "[CSM.TmpeSync] Dependencies copied into lib/." -ForegroundColor Cyan
+    Write-UpdateInfo "Dependencies copied into lib/."
 }
 
 function Invoke-CommandHelper {
@@ -135,7 +145,7 @@ function Invoke-CommandHelper {
 
     $cmdStr = $Command -join ' '
     if ($DryRun) {
-        Write-Host "[DRY-RUN] $cmdStr"
+        Write-UpdateInfo "[DRY-RUN] $cmdStr"
         $global:LASTEXITCODE = 0
         return [pscustomobject]@{ ExitCode = 0; StdOut = "" }
     }
@@ -146,7 +156,7 @@ function Invoke-CommandHelper {
         $args = $Command[1..($Command.Count - 1)]
     }
 
-    Write-Host "\$ $cmdStr"
+    Write-UpdateInfo "CMD> $cmdStr"
 
     if ($WorkingDirectory) { Push-Location $WorkingDirectory }
     try {
@@ -164,9 +174,9 @@ function Invoke-CommandHelper {
 
     if ($Capture -and $PrintOutput -and $output) {
         if ($output -is [Array]) {
-            Write-Host (($output | ForEach-Object { $_.ToString() }) -join "`n")
+            Write-UpdateInfo (($output | ForEach-Object { $_.ToString() }) -join "`n")
         } else {
-            Write-Host $output
+            Write-UpdateInfo $output
         }
     }
 
@@ -210,7 +220,7 @@ function Ensure-GitRootAndChdir {
     }
     $current = (Get-Location).ProviderPath
     if ([System.IO.Path]::GetFullPath($current) -ne [System.IO.Path]::GetFullPath($root)) {
-        Write-Host "Wechsle ins Repo-Root: $root"
+        Write-UpdateInfo "Switching to repo root: $root"
         Set-Location $root
     }
     return $root
@@ -234,10 +244,10 @@ function Commit-RepoIfDirty {
     )
 
     if (Test-RepoIsClean) {
-        Write-Host "Repo is clean - no commit needed."
+        Write-UpdateInfo "Repository is clean. No commit needed."
         return $false
     }
-    Write-Host "Repo is dirty - committing everything..."
+    Write-UpdateInfo "Repository has changes. Creating commit."
     Invoke-CommandHelper -Command @('git', 'add', '-A') -DryRun:$DryRun | Out-Null
     Invoke-CommandHelper -Command @('git', 'commit', '-m', $Message) -DryRun:$DryRun | Out-Null
     return $true
@@ -253,12 +263,129 @@ function Commit-PrefixIfNeeded {
     Invoke-CommandHelper -Command @('git', 'add', '-A', '--', $PrefixRelative) -DryRun:$DryRun | Out-Null
     $diff = Invoke-CommandHelper -Command @('git', 'diff', '--cached', '--quiet', '--', $PrefixRelative) -Check:$false -Capture:$false -PrintOutput:$false
     if ($diff.ExitCode -eq 1) {
-        Write-Host "Committing changes under $PrefixRelative ..."
+        Write-UpdateInfo "Committing changes under path: $PrefixRelative"
         Invoke-CommandHelper -Command @('git', 'commit', '-m', $Message) -DryRun:$DryRun | Out-Null
         return $true
     }
-    Write-Host "Nothing to commit under $PrefixRelative."
+    Write-UpdateInfo "No staged changes found under path: $PrefixRelative"
     return $false
+}
+
+function Commit-PathIfNeeded {
+    param(
+        [string]$PathRelative,
+        [string]$Message,
+        [switch]$DryRun
+    )
+
+    if ([string]::IsNullOrWhiteSpace($PathRelative)) {
+        throw "PathRelative is required."
+    }
+
+    Invoke-CommandHelper -Command @('git', 'add', '--', $PathRelative) -DryRun:$DryRun | Out-Null
+    $diff = Invoke-CommandHelper -Command @('git', 'diff', '--cached', '--quiet', '--', $PathRelative) -Check:$false -Capture:$false -PrintOutput:$false
+    if ($diff.ExitCode -eq 1) {
+        Write-UpdateInfo "Committing file: $PathRelative"
+        Invoke-CommandHelper -Command @('git', 'commit', '-m', $Message) -DryRun:$DryRun | Out-Null
+        return $true
+    }
+
+    Write-UpdateInfo "No staged changes found for file: $PathRelative"
+    return $false
+}
+
+function Convert-ToCitiesSkylinesVersionLine {
+    param([string]$RawVersion)
+
+    if ([string]::IsNullOrWhiteSpace($RawVersion)) {
+        return ''
+    }
+
+    $match = [regex]::Match($RawVersion.Trim(), '^\D*(\d+)\.(\d+)')
+    if (-not $match.Success) {
+        return ''
+    }
+
+    return '{0}.{1}.x' -f $match.Groups[1].Value, $match.Groups[2].Value
+}
+
+function Resolve-CitiesSkylinesVersionFromLocalInstall {
+    param(
+        [string]$GameDirectory,
+        [string]$Profile
+    )
+
+    $resolvedGameDirectory = $GameDirectory
+    if ([string]::IsNullOrWhiteSpace($resolvedGameDirectory)) {
+        $settingsPath = Join-Path $PSScriptRoot 'build-settings.json'
+        if (Test-Path $settingsPath) {
+            try {
+                $settings = Get-Content -Path $settingsPath -Raw -Encoding UTF8 | ConvertFrom-Json -AsHashtable
+                if ($settings -and $settings.ContainsKey('Profiles')) {
+                    $profileName = $Profile
+                    if ([string]::IsNullOrWhiteSpace($profileName) -and $settings.ContainsKey('ActiveProfile')) {
+                        $profileName = [string]$settings.ActiveProfile
+                    }
+
+                    if (-not [string]::IsNullOrWhiteSpace($profileName) -and $settings.Profiles.ContainsKey($profileName)) {
+                        $profileData = $settings.Profiles[$profileName]
+                        if ($profileData -and $profileData.ContainsKey('GameDirectory')) {
+                            $resolvedGameDirectory = [string]$profileData.GameDirectory
+                        }
+                    }
+                }
+            }
+            catch {
+            }
+        }
+    }
+
+    if ([string]::IsNullOrWhiteSpace($resolvedGameDirectory) -or -not (Test-Path $resolvedGameDirectory)) {
+        return $null
+    }
+
+    $logCandidates = @(
+        (Join-Path $resolvedGameDirectory 'Cities_Data\output_log.txt'),
+        (Join-Path (Join-Path $env:LOCALAPPDATA 'Colossal Order\Cities_Skylines') 'output_log.txt')
+    )
+
+    foreach ($candidate in $logCandidates) {
+        if ([string]::IsNullOrWhiteSpace($candidate) -or -not (Test-Path $candidate)) {
+            continue
+        }
+
+        $text = ''
+        try {
+            $text = Get-Content -Path $candidate -Raw -Encoding UTF8
+        }
+        catch {
+            continue
+        }
+
+        if ([string]::IsNullOrWhiteSpace($text)) {
+            continue
+        }
+
+        $matches = [regex]::Matches($text, '(?im)^\s*Game Version:\s*([^\r\n]+?)\s*$')
+        if ($matches.Count -eq 0) {
+            continue
+        }
+
+        $rawVersion = $matches[$matches.Count - 1].Groups[1].Value.Trim()
+        $versionLine = Convert-ToCitiesSkylinesVersionLine -RawVersion $rawVersion
+        if ([string]::IsNullOrWhiteSpace($versionLine)) {
+            continue
+        }
+
+        return [pscustomobject]@{
+            RawVersion = $rawVersion
+            VersionLine = $versionLine
+            SourcePath = $candidate
+            GameDirectory = $resolvedGameDirectory
+        }
+    }
+
+    return $null
 }
 
 function Update-ModMetadataFile {
@@ -266,6 +393,8 @@ function Update-ModMetadataFile {
         [string]$RepoRoot,
         [hashtable]$ReleaseRefs,
         [hashtable]$LegacyReleaseRefs,
+        [string]$ExpectedCitiesSkylinesVersionLine = "",
+        [string]$CitiesDetectedVersionRaw = "",
         [switch]$DryRun
     )
 
@@ -284,7 +413,7 @@ function Update-ModMetadataFile {
         catch {
             $currentText = ''
         }
-        $match = [regex]::Match($currentText, 'NewVersion\s*=\s*"([^\"]*)"')
+        $match = [regex]::Match($currentText, 'ModReleaseTag\s*=\s*"([^\"]*)"')
         if ($match.Success) {
             $existingVersion = $match.Groups[1].Value
         }
@@ -293,10 +422,10 @@ function Update-ModMetadataFile {
     if ($null -eq $LegacyReleaseRefs) { $LegacyReleaseRefs = @{} }
 
     $entries = @(
-        @{ Name = 'CSM.TmpeSync'; LatestConst = 'LatestCsmTmpeSyncReleaseTag'; LegacyConst = 'LegacyCsmTmpeSyncReleaseTags'; Description = 'CSM TM:PE Sync' },
-        @{ Name = 'TMPE'; LatestConst = 'LatestTmpeReleaseTag'; LegacyConst = 'LegacyTmpeReleaseTags'; Description = 'Traffic Manager: President Edition' },
-        @{ Name = 'CSM'; LatestConst = 'LatestCsmReleaseTag'; LegacyConst = 'LegacyCsmReleaseTags'; Description = 'Cities: Skylines Multiplayer' },
-        @{ Name = 'CitiesHarmony'; LatestConst = 'LatestCitiesHarmonyReleaseTag'; LegacyConst = 'LegacyCitiesHarmonyReleaseTags'; Description = 'Cities Harmony' }
+        @{ Name = 'CSM.TmpeSync'; LatestConst = 'ModLatestReleaseTag'; LegacyConst = 'ModLegacyReleaseTags'; Description = 'CSM TM:PE Sync' },
+        @{ Name = 'TMPE'; LatestConst = 'TmpeLatestReleaseTag'; LegacyConst = 'TmpeLegacyReleaseTags'; Description = 'Traffic Manager: President Edition' },
+        @{ Name = 'CSM'; LatestConst = 'CsmLatestReleaseTag'; LegacyConst = 'CsmLegacyReleaseTags'; Description = 'Cities: Skylines Multiplayer' },
+        @{ Name = 'CitiesHarmony'; LatestConst = 'HarmonyLatestReleaseTag'; LegacyConst = 'HarmonyLegacyReleaseTags'; Description = 'Cities Harmony' }
     )
 
     $escapeValue = {
@@ -330,7 +459,24 @@ function Update-ModMetadataFile {
         return $results
     }
 
+    $existingExpectedLine = & $extractExisting 'CitiesSupportedVersionLine' $currentText
+    if ([string]::IsNullOrWhiteSpace($ExpectedCitiesSkylinesVersionLine)) {
+        if (-not [string]::IsNullOrWhiteSpace($existingExpectedLine)) {
+            $ExpectedCitiesSkylinesVersionLine = $existingExpectedLine
+        }
+        else {
+            $ExpectedCitiesSkylinesVersionLine = '1.21.x'
+        }
+    }
+
+    $existingExpectedRaw = & $extractExisting 'CitiesDetectedVersionRaw' $currentText
+    if ([string]::IsNullOrWhiteSpace($CitiesDetectedVersionRaw)) {
+        $CitiesDetectedVersionRaw = $existingExpectedRaw
+    }
+
     $escapedVersion = & $escapeValue $existingVersion
+    $escapedExpectedVersionLine = & $escapeValue $ExpectedCitiesSkylinesVersionLine
+    $escapedExpectedVersionRaw = & $escapeValue $CitiesDetectedVersionRaw
 
     $lines = @(
         '// <auto-generated>',
@@ -344,7 +490,22 @@ function Update-ModMetadataFile {
         '        /// <summary>',
         '        /// Current version of the CSM TM:PE Sync mod. Update this value when publishing new builds.',
         '        /// </summary>',
-        "        internal const string NewVersion = ""$escapedVersion"";",
+        "        internal const string ModReleaseTag = ""$escapedVersion"";",
+        '',
+        '        /// <summary>',
+        '        /// Expected Cities: Skylines runtime version (BuildConfig.APPLICATION_VERSION) used as reference.',
+        '        /// </summary>',
+        '        internal const uint CitiesSupportedGameVersionU = 222553360U;',
+        '',
+        '        /// <summary>',
+        '        /// Expected Cities: Skylines compatibility line (for example 1.21.x).',
+        '        /// </summary>',
+        "        internal const string CitiesSupportedVersionLine = ""$escapedExpectedVersionLine"";",
+        '',
+        '        /// <summary>',
+        '        /// Full detected Cities: Skylines version string (for display/debug in checks).',
+        '        /// </summary>',
+        "        internal const string CitiesDetectedVersionRaw = ""$escapedExpectedVersionRaw"";",
         ''
     )
 
@@ -405,20 +566,17 @@ function Update-ModMetadataFile {
     $newContent = ($lines -join "`n")
 
     if ($currentText -eq $newContent) {
-        Write-Host "ModMetadata.cs ist bereits aktuell."
+        Write-UpdateInfo "ModMetadata.cs is already up to date."
         return
     }
 
     if ($DryRun) {
-        Write-Host "[DRY-RUN] Aktualisiere $($Script:ModMetadataRelativePath) mit neuen Release-Tags."
+        Write-UpdateInfo "[DRY-RUN] Would update $($Script:ModMetadataRelativePath) with release tags and Cities: Skylines version metadata."
         return
     }
 
     Set-Content -Path $path -Value $newContent -Encoding UTF8
-    Write-Host "ModMetadata.cs aktualisiert."
-
-    $prefixRelative = Get-RelativePath -BasePath $RepoRoot -TargetPath $directory
-    Commit-PrefixIfNeeded -PrefixRelative $prefixRelative -Message 'chore: update dependency release tags' -DryRun:$DryRun | Out-Null
+    Write-UpdateInfo "ModMetadata.cs updated."
 }
 
 function Get-ReleaseRefs {
@@ -542,7 +700,7 @@ function Get-LatestReleaseTag {
     }
 
     $apiUrl = "https://api.github.com/repos/$($parsed.Owner)/$($parsed.Repo)/releases/latest"
-    Write-Host "Checking latest release for $($parsed.Owner)/$($parsed.Repo) ..."
+    Write-UpdateInfo "Checking latest release tag for $($parsed.Owner)/$($parsed.Repo)."
 
     try {
         $response = Invoke-WebRequest -Uri $apiUrl -Headers @{ 'Accept' = 'application/vnd.github+json'; 'User-Agent' = 'CSM.TmpeSync-update-script' } -ErrorAction Stop
@@ -550,14 +708,14 @@ function Get-LatestReleaseTag {
     catch [System.Net.WebException] {
         $webEx = $_.Exception
         if ($webEx.Response -and $webEx.Response.StatusCode.value__ -eq 404) {
-            Write-Host "No releases found for $($parsed.Owner)/$($parsed.Repo)."
+            Write-UpdateWarn "No releases found for $($parsed.Owner)/$($parsed.Repo)."
             return ''
         }
-        Write-Host "Network error while fetching releases."
+        Write-UpdateWarn "Network error while fetching release for $($parsed.Owner)/$($parsed.Repo)."
         return ''
     }
     catch {
-        Write-Host "Unexpected error while fetching releases: $($_.Exception.Message)"
+        Write-UpdateWarn "Unexpected error while fetching release for $($parsed.Owner)/$($parsed.Repo): $($_.Exception.Message)"
         return ''
     }
 
@@ -575,15 +733,15 @@ function Get-LatestReleaseTag {
         if ($null -ne $tagValue) { $tag = [string]$tagValue }
         $tag = $tag.Trim()
         if (-not [string]::IsNullOrEmpty($tag)) {
-            Write-Host "Neuester Release-Tag: $tag"
+            Write-UpdateInfo "Latest release tag for $($parsed.Owner)/$($parsed.Repo): $tag"
         }
         else {
-            Write-Host "Antwort enthielt keinen tag_name."
+            Write-UpdateWarn "Latest release response for $($parsed.Owner)/$($parsed.Repo) did not contain tag_name."
         }
         return $tag
     }
     catch {
-        Write-Host "Could not read API response."
+        Write-UpdateWarn "Could not parse latest release response for $($parsed.Owner)/$($parsed.Repo)."
         return ''
     }
 }
@@ -605,7 +763,7 @@ function Get-AllReleaseTags {
     $perPage = 100
     $tags = @()
 
-    Write-Host "Fetching all release tags for $owner/$repo ..."
+    Write-UpdateInfo "Fetching all release tags for $owner/$repo."
 
     while ($true) {
         $apiUrl = "https://api.github.com/repos/$owner/$repo/releases?per_page=$perPage&page=$page"
@@ -615,14 +773,14 @@ function Get-AllReleaseTags {
         catch [System.Net.WebException] {
             $webEx = $_.Exception
             if ($webEx.Response -and $webEx.Response.StatusCode.value__ -eq 404) {
-                Write-Host "No releases found for $owner/$repo."
+                Write-UpdateWarn "No releases found for $owner/$repo."
                 return @()
             }
-            Write-Host "Network error while fetching releases for $owner/$repo."
+            Write-UpdateWarn "Network error while fetching all releases for $owner/$repo."
             return @()
         }
         catch {
-            Write-Host "Unexpected error while fetching releases for $($owner)/$($repo): $($_.Exception.Message)"
+            Write-UpdateWarn "Unexpected error while fetching all releases for $owner/${repo}: $($_.Exception.Message)"
             return @()
         }
 
@@ -643,7 +801,7 @@ function Get-AllReleaseTags {
             }
         }
         catch {
-            Write-Host "Could not read API response for all releases."
+            Write-UpdateWarn "Could not parse release list response for $owner/$repo."
             break
         }
 
@@ -666,7 +824,7 @@ function Get-AllReleaseTags {
 
         $page += 1
         if ($page -gt 10) {
-            Write-Host "Stopping after 10 pages to avoid excessive API calls."
+            Write-UpdateWarn "Stopped after 10 pages to avoid excessive API calls for $owner/$repo."
             break
         }
     }
@@ -848,7 +1006,7 @@ function Invoke-AddOrUpdateSubmodule {
             $repoCheck = Invoke-CommandHelper -Command @('git', '-C', $fullPath, 'rev-parse', '--is-inside-work-tree') -Check:$false -PrintOutput:$false
             if ($repoCheck.ExitCode -eq 0) {
                 $allowForceAdd = $true
-                Write-Host "Reusing existing git directory at '$normalizedPath' while registering submodule."
+                Write-UpdateInfo "Reusing existing git directory at '$normalizedPath' while registering submodule."
             }
             else {
                 throw "Path '$normalizedPath' already exists and is not an empty directory. Please clean it up or configure it as a submodule."
@@ -862,7 +1020,7 @@ function Invoke-AddOrUpdateSubmodule {
     }
 
     if (-not $isRegistered) {
-        Write-Host "Adding submodule '$Name' ($Url@$Branch) -> $normalizedPath"
+        Write-UpdateInfo "Adding submodule '$Name' ($Url@$Branch) at $normalizedPath."
         $addArgs = @('git', 'submodule', 'add', '-b', $Branch, $Url, $normalizedPath)
         if ((Test-Path $fullPath -PathType Container) -and -not (Test-EmptyDirectory -Path $fullPath)) {
             $addArgs = @('git', 'submodule', 'add', '--force', '-b', $Branch, $Url, $normalizedPath)
@@ -871,7 +1029,7 @@ function Invoke-AddOrUpdateSubmodule {
         Update-SubmoduleRecursive -RelativePath $normalizedPath -Remote:$true -DryRun:$DryRun
     }
     else {
-        Write-Host "Updating submodule '$Name' ($Url@$Branch) under $normalizedPath"
+        Write-UpdateInfo "Updating submodule '$Name' ($Url@$Branch) under $normalizedPath."
         Ensure-SubmoduleBranchConfig -RelativePath $normalizedPath -Branch $Branch -DryRun:$DryRun
         Update-SubmoduleRecursive -RelativePath $normalizedPath -Remote:$true -DryRun:$DryRun
     }
@@ -889,7 +1047,7 @@ function Invoke-ManageSubmodules {
 
         $basePath = Join-Path $RepoRoot $Script:SubmoduleBaseRelative
         if (-not (Test-Path $basePath)) {
-            Write-Host "Creating folder '$($Script:SubmoduleBaseRelative)' for submodules."
+            Write-UpdateInfo "Creating folder '$($Script:SubmoduleBaseRelative)' for submodules."
             if (-not $DryRun) {
                 New-Item -ItemType Directory -Path $basePath -Force | Out-Null
             }
@@ -959,6 +1117,19 @@ function Invoke-CsmTmpeSyncUpdate {
     $scriptDir = Split-Path -Path $scriptPath -Parent
     $repoRoot  = Split-Path -Path $scriptDir -Parent
 
+    $csVersionInfo = Resolve-CitiesSkylinesVersionFromLocalInstall -GameDirectory $GameDirectory -Profile $Profile
+    $expectedCitiesSkylinesVersionLine = ''
+    $CitiesDetectedVersionRaw = ''
+    if ($csVersionInfo -ne $null) {
+        $expectedCitiesSkylinesVersionLine = [string]$csVersionInfo.VersionLine
+        $CitiesDetectedVersionRaw = [string]$csVersionInfo.RawVersion
+        Write-UpdateInfo "Detected local Cities: Skylines version | raw=$CitiesDetectedVersionRaw line=$expectedCitiesSkylinesVersionLine source=$($csVersionInfo.SourcePath)"
+        Write-UpdateInfo "Cities: Skylines metadata update successful | line=$expectedCitiesSkylinesVersionLine raw=$CitiesDetectedVersionRaw"
+    }
+    else {
+        Write-UpdateWarn "Could not detect local Cities: Skylines version from local logs. Keeping existing metadata values."
+    }
+
     # Always resolve real release tags; SubmodulesDryRun should only influence submodule handling.
     $releaseRefs = Get-ReleaseRefs -DryRun:$false
     $shouldManageSubmodules = -not $SkipSubmodules
@@ -973,15 +1144,21 @@ function Invoke-CsmTmpeSyncUpdate {
         Invoke-ManageSubmodules -RepoRoot $repoRoot -DryRun:$SubmodulesDryRun
     }
     else {
-        Write-Host "Skipping submodule initialization/update."
+        Write-UpdateInfo "Skipping submodule initialization/update."
     }
     if ($null -eq $releaseRefs) {
         $releaseRefs = @{}
     }
     $legacyReleaseRefs = Get-LegacyReleaseRefs -LatestReleaseRefs $releaseRefs -DryRun:$false
-    Update-ModMetadataFile -RepoRoot $repoRoot -ReleaseRefs $releaseRefs -LegacyReleaseRefs $legacyReleaseRefs -DryRun:$false
+    Update-ModMetadataFile `
+        -RepoRoot $repoRoot `
+        -ReleaseRefs $releaseRefs `
+        -LegacyReleaseRefs $legacyReleaseRefs `
+        -ExpectedCitiesSkylinesVersionLine $expectedCitiesSkylinesVersionLine `
+        -CitiesDetectedVersionRaw $CitiesDetectedVersionRaw `
+        -DryRun:$false
 
-    # --- Interactive update of NewVersion based on LatestCsmTmpeSyncReleaseTag ---
+    # --- Interactive update of ModReleaseTag based on ModLatestReleaseTag ---
     $modMetadataPath = Join-Path $repoRoot 'src/CSM.TmpeSync/Mod/ModMetadata.cs'
 
     # wait up to 5s if file was just created
@@ -1000,35 +1177,37 @@ function Invoke-CsmTmpeSyncUpdate {
     # Read file
     $content = Get-Content -Path $modMetadataPath -Raw -Encoding UTF8
 
-    # Extract current LatestCsmTmpeSyncReleaseTag
-    $tagMatch = [regex]::Match($content, 'internal\s+const\s+string\s+LatestCsmTmpeSyncReleaseTag\s*=\s*"([^\"]+)"\s*;')
+    # Extract current ModLatestReleaseTag
+    $tagMatch = [regex]::Match($content, 'internal\s+const\s+string\s+ModLatestReleaseTag\s*=\s*"([^\"]+)"\s*;')
     $currentTag = if ($tagMatch.Success) { $tagMatch.Groups[1].Value } else { "<unknown>" }
 
-    Write-Host "LatestCsmTmpeSyncReleaseTag: $currentTag"
-    $change = Read-Host "Do you want to change the constant 'NewVersion'? (yes/no)"
+    Write-UpdateInfo "Latest CSM.TmpeSync release tag (GitHub): $currentTag"
+    $change = Read-Host "Do you want to change the constant 'ModReleaseTag'? (yes/no)"
 
     if ($change -match '^(?i)y(es)?$') {
-        $newVersion = Read-Host "Enter new string for 'NewVersion' (leave empty to keep current)"
-        if (-not [string]::IsNullOrWhiteSpace($newVersion)) {
-            $escaped = $newVersion -replace '"', '\\"'
+        $ModReleaseTag = Read-Host "Enter new string for 'ModReleaseTag' (leave empty to keep current)"
+        if (-not [string]::IsNullOrWhiteSpace($ModReleaseTag)) {
+            $escaped = $ModReleaseTag -replace '"', '\\"'
             $newContent = [regex]::Replace(
                 $content,
-                '(?m)^\s*internal\s+const\s+string\s+NewVersion\s*=\s*"[^\"]*"\s*;',
-                ("        internal const string NewVersion = ""$escaped"";")
+                '(?m)^\s*internal\s+const\s+string\s+ModReleaseTag\s*=\s*"[^\"]*"\s*;',
+                ("        internal const string ModReleaseTag = ""$escaped"";")
             )
 
             if ($newContent -ne $content) {
                 Set-Content -Path $modMetadataPath -Value $newContent -Encoding UTF8
-                Write-Host "NewVersion updated to: $newVersion"
+                Write-UpdateInfo "ModReleaseTag updated to: $ModReleaseTag"
             } else {
-                Write-Host "No match found for NewVersion. File unchanged."
+                Write-UpdateWarn "No match found for ModReleaseTag. File unchanged."
             }
         } else {
-            Write-Host "Empty input. NewVersion remains unchanged."
+            Write-UpdateInfo "Empty input. ModReleaseTag remains unchanged."
         }
     } else {
-        Write-Host "No change requested for NewVersion."
+        Write-UpdateInfo "No change requested for ModReleaseTag."
     }
+
+    Commit-PathIfNeeded -PathRelative $Script:ModMetadataRelativePath -Message 'chore: update dependency release tags' -DryRun:$false | Out-Null
 }
 
 if ($MyInvocation.InvocationName -ne '.') {

@@ -52,10 +52,7 @@ namespace CSM.TmpeSync.Mod
                 _registered = true;
             }
 
-            foreach (var feature in Features)
-                EnableFeature(feature);
-
-            Log.Info(LogCategory.Synchronization, GetCurrentRole(), "Synchronization features enabled.");
+            EnableAllFeatures();
         }
 
         internal static void Unregister()
@@ -83,32 +80,79 @@ namespace CSM.TmpeSync.Mod
                 ? "mod version mismatch"
                 : string.Format("mod version mismatch (remote={0})", remoteVersion);
 
+            ApplyCompatibilityGate(enabled: false, reason: reason);
+        }
+
+        internal static void ApplyCompatibilityGate(bool enabled, string reason)
+        {
             var shouldDisable = false;
+            var shouldEnable = false;
+            var effectiveReason = string.IsNullOrEmpty(reason) ? "compatibility gate" : reason;
             lock (SyncRoot)
             {
-                if (_suspended)
-                    return;
-
-                _suspended = true;
-                _suspendReason = reason;
-
-                if (_registered)
+                if (enabled)
                 {
-                    _registered = false;
-                    shouldDisable = true;
+                    if (!_suspended)
+                        return;
+
+                    _suspended = false;
+                    _suspendReason = string.Empty;
+                    if (!_registered)
+                    {
+                        _registered = true;
+                        shouldEnable = true;
+                    }
+                }
+                else
+                {
+                    if (_suspended && !_registered && string.Equals(_suspendReason, effectiveReason, StringComparison.Ordinal))
+                        return;
+
+                    _suspended = true;
+                    _suspendReason = effectiveReason;
+                    if (_registered)
+                    {
+                        _registered = false;
+                        shouldDisable = true;
+                    }
                 }
             }
 
             if (shouldDisable)
+            {
                 DisableAllFeatures();
+                Log.Warn(LogCategory.Synchronization, GetCurrentRole(), "Synchronization suspended | reason={0}", effectiveReason);
+            }
 
-            Log.Warn(LogCategory.Synchronization, GetCurrentRole(), "Synchronization suspended | reason={0}", reason);
+            if (shouldEnable)
+            {
+                EnableAllFeatures();
+                Log.Info(LogCategory.Synchronization, GetCurrentRole(), "Synchronization resumed | reason={0}", effectiveReason);
+            }
+        }
+
+        internal static void GetRuntimeState(out bool isRegistered, out bool isSuspended, out string suspendReason)
+        {
+            lock (SyncRoot)
+            {
+                isRegistered = _registered;
+                isSuspended = _suspended;
+                suspendReason = _suspendReason ?? string.Empty;
+            }
         }
 
         private static void DisableAllFeatures()
         {
             foreach (var feature in Features)
                 DisableFeature(feature);
+        }
+
+        private static void EnableAllFeatures()
+        {
+            foreach (var feature in Features)
+                EnableFeature(feature);
+
+            Log.Info(LogCategory.Synchronization, GetCurrentRole(), "Synchronization features enabled.");
         }
 
         private static void EnableFeature(FeatureToggle feature)
