@@ -163,6 +163,52 @@ function Resolve-SteamCmdPath {
     return Install-FreshSteamCmd -DestinationRoot (Join-Path $scriptDir "bin")
 }
 
+function Test-WorkshopUploadSucceeded {
+    param(
+        [string]$SteamCmdExePath,
+        [datetime]$RunStartedAt
+    )
+
+    if ([string]::IsNullOrWhiteSpace($SteamCmdExePath)) {
+        return $false
+    }
+
+    $steamCmdDir = Split-Path $SteamCmdExePath -Parent
+    if ([string]::IsNullOrWhiteSpace($steamCmdDir)) {
+        return $false
+    }
+
+    $workshopLogPath = Join-Path $steamCmdDir "logs/workshop_log.txt"
+    if (-not (Test-Path $workshopLogPath)) {
+        return $false
+    }
+
+    $threshold = $RunStartedAt.AddSeconds(-5)
+    $okLineRegex = [regex]::new('^\[(?<ts>\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})\]\s+\[AppID\s+\d+\]\s+Upload finished .* : OK$')
+    $timestampFormat = "yyyy-MM-dd HH:mm:ss"
+    $culture = [System.Globalization.CultureInfo]::InvariantCulture
+
+    $lines = Get-Content -LiteralPath $workshopLogPath -ErrorAction SilentlyContinue
+    foreach ($line in $lines) {
+        $match = $okLineRegex.Match($line)
+        if (-not $match.Success) {
+            continue
+        }
+
+        $timestampText = $match.Groups["ts"].Value
+        $timestamp = [datetime]::MinValue
+        if (-not [datetime]::TryParseExact($timestampText, $timestampFormat, $culture, [System.Globalization.DateTimeStyles]::None, [ref]$timestamp)) {
+            continue
+        }
+
+        if ($timestamp -ge $threshold) {
+            return $true
+        }
+    }
+
+    return $false
+}
+
 $steamCmd = Resolve-SteamCmdPath -PreferredPath $SteamCmdPath
 $publisherVdf = Resolve-OrDefault -InputPath $PublisherVdfPath -DefaultRelative "publisher.vdf"
 
@@ -205,18 +251,29 @@ if ([string]::IsNullOrWhiteSpace($changelogNote)) {
 
 if (-not [string]::IsNullOrWhiteSpace($changelogNote)) {
     $replacement = '    "changenote" "{0}"' -f $changelogNote
-    $lines = Get-Content -LiteralPath $publisherVdf
-    $filtered = $lines | Where-Object { $_ -notmatch '^\s*"changenote"\s*"' }
+    $lines = @(Get-Content -LiteralPath $publisherVdf)
+    $filtered = @($lines | Where-Object { $_ -notmatch '^\s*"changenote"\s*"' })
+
+    # Ignore trailing blank lines before checking where the root block closes.
+    while ($filtered.Count -gt 0 -and [string]::IsNullOrWhiteSpace($filtered[-1])) {
+        if ($filtered.Count -eq 1) {
+            $filtered = @()
+            break
+        }
+
+        $filtered = @($filtered[0..($filtered.Count - 2)])
+    }
+
+    if ($filtered.Count -eq 0 -or $filtered[-1].Trim() -ne "}") {
+        throw "Invalid publisher.vdf format: expected '}' as the last non-empty line."
+    }
 
     $outputLines = @()
-    if ($filtered.Count -gt 0 -and $filtered[-1].Trim() -eq "}") {
+    if ($filtered.Count -gt 1) {
         $outputLines += $filtered[0..($filtered.Count - 2)]
-        $outputLines += $replacement
-        $outputLines += $filtered[-1]
     }
-    else {
-        $outputLines = $filtered + @($replacement, "}")
-    }
+    $outputLines += $replacement
+    $outputLines += $filtered[-1]
 
     $content = ($outputLines -join "`n").TrimEnd() + "`n"
 
@@ -238,6 +295,7 @@ $exitCode = $null
 $usedFreshSteamCmd = $false
 
 for ($attempt = 1; $attempt -le 2; $attempt++) {
+    $attemptStartedAt = Get-Date
     $activeSteamCmdDir = Split-Path $steamCmd -Parent
     if ([string]::IsNullOrWhiteSpace($activeSteamCmdDir) -or -not (Test-Path $activeSteamCmdDir)) {
         $activeSteamCmdDir = $scriptDir
@@ -252,6 +310,11 @@ for ($attempt = 1; $attempt -le 2; $attempt++) {
     }
 
     $exitCode = $LASTEXITCODE
+
+    if ($exitCode -ne 0 -and (Test-WorkshopUploadSucceeded -SteamCmdExePath $steamCmd -RunStartedAt $attemptStartedAt)) {
+        Write-Host "[upload-workshop] SteamCMD returned ExitCode $exitCode, but workshop logs confirm upload success. Treating as success." -ForegroundColor Yellow
+        $exitCode = 0
+    }
 
     if ($exitCode -eq -1 -and -not $usedFreshSteamCmd -and [string]::IsNullOrWhiteSpace($SteamCmdPath)) {
         Write-Host "[upload-workshop] SteamCMD failed with exit code -1. Downloading a fresh copy and retrying..." -ForegroundColor Yellow
@@ -268,7 +331,7 @@ if ($tempVdf -and (Test-Path $tempVdf)) {
 }
 
 if ($exitCode -eq 7) {
-    Write-Error "SteamCMD authentication failed (ExitCode 7). Check password / Steam Guard code."
+    Write-Error "SteamCMD failed with ExitCode 7. Check Steam Guard/login and validate publisher.vdf syntax."
     $global:LASTEXITCODE = $exitCode
     return
 }
