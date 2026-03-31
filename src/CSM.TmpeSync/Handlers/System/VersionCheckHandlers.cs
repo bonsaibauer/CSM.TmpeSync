@@ -37,21 +37,31 @@ namespace CSM.TmpeSync.Handlers.System
 
             var clientVersion = command?.Version;
             var serverVersion = CompatibilityChecker.LocalVersion;
-            var versionsMatch = CompatibilityChecker.CompareVersions(clientVersion, serverVersion);
-            var status = versionsMatch ? "Match" : "Mismatch";
+            string comparisonStatus;
+            string comparisonSeverity;
+            var versionsMatch = CompatibilityChecker.CompareVersions(
+                clientVersion,
+                serverVersion,
+                out comparisonStatus,
+                out comparisonSeverity);
 
             Log.Info(
                 LogCategory.Network,
-                "Client version comparison | senderId={0} clientVersion={1} serverVersion={2} status={3}",
+                "Client version comparison | senderId={0} clientVersion={1} serverVersion={2} status={3} severity={4}",
                 senderId,
                 clientVersion ?? "<null>",
                 serverVersion ?? "<null>",
-                status);
+                comparisonStatus,
+                comparisonSeverity ?? "<null>");
+
+            CompatibilityChecker.HandleAutomaticServerHandshakeObservation(
+                senderId,
+                clientVersion,
+                serverVersion);
 
             if (!versionsMatch)
             {
                 VersionMismatchNotifier.NotifyServerMismatch(senderId, clientVersion, serverVersion);
-                FeatureBootstrapper.SuspendForVersionMismatch(clientVersion);
                 var shouldBroadcast = command == null || !command.IsManualCheck;
                 if (shouldBroadcast)
                 {
@@ -79,7 +89,7 @@ namespace CSM.TmpeSync.Handlers.System
 
             try
             {
-                CsmBridge.SendToClient(senderId, new VersionCheckResponse
+                CsmBridge.SendToAll(new VersionCheckResponse
                 {
                     Version = serverVersion,
                     IsManualCheck = command != null && command.IsManualCheck,
@@ -87,7 +97,7 @@ namespace CSM.TmpeSync.Handlers.System
                 });
                 Log.Info(
                     LogCategory.Network,
-                    "Version check response sent | targetId={0} version={1} manual={2} requestId={3}",
+                    "Version check response broadcast sent | targetId={0} version={1} manual={2} requestId={3}",
                     senderId,
                     serverVersion ?? "<null>",
                     command != null && command.IsManualCheck ? "Yes" : "No",
@@ -95,7 +105,7 @@ namespace CSM.TmpeSync.Handlers.System
             }
             catch (Exception ex)
             {
-                Log.Warn(LogCategory.Network, LogRole.General, "Failed to send version check response | targetId={0} error={1}", senderId, ex);
+                Log.Warn(LogCategory.Network, LogRole.General, "Failed to broadcast version check response | targetId={0} error={1}", senderId, ex);
             }
         }
     }
@@ -121,15 +131,23 @@ namespace CSM.TmpeSync.Handlers.System
 
             var serverVersion = command?.Version;
             var localVersion = CompatibilityChecker.LocalVersion;
-            var versionsMatch = CompatibilityChecker.CompareVersions(serverVersion, localVersion);
-            var status = versionsMatch ? "Match" : "Mismatch";
+            string comparisonStatus;
+            string comparisonSeverity;
+            var versionsMatch = CompatibilityChecker.CompareVersions(
+                serverVersion,
+                localVersion,
+                out comparisonStatus,
+                out comparisonSeverity);
 
             Log.Info(
                 LogCategory.Network,
-                "Server version comparison | serverVersion={0} localVersion={1} status={2}",
+                "Server version comparison | serverVersion={0} localVersion={1} status={2} severity={3}",
                 serverVersion ?? "<null>",
                 localVersion ?? "<null>",
-                status);
+                comparisonStatus,
+                comparisonSeverity ?? "<null>");
+
+            CompatibilityChecker.HandleAutomaticClientHandshakeResult(localVersion, serverVersion);
 
             if (!versionsMatch)
             {
@@ -145,7 +163,6 @@ namespace CSM.TmpeSync.Handlers.System
                     VersionMismatchNotifier.NotifyClientMismatch(serverVersion, localVersion);
                 }
 
-                FeatureBootstrapper.SuspendForVersionMismatch(serverVersion);
                 return;
             }
 
@@ -164,6 +181,12 @@ namespace CSM.TmpeSync.Handlers.System
         protected override void Handle(VersionProbeRequest command)
         {
             var senderId = CsmBridge.GetSenderId(command);
+            Log.Info(
+                LogCategory.Network,
+                "Version probe request received | senderId={0} requestId={1} hostVersion={2}",
+                senderId,
+                command?.RequestId ?? "<null>",
+                command?.HostVersion ?? "<null>");
             if (CsmBridge.IsServerInstance())
             {
                 Log.Debug(LogCategory.Network, LogRole.General, "Version probe request ignored | reason=server_instance senderId={0}", senderId);
@@ -182,6 +205,14 @@ namespace CSM.TmpeSync.Handlers.System
                     ClientVersion = localVersion,
                     MatchesHost = matches
                 });
+                Log.Info(
+                    LogCategory.Network,
+                    LogRole.Client,
+                    "Version probe response sent | requestId={0} clientVersion={1} hostVersion={2} matchesHost={3}",
+                    command?.RequestId ?? "<null>",
+                    localVersion ?? "<null>",
+                    hostVersion ?? "<null>",
+                    matches ? "Yes" : "No");
             }
             catch (Exception ex)
             {
@@ -207,6 +238,14 @@ namespace CSM.TmpeSync.Handlers.System
             }
 
             var senderId = CsmBridge.GetSenderId(command);
+            Log.Info(
+                LogCategory.Network,
+                LogRole.Host,
+                "Version probe response received | senderId={0} requestId={1} clientVersion={2} matchesHost={3}",
+                senderId,
+                command?.RequestId ?? "<null>",
+                command?.ClientVersion ?? "<null>",
+                command != null && command.MatchesHost ? "Yes" : "No");
             CompatibilityChecker.HandleManualHostProbeResponse(
                 senderId,
                 command?.RequestId,

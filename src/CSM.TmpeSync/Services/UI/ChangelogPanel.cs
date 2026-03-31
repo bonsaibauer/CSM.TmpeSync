@@ -191,6 +191,8 @@ namespace CSM.TmpeSync.Services.UI
                         "[New] Compatibility management rework: added a dedicated Health Check flow in Mod Options with live Host/Client and dependency diagnostics.",
                         "[Updated] Modern UI rollout: unified TMPE-style modal cards, badges, and typography across version check, dependency check, and changelog windows.",
                         "[New] Cities: Skylines compatibility validation: added explicit CS version-line checks and integrated them into diagnostics and notifier flows.",
+                        "[Fixed] Manual Host/Client compatibility checks: stabilized probe/response delivery to prevent false 'No Response' timeouts during in-session checks.",
+                        "[Fixed] Mod Options UX: selecting the Compatibility tab now triggers the same immediate refresh as the Refresh button.",
                         "[Updated] Runtime UX behavior: improved Host/Client session handling and status rendering in Mod Options and popup panels.",
                         "[Updated] Tooling: standardized script logging and improved update/build output consistency for build, debug, install, and update flows.",
                         "[Updated] Metadata refresh: synchronized mod/dependency release tags and compatibility references for TMPE, CSM, Harmony, and CSM.TmpeSync."

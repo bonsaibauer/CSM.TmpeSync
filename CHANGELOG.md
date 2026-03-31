@@ -7,6 +7,8 @@ In-game changelog source: `src/CSM.TmpeSync/Services/UI/ChangelogPanel.cs` (`Cha
 ### Compatibility & Health Check
 - **Compatibility management rework**: Added a dedicated Health Check flow in Mod Options with live Host/Client and dependency diagnostics.
 - **Cities: Skylines compatibility validation**: Added explicit CS version-line checks and integrated them into diagnostics and notifier flows.
+- [Fixed] Manual Host/Client compatibility checks: stabilized probe/response delivery to prevent false "No Response" timeouts during in-session checks.
+- [Fixed] Mod Options UX: selecting the Compatibility tab now triggers the same immediate refresh as the Refresh button.
 - **Runtime UX behavior**: Improved Host/Client session handling and status rendering in Mod Options and popup panels.
 
 ### UI & Messaging

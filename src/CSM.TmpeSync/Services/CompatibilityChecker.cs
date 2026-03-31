@@ -67,11 +67,14 @@ namespace CSM.TmpeSync.Services
         private const string DisplayNameHarmony = "Cities Harmony";
         private const string DisplayNameCities = "Cities: Skylines";
         private const int GameVersionComponentsCount = 2;
-        private const int ManualClientCheckTimeoutMilliseconds = 5000;
-        private const int ManualHostProbeTimeoutMilliseconds = 3500;
+        private const int ManualClientCheckTimeoutMilliseconds = 12000;
+        private const int ManualHostProbeTimeoutMilliseconds = 10000;
+        private const int ManualClientCheckMaxAttempts = 2;
+        private const int ManualHostProbeMaxAttempts = 2;
 
         private static int _manualRequestSequence;
         private static string _pendingManualClientRequestId;
+        private static int _pendingManualClientAttempt;
         private static ManualHostProbeSession _manualHostProbeSession;
         private static LiveCompatibilitySnapshot _liveCompatibilitySnapshot = CreateLiveSnapshot(
             LiveStateOffline,
@@ -87,6 +90,7 @@ namespace CSM.TmpeSync.Services
             internal string HostVersion;
             internal List<int> ExpectedClientIds;
             internal Dictionary<int, string> ReportedClientVersions;
+            internal int Attempt;
             internal bool Completed;
         }
 
@@ -134,7 +138,44 @@ namespace CSM.TmpeSync.Services
             internal string Reason { get; }
         }
 
+        private sealed class RuntimeCompatibilityState
+        {
+            internal RuntimeCompatibilityState(
+                bool gateEnabled,
+                string heroStatus,
+                string heroReason,
+                string gateReason,
+                string hostClientDecision,
+                string hostClientReason,
+                string generatedUtc)
+            {
+                GateEnabled = gateEnabled;
+                HeroStatus = string.IsNullOrEmpty(heroStatus) ? SyncStatusUnknown : heroStatus;
+                HeroReason = heroReason ?? string.Empty;
+                GateReason = gateReason ?? string.Empty;
+                HostClientDecision = hostClientDecision ?? string.Empty;
+                HostClientReason = hostClientReason ?? string.Empty;
+                GeneratedUtc = generatedUtc ?? string.Empty;
+            }
+
+            internal bool GateEnabled { get; }
+            internal string HeroStatus { get; }
+            internal string HeroReason { get; }
+            internal string GateReason { get; }
+            internal string HostClientDecision { get; }
+            internal string HostClientReason { get; }
+            internal string GeneratedUtc { get; }
+        }
+
         internal static string LocalVersion => ModMetadata.ModReleaseTag;
+        private static RuntimeCompatibilityState _runtimeState = new RuntimeCompatibilityState(
+            gateEnabled: true,
+            heroStatus: SyncStatusUnknown,
+            heroReason: "Runtime compatibility state is not initialized yet.",
+            gateReason: "Runtime compatibility state is not initialized yet.",
+            hostClientDecision: "Unknown",
+            hostClientReason: "No Host/Client check has run yet.",
+            generatedUtc: string.Empty);
 
         internal static void LogMetadataSummary()
         {
@@ -200,6 +241,7 @@ namespace CSM.TmpeSync.Services
         {
             try
             {
+                RecomputeRuntimeState(null, null, null, applyGate: true);
                 var statuses = GetDisplayDependencyStatuses();
                 var issues = new List<CompatibilityStatus>();
 
@@ -343,18 +385,42 @@ namespace CSM.TmpeSync.Services
                 return;
 
             var shouldDisplay = false;
+            string pendingRequestId;
             lock (ManualCompatibilityCheckLock)
             {
+                pendingRequestId = _pendingManualClientRequestId;
                 if (string.Equals(_pendingManualClientRequestId, requestId, StringComparison.Ordinal))
                 {
                     _pendingManualClientRequestId = null;
+                    _pendingManualClientAttempt = 0;
                     shouldDisplay = true;
                 }
             }
 
             if (!shouldDisplay)
+            {
+                Log.Debug(
+                    LogCategory.Network,
+                    LogRole.Client,
+                    "Manual client compatibility response ignored | requestId={0} pendingRequestId={1}",
+                    requestId,
+                    pendingRequestId ?? "<null>");
                 return;
+            }
 
+            Log.Info(
+                LogCategory.Network,
+                LogRole.Client,
+                "Manual client compatibility response accepted | requestId={0} localVersion={1} serverVersion={2}",
+                requestId,
+                localVersion ?? "<null>",
+                serverVersion ?? "<null>");
+
+            ShowManualClientCompatibilityResult(localVersion, serverVersion);
+        }
+
+        private static void ShowManualClientCompatibilityResult(string localVersion, string serverVersion)
+        {
             var decision = CompareCoreVersions(localVersion, serverVersion);
             var rows = new List<CompatibilityStatus>
             {
@@ -409,6 +475,67 @@ namespace CSM.TmpeSync.Services
             }
         }
 
+        private static void TryCompletePendingManualClientCheckFromAutomaticHandshake(string localVersion, string serverVersion)
+        {
+            string pendingRequestId;
+            lock (ManualCompatibilityCheckLock)
+            {
+                pendingRequestId = _pendingManualClientRequestId;
+                if (string.IsNullOrEmpty(pendingRequestId))
+                    return;
+
+                _pendingManualClientRequestId = null;
+                _pendingManualClientAttempt = 0;
+            }
+
+            Log.Info(
+                LogCategory.Network,
+                LogRole.Client,
+                "Manual client compatibility check completed via automatic handshake | requestId={0} localVersion={1} serverVersion={2}",
+                pendingRequestId,
+                localVersion ?? "<null>",
+                serverVersion ?? "<null>");
+
+            ShowManualClientCompatibilityResult(localVersion, serverVersion);
+        }
+
+        private static void TryCompletePendingManualHostProbeFromAutomaticHandshake(int senderId, string clientVersion)
+        {
+            if (senderId < 0)
+                return;
+
+            string requestId = null;
+            string hostVersion = null;
+            lock (ManualCompatibilityCheckLock)
+            {
+                var session = _manualHostProbeSession;
+                if (session == null ||
+                    session.Completed ||
+                    string.IsNullOrEmpty(session.RequestId) ||
+                    session.ExpectedClientIds == null ||
+                    !session.ExpectedClientIds.Contains(senderId) ||
+                    session.ReportedClientVersions == null ||
+                    session.ReportedClientVersions.ContainsKey(senderId))
+                {
+                    return;
+                }
+
+                requestId = session.RequestId;
+                hostVersion = session.HostVersion;
+            }
+
+            Log.Info(
+                LogCategory.Network,
+                LogRole.Host,
+                "Manual host compatibility probe consumed automatic handshake observation | requestId={0} clientId={1} clientVersion={2}",
+                requestId ?? "<null>",
+                senderId,
+                clientVersion ?? "<null>");
+
+            var matchesHost = CompareVersions(hostVersion, clientVersion);
+            HandleManualHostProbeResponse(senderId, requestId, clientVersion, matchesHost);
+        }
+
         internal static void HandleManualHostProbeResponse(int senderId, string requestId, string clientVersion, bool matchesHost)
         {
             if (senderId < 0 || string.IsNullOrEmpty(requestId))
@@ -421,11 +548,39 @@ namespace CSM.TmpeSync.Services
             lock (ManualCompatibilityCheckLock)
             {
                 var session = _manualHostProbeSession;
-                if (session == null || session.Completed || !string.Equals(session.RequestId, requestId, StringComparison.Ordinal))
+                if (session == null || session.Completed)
+                {
+                    Log.Debug(
+                        LogCategory.Network,
+                        LogRole.Host,
+                        "Manual compatibility probe response ignored | requestId={0} senderId={1} reason=no_active_session",
+                        requestId,
+                        senderId);
                     return;
+                }
+
+                if (!string.Equals(session.RequestId, requestId, StringComparison.Ordinal))
+                {
+                    Log.Debug(
+                        LogCategory.Network,
+                        LogRole.Host,
+                        "Manual compatibility probe response ignored | requestId={0} senderId={1} reason=request_id_mismatch activeRequestId={2}",
+                        requestId,
+                        senderId,
+                        session.RequestId ?? "<null>");
+                    return;
+                }
 
                 if (session.ExpectedClientIds == null || !session.ExpectedClientIds.Contains(senderId))
+                {
+                    Log.Debug(
+                        LogCategory.Network,
+                        LogRole.Host,
+                        "Manual compatibility probe response ignored | requestId={0} senderId={1} reason=unexpected_sender",
+                        requestId,
+                        senderId);
                     return;
+                }
 
                 if (!session.ReportedClientVersions.ContainsKey(senderId))
                 {
@@ -453,10 +608,20 @@ namespace CSM.TmpeSync.Services
 
             if (shouldUpdateProgress && completedSession == null)
             {
+                var currentAttempt = 1;
+                lock (ManualCompatibilityCheckLock)
+                {
+                    if (_manualHostProbeSession != null && string.Equals(_manualHostProbeSession.RequestId, requestId, StringComparison.Ordinal))
+                    {
+                        currentAttempt = _manualHostProbeSession.Attempt;
+                    }
+                }
                 SetLiveCompatibilityPending(
                     "Host",
                     string.Format(
-                        "Host compatibility check is running ({0}/{1} client response(s)).\nTo-do: wait for remaining responses.",
+                        "Host compatibility check is running (attempt {0}/{1}, {2}/{3} client response(s)).\nTo-do: wait for remaining responses.",
+                        currentAttempt,
+                        ManualHostProbeMaxAttempts,
                         respondedCount,
                         expectedCount));
             }
@@ -476,10 +641,110 @@ namespace CSM.TmpeSync.Services
             else
             {
                 Log.Info(LogCategory.Network, LogRole.Client, "Dispatching version compatibility request | localVersion={0}", LocalVersion);
+                SetLiveCompatibilityPending(
+                    "Client",
+                    ComposeReason(
+                        "Automatic Host/Client handshake started.",
+                        "wait for host response or run manual check in Mod Options."));
                 SendVersionRequest();
             }
 
             ScheduleDependencyWarnings();
+            RecomputeRuntimeState(null, null, null, applyGate: true);
+        }
+
+        internal static void HandleAutomaticClientHandshakeResult(string localVersion, string serverVersion)
+        {
+            var decision = CompareCoreVersions(localVersion, serverVersion);
+            var rows = new List<CompatibilityStatus>
+            {
+                new CompatibilityStatus(
+                    "Host",
+                    installed: true,
+                    actualVersion: string.IsNullOrEmpty(localVersion) ? "unknown" : localVersion,
+                    normalizedVersion: NormalizeVersion(localVersion),
+                    latestTag: string.IsNullOrEmpty(serverVersion) ? "unknown" : serverVersion,
+                    status: decision.Status,
+                    severity: decision.Severity,
+                    reason: decision.Reason)
+            };
+
+            string summary;
+            if (decision.IsBlocking)
+            {
+                summary = ComposeReason(
+                    "Automatic handshake detected a Host/Client incompatibility.",
+                    "align versions, then reconnect or run the manual check.");
+            }
+            else if (string.Equals(decision.Severity, SeverityOrange, StringComparison.OrdinalIgnoreCase))
+            {
+                summary = ComposeReason(
+                    "Automatic handshake detected minor Host/Client version differences.",
+                    "sync can continue; align versions when possible.");
+            }
+            else
+            {
+                summary = ComposeReason(
+                    "Automatic handshake confirms Host/Client compatibility.",
+                    "no action needed.");
+            }
+
+            SetLiveCompatibilityCompleted("Client", decision.Severity, summary, rows);
+            TryCompletePendingManualClientCheckFromAutomaticHandshake(localVersion, serverVersion);
+        }
+
+        internal static void HandleAutomaticServerHandshakeObservation(int senderId, string clientVersion, string serverVersion)
+        {
+            if (senderId < 0)
+                return;
+
+            var decision = CompareCoreVersions(serverVersion, clientVersion);
+            var rows = new List<CompatibilityStatus>
+            {
+                new CompatibilityStatus(
+                    "Host",
+                    installed: true,
+                    actualVersion: serverVersion ?? LocalVersion,
+                    normalizedVersion: NormalizeVersion(serverVersion ?? LocalVersion),
+                    latestTag: serverVersion ?? LocalVersion,
+                    status: "Match",
+                    severity: SeverityGreen,
+                    reason: ComposeReason(
+                        "Reference host version for client comparisons.",
+                        "no action needed.")),
+                new CompatibilityStatus(
+                    string.Format("Client #{0}", senderId),
+                    installed: true,
+                    actualVersion: serverVersion ?? LocalVersion,
+                    normalizedVersion: NormalizeVersion(serverVersion ?? LocalVersion),
+                    latestTag: string.IsNullOrEmpty(clientVersion) ? "unknown" : clientVersion,
+                    status: decision.Status,
+                    severity: decision.Severity,
+                    reason: decision.Reason)
+            };
+
+            string summary;
+            if (decision.IsBlocking)
+            {
+                summary = ComposeReason(
+                    string.Format("Automatic handshake detected a blocking mismatch for Client #{0}.", senderId),
+                    "align versions, then ask this client to reconnect.");
+            }
+            else if (string.Equals(decision.Severity, SeverityOrange, StringComparison.OrdinalIgnoreCase))
+            {
+                summary = ComposeReason(
+                    string.Format("Automatic handshake detected minor version differences for Client #{0}.", senderId),
+                    "sync can continue; align versions when possible.");
+            }
+            else
+            {
+                summary = ComposeReason(
+                    string.Format("Automatic handshake confirms compatibility for Client #{0}.", senderId),
+                    "no action needed.");
+            }
+
+            SetLiveCompatibilityCompleted("Host", decision.Severity, summary, rows);
+            TryCompletePendingManualHostProbeFromAutomaticHandshake(senderId, clientVersion);
         }
 
         internal static List<CompatibilityStatus> GetCompatibilityStatuses()
@@ -521,36 +786,18 @@ namespace CSM.TmpeSync.Services
             IList<CompatibilityStatus> liveRows = null,
             IList<CompatibilityStatus> dependencyRows = null)
         {
+            var runtimeState = RecomputeRuntimeState(snapshot, liveRows, dependencyRows, applyGate: true);
+            return new SyncRuntimeStatus(runtimeState.HeroStatus, runtimeState.HeroReason);
+        }
+
+        private static RuntimeCompatibilityState RecomputeRuntimeState(
+            LiveCompatibilitySnapshot snapshot,
+            IList<CompatibilityStatus> liveRows,
+            IList<CompatibilityStatus> dependencyRows,
+            bool applyGate)
+        {
             if (snapshot == null)
                 snapshot = GetLiveCompatibilitySnapshot();
-
-            bool isRegistered;
-            bool isSuspended;
-            string suspendReason;
-            TryGetFeatureBootstrapperRuntimeState(out isRegistered, out isSuspended, out suspendReason);
-
-            if (isSuspended)
-            {
-                var reason = string.IsNullOrEmpty(suspendReason)
-                    ? ComposeReason(
-                        "Synchronization is disabled because a blocking compatibility issue was detected.",
-                        "fix all red diagnostics, then reconnect/restart the session.")
-                    : ComposeReason(
-                        string.Format(
-                            "Synchronization is disabled because a blocking compatibility issue was detected ({0}).",
-                            suspendReason),
-                        "fix all red diagnostics, then reconnect/restart the session.");
-                return new SyncRuntimeStatus(SyncStatusDisabled, reason);
-            }
-
-            if (snapshot != null && string.Equals(snapshot.State, LiveStatePending, StringComparison.OrdinalIgnoreCase))
-            {
-                return new SyncRuntimeStatus(
-                    SyncStatusChecking,
-                    ComposeReason(
-                        "A live Host/Client compatibility check is running.",
-                        "wait for all responses."));
-            }
 
             if (liveRows == null && snapshot != null)
                 liveRows = snapshot.Rows;
@@ -558,68 +805,155 @@ namespace CSM.TmpeSync.Services
             if (dependencyRows == null)
                 dependencyRows = GetTrackedDependencyStatuses();
 
-            var filteredLiveRows = FilterLiveDiagnosticRows(liveRows);
+            var filteredLiveRows = FilterLiveDiagnosticRows(liveRows ?? new List<CompatibilityStatus>());
             var signals = CollectDiagnosticSignals(filteredLiveRows, dependencyRows);
-            var hasLiveSession = Command.CurrentRole != MultiplayerRole.None;
-            if (!hasLiveSession)
+            var hostClientDecision = ResolveHostClientDecision(snapshot, filteredLiveRows);
+
+            var gateEnabled = signals.RedStatus == null;
+            string heroStatus;
+            string heroReason;
+            if (!gateEnabled)
             {
+                heroStatus = SyncStatusDisabled;
+                heroReason = BuildRuntimeReason("Disabled", signals.RedStatus);
+            }
+            else if (hostClientDecision.IsPending)
+            {
+                heroStatus = SyncStatusChecking;
+                heroReason = ComposeReason(
+                    "A live Host/Client compatibility check is running.",
+                    "wait for all responses.");
+            }
+            else if (signals.OrangeStatus != null)
+            {
+                heroStatus = SyncStatusActiveWarn;
+                heroReason = BuildRuntimeReason("Active with warnings", signals.OrangeStatus);
+            }
+            else
+            {
+                heroStatus = SyncStatusActive;
+                heroReason = ComposeReason(
+                    "Synchronization is active. No blocking compatibility issues were detected.",
+                    "no action needed.");
+            }
+
+            var gateReason = gateEnabled
+                ? ComposeReason(
+                    "Compatibility gate allows synchronization.",
+                    "no action needed.")
+                : heroReason;
+
+            var runtimeState = new RuntimeCompatibilityState(
+                gateEnabled,
+                heroStatus,
+                heroReason,
+                gateReason,
+                hostClientDecision.Status,
+                hostClientDecision.Reason,
+                DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss"));
+
+            lock (ManualCompatibilityCheckLock)
+            {
+                _runtimeState = runtimeState;
+            }
+
+            if (applyGate)
+            {
+                TryApplyCompatibilityGate(runtimeState.GateEnabled, runtimeState.GateReason);
+            }
+
+            return runtimeState;
+        }
+
+        private static HostClientDecision ResolveHostClientDecision(
+            LiveCompatibilitySnapshot snapshot,
+            IList<CompatibilityStatus> filteredLiveRows)
+        {
+            if (snapshot != null && string.Equals(snapshot.State, LiveStatePending, StringComparison.OrdinalIgnoreCase))
+            {
+                return new HostClientDecision(
+                    "Checking",
+                    ComposeReason(
+                        "Live Host/Client compatibility check is running.",
+                        "wait for completion."),
+                    isPending: true);
+            }
+
+            if (snapshot != null && string.Equals(snapshot.State, LiveStateCompleted, StringComparison.OrdinalIgnoreCase))
+            {
+                if (string.Equals(snapshot.Severity, SeverityRed, StringComparison.OrdinalIgnoreCase))
+                {
+                    return new HostClientDecision(
+                        "Mismatch",
+                        string.IsNullOrEmpty(snapshot.Summary)
+                            ? ComposeReason("Live Host/Client check reported a mismatch.", "align versions and run the check again.")
+                            : snapshot.Summary,
+                        isPending: false);
+                }
+
+                if (string.Equals(snapshot.Severity, SeverityOrange, StringComparison.OrdinalIgnoreCase))
+                {
+                    return new HostClientDecision(
+                        "Warning",
+                        string.IsNullOrEmpty(snapshot.Summary)
+                            ? ComposeReason("Live Host/Client check reported minor differences.", "align versions when possible.")
+                            : snapshot.Summary,
+                        isPending: false);
+                }
+
+                return new HostClientDecision(
+                    "Match",
+                    string.IsNullOrEmpty(snapshot.Summary)
+                        ? ComposeReason("Live Host/Client check confirmed compatibility.", "no action needed.")
+                        : snapshot.Summary,
+                    isPending: false);
+            }
+
+            if (filteredLiveRows != null && filteredLiveRows.Count > 0)
+            {
+                var signals = CollectDiagnosticSignals(filteredLiveRows);
                 if (signals.RedStatus != null)
                 {
-                    return new SyncRuntimeStatus(
-                        SyncStatusOffline,
-                        ComposeReason(
-                            string.Format(
-                                "Live Host/Client check is offline. Local checks detected a blocking issue in {0}.",
-                                string.IsNullOrEmpty(signals.RedStatus.DisplayName) ? "a component" : signals.RedStatus.DisplayName),
-                            "fix red rows below, then join or host a session and run the live check."));
+                    return new HostClientDecision(
+                        "Mismatch",
+                        BuildRuntimeReason("Host/Client", signals.RedStatus),
+                        isPending: false);
                 }
 
                 if (signals.OrangeStatus != null)
                 {
-                    return new SyncRuntimeStatus(
-                        SyncStatusOffline,
-                        ComposeReason(
-                            string.Format(
-                                "Live Host/Client check is offline. Local checks detected warnings in {0}.",
-                                string.IsNullOrEmpty(signals.OrangeStatus.DisplayName) ? "a component" : signals.OrangeStatus.DisplayName),
-                            "join or host a session for live Host/Client validation; align versions when possible."));
+                    return new HostClientDecision(
+                        "Warning",
+                        BuildRuntimeReason("Host/Client", signals.OrangeStatus),
+                        isPending: false);
                 }
 
-                return new SyncRuntimeStatus(
-                    SyncStatusOffline,
-                    ComposeReason(
-                        "Live Host/Client check is offline. Local compatibility rows below are green.",
-                        "join or host a CSM session to run the live Host/Client check."));
+                return new HostClientDecision(
+                    "Match",
+                    ComposeReason("Host/Client rows indicate compatibility.", "no action needed."),
+                    isPending: false);
             }
 
-            if (signals.RedStatus != null)
-            {
-                return new SyncRuntimeStatus(
-                    SyncStatusDisabled,
-                    BuildRuntimeReason("Disabled", signals.RedStatus));
-            }
-
-            if (signals.OrangeStatus != null)
-            {
-                return new SyncRuntimeStatus(
-                    SyncStatusActiveWarn,
-                    BuildRuntimeReason("Active with warnings", signals.OrangeStatus));
-            }
-
-            if (isRegistered)
-            {
-                return new SyncRuntimeStatus(
-                    SyncStatusActive,
-                    ComposeReason(
-                        "Synchronization is active and compatibility checks look good.",
-                        "no action needed."));
-            }
-
-            return new SyncRuntimeStatus(
-                SyncStatusUnknown,
+            return new HostClientDecision(
+                "Not checked",
                 ComposeReason(
-                    "Runtime state is not available yet.",
-                    "run the checks in Mod Options and start an online session for live data."));
+                    "No live Host/Client check result is available yet.",
+                    "run Check Mod Compatibility (Host/Client) while in session."),
+                isPending: false);
+        }
+
+        private sealed class HostClientDecision
+        {
+            internal HostClientDecision(string status, string reason, bool isPending)
+            {
+                Status = status ?? string.Empty;
+                Reason = reason ?? string.Empty;
+                IsPending = isPending;
+            }
+
+            internal string Status { get; }
+            internal string Reason { get; }
+            internal bool IsPending { get; }
         }
 
         internal static bool CompareVersions(string versionA, string versionB)
@@ -628,11 +962,28 @@ namespace CSM.TmpeSync.Services
             return !decision.IsBlocking;
         }
 
+        internal static bool CompareVersions(
+            string versionA,
+            string versionB,
+            out string status,
+            out string severity)
+        {
+            var decision = CompareCoreVersions(versionA, versionB);
+            status = decision.Status ?? "Unknown";
+            severity = decision.Severity ?? string.Empty;
+            return !decision.IsBlocking;
+        }
+
         internal static string BuildCompatibilityDiagnosticsReport()
         {
             var snapshot = GetLiveCompatibilitySnapshot();
             var dependencies = GetTrackedDependencyStatuses();
-            var runtimeStatus = GetSyncRuntimeStatus(snapshot, snapshot == null ? null : snapshot.Rows, dependencies);
+            var runtimeState = RecomputeRuntimeState(
+                snapshot,
+                snapshot == null ? null : snapshot.Rows,
+                dependencies,
+                applyGate: true);
+            var runtimeStatus = new SyncRuntimeStatus(runtimeState.HeroStatus, runtimeState.HeroReason);
             var builder = new StringBuilder();
             builder.AppendLine("CSM.TmpeSync host/client compatibility diagnostics");
             builder.AppendFormat("Generated (UTC): {0:yyyy-MM-dd HH:mm:ss}", DateTime.UtcNow);
@@ -640,6 +991,14 @@ namespace CSM.TmpeSync.Services
             builder.AppendFormat("TMPE Sync runtime: {0}", runtimeStatus.Status);
             builder.AppendLine();
             builder.AppendFormat("Runtime reason: {0}", string.IsNullOrEmpty(runtimeStatus.Reason) ? "n/a" : runtimeStatus.Reason);
+            builder.AppendLine();
+            builder.AppendFormat("Gate enabled: {0}", runtimeState.GateEnabled ? "Yes" : "No");
+            builder.AppendLine();
+            builder.AppendFormat("Gate reason: {0}", string.IsNullOrEmpty(runtimeState.GateReason) ? "n/a" : runtimeState.GateReason);
+            builder.AppendLine();
+            builder.AppendFormat("Host/Client decision: {0}", string.IsNullOrEmpty(runtimeState.HostClientDecision) ? "n/a" : runtimeState.HostClientDecision);
+            builder.AppendLine();
+            builder.AppendFormat("Host/Client reason: {0}", string.IsNullOrEmpty(runtimeState.HostClientReason) ? "n/a" : runtimeState.HostClientReason);
             builder.AppendLine();
             builder.AppendFormat("State: {0}", string.IsNullOrEmpty(snapshot.State) ? LiveStateOffline : snapshot.State);
             builder.AppendLine();
@@ -1560,10 +1919,36 @@ namespace CSM.TmpeSync.Services
             lock (ManualCompatibilityCheckLock)
             {
                 _pendingManualClientRequestId = requestId;
+                _pendingManualClientAttempt = 1;
             }
 
-            SendVersionRequest(isManualCheck: true, requestId: requestId);
+            Log.Info(
+                LogCategory.Network,
+                LogRole.Client,
+                "Manual client compatibility check started | requestId={0} timeoutMs={1} maxAttempts={2}",
+                requestId,
+                ManualClientCheckTimeoutMilliseconds,
+                ManualClientCheckMaxAttempts);
 
+            DispatchManualClientCompatibilityRequest(requestId, attempt: 1, isRetry: false);
+            ScheduleManualClientCompatibilityTimeout(requestId, attempt: 1);
+        }
+
+        private static void DispatchManualClientCompatibilityRequest(string requestId, int attempt, bool isRetry)
+        {
+            Log.Info(
+                LogCategory.Network,
+                LogRole.Client,
+                "Manual client compatibility request dispatch | requestId={0} attempt={1}/{2} retry={3}",
+                requestId,
+                attempt,
+                ManualClientCheckMaxAttempts,
+                isRetry ? "Yes" : "No");
+            SendVersionRequest(isManualCheck: true, requestId: requestId);
+        }
+
+        private static void ScheduleManualClientCompatibilityTimeout(string requestId, int attempt)
+        {
             ThreadPool.QueueUserWorkItem(_ =>
             {
                 try
@@ -1576,18 +1961,59 @@ namespace CSM.TmpeSync.Services
                 }
 
                 var timedOut = false;
+                var shouldRetry = false;
+                var nextAttempt = 0;
                 lock (ManualCompatibilityCheckLock)
                 {
-                    if (string.Equals(_pendingManualClientRequestId, requestId, StringComparison.Ordinal))
+                    if (!string.Equals(_pendingManualClientRequestId, requestId, StringComparison.Ordinal) ||
+                        _pendingManualClientAttempt != attempt)
+                    {
+                        return;
+                    }
+
+                    if (attempt < ManualClientCheckMaxAttempts)
+                    {
+                        nextAttempt = attempt + 1;
+                        _pendingManualClientAttempt = nextAttempt;
+                        shouldRetry = true;
+                    }
+                    else
                     {
                         _pendingManualClientRequestId = null;
+                        _pendingManualClientAttempt = 0;
                         timedOut = true;
                     }
+                }
+
+                if (shouldRetry)
+                {
+                    Log.Warn(
+                        LogCategory.Network,
+                        LogRole.Client,
+                        "Manual client compatibility request timed out | requestId={0} attempt={1}/{2} action=retry",
+                        requestId,
+                        attempt,
+                        ManualClientCheckMaxAttempts);
+                    SetLiveCompatibilityPending(
+                        "Client",
+                        string.Format(
+                            "Client compatibility check is running (attempt {0}/{1}).\nTo-do: wait for the host response.",
+                            nextAttempt,
+                            ManualClientCheckMaxAttempts));
+                    DispatchManualClientCompatibilityRequest(requestId, nextAttempt, isRetry: true);
+                    ScheduleManualClientCompatibilityTimeout(requestId, nextAttempt);
+                    return;
                 }
 
                 if (!timedOut)
                     return;
 
+                Log.Warn(
+                    LogCategory.Network,
+                    LogRole.Client,
+                    "Manual client compatibility request timed out | requestId={0} attempts={1}/{1} action=fail",
+                    requestId,
+                    ManualClientCheckMaxAttempts);
                 var timeoutRows = new List<CompatibilityStatus>
                 {
                     new CompatibilityStatus(
@@ -1600,7 +2026,7 @@ namespace CSM.TmpeSync.Services
                         severity: SeverityRed,
                         reason: ComposeReason(
                             "Host did not respond in time.",
-                            "make sure host is online, then retry."))
+                            "make sure host is online and handlers are initialized, then retry."))
                 };
 
                 SetLiveCompatibilityCompleted(
@@ -1608,7 +2034,7 @@ namespace CSM.TmpeSync.Services
                     SeverityRed,
                     ComposeReason(
                         "No response from host.",
-                        "make sure host is online, then retry."),
+                        "make sure host is online and handlers are initialized, then retry."),
                     timeoutRows);
 
                 VersionMismatchNotifier.ShowCompatibilityCheckMismatch(null, "Client", timeoutRows);
@@ -1649,17 +2075,13 @@ namespace CSM.TmpeSync.Services
             }
 
             connectedClients = connectedClients.Distinct().OrderBy(id => id).ToList();
-            SetLiveCompatibilityPending(
-                "Host",
-                string.Format(
-                    "Host compatibility check is running (waiting for {0} client response(s)).\nTo-do: wait for responses.",
-                    connectedClients.Count));
             var session = new ManualHostProbeSession
             {
                 RequestId = BuildManualRequestId("host"),
                 HostVersion = hostVersion,
                 ExpectedClientIds = connectedClients,
-                ReportedClientVersions = new Dictionary<int, string>()
+                ReportedClientVersions = new Dictionary<int, string>(),
+                Attempt = 1
             };
 
             lock (ManualCompatibilityCheckLock)
@@ -1667,28 +2089,67 @@ namespace CSM.TmpeSync.Services
                 _manualHostProbeSession = session;
             }
 
-            foreach (var clientId in connectedClients)
-            {
-                try
-                {
-                    CsmBridge.SendToClient(clientId, new VersionProbeRequest
-                    {
-                        RequestId = session.RequestId,
-                        HostVersion = hostVersion
-                    });
-                }
-                catch (Exception ex)
-                {
-                    Log.Warn(
-                        LogCategory.Network,
-                        LogRole.Host,
-                        "Failed to dispatch manual host compatibility probe | requestId={0} clientId={1} error={2}",
-                        session.RequestId,
-                        clientId,
-                        ex);
-                }
-            }
+            Log.Info(
+                LogCategory.Network,
+                LogRole.Host,
+                "Manual host compatibility check started | requestId={0} clients={1} timeoutMs={2} maxAttempts={3}",
+                session.RequestId,
+                connectedClients.Count,
+                ManualHostProbeTimeoutMilliseconds,
+                ManualHostProbeMaxAttempts);
+            DispatchManualHostProbeRequests(session, connectedClients);
+            SetLiveCompatibilityPending(
+                "Host",
+                string.Format(
+                    "Host compatibility check is running (attempt {0}/{1}, waiting for {2} client response(s)).\nTo-do: wait for responses.",
+                    session.Attempt,
+                    ManualHostProbeMaxAttempts,
+                    connectedClients.Count));
+            ScheduleManualHostProbeTimeout(session.RequestId, session.Attempt);
+        }
 
+        private static void DispatchManualHostProbeRequests(ManualHostProbeSession session, IEnumerable<int> clientIds)
+        {
+            if (session == null)
+                return;
+
+            var expectedClientIds = (clientIds ?? Enumerable.Empty<int>())
+                .Distinct()
+                .OrderBy(id => id)
+                .ToList();
+
+            try
+            {
+                CsmBridge.SendToAll(new VersionProbeRequest
+                {
+                    RequestId = session.RequestId,
+                    HostVersion = session.HostVersion
+                });
+                Log.Info(
+                    LogCategory.Network,
+                    LogRole.Host,
+                    "Manual host compatibility probe broadcast dispatched | requestId={0} attempt={1}/{2} expectedClients=[{3}]",
+                    session.RequestId,
+                    session.Attempt,
+                    ManualHostProbeMaxAttempts,
+                    expectedClientIds.Count == 0 ? "none" : string.Join(", ", expectedClientIds.Select(id => id.ToString()).ToArray()));
+            }
+            catch (Exception ex)
+            {
+                Log.Warn(
+                    LogCategory.Network,
+                    LogRole.Host,
+                    "Failed to dispatch manual host compatibility probe broadcast | requestId={0} attempt={1}/{2} expectedClients=[{3}] error={4}",
+                    session.RequestId,
+                    session.Attempt,
+                    ManualHostProbeMaxAttempts,
+                    expectedClientIds.Count == 0 ? "none" : string.Join(", ", expectedClientIds.Select(id => id.ToString()).ToArray()),
+                    ex);
+            }
+        }
+
+        private static void ScheduleManualHostProbeTimeout(string requestId, int attempt)
+        {
             ThreadPool.QueueUserWorkItem(_ =>
             {
                 try
@@ -1701,23 +2162,93 @@ namespace CSM.TmpeSync.Services
                 }
 
                 ManualHostProbeSession timedOutSession = null;
+                ManualHostProbeSession retrySession = null;
+                List<int> missingClientIds = null;
+                var nextAttempt = 0;
                 lock (ManualCompatibilityCheckLock)
                 {
-                    if (_manualHostProbeSession != null &&
-                        !_manualHostProbeSession.Completed &&
-                        string.Equals(_manualHostProbeSession.RequestId, session.RequestId, StringComparison.Ordinal))
+                    var session = _manualHostProbeSession;
+                    if (session == null ||
+                        session.Completed ||
+                        !string.Equals(session.RequestId, requestId, StringComparison.Ordinal) ||
+                        session.Attempt != attempt)
                     {
-                        _manualHostProbeSession.Completed = true;
-                        timedOutSession = _manualHostProbeSession;
-                        _manualHostProbeSession = null;
+                        return;
                     }
+
+                    var missing = GetMissingHostProbeClientIds(session);
+                    if (missing.Count == 0)
+                    {
+                        session.Completed = true;
+                        _manualHostProbeSession = null;
+                        timedOutSession = session;
+                    }
+                    else if (attempt < ManualHostProbeMaxAttempts)
+                    {
+                        nextAttempt = attempt + 1;
+                        session.Attempt = nextAttempt;
+                        retrySession = session;
+                        missingClientIds = missing;
+                    }
+                    else
+                    {
+                        session.Completed = true;
+                        _manualHostProbeSession = null;
+                        timedOutSession = session;
+                    }
+                }
+
+                if (retrySession != null && missingClientIds != null && missingClientIds.Count > 0)
+                {
+                    Log.Warn(
+                        LogCategory.Network,
+                        LogRole.Host,
+                        "Manual host compatibility probe timed out | requestId={0} attempt={1}/{2} missingClients=[{3}] action=retry",
+                        requestId,
+                        attempt,
+                        ManualHostProbeMaxAttempts,
+                        string.Join(", ", missingClientIds.Select(id => id.ToString()).ToArray()));
+                    SetLiveCompatibilityPending(
+                        "Host",
+                        string.Format(
+                            "Host compatibility check is running (attempt {0}/{1}, waiting for {2} client response(s)).\nTo-do: wait for responses.",
+                            nextAttempt,
+                            ManualHostProbeMaxAttempts,
+                            missingClientIds.Count));
+                    DispatchManualHostProbeRequests(retrySession, missingClientIds);
+                    ScheduleManualHostProbeTimeout(requestId, nextAttempt);
+                    return;
                 }
 
                 if (timedOutSession != null)
                 {
-                    ShowHostManualProbeResult(timedOutSession, timedOut: true);
+                    var hasMissingClients = GetMissingHostProbeClientIds(timedOutSession).Count > 0;
+                    if (hasMissingClients)
+                    {
+                        Log.Warn(
+                            LogCategory.Network,
+                            LogRole.Host,
+                            "Manual host compatibility probe timed out | requestId={0} attempts={1}/{1} missingClients=[{2}] action=fail",
+                            requestId,
+                            ManualHostProbeMaxAttempts,
+                            string.Join(", ", GetMissingHostProbeClientIds(timedOutSession).Select(id => id.ToString()).ToArray()));
+                    }
+
+                    ShowHostManualProbeResult(timedOutSession, timedOut: hasMissingClients);
                 }
             });
+        }
+
+        private static List<int> GetMissingHostProbeClientIds(ManualHostProbeSession session)
+        {
+            if (session == null || session.ExpectedClientIds == null || session.ExpectedClientIds.Count == 0)
+                return new List<int>();
+
+            var reported = session.ReportedClientVersions ?? new Dictionary<int, string>();
+            return session.ExpectedClientIds
+                .Where(clientId => !reported.ContainsKey(clientId))
+                .OrderBy(clientId => clientId)
+                .ToList();
         }
 
         private static List<int> GetConnectedClientIdsForHostProbe()
@@ -1750,10 +2281,20 @@ namespace CSM.TmpeSync.Services
                 var clientIds = new List<int>(connectedPlayers.Count);
                 foreach (DictionaryEntry connectedPlayer in connectedPlayers)
                 {
-                    if (connectedPlayer.Key is int clientId && clientId >= 0)
+                    if (!(connectedPlayer.Key is int clientId) || clientId < 0)
+                        continue;
+
+                    if (IsLikelyLocalHostEntry(connectedPlayer.Value))
                     {
-                        clientIds.Add(clientId);
+                        Log.Debug(
+                            LogCategory.Network,
+                            LogRole.Host,
+                            "Skipping local host entry while enumerating clients for manual compatibility probe | clientId={0}",
+                            clientId);
+                        continue;
                     }
+
+                    clientIds.Add(clientId);
                 }
 
                 return clientIds;
@@ -1769,10 +2310,53 @@ namespace CSM.TmpeSync.Services
             }
         }
 
+        private static bool IsLikelyLocalHostEntry(object connectedPlayer)
+        {
+            if (connectedPlayer == null)
+                return false;
+
+            return TryReadBoolProperty(connectedPlayer, "IsLocal") ||
+                   TryReadBoolProperty(connectedPlayer, "IsHost") ||
+                   TryReadBoolProperty(connectedPlayer, "IsServer");
+        }
+
+        private static bool TryReadBoolProperty(object instance, string propertyName)
+        {
+            if (instance == null || string.IsNullOrEmpty(propertyName))
+                return false;
+
+            try
+            {
+                var property = instance.GetType().GetProperty(
+                    propertyName,
+                    BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+                if (property == null || property.PropertyType != typeof(bool))
+                    return false;
+
+                var value = property.GetValue(instance, null);
+                return value is bool flag && flag;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
         private static void ShowHostManualProbeResult(ManualHostProbeSession session, bool timedOut)
         {
             if (session == null)
                 return;
+
+            var expectedCount = session.ExpectedClientIds == null ? 0 : session.ExpectedClientIds.Count;
+            var respondedCount = session.ReportedClientVersions == null ? 0 : session.ReportedClientVersions.Count;
+            Log.Info(
+                LogCategory.Network,
+                LogRole.Host,
+                "Manual host compatibility check completed | requestId={0} timedOut={1} responded={2}/{3}",
+                session.RequestId ?? "<null>",
+                timedOut ? "Yes" : "No",
+                respondedCount,
+                expectedCount);
 
             var hasBlockingMismatch = false;
             var hasWarning = false;
@@ -1878,50 +2462,6 @@ namespace CSM.TmpeSync.Services
                 string.IsNullOrEmpty(prefix) ? "manual" : prefix,
                 DateTime.UtcNow.Ticks,
                 Interlocked.Increment(ref _manualRequestSequence));
-        }
-
-        private static void TryGetFeatureBootstrapperRuntimeState(
-            out bool isRegistered,
-            out bool isSuspended,
-            out string suspendReason)
-        {
-            isRegistered = false;
-            isSuspended = false;
-            suspendReason = string.Empty;
-
-            try
-            {
-                var bootstrapperType = GetTypeFromAssemblies("CSM.TmpeSync.Mod.FeatureBootstrapper");
-                if (bootstrapperType == null)
-                    return;
-
-                var runtimeStateMethod = bootstrapperType.GetMethod(
-                    "GetRuntimeState",
-                    BindingFlags.Static | BindingFlags.NonPublic | BindingFlags.Public);
-                if (runtimeStateMethod == null)
-                    return;
-
-                var arguments = new object[]
-                {
-                    false,
-                    false,
-                    string.Empty
-                };
-                runtimeStateMethod.Invoke(null, arguments);
-
-                if (arguments.Length > 0 && arguments[0] is bool)
-                    isRegistered = (bool)arguments[0];
-
-                if (arguments.Length > 1 && arguments[1] is bool)
-                    isSuspended = (bool)arguments[1];
-
-                if (arguments.Length > 2 && arguments[2] is string)
-                    suspendReason = (string)arguments[2] ?? string.Empty;
-            }
-            catch
-            {
-                // Ignore runtime-state probe failures; UI falls back to UNKNOWN/OFFLINE logic.
-            }
         }
 
         private static Type GetTypeFromAssemblies(string typeName)
@@ -2142,6 +2682,53 @@ namespace CSM.TmpeSync.Services
                 "no action needed.");
         }
 
+        private static void TryApplyCompatibilityGate(bool enabled, string reason)
+        {
+            try
+            {
+                var bootstrapperType = GetTypeFromAssemblies("CSM.TmpeSync.Mod.FeatureBootstrapper");
+                if (bootstrapperType == null)
+                    return;
+
+                var applyMethod = bootstrapperType.GetMethod(
+                    "ApplyCompatibilityGate",
+                    BindingFlags.Static | BindingFlags.NonPublic | BindingFlags.Public,
+                    null,
+                    new[] { typeof(bool), typeof(string) },
+                    null);
+
+                if (applyMethod != null)
+                {
+                    applyMethod.Invoke(null, new object[] { enabled, reason ?? string.Empty });
+                    return;
+                }
+
+                if (!enabled)
+                {
+                    var suspendMethod = bootstrapperType.GetMethod(
+                        "SuspendForVersionMismatch",
+                        BindingFlags.Static | BindingFlags.NonPublic | BindingFlags.Public,
+                        null,
+                        new[] { typeof(string) },
+                        null);
+                    if (suspendMethod != null)
+                    {
+                        suspendMethod.Invoke(null, new object[] { reason ?? string.Empty });
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Debug(
+                    LogCategory.Diagnostics,
+                    LogRole.General,
+                    "Failed to apply compatibility gate via reflection | enabled={0} reason={1} error={2}",
+                    enabled ? "Yes" : "No",
+                    reason ?? string.Empty,
+                    ex);
+            }
+        }
+
         private static string ComposeReason(string statement, string todo)
         {
             var safeStatement = string.IsNullOrEmpty(statement) ? "No details available." : statement;
@@ -2207,6 +2794,8 @@ namespace CSM.TmpeSync.Services
             {
                 _liveCompatibilitySnapshot = snapshot;
             }
+
+            RecomputeRuntimeState(snapshot, rows, null, applyGate: true);
         }
 
         private static LiveCompatibilitySnapshot CreateLiveSnapshot(

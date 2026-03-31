@@ -47,25 +47,37 @@ namespace CSM.TmpeSync.Mod
             generalGroup.AddButton("Show What's New", ChangelogService.ShowLatestNow);
 
             var compatibilityTab = tabStrip.AddTabPage("Compatibility");
+            var compatibilityTabIndex = tabStrip.tabCount - 1;
             var compatibilityGroup = compatibilityTab.AddGroup("Compatibility");
             var compatibilityGroupHelper = compatibilityGroup as UIHelper;
             var compatibilityContainer = compatibilityGroupHelper?.self as UIPanel;
+
+            OnButtonClicked refreshCompatibilityUi = () =>
+            {
+                if (compatibilityContainer == null)
+                    return;
+
+                BuildCompatibilityUi(compatibilityContainer);
+                compatibilityContainer.Invalidate();
+            };
+
             if (compatibilityContainer != null)
             {
-                BuildCompatibilityUi(compatibilityContainer);
+                refreshCompatibilityUi();
             }
+
+            tabStrip.eventSelectedIndexChanged += (_, index) =>
+            {
+                if (index == compatibilityTabIndex)
+                {
+                    refreshCompatibilityUi();
+                }
+            };
 
             var compatibilityActions = compatibilityTab.AddGroup("Actions");
             compatibilityActions.AddButton(
                 "Refresh",
-                () =>
-                {
-                    if (compatibilityContainer == null)
-                        return;
-
-                    BuildCompatibilityUi(compatibilityContainer);
-                    compatibilityContainer.Invalidate();
-                });
+                refreshCompatibilityUi);
             compatibilityActions.AddButton(
                 "Copy diagnostics",
                 () =>

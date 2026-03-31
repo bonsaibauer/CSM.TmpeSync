@@ -25,6 +25,7 @@ namespace CSM.TmpeSync.Handlers.System
             var reportedClientVersion = command?.ReportedClientVersion;
             var localVersion = CompatibilityChecker.LocalVersion;
             var matches = CompatibilityChecker.CompareVersions(serverVersion, localVersion);
+            CompatibilityChecker.HandleAutomaticClientHandshakeResult(localVersion, serverVersion);
 
             Log.Info(
                 LogCategory.Network,
@@ -39,7 +40,6 @@ namespace CSM.TmpeSync.Handlers.System
             if (!matches)
             {
                 VersionMismatchNotifier.NotifyClientMismatch(serverVersion, localVersion);
-                FeatureBootstrapper.SuspendForVersionMismatch(serverVersion);
             }
         }
     }
