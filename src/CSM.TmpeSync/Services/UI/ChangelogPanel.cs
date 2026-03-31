@@ -184,6 +184,20 @@ namespace CSM.TmpeSync.Services.UI
             {
                 new ChangelogEntry
                 {
+                    Version = "1.2.0.0",
+                    Date = "2026-03-31",
+                    Changes = new List<string>
+                    {
+                        "[New] Compatibility management rework: added a dedicated Health Check flow in Mod Options with live Host/Client and dependency diagnostics.",
+                        "[Updated] Modern UI rollout: unified TMPE-style modal cards, badges, and typography across version check, dependency check, and changelog windows.",
+                        "[New] Cities: Skylines compatibility validation: added explicit CS version-line checks and integrated them into diagnostics and notifier flows.",
+                        "[Updated] Runtime UX behavior: improved Host/Client session handling and status rendering in Mod Options and popup panels.",
+                        "[Updated] Tooling: standardized script logging and improved update/build output consistency for build, debug, install, and update flows.",
+                        "[Updated] Metadata refresh: synchronized mod/dependency release tags and compatibility references for TMPE, CSM, Harmony, and CSM.TmpeSync."
+                    }
+                },
+                new ChangelogEntry
+                {
                     Version = "1.1.1.0",
                     Date = "2026-03-24",
                     Changes = new List<string>
