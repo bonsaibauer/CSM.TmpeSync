@@ -51,6 +51,7 @@ lib/TMPE/*
 !lib/TMPE/TMPE.API.dll
 msbuild.binlog
 build.log
+output
 output/
 scripts/logs
 scripts/logs/

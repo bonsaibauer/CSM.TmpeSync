@@ -1,6 +1,6 @@
 # Changelog - CSM.TmpeSync
 
-## [v1.2.0.0] - 2026-03-24
+## [1.1.1.0] - 2026-03-24
 
 ### Updated Compatibility
 - Updated `ModMetadata.cs` to support:

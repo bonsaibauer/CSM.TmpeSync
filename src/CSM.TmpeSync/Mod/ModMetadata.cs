@@ -9,12 +9,12 @@ namespace CSM.TmpeSync.Mod
         /// <summary>
         /// Current version of the CSM TM:PE Sync mod. Update this value when publishing new builds.
         /// </summary>
-        internal const string NewVersion = "v1.2.0.0";
+        internal const string NewVersion = "1.1.1.0";
 
         /// <summary>
         /// Latest release tag for CSM TM:PE Sync.
         /// </summary>
-        internal const string LatestCsmTmpeSyncReleaseTag = "v1.2.0.0";
+        internal const string LatestCsmTmpeSyncReleaseTag = "1.1.1.0";
 
         /// <summary>
         /// Legacy release tags for CSM TM:PE Sync (excluding the latest).

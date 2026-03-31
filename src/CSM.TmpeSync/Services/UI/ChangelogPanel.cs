@@ -164,7 +164,7 @@ namespace CSM.TmpeSync.Services.UI
             {
                 new ChangelogEntry
                 {
-                    Version = "1.2.0.0",
+                    Version = "1.1.1.0",
                     Date = "2026-03-24",
                     Changes = new List<string>
                     {
