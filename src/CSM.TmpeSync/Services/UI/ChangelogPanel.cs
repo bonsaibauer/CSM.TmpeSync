@@ -164,6 +164,18 @@ namespace CSM.TmpeSync.Services.UI
             {
                 new ChangelogEntry
                 {
+                    Version = "1.1.1.0",
+                    Date = "2026-03-24",
+                    Changes = new List<string>
+                    {
+                        "Compatibility: Update for Cities: Skylines 1.21, CSM 2603.307, and TM:PE 11.9.4.1.",
+                        "Stability: Added defensive bounds checks for node and segment IDs to prevent 'Array index out of range' crashes.",
+                        "Robustness: Improved internal CSM type resolution using cross-assembly reflection.",
+                        "Linux Support: Fixed .NET 3.5 build errors and added a new automated build script."
+                    }
+                },
+                new ChangelogEntry
+                {
                     Version = "1.1.0.0",
                     Date = "2025-12-06",
                     Changes = new List<string>

@@ -41,12 +41,26 @@ namespace CSM.TmpeSync.Services
             TrySendToClientInternal(clientId, command);
         }
 
+        private static Type GetTypeFromAssemblies(string typeName)
+        {
+            var type = Type.GetType(typeName);
+            if (type != null) return type;
+
+            foreach (var assembly in AppDomain.CurrentDomain.GetAssemblies())
+            {
+                type = assembly.GetType(typeName);
+                if (type != null) return type;
+            }
+
+            return null;
+        }
+
         private static bool TrySendToClientInternal(int clientId, CommandBase command)
         {
             try
             {
-                var cmdInternalType = Type.GetType("CSM.Commands.CommandInternal");
-                var mmType = Type.GetType("CSM.Networking.MultiplayerManager");
+                var cmdInternalType = GetTypeFromAssemblies("CSM.Commands.CommandInternal");
+                var mmType = GetTypeFromAssemblies("CSM.Networking.MultiplayerManager");
                 if (cmdInternalType == null || mmType == null)
                     return false;
 
@@ -122,7 +136,7 @@ namespace CSM.TmpeSync.Services
                 var username = player?.GetType().GetProperty("Username")?.GetValue(player, null) as string;
                 if (!string.IsNullOrEmpty(username))
                 {
-                    var mmType = Type.GetType("CSM.Networking.MultiplayerManager");
+                    var mmType = GetTypeFromAssemblies("CSM.Networking.MultiplayerManager");
                     var mmInstance = mmType?.GetProperty("Instance", BindingFlags.Public | BindingFlags.Static)?.GetValue(null, null);
                     var currentServer = mmType?.GetProperty("CurrentServer", BindingFlags.Public | BindingFlags.Instance)?.GetValue(mmInstance, null);
                     var players = currentServer?.GetType().GetProperty("ConnectedPlayers", BindingFlags.Public | BindingFlags.Instance)?.GetValue(currentServer, null) as IDictionary;

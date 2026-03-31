@@ -25,9 +25,43 @@ bld/
 [Bb]in/
 [Oo]bj/
 [Ll]og/
-lib/
+# Lib dependencies (track only required compile-time DLLs)
+lib/*
+!lib/CS/
+lib/CS/*
+!lib/CS/Cities_Data/
+lib/CS/Cities_Data/*
+!lib/CS/Cities_Data/Managed/
+lib/CS/Cities_Data/Managed/*
+!lib/CS/Cities_Data/Managed/Assembly-CSharp.dll
+!lib/CS/Cities_Data/Managed/ColossalManaged.dll
+!lib/CS/Cities_Data/Managed/ICities.dll
+!lib/CS/Cities_Data/Managed/UnityEngine.dll
+!lib/CS/Cities_Data/Managed/UnityEngine.UI.dll
+!lib/Harmony/
+lib/Harmony/*
+!lib/Harmony/CitiesHarmony.Harmony.dll
+!lib/CSM/
+lib/CSM/*
+!lib/CSM/CSM.API.dll
+!lib/TMPE/
+lib/TMPE/*
+!lib/TMPE/TrafficManager.dll
+!lib/TMPE/CSUtil.Commons.dll
+!lib/TMPE/TMPE.API.dll
 msbuild.binlog
 build.log
+output
+output/
+scripts/logs
+scripts/logs/
+scripts/package
+scripts/package/
+scripts/*.dll
+scripts/siteserverui
+scripts/siteserverui/
+scripts/public/
+scripts/public
 
 # Visual Studio 2015 cache/options directory
 .vs/

@@ -128,18 +128,32 @@ namespace CSM.TmpeSync.LaneConnector.Services
                 if (type == null || postfix == null)
                     return 0;
 
-                var candidates = type.GetMethods(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)
-                    .Where(m => m.Name == methodName)
-                    .ToArray();
-
-                int count = 0;
-                foreach (var method in candidates)
+                try
                 {
-                    harmony.Patch(method, postfix: new HarmonyMethod(postfix));
-                    count++;
-                }
+                    var candidates = type.GetMethods(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)
+                        .Where(m => m.Name == methodName)
+                        .ToArray();
 
-                return count;
+                    if (candidates.Length == 0)
+                    {
+                        Log.Warn(LogCategory.Network, LogRole.Host, "[LaneConnector] No candidates found for method {0}.{1}", type.FullName, methodName);
+                        return 0;
+                    }
+
+                    int count = 0;
+                    foreach (var method in candidates)
+                    {
+                        harmony.Patch(method, postfix: new HarmonyMethod(postfix));
+                        count++;
+                    }
+
+                    return count;
+                }
+                catch (Exception ex)
+                {
+                    Log.Error(LogCategory.Network, LogRole.Host, "[LaneConnector] Failed to patch method {0}.{1}: {2}", type.FullName, methodName, ex);
+                    return 0;
+                }
             }
 
             private static void PostLaneConnectionChanged(uint sourceLaneId, uint targetLaneId, bool sourceStartNode)

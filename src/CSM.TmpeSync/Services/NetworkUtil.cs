@@ -198,7 +198,11 @@ namespace CSM.TmpeSync.Services
             if (segmentId == 0)
                 return false;
 
-            return (NetManager.instance.m_segments.m_buffer[segmentId].m_flags & NetSegment.Flags.Created) != 0;
+            var buffer = NetManager.instance.m_segments.m_buffer;
+            if (segmentId >= buffer.Length)
+                return false;
+
+            return (buffer[segmentId].m_flags & NetSegment.Flags.Created) != 0;
         }
 
         internal static bool NodeExists(ushort nodeId)
@@ -206,7 +210,11 @@ namespace CSM.TmpeSync.Services
             if (nodeId == 0)
                 return false;
 
-            return (NetManager.instance.m_nodes.m_buffer[nodeId].m_flags & NetNode.Flags.Created) != 0;
+            var buffer = NetManager.instance.m_nodes.m_buffer;
+            if (nodeId >= buffer.Length)
+                return false;
+
+            return (buffer[nodeId].m_flags & NetNode.Flags.Created) != 0;
         }
 
         internal static void ForEachLane(Action<uint> action)

@@ -1,0 +1,9 @@
+"workshopitem"
+{
+    "appid" "255710"
+    "publishedfileid" "3600743038"
+    "contentfolder" "A:\17 Cloud\OneDrive\Documents\GitHub\CSM.TmpeSync\output\CSM.TmpeSync"
+    "previewfile" "A:\17 Cloud\OneDrive\Documents\GitHub\CSM.TmpeSync\images\preview_thumbnail.png"
+    "changenote" "Version: 1.1.1.0 - Compatibility: Update for Cities: Skylines 1.21, CSM 2603.307, and TM:PE 11.9.4.1. - Stability: Added defensive bounds checks for node and segment IDs to prevent 'Array index out of range' crashes. - Robustness: Improved internal CSM type resolution using cross-assembly reflection. - Linux Support: Fixed .NET 3.5 build errors and added a new automated build script."
+}
+

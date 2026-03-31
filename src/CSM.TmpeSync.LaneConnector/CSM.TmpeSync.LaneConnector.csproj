@@ -14,16 +14,12 @@
 
     <!-- ===== Cities: Skylines (Game) ===== -->
     <CitiesSkylinesDir Condition="'$(CitiesSkylinesDir)'!=''">$(CitiesSkylinesDir)</CitiesSkylinesDir>
-    <CitiesSkylinesDir Condition="'$(CitiesSkylinesDir)'=='' and Exists('$(RepoRoot)\lib\CitiesSkylines\Cities_Data\Managed\ICities.dll')">$(RepoRoot)\lib\CitiesSkylines</CitiesSkylinesDir>
-    <CitiesSkylinesDir Condition="'$(CitiesSkylinesDir)'=='' and Exists('C:\Program Files (x86)\Steam\steamapps\common\Cities_Skylines\Cities_Data\Managed\ICities.dll')">C:\Program Files (x86)\Steam\steamapps\common\Cities_Skylines</CitiesSkylinesDir>
-    <CitiesSkylinesDir Condition="'$(CitiesSkylinesDir)'=='' and Exists('D:\SteamLibrary\steamapps\common\Cities_Skylines\Cities_Data\Managed\ICities.dll')">D:\SteamLibrary\steamapps\common\Cities_Skylines</CitiesSkylinesDir>
+    <CitiesSkylinesDir Condition="'$(CitiesSkylinesDir)'=='' and Exists('$(RepoRoot)\lib\CS\Cities_Data\Managed\ICities.dll')">$(RepoRoot)\lib\CS</CitiesSkylinesDir>
     <ManagedDir>$(CitiesSkylinesDir)\Cities_Data\Managed</ManagedDir>
 
     <!-- ===== Harmony (CitiesHarmony) ===== -->
     <HarmonyDllDir Condition="'$(HarmonyDllDir)'!=''">$(HarmonyDllDir)</HarmonyDllDir>
     <HarmonyDllDir Condition="'$(HarmonyDllDir)'=='' and Exists('$(RepoRoot)\lib\Harmony\CitiesHarmony.Harmony.dll')">$(RepoRoot)\lib\Harmony</HarmonyDllDir>
-    <HarmonyDllDir Condition="'$(HarmonyDllDir)'=='' and Exists('C:\Program Files (x86)\Steam\steamapps\workshop\content\255710\2040656402\CitiesHarmony.Harmony.dll')">C:\Program Files (x86)\Steam\steamapps\workshop\content\255710\2040656402</HarmonyDllDir>
-    <HarmonyDllDir Condition="'$(HarmonyDllDir)'=='' and Exists('D:\SteamLibrary\steamapps\workshop\content\255710\2040656402\CitiesHarmony.Harmony.dll')">D:\SteamLibrary\steamapps\workshop\content\255710\2040656402</HarmonyDllDir>
 
     <!-- ===== CSM.API.dll =====
          1) explicit via /p:CsmApiDllPath=...
@@ -33,15 +29,12 @@
     <CsmApiDllPath Condition="'$(CsmApiDllPath)'!=''">$(CsmApiDllPath)</CsmApiDllPath>
     <CsmApiDllPath Condition="'$(CsmApiDllPath)'=='' and Exists('$(RepoRoot)\lib\CSM\CSM.API.dll')">$(RepoRoot)\lib\CSM\CSM.API.dll</CsmApiDllPath>
     <CsmApiDllPath Condition="'$(CsmApiDllPath)'=='' and Exists('$(RepoRoot)\lib\CSM.API.dll')">$(RepoRoot)\lib\CSM.API.dll</CsmApiDllPath>
-    <CsmApiDllPath Condition="'$(CsmApiDllPath)'=='' and Exists('$(RepoRoot)\submodules\CSM\src\api\bin\Release\CSM.API.dll')">$(RepoRoot)\submodules\CSM\src\api\bin\Release\CSM.API.dll</CsmApiDllPath>
 
     <!-- ===== TM:PE (optional – only needed when using TM:PE types directly) =====
          1637663252 = Steam Workshop ID for TM:PE Stable
     -->
     <TmpeDir Condition="'$(TmpeDir)'!=''">$(TmpeDir)</TmpeDir>
-    <TmpeDir Condition="'$(TmpeDir)'=='' and Exists('$(RepoRoot)\lib\TMPE\Cities_Data\Managed\TrafficManager.dll')">$(RepoRoot)\lib\TMPE</TmpeDir>
-    <TmpeDir Condition="'$(TmpeDir)'=='' and Exists('C:\Program Files (x86)\Steam\steamapps\workshop\content\255710\1637663252\Cities_Data\Managed\TrafficManager.dll')">C:\Program Files (x86)\Steam\steamapps\workshop\content\255710\1637663252</TmpeDir>
-    <TmpeDir Condition="'$(TmpeDir)'=='' and Exists('D:\SteamLibrary\steamapps\workshop\content\255710\1637663252\Cities_Data\Managed\TrafficManager.dll')">D:\SteamLibrary\steamapps\workshop\content\255710\1637663252</TmpeDir>
+    <TmpeDir Condition="'$(TmpeDir)'=='' and Exists('$(RepoRoot)\lib\TMPE\TrafficManager.dll')">$(RepoRoot)\lib\TMPE</TmpeDir>
 
     <!-- ===== Mod output folder ===== -->
     <ModsOutDir>$(LOCALAPPDATA)\Colossal Order\Cities_Skylines\Addons\Mods\CSM.TmpeSync</ModsOutDir>
@@ -122,8 +115,8 @@
   </ItemGroup>
     <!-- TM:PE (optional) – only link when available -->
   <ItemGroup>
-    <Reference Include="TrafficManager" Condition=" '$(TmpeDir)'!='' AND Exists('$(TmpeDir)\Cities_Data\Managed\TrafficManager.dll') ">
-      <HintPath>$(TmpeDir)\Cities_Data\Managed\TrafficManager.dll</HintPath>
+    <Reference Include="TrafficManager" Condition=" '$(TmpeDir)'!='' AND Exists('$(TmpeDir)\TrafficManager.dll') ">
+      <HintPath>$(TmpeDir)\TrafficManager.dll</HintPath>
       <Private>false</Private>
     </Reference>
 
@@ -283,6 +276,7 @@
   </Target>
 
 </Project>
+
 
 
 
