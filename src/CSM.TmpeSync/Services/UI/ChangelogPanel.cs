@@ -117,7 +117,7 @@ namespace CSM.TmpeSync.Services.UI
         private static ChangelogEntry GetEntryForCurrentVersion()
         {
             var entries = GetEntries();
-            var current = ParseVersionOrNull(Mod.ModMetadata.NewVersion);
+            var current = ParseVersionOrNull(Mod.ModMetadata.ModReleaseTag);
             if (current != null)
             {
                 foreach (var entry in entries)
@@ -179,7 +179,7 @@ namespace CSM.TmpeSync.Services.UI
 
         private static IList<ChangelogEntry> LoadEntries()
         {
-            // Minimal inline changelog; source of truth mirrors Mod/ModMetadata.NewVersion.
+            // Minimal inline changelog; source of truth mirrors Mod/ModMetadata.ModReleaseTag.
             var entries = new List<ChangelogEntry>
             {
                 new ChangelogEntry
@@ -346,8 +346,8 @@ namespace CSM.TmpeSync.Services.UI
                     row.autoLayoutDirection = LayoutDirection.Horizontal;
                     row.autoFitChildrenHorizontally = false;
                     row.autoFitChildrenVertically = true;
-                    row.autoLayoutPadding = new RectOffset(0, 8, 0, 0);
-                    row.width = Mathf.Max(160f, ContentPanel.width - 16f);
+                    row.autoLayoutPadding = new RectOffset(0, 6, 0, 0);
+                    row.width = Mathf.Max(160f, ContentPanel.width - 10f);
 
                     var tagsContainer = row.AddUIComponent<UIPanel>();
                     tagsContainer.autoLayout = true;
@@ -360,7 +360,7 @@ namespace CSM.TmpeSync.Services.UI
                     for (var tagIndex = 0; tagIndex < tags.Count; tagIndex++)
                     {
                         var tag = tags[tagIndex];
-                        var badgeWidth = Mathf.Max(74f, 14f + (tag.Text.Length * 7f));
+                        var badgeWidth = Mathf.Max(90f, 14f + (tag.Text.Length * 7f));
                         AddTagBadge(tagsContainer, tag.Text, tag.Color, badgeWidth);
                         badgeWidthTotal += badgeWidth + 6f;
                     }
@@ -369,7 +369,7 @@ namespace CSM.TmpeSync.Services.UI
                     label.autoSize = false;
                     label.wordWrap = true;
                     label.autoHeight = true;
-                    label.width = Mathf.Max(60f, row.width - badgeWidthTotal - 8f);
+                    label.width = Mathf.Max(120f, row.width - badgeWidthTotal - 10f);
                     label.textScale = 0.8f;
                     label.textColor = PrimaryTextColor;
                     label.text = changeText;

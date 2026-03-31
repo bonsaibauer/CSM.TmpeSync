@@ -14,8 +14,11 @@ namespace CSM.TmpeSync.Mod
     {
         private static readonly Color32 TagBlue = new Color32(3, 106, 225, 255);
         private static readonly Color32 TagGreen = new Color32(40, 178, 72, 255);
+        private static readonly Color32 TagAmber = new Color32(255, 196, 0, 255);
         private static readonly Color32 TagRed = new Color32(224, 61, 76, 255);
-        private static UITextureAtlas _ingameAtlas;
+        private static readonly Color32 CardBackground = new Color32(50, 50, 50, 235);
+        private static readonly Color32 CardSubtleText = new Color32(210, 210, 210, 255);
+        private static readonly Color32 CardMutedText = new Color32(175, 175, 175, 255);
 
         public MyUserMod()
         {
@@ -43,8 +46,58 @@ namespace CSM.TmpeSync.Mod
             generalGroup.AddButton("Check Mod Compatibility (Host/Client)", CompatibilityChecker.RunVersionCompatibilityCheckNow);
             generalGroup.AddButton("Show What's New", ChangelogService.ShowLatestNow);
 
-            // Compatibility tab is intentionally empty for future settings.
-            tabStrip.AddTabPage("Compatibility");
+            var compatibilityTab = tabStrip.AddTabPage("Compatibility");
+            var compatibilityGroup = compatibilityTab.AddGroup("Compatibility");
+            var compatibilityGroupHelper = compatibilityGroup as UIHelper;
+            var compatibilityContainer = compatibilityGroupHelper?.self as UIPanel;
+            if (compatibilityContainer != null)
+            {
+                BuildCompatibilityUi(compatibilityContainer);
+            }
+
+            var compatibilityActions = compatibilityTab.AddGroup("Actions");
+            compatibilityActions.AddButton(
+                "Refresh",
+                () =>
+                {
+                    if (compatibilityContainer == null)
+                        return;
+
+                    BuildCompatibilityUi(compatibilityContainer);
+                    compatibilityContainer.Invalidate();
+                });
+            compatibilityActions.AddButton(
+                "Copy diagnostics",
+                () =>
+                {
+                    GUIUtility.systemCopyBuffer = CompatibilityChecker.BuildCompatibilityDiagnosticsReport() ?? string.Empty;
+                    VersionMismatchNotifier.ShowInfoPanel(
+                        "Compatibility",
+                        "Compatibility diagnostics copied to clipboard.",
+                        tags: VersionMismatchNotifier.BuildCompatibilityInfoTags("SUCCESS", "Menu"));
+                });
+            compatibilityActions.AddButton(
+                "Report on GitHub",
+                () =>
+                {
+                    var diagnostics = CompatibilityChecker.BuildCompatibilityDiagnosticsReport() ?? string.Empty;
+                    GUIUtility.systemCopyBuffer = diagnostics;
+
+                    var snapshot = CompatibilityChecker.GetLiveCompatibilitySnapshot();
+                    var comparisonRows = snapshot?.Rows == null
+                        ? null
+                        : snapshot.Rows.ToArray();
+
+                    VersionMismatchNotifier.ShowInfoPanel(
+                        "Version compatibility check",
+                        "Diagnostics were copied to clipboard.\n" +
+                        "\nTo-do: click Report on GitHub and paste the diagnostics there.",
+                        "Report on GitHub",
+                        VersionMismatchPanel.IssueUrl,
+                        VersionMismatchNotifier.BuildCompatibilityInfoTags("MISMATCH", "Menu"),
+                        comparisonRows: comparisonRows,
+                        useRemoteLabel: true);
+                });
 
             var changelogTab = tabStrip.AddTabPage("Changelog");
             var group = changelogTab.AddGroup("Changelog");
@@ -56,6 +109,336 @@ namespace CSM.TmpeSync.Mod
             BuildChangelogUi(container);
             container.Invalidate();
             tabStrip.Invalidate();
+        }
+
+        private static void BuildCompatibilityUi(UIPanel container)
+        {
+            if (container == null)
+                return;
+
+            RemoveCompatibilityContent(container);
+
+            var content = container.AddUIComponent<UIPanel>();
+            content.name = "CompatibilityDynamicContent";
+            content.autoLayout = true;
+            content.autoLayoutDirection = LayoutDirection.Vertical;
+            content.autoFitChildrenHorizontally = false;
+            content.autoFitChildrenVertically = true;
+            content.autoLayoutPadding = new RectOffset(0, 0, 6, 0);
+            content.width = Mathf.Max(220f, container.width - 10f);
+            content.padding = new RectOffset(5, 5, 2, 6);
+
+            var snapshot = CompatibilityChecker.GetLiveCompatibilitySnapshot();
+            var liveRows = (snapshot.Rows ?? new List<CompatibilityChecker.CompatibilityStatus>())
+                .Where(row => row != null)
+                .ToList();
+            if (liveRows.Count == 0)
+            {
+                var fallbackLiveRow = BuildFallbackLiveRow(snapshot);
+                if (fallbackLiveRow != null)
+                    liveRows.Add(fallbackLiveRow);
+            }
+
+            var allStatuses = CompatibilityChecker
+                .GetCompatibilityStatuses()
+                .Where(status => status != null)
+                .ToList();
+            var dependencyRows = allStatuses
+                .Where(status => IsDependencyStatus(status.DisplayName))
+                .ToList();
+
+            var runtimeStatus = CompatibilityChecker.GetSyncRuntimeStatus();
+            AddSyncStatusHeroCard(content, runtimeStatus);
+
+            AddSpacer(content, 4f);
+
+            if (liveRows.Count > 0)
+            {
+                for (var index = 0; index < liveRows.Count; index++)
+                {
+                    AddCompatibilityRow(content, liveRows[index], useRemoteLabel: true);
+                }
+            }
+
+            if (dependencyRows.Count == 0)
+            {
+                return;
+            }
+
+            for (var index = 0; index < dependencyRows.Count; index++)
+            {
+                AddCompatibilityRow(content, dependencyRows[index], useRemoteLabel: false);
+            }
+        }
+
+        private static void AddSyncStatusHeroCard(UIPanel parent, CompatibilityChecker.SyncRuntimeStatus status)
+        {
+            var runtimeStatus = status == null || string.IsNullOrEmpty(status.Status) ? "UNKNOWN" : status.Status;
+            var runtimeReason = status == null || string.IsNullOrEmpty(status.Reason)
+                ? "No runtime status details available."
+                : status.Reason;
+            var runtimeColor = GetRuntimeStatusColor(status);
+
+            var body = AddCompatibilityCard(parent, runtimeColor);
+
+            var title = body.AddUIComponent<UILabel>();
+            title.autoSize = false;
+            title.wordWrap = true;
+            title.autoHeight = true;
+            title.width = body.width - 12f;
+            title.textScale = 0.86f;
+            title.textColor = Color.white;
+            title.text = "TMPE Sync Status";
+
+            var statusRow = body.AddUIComponent<UIPanel>();
+            statusRow.autoLayout = true;
+            statusRow.autoLayoutDirection = LayoutDirection.Horizontal;
+            statusRow.autoFitChildrenHorizontally = false;
+            statusRow.autoFitChildrenVertically = true;
+            statusRow.autoLayoutPadding = new RectOffset(0, 8, 0, 0);
+            statusRow.width = body.width - 12f;
+
+            AddStatusDot(statusRow, runtimeColor);
+
+            var statusLabel = statusRow.AddUIComponent<UILabel>();
+            statusLabel.autoSize = false;
+            statusLabel.wordWrap = true;
+            statusLabel.autoHeight = true;
+            statusLabel.width = Mathf.Max(120f, statusRow.width - 18f);
+            statusLabel.textScale = 1.0f;
+            statusLabel.textColor = runtimeColor;
+            statusLabel.text = runtimeStatus;
+
+            var text = body.AddUIComponent<UILabel>();
+            text.autoSize = false;
+            text.wordWrap = true;
+            text.autoHeight = true;
+            text.width = body.width - 12f;
+            text.textScale = 0.8f;
+            text.textColor = CardMutedText;
+            text.text = runtimeReason;
+        }
+
+        private static bool IsDependencyStatus(string displayName)
+        {
+            if (string.IsNullOrEmpty(displayName))
+                return false;
+
+            return string.Equals(displayName, "TM:PE", StringComparison.OrdinalIgnoreCase) ||
+                   string.Equals(displayName, "CSM", StringComparison.OrdinalIgnoreCase) ||
+                   string.Equals(displayName, "Cities Harmony", StringComparison.OrdinalIgnoreCase) ||
+                   string.Equals(displayName, "Cities: Skylines", StringComparison.OrdinalIgnoreCase);
+        }
+
+        private static CompatibilityChecker.CompatibilityStatus BuildFallbackLiveRow(
+            CompatibilityChecker.LiveCompatibilitySnapshot snapshot)
+        {
+            if (snapshot == null)
+                return null;
+
+            var state = string.IsNullOrEmpty(snapshot.State) ? "Offline" : snapshot.State;
+            var severity = "Orange";
+            var status = state;
+
+            if (string.Equals(state, "Completed", StringComparison.OrdinalIgnoreCase))
+            {
+                if (string.Equals(snapshot.Severity, "Red", StringComparison.OrdinalIgnoreCase))
+                {
+                    severity = "Red";
+                    status = "Mismatch";
+                }
+                else if (string.Equals(snapshot.Severity, "Green", StringComparison.OrdinalIgnoreCase))
+                {
+                    severity = "Green";
+                    status = "Success";
+                }
+                else
+                {
+                    severity = "Orange";
+                    status = "Warning";
+                }
+            }
+            else if (string.Equals(state, "Pending", StringComparison.OrdinalIgnoreCase))
+            {
+                severity = "Orange";
+                status = "Checking";
+            }
+            else if (string.Equals(state, "Offline", StringComparison.OrdinalIgnoreCase))
+            {
+                severity = string.Empty;
+                status = "Offline";
+            }
+
+            var role = string.IsNullOrEmpty(snapshot.Role) ? "None" : snapshot.Role;
+            var reason = string.IsNullOrEmpty(snapshot.Summary)
+                ? "No live Host/Client details available."
+                : snapshot.Summary;
+
+            return new CompatibilityChecker.CompatibilityStatus(
+                "Host/Client Session",
+                installed: false,
+                actualVersion: "role=" + role,
+                normalizedVersion: string.Empty,
+                latestTag: "Host or Client session required",
+                status: status,
+                severity: severity,
+                reason: reason);
+        }
+
+        private static Color32 GetRuntimeStatusColor(CompatibilityChecker.SyncRuntimeStatus status)
+        {
+            if (status == null || string.IsNullOrEmpty(status.Status))
+                return TagBlue;
+
+            if (string.Equals(status.Status, "ACTIVE", StringComparison.OrdinalIgnoreCase))
+                return TagGreen;
+
+            if (string.Equals(status.Status, "ACTIVE (WARN)", StringComparison.OrdinalIgnoreCase))
+                return TagAmber;
+
+            if (string.Equals(status.Status, "DISABLED", StringComparison.OrdinalIgnoreCase))
+                return TagRed;
+
+            if (string.Equals(status.Status, "CHECKING", StringComparison.OrdinalIgnoreCase))
+                return TagAmber;
+
+            return TagBlue;
+        }
+
+        private static void AddCompatibilityRow(
+            UIPanel parent,
+            CompatibilityChecker.CompatibilityStatus status,
+            bool useRemoteLabel)
+        {
+            if (status == null)
+                return;
+
+            var severity = string.IsNullOrEmpty(status.Severity) ? "Unknown" : status.Severity;
+            var severityColor = GetSeverityColor(severity);
+            var body = AddCompatibilityCard(parent, severityColor);
+
+            var header = body.AddUIComponent<UIPanel>();
+            header.autoLayout = true;
+            header.autoLayoutDirection = LayoutDirection.Horizontal;
+            header.autoFitChildrenHorizontally = false;
+            header.autoFitChildrenVertically = true;
+            header.autoLayoutPadding = new RectOffset(0, 6, 0, 0);
+            header.width = body.width - 12f;
+
+            AddStatusDot(header, severityColor);
+            var statusText = string.IsNullOrEmpty(status.Status) ? "UNKNOWN" : status.Status;
+            var statusBadgeWidth = Mathf.Max(84f, 14f + (statusText.Length * 7f));
+            AddTagBadge(header, statusText, TagBlue, statusBadgeWidth);
+
+            var title = header.AddUIComponent<UILabel>();
+            title.autoSize = false;
+            title.wordWrap = true;
+            title.autoHeight = true;
+            title.width = Mathf.Max(120f, header.width - statusBadgeWidth - 30f);
+            title.textScale = 0.82f;
+            title.textColor = Color.white;
+            title.text = status.DisplayName;
+
+            var actual = string.IsNullOrEmpty(status.ActualVersion) ? "unknown" : status.ActualVersion;
+            var expected = string.IsNullOrEmpty(status.LatestTag) ? "unknown" : status.LatestTag;
+            var reason = string.IsNullOrEmpty(status.Reason) ? "No details." : status.Reason;
+
+            var versions = body.AddUIComponent<UILabel>();
+            versions.autoSize = false;
+            versions.wordWrap = true;
+            versions.autoHeight = true;
+            versions.width = body.width - 12f;
+            versions.textScale = 0.8f;
+            versions.textColor = CardSubtleText;
+            versions.text = string.Format(
+                "Local: {0}   {1}: {2}",
+                actual,
+                useRemoteLabel ? "Remote" : "Expected",
+                expected);
+
+            var reasonLabel = body.AddUIComponent<UILabel>();
+            reasonLabel.autoSize = false;
+            reasonLabel.wordWrap = true;
+            reasonLabel.autoHeight = true;
+            reasonLabel.width = body.width - 12f;
+            reasonLabel.textScale = 0.8f;
+            reasonLabel.textColor = CardMutedText;
+            reasonLabel.text = reason;
+        }
+
+        private static Color32 GetSeverityColor(string severity)
+        {
+            if (string.Equals(severity, "Green", StringComparison.OrdinalIgnoreCase))
+                return TagGreen;
+
+            if (string.Equals(severity, "Orange", StringComparison.OrdinalIgnoreCase))
+                return TagAmber;
+
+            if (string.Equals(severity, "Red", StringComparison.OrdinalIgnoreCase))
+                return TagRed;
+
+            return TagBlue;
+        }
+
+        private static UIPanel AddCompatibilityCard(UIPanel parent, Color32 accentColor)
+        {
+            var card = parent.AddUIComponent<UIPanel>();
+            card.width = Mathf.Max(180f, parent.width - 10f);
+            card.autoLayout = true;
+            card.autoLayoutDirection = LayoutDirection.Horizontal;
+            card.autoFitChildrenHorizontally = false;
+            card.autoFitChildrenVertically = true;
+            card.autoLayoutPadding = new RectOffset(0, 0, 0, 0);
+            card.backgroundSprite = "GenericPanel";
+            card.color = CardBackground;
+
+            var accent = card.AddUIComponent<UIPanel>();
+            accent.backgroundSprite = "GenericPanel";
+            accent.color = accentColor;
+            accent.width = 5f;
+            accent.height = 52f;
+
+            var body = card.AddUIComponent<UIPanel>();
+            body.autoLayout = true;
+            body.autoLayoutDirection = LayoutDirection.Vertical;
+            body.autoFitChildrenHorizontally = false;
+            body.autoFitChildrenVertically = true;
+            body.autoLayoutPadding = new RectOffset(0, 0, 3, 1);
+            body.width = card.width - 12f;
+            body.padding = new RectOffset(9, 8, 6, 6);
+            return body;
+        }
+
+        private static void AddStatusDot(UIComponent parent, Color32 color)
+        {
+            if (parent == null)
+                return;
+
+            var dot = parent.AddUIComponent<UIPanel>();
+            dot.backgroundSprite = "GenericPanel";
+            dot.color = color;
+            dot.width = 10f;
+            dot.height = 10f;
+            dot.relativePosition = new Vector3(0f, 5f);
+        }
+
+        private static void RemoveCompatibilityContent(UIPanel panel)
+        {
+            if (panel == null || panel.components == null || panel.components.Count == 0)
+                return;
+
+            var toRemove = new List<UIComponent>(panel.components.Count);
+            for (var i = 0; i < panel.components.Count; i++)
+            {
+                var component = panel.components[i];
+                if (component != null && string.Equals(component.name, "CompatibilityDynamicContent", StringComparison.Ordinal))
+                    toRemove.Add(component);
+            }
+
+            for (var i = 0; i < toRemove.Count; i++)
+            {
+                toRemove[i].Remove();
+            }
         }
 
         public void OnEnabled()
@@ -115,8 +498,8 @@ namespace CSM.TmpeSync.Mod
             content.autoFitChildrenHorizontally = false;
             content.autoFitChildrenVertically = true;
             content.autoLayoutPadding = new RectOffset(0, 0, 6, 0);
-            content.width = Mathf.Max(220f, container.width - 12f);
-            content.padding = new RectOffset(6, 6, 2, 6);
+            content.width = Mathf.Max(220f, container.width - 10f);
+            content.padding = new RectOffset(5, 5, 2, 6);
 
             if (entries.Count == 0)
             {
@@ -167,8 +550,8 @@ namespace CSM.TmpeSync.Mod
             row.autoLayoutDirection = LayoutDirection.Horizontal;
             row.autoFitChildrenHorizontally = false;
             row.autoFitChildrenVertically = true;
-            row.autoLayoutPadding = new RectOffset(0, 8, 0, 0);
-            row.width = Mathf.Max(140f, parent.width - 12f);
+            row.autoLayoutPadding = new RectOffset(0, 6, 0, 0);
+            row.width = Mathf.Max(140f, parent.width - 10f);
 
             var tagsContainer = row.AddUIComponent<UIPanel>();
             tagsContainer.autoLayout = true;
@@ -181,12 +564,12 @@ namespace CSM.TmpeSync.Mod
             for (var tagIndex = 0; tagIndex < tags.Count; tagIndex++)
             {
                 var tag = tags[tagIndex];
-                var badgeWidth = Mathf.Max(74f, 14f + (tag.Text.Length * 7f));
+                var badgeWidth = Mathf.Max(90f, 14f + (tag.Text.Length * 7f));
                 AddTagBadge(tagsContainer, tag.Text, tag.Color, badgeWidth);
                 badgeWidthTotal += badgeWidth + 6f;
             }
 
-            var textWidth = Mathf.Max(60f, row.width - badgeWidthTotal - 8f);
+            var textWidth = Mathf.Max(120f, row.width - badgeWidthTotal - 10f);
             AddTextLabel(row, changeText, 0.8f, textWidth);
         }
 
@@ -230,14 +613,13 @@ namespace CSM.TmpeSync.Mod
             label.text = string.IsNullOrEmpty(text) ? string.Empty : text.ToUpperInvariant();
             label.textScale = 0.7f;
             label.textColor = Color.white;
-            label.backgroundSprite = "TextFieldPanel";
+            label.backgroundSprite = "GenericPanel";
             label.colorizeSprites = true;
             label.color = backgroundColor;
-            label.minimumSize = new Vector2(minWidth, 22f);
+            label.minimumSize = new Vector2(minWidth, 20f);
             label.textAlignment = UIHorizontalAlignment.Center;
             label.verticalAlignment = UIVerticalAlignment.Middle;
             label.padding = new RectOffset(4, 4, 5, 0);
-            label.atlas = GetIngameAtlas();
             return label;
         }
 
@@ -328,27 +710,6 @@ namespace CSM.TmpeSync.Mod
                 return new ChangelogTagBadge("Removed", TagRed);
 
             return new ChangelogTagBadge("Updated", TagBlue);
-        }
-
-        private static UITextureAtlas GetIngameAtlas()
-        {
-            if (_ingameAtlas != null)
-                return _ingameAtlas;
-
-            var atlases = Resources.FindObjectsOfTypeAll(typeof(UITextureAtlas)) as UITextureAtlas[];
-            if (atlases == null)
-                return null;
-
-            foreach (var atlas in atlases)
-            {
-                if (atlas != null && atlas.name == "Ingame")
-                {
-                    _ingameAtlas = atlas;
-                    break;
-                }
-            }
-
-            return _ingameAtlas;
         }
 
         private static Version SafeVersion(string text)

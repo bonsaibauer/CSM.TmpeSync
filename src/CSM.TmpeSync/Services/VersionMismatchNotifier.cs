@@ -13,6 +13,7 @@ namespace CSM.TmpeSync.Services
     {
         private const int DefaultDisplayDelayMilliseconds = 3000;
         private const string VersionCompatibilityTitle = "Version compatibility check";
+        private const string ReportOnGithubActionText = "Report on GitHub";
         private const string PerspectiveHost = "Host";
         private const string PerspectiveClient = "Client";
         private static readonly Color32 TagBlue = new Color32(3, 106, 225, 255);
@@ -54,22 +55,35 @@ namespace CSM.TmpeSync.Services
             SchedulePanel(context.BuildKey(), content, DefaultDisplayDelayMilliseconds, context.Perspective);
         }
 
-        internal static void NotifyDependencyIssues(IList<CompatibilityChecker.CompatibilityStatus> issues)
+        internal static void NotifyDependencyIssues(IList<CompatibilityChecker.CompatibilityStatus> statuses)
         {
-            ShowDependencyIssues(issues, DefaultDisplayDelayMilliseconds);
+            ShowDependencyIssues(statuses, DefaultDisplayDelayMilliseconds);
         }
 
-        internal static void ShowDependencyIssuesNow(IList<CompatibilityChecker.CompatibilityStatus> issues)
+        internal static void ShowDependencyIssuesNow(IList<CompatibilityChecker.CompatibilityStatus> statuses)
         {
-            ShowDependencyIssues(issues, 0);
+            ShowDependencyIssues(statuses, 0);
         }
 
-        private static void ShowDependencyIssues(IList<CompatibilityChecker.CompatibilityStatus> issues, int delayMilliseconds)
+        private static void ShowDependencyIssues(IList<CompatibilityChecker.CompatibilityStatus> statuses, int delayMilliseconds)
         {
-            if (issues == null || issues.Count == 0)
+            if (statuses == null || statuses.Count == 0)
                 return;
 
-            var ordered = issues.OrderBy(i => i.DisplayName, StringComparer.OrdinalIgnoreCase).ToList();
+            var ordered = statuses.OrderBy(i => i.DisplayName, StringComparer.OrdinalIgnoreCase).ToList();
+            var issueCount = 0;
+            for (var i = 0; i < ordered.Count; i++)
+            {
+                var severity = ordered[i]?.Severity;
+                if (!IsIssueSeverity(severity))
+                    continue;
+
+                issueCount++;
+            }
+
+            if (issueCount == 0)
+                return;
+
             var keyBuilder = new StringBuilder("Dependency|");
             foreach (var issue in ordered)
             {
@@ -77,32 +91,15 @@ namespace CSM.TmpeSync.Services
                 keyBuilder.Append(issue.Status ?? string.Empty).Append('|');
             }
 
-            var messageBuilder = new StringBuilder();
-            messageBuilder.AppendLine("CSM.TmpeSync - Dependency version issues detected:");
-            messageBuilder.AppendLine();
-
-            foreach (var issue in ordered)
-            {
-                var info = BuildDependencyIssueLine(issue);
-                if (info == null)
-                    continue;
-
-                messageBuilder.Append("- ");
-                messageBuilder.AppendLine(info);
-            }
-
-            messageBuilder.AppendLine();
-            messageBuilder.AppendLine("This usually means Cities: Skylines, TM:PE, CSM, or Harmony was updated, and this version of CSM.TmpeSync might not support it yet.");
-            messageBuilder.AppendLine();
-            messageBuilder.AppendLine("Please update or verify the listed dependencies. If the issue persists, use the button below to open the GitHub issue template.");
-
             var content = new VersionMismatchPanelContent
             {
                 Title = "Dependency check",
-                Message = messageBuilder.ToString(),
-                ActionText = "Open GitHub issue",
+                Message = string.Empty,
+                ActionText = ReportOnGithubActionText,
                 ActionUrl = VersionMismatchPanel.IssueUrl,
-                Tags = BuildDependencyIssueTags(ordered)
+                Tags = BuildDependencyIssueTags(ordered),
+                ComparisonRows = ordered.ToArray(),
+                UseRemoteLabel = false
             };
 
             SchedulePanel(keyBuilder.ToString(), content, delayMilliseconds);
@@ -113,7 +110,9 @@ namespace CSM.TmpeSync.Services
             string message,
             string actionText = null,
             string actionUrl = null,
-            VersionMismatchPanelTag[] tags = null)
+            VersionMismatchPanelTag[] tags = null,
+            CompatibilityChecker.CompatibilityStatus[] comparisonRows = null,
+            bool useRemoteLabel = true)
         {
             var content = new VersionMismatchPanelContent
             {
@@ -121,35 +120,47 @@ namespace CSM.TmpeSync.Services
                 Message = string.IsNullOrEmpty(message) ? "No details available." : message,
                 ActionText = actionText,
                 ActionUrl = actionUrl,
-                Tags = tags
+                Tags = tags,
+                ComparisonRows = comparisonRows,
+                UseRemoteLabel = useRemoteLabel
             };
 
             SchedulePanel("ManualInfoPanel|" + content.Title, content, 0, "Manual");
         }
 
-        internal static void ShowCompatibilityCheckSuccess(string message, string role = null)
+        internal static void ShowCompatibilityCheckSuccess(
+            string message,
+            string role = null,
+            IList<CompatibilityChecker.CompatibilityStatus> comparisonRows = null)
         {
             ShowInfoPanel(
                 VersionCompatibilityTitle,
-                message ?? "Compatibility check completed successfully.",
-                tags: BuildCompatibilityTags("SUCCESS", role));
+                message ?? "Compatibility check completed successfully.\nTo-do: no action needed.",
+                tags: BuildCompatibilityTags("SUCCESS", role),
+                comparisonRows: ToArrayOrNull(comparisonRows),
+                useRemoteLabel: true);
         }
 
-        internal static void ShowCompatibilityCheckMismatch(string message, string role = null)
+        internal static void ShowCompatibilityCheckMismatch(
+            string message,
+            string role = null,
+            IList<CompatibilityChecker.CompatibilityStatus> comparisonRows = null)
         {
             ShowInfoPanel(
                 VersionCompatibilityTitle,
-                message ?? "Compatibility mismatch detected.",
-                "Open GitHub releases",
-                VersionMismatchPanel.ReleasesUrl,
-                BuildCompatibilityTags("MISMATCH", role));
+                message ?? "Compatibility mismatch detected.\nTo-do: align versions, then retry the check.",
+                ReportOnGithubActionText,
+                VersionMismatchPanel.IssueUrl,
+                BuildCompatibilityTags("MISMATCH", role),
+                ToArrayOrNull(comparisonRows),
+                useRemoteLabel: true);
         }
 
         internal static VersionMismatchPanelTag[] BuildDependencyCheckTags(string status)
         {
             return new[]
             {
-                new VersionMismatchPanelTag("DEPENDENCIES", TagAmber),
+                new VersionMismatchPanelTag("DEPENDENCIES", TagBlue),
                 BuildStatusTag(status)
             };
         }
@@ -197,34 +208,35 @@ namespace CSM.TmpeSync.Services
 
         private static VersionMismatchPanelContent BuildContent(VersionMismatchContext context)
         {
-            var builder = new StringBuilder();
-
-            builder.AppendLine("CSM.TmpeSync detected mismatching mod versions between you and the remote side.");
-            builder.AppendLine();
-            builder.AppendFormat("Local version  : {0}", context.LocalVersion ?? "n/a");
-            builder.AppendLine();
-            builder.AppendFormat("Remote version : {0}", context.RemoteVersion ?? "n/a");
-            builder.AppendLine();
-
-            if (!string.IsNullOrEmpty(context.PeerIdentifier))
-            {
-                builder.AppendLine();
-                builder.AppendFormat("Peer: {0}", context.PeerIdentifier);
-                builder.AppendLine();
-            }
-
-            builder.AppendLine();
-            builder.AppendLine("Warning: synchronization has been disabled until both sides install the same CSM.TmpeSync version.");
-            builder.AppendLine("Update the mod and restart the session. Use the button below to open the GitHub releases page or update on Steam Workshop.");
-
             return new VersionMismatchPanelContent
             {
                 Title = VersionCompatibilityTitle,
-                Message = builder.ToString(),
-                ActionText = "Open GitHub releases",
-                ActionUrl = VersionMismatchPanel.ReleasesUrl,
-                Tags = BuildCompatibilityTags("MISMATCH", context.Perspective, isAutomatic: true)
+                Message = string.Empty,
+                ActionText = ReportOnGithubActionText,
+                ActionUrl = VersionMismatchPanel.IssueUrl,
+                Tags = BuildCompatibilityTags("MISMATCH", context.Perspective, isAutomatic: true),
+                ComparisonRows = new[]
+                {
+                    new CompatibilityChecker.CompatibilityStatus(
+                        context.PeerDescription ?? "Peer",
+                        installed: true,
+                        actualVersion: context.LocalVersion ?? "unknown",
+                        normalizedVersion: string.Empty,
+                        latestTag: context.RemoteVersion ?? "unknown",
+                        status: "Mismatch",
+                        severity: "Red",
+                        reason: "Host and client versions are not compatible.\nTo-do: align versions on both sides, then retry.")
+                },
+                UseRemoteLabel = true
             };
+        }
+
+        private static CompatibilityChecker.CompatibilityStatus[] ToArrayOrNull(IList<CompatibilityChecker.CompatibilityStatus> rows)
+        {
+            if (rows == null || rows.Count == 0)
+                return null;
+
+            return rows.ToArray();
         }
 
         private static VersionMismatchPanelTag[] BuildCompatibilityTags(string status, string role, bool isAutomatic = false)
@@ -252,52 +264,25 @@ namespace CSM.TmpeSync.Services
 
         private static VersionMismatchPanelTag[] BuildDependencyIssueTags(IList<CompatibilityChecker.CompatibilityStatus> issues)
         {
-            var tags = new List<VersionMismatchPanelTag>
+            var hasRed = false;
+            if (issues != null)
             {
-                new VersionMismatchPanelTag("DEPENDENCIES", TagAmber),
-                BuildStatusTag("WARNING")
-            };
-
-            if (issues == null || issues.Count == 0)
-                return tags.ToArray();
-
-            var seenDependencyLabels = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            var seenStatuses = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-
-            for (var i = 0; i < issues.Count; i++)
-            {
-                var issue = issues[i];
-                var label = NormalizeDependencyLabel(issue.DisplayName);
-                if (!string.IsNullOrEmpty(label) && seenDependencyLabels.Add(label))
+                for (var i = 0; i < issues.Count; i++)
                 {
-                    tags.Add(new VersionMismatchPanelTag(label, TagNeutral));
-                }
-
-                var status = issue.Status ?? string.Empty;
-                if (!string.IsNullOrEmpty(status) && seenStatuses.Add(status))
-                {
-                    tags.Add(BuildStatusTag(status));
+                    var severity = issues[i]?.Severity;
+                    if (string.Equals(severity, "Red", StringComparison.OrdinalIgnoreCase))
+                    {
+                        hasRed = true;
+                        break;
+                    }
                 }
             }
 
-            return tags.ToArray();
-        }
-
-        private static string NormalizeDependencyLabel(string displayName)
-        {
-            if (string.IsNullOrEmpty(displayName))
-                return null;
-
-            if (string.Equals(displayName, "Cities Harmony", StringComparison.OrdinalIgnoreCase))
-                return "HARMONY";
-
-            if (string.Equals(displayName, "TM:PE", StringComparison.OrdinalIgnoreCase))
-                return "TMPE";
-
-            if (string.Equals(displayName, "Cities: Skylines", StringComparison.OrdinalIgnoreCase))
-                return "CS";
-
-            return displayName.ToUpperInvariant();
+            return new[]
+            {
+                new VersionMismatchPanelTag("DEPENDENCIES", TagBlue),
+                BuildStatusTag(hasRed ? "MISMATCH" : "WARNING")
+            };
         }
 
         private static VersionMismatchPanelTag BuildStatusTag(string status)
@@ -307,57 +292,33 @@ namespace CSM.TmpeSync.Services
             {
                 case "SUCCESS":
                 case "MATCH":
+                case "LEGACY MATCH":
+                case "PATCH/BUILD DIFFERENCE":
                     return new VersionMismatchPanelTag(normalized, TagGreen);
                 case "MISMATCH":
                 case "ERROR":
                 case "FAILED":
                 case "MISSING":
+                case "MAJOR MISMATCH":
+                case "UNKNOWN":
                     return new VersionMismatchPanelTag(normalized, TagRed);
                 case "WARNING":
-                case "OFFLINE":
-                case "LEGACY MATCH":
-                case "UNKNOWN":
+                case "MINOR MISMATCH":
                     return new VersionMismatchPanelTag(normalized, TagAmber);
+                case "OFFLINE":
+                    return new VersionMismatchPanelTag(normalized, TagBlue);
                 default:
                     return new VersionMismatchPanelTag(normalized, TagNeutral);
             }
         }
 
-        private static string BuildDependencyIssueLine(CompatibilityChecker.CompatibilityStatus status)
+        private static bool IsIssueSeverity(string severity)
         {
-            if (status.Status == null)
-                return null;
+            if (string.IsNullOrEmpty(severity))
+                return false;
 
-            var displayName = status.DisplayName ?? "Unknown dependency";
-            var actual = string.IsNullOrEmpty(status.ActualVersion) ? "unknown" : status.ActualVersion;
-            var expected = string.IsNullOrEmpty(status.LatestTag) ? "unknown" : status.LatestTag;
-
-            switch (status.Status)
-            {
-                case "Mismatch":
-                    return string.Format(
-                        "{0} - installed {1}, expected {2}. Synchronization can fail until this dependency is updated.",
-                        displayName,
-                        actual,
-                        expected);
-                case "Missing":
-                    return string.Format(
-                        "{0} - no installation detected. Install and enable this dependency before using TM:PE sync.",
-                        displayName);
-                case "Legacy Match":
-                    return string.Format(
-                        "{0} - legacy release detected ({1}, latest {2}). This might work but is not guaranteed.",
-                        displayName,
-                        actual,
-                        expected);
-                case "Unknown":
-                    return string.Format(
-                        "{0} — unable to determine the installed version. Verify that the dependency is up to date (latest {1}).",
-                        displayName,
-                        expected);
-                default:
-                    return null;
-            }
+            return string.Equals(severity, "Red", StringComparison.OrdinalIgnoreCase) ||
+                   string.Equals(severity, "Orange", StringComparison.OrdinalIgnoreCase);
         }
 
         private static string SafeVersion(string value)

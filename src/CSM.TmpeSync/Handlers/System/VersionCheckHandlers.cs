@@ -138,8 +138,7 @@ namespace CSM.TmpeSync.Handlers.System
                     CompatibilityChecker.HandleManualClientCheckResult(
                         command.RequestId,
                         localVersion,
-                        serverVersion,
-                        versionsMatch: false);
+                        serverVersion);
                 }
                 else
                 {
@@ -155,8 +154,7 @@ namespace CSM.TmpeSync.Handlers.System
                 CompatibilityChecker.HandleManualClientCheckResult(
                     command.RequestId,
                     localVersion,
-                    serverVersion,
-                    versionsMatch: true);
+                    serverVersion);
             }
         }
     }

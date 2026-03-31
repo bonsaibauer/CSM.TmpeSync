@@ -1,5 +1,6 @@
 using System;
 using ColossalFramework;
+using ColossalFramework.Math;
 using ColossalFramework.UI;
 using UnityEngine;
 
@@ -160,7 +161,7 @@ namespace CSM.TmpeSync.Services.UI
             string text,
             Color32 backgroundColor,
             float minWidth = 90f,
-            float minHeight = 22f)
+            float minHeight = 20f)
         {
             if (parent == null)
                 return null;

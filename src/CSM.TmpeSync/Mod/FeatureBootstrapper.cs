@@ -105,6 +105,16 @@ namespace CSM.TmpeSync.Mod
             Log.Warn(LogCategory.Synchronization, GetCurrentRole(), "Synchronization suspended | reason={0}", reason);
         }
 
+        internal static void GetRuntimeState(out bool isRegistered, out bool isSuspended, out string suspendReason)
+        {
+            lock (SyncRoot)
+            {
+                isRegistered = _registered;
+                isSuspended = _suspended;
+                suspendReason = _suspendReason ?? string.Empty;
+            }
+        }
+
         private static void DisableAllFeatures()
         {
             foreach (var feature in Features)
