@@ -31,6 +31,7 @@ namespace CSM.TmpeSync.Services
         private static readonly Regex VersionPattern = new Regex("^\\D*(\\d+(?:\\.\\d+)*)", RegexOptions.Compiled);
         private static readonly object ManualCompatibilityCheckLock = new object();
 
+        private const int GameVersionComponentsCount = 2;
         private const int ManualClientCheckTimeoutMilliseconds = 5000;
         private const int ManualHostProbeTimeoutMilliseconds = 3500;
 
@@ -74,6 +75,12 @@ namespace CSM.TmpeSync.Services
                 ModMetadata.LatestCitiesHarmonyReleaseTag,
                 ModMetadata.LegacyCitiesHarmonyReleaseTags,
                 null);
+
+            LogMetadataFor(
+                "Cities: Skylines",
+                BuildExpectedCitiesSkylinesDisplayTag(),
+                new string[0],
+                null);
         }
 
         internal static void LogInstalledVersions()
@@ -90,6 +97,15 @@ namespace CSM.TmpeSync.Services
                     string.IsNullOrEmpty(status.NormalizedVersion) ? "n/a" : status.NormalizedVersion,
                     string.IsNullOrEmpty(status.LatestTag) ? "n/a" : status.LatestTag);
             }
+        }
+
+        internal static bool IsCitiesSkylinesVersionSupported(out string actualVersion, out string expectedVersionLine, out string status)
+        {
+            var result = EvaluateCitiesSkylinesVersion();
+            actualVersion = string.IsNullOrEmpty(result.ActualVersion) ? "unknown" : result.ActualVersion;
+            expectedVersionLine = GetExpectedCitiesSkylinesVersionLine();
+            status = result.Status ?? string.Empty;
+            return string.Equals(result.Status, "Match", StringComparison.OrdinalIgnoreCase);
         }
 
         internal static void RunDependencyCheckNow()
@@ -153,7 +169,7 @@ namespace CSM.TmpeSync.Services
                         "Version compatibility check",
                         "No active CSM multiplayer session detected (role: None).\n" +
                         "Check Mod Compatibility is available only with an active Host/Client session.\n" +
-                        "Use 'Check Dependencies (TMPE/Harmony/CSM)' for local dependency checks.",
+                        "Use 'Check Dependencies (CS/TMPE/Harmony/CSM)' for local dependency checks.",
                         tags: VersionMismatchNotifier.BuildCompatibilityInfoTags("OFFLINE", "Menu"));
                     return;
                 }
@@ -329,6 +345,7 @@ namespace CSM.TmpeSync.Services
 
         private static IEnumerable<CompatibilityResult> BuildCompatibilityResults()
         {
+            yield return EvaluateCitiesSkylinesVersion();
             yield return EvaluateFromPlugin(
                 "TM:PE",
                 new Func<PluginInfo>(Deps.GetActiveTmpePlugin),
@@ -382,6 +399,50 @@ namespace CSM.TmpeSync.Services
                 version == null ? null : version.ToString(),
                 ModMetadata.LatestCitiesHarmonyReleaseTag,
                 ModMetadata.LegacyCitiesHarmonyReleaseTags);
+        }
+
+        private static CompatibilityResult EvaluateCitiesSkylinesVersion()
+        {
+            string currentVersion = null;
+            try
+            {
+                currentVersion = GetCurrentGameVersion();
+            }
+            catch (Exception ex)
+            {
+                Log.Warn(LogCategory.Diagnostics, LogRole.General, "Cities: Skylines version lookup failed | error={0}", ex);
+            }
+
+            return BuildResult(
+                "Cities: Skylines",
+                installed: true,
+                actualVersion: currentVersion,
+                latestTag: BuildExpectedCitiesSkylinesDisplayTag(),
+                legacyTags: null,
+                normalizationComponentLimit: GameVersionComponentsCount);
+        }
+
+        private static string GetExpectedCitiesSkylinesVersionLine()
+        {
+            var normalized = NormalizeVersion(ModMetadata.ExpectedCitiesSkylinesVersionMajorMinor, GameVersionComponentsCount);
+            if (string.IsNullOrEmpty(normalized))
+                return "1.21.x";
+
+            var trimmed = TrimTrailingZeroComponents(normalized);
+            if (string.IsNullOrEmpty(trimmed))
+                return "1.21.x";
+
+            return string.Format("{0}.x", trimmed);
+        }
+
+        private static string BuildExpectedCitiesSkylinesDisplayTag()
+        {
+            var versionLine = GetExpectedCitiesSkylinesVersionLine();
+            var raw = ModMetadata.ExpectedCitiesSkylinesVersionRaw;
+            if (string.IsNullOrEmpty(raw))
+                return versionLine;
+
+            return string.Format("{0} (raw {1})", versionLine, raw);
         }
 
         private static CompatibilityResult BuildResult(
@@ -574,6 +635,65 @@ namespace CSM.TmpeSync.Services
             {
                 return null;
             }
+        }
+
+        private static string GetCurrentGameVersion()
+        {
+            var buildConfigType = GetTypeFromAssemblies("BuildConfig");
+            if (buildConfigType == null)
+                return null;
+
+            var major = TryReadStaticUInt(buildConfigType, "APPLICATION_VERSION_A");
+            var minor = TryReadStaticUInt(buildConfigType, "APPLICATION_VERSION_B");
+            var patch = TryReadStaticUInt(buildConfigType, "APPLICATION_VERSION_C");
+            var build = TryReadStaticUInt(buildConfigType, "APPLICATION_BUILD_NUMBER");
+
+            if (major.HasValue && minor.HasValue && patch.HasValue && build.HasValue)
+            {
+                return string.Format("{0}.{1}.{2}.{3}", major.Value, minor.Value, patch.Value, build.Value);
+            }
+
+            var fullVersion = TryReadStaticUInt(buildConfigType, "APPLICATION_VERSION");
+            if (!fullVersion.HasValue)
+                return null;
+
+            var versionToStringMethod = buildConfigType.GetMethod(
+                "VersionToString",
+                BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static,
+                null,
+                new[] { typeof(uint), typeof(bool) },
+                null);
+
+            if (versionToStringMethod == null)
+                return null;
+
+            var value = versionToStringMethod.Invoke(null, new object[] { fullVersion.Value, false }) as string;
+            return string.IsNullOrEmpty(value) ? null : value;
+        }
+
+        private static uint? TryReadStaticUInt(Type type, string fieldName)
+        {
+            if (type == null || string.IsNullOrEmpty(fieldName))
+                return null;
+
+            var field = type.GetField(fieldName, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static);
+            if (field == null)
+                return null;
+
+            var value = field.GetValue(null);
+            if (value is uint uintValue)
+                return uintValue;
+
+            if (value is int intValue)
+                return intValue >= 0 ? (uint)intValue : (uint?)null;
+
+            if (value is long longValue)
+                return longValue >= 0 && longValue <= uint.MaxValue ? (uint)longValue : (uint?)null;
+
+            if (value is ulong ulongValue)
+                return ulongValue <= uint.MaxValue ? (uint)ulongValue : (uint?)null;
+
+            return null;
         }
 
         private static void LogMetadataFor(string name, string latest, string[] legacy, string current)
@@ -933,7 +1053,8 @@ namespace CSM.TmpeSync.Services
 
             return string.Equals(displayName, "TM:PE", StringComparison.OrdinalIgnoreCase) ||
                    string.Equals(displayName, "CSM", StringComparison.OrdinalIgnoreCase) ||
-                   string.Equals(displayName, "Cities Harmony", StringComparison.OrdinalIgnoreCase);
+                   string.Equals(displayName, "Cities Harmony", StringComparison.OrdinalIgnoreCase) ||
+                   string.Equals(displayName, "Cities: Skylines", StringComparison.OrdinalIgnoreCase);
         }
 
         private static bool RequiresWarning(string status)

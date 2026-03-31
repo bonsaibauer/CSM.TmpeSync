@@ -92,7 +92,7 @@ namespace CSM.TmpeSync.Services
             }
 
             messageBuilder.AppendLine();
-            messageBuilder.AppendLine("This usually means TM:PE, CSM, or Harmony was updated, and this version of CSM.TmpeSync might not support it yet.");
+            messageBuilder.AppendLine("This usually means Cities: Skylines, TM:PE, CSM, or Harmony was updated, and this version of CSM.TmpeSync might not support it yet.");
             messageBuilder.AppendLine();
             messageBuilder.AppendLine("Please update or verify the listed dependencies. If the issue persists, use the button below to open the GitHub issue template.");
 
@@ -293,6 +293,9 @@ namespace CSM.TmpeSync.Services
 
             if (string.Equals(displayName, "TM:PE", StringComparison.OrdinalIgnoreCase))
                 return "TMPE";
+
+            if (string.Equals(displayName, "Cities: Skylines", StringComparison.OrdinalIgnoreCase))
+                return "CS";
 
             return displayName.ToUpperInvariant();
         }
