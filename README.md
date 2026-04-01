@@ -25,10 +25,11 @@ Detailed docs live alongside the code. Every feature description is bilingual (G
 | Junction Restrictions | [docs/JunctionRestrictions.md](docs/JunctionRestrictions.md) | ✅ |
 | Lane Arrows | [docs/LaneArrows.md](docs/LaneArrows.md) | ✅ |
 | Lane Connector | [docs/LaneConnector.md](docs/LaneConnector.md) | ✅ |
+| Manual Traffic Lights | [docs/ManualTrafficLights.md](docs/ManualTrafficLights.md) | ✅ |
 | Parking Restrictions | [docs/ParkingRestrictions.md](docs/ParkingRestrictions.md) | ✅ |
 | Priority Signs | [docs/PrioritySigns.md](docs/PrioritySigns.md) | ✅ |
 | Speed Limits | [docs/SpeedLimits.md](docs/SpeedLimits.md) | ✅ |
-| Timed Traffic Lights | [docs/TimedTrafficLights.md](docs/TimedTrafficLights.md) | ❌ |
+| Timed Traffic Lights | [docs/TimedTrafficLights.md](docs/TimedTrafficLights.md) | ✅ |
 | Toggle Traffic Lights | [docs/ToggleTrafficLights.md](docs/ToggleTrafficLights.md) | ✅ |
 | Vehicle Restrictions | [docs/VehicleRestrictions.md](docs/VehicleRestrictions.md) | ✅ |
 

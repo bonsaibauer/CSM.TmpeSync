@@ -3,14 +3,12 @@
     <TargetFramework>net35</TargetFramework>
     <OutputType>Library</OutputType>
     <RootNamespace>CSM.TmpeSync</RootNamespace>
-    <AssemblyName>CSM.TmpeSync</AssemblyName>
+    <AssemblyName>CSM.TmpeSync.ManualTrafficLights</AssemblyName>
 
     <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
     <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
     <Nullable>disable</Nullable>
     <LangVersion>7.3</LangVersion>
-
-    <NoWarn>$(NoWarn);0436</NoWarn>
 
     <RepoRoot>$([System.IO.Path]::GetFullPath('$(MSBuildProjectDirectory)\..\..'))</RepoRoot>
 
@@ -69,7 +67,7 @@
     <Error Condition=" !Exists('$(CsmApiDllPath)') " Text="Missing: $(CsmApiDllPath) — verify the CSM.API build path." />
   </Target>
 
-  <Target Name="NormalizeFrameworkReferenceArchitecture" BeforeTargets="ResolveReferences">
+    <Target Name="NormalizeFrameworkReferenceArchitecture" BeforeTargets="ResolveReferences">
     <!--
       Visual Studio resolves the .NET 3.5 reference assemblies from the Microsoft.NETFramework.ReferenceAssemblies.net35
       package with a ProcessorArchitecture of x86. We ship an AnyCPU plugin that must load in a 64-bit Mono runtime,
@@ -85,51 +83,48 @@
     </ItemGroup>
   </Target>
 
-  <Target Name="VerifyFrameworkReferenceArchitecture" AfterTargets="ResolveReferences">
+    <Target Name="VerifyFrameworkReferenceArchitecture" AfterTargets="ResolveReferences">
     <ItemGroup>
       <_ArchitectureWarnings Include="@(ReferencePath)"
                               Condition=" '%(ReferencePath.NuGetPackageId)' == 'Microsoft.NETFramework.ReferenceAssemblies.net35' and '%(ReferencePath.ProcessorArchitecture)' != 'MSIL' " />
     </ItemGroup>
-
     <Error Condition=" '@(_ArchitectureWarnings)' != '' "
            Text="Framework reference %(Identity) resolved with processor architecture '%(ProcessorArchitecture)'. Update NormalizeFrameworkReferenceArchitecture to cover this case." />
   </Target>
 
   <!-- ==== References ==== -->
   <ItemGroup>
+  </ItemGroup>
     <!-- Game -->
+  <ItemGroup>
     <Reference Include="ICities"><HintPath>$(ManagedDir)\ICities.dll</HintPath><Private>false</Private></Reference>
     <Reference Include="ColossalManaged"><HintPath>$(ManagedDir)\ColossalManaged.dll</HintPath><Private>false</Private></Reference>
     <Reference Include="UnityEngine"><HintPath>$(ManagedDir)\UnityEngine.dll</HintPath><Private>false</Private></Reference>
     <Reference Include="Assembly-CSharp"><HintPath>$(ManagedDir)\Assembly-CSharp.dll</HintPath><Private>false</Private></Reference>
 
+  </ItemGroup>
     <!-- Harmony (CitiesHarmony) -->
+  <ItemGroup>
     <Reference Include="CitiesHarmony.Harmony"><HintPath>$(HarmonyDllDir)\CitiesHarmony.Harmony.dll</HintPath><Private>false</Private></Reference>
 
+  </ItemGroup>
     <!-- CSM API -->
+  <ItemGroup>
     <Reference Include="CSM.API"><HintPath>$(CsmApiDllPath)</HintPath><Private>false</Private></Reference>
 
+  </ItemGroup>
     <!-- TM:PE (optional) – only link when available -->
+  <ItemGroup>
     <Reference Include="TrafficManager" Condition=" '$(TmpeDir)'!='' AND Exists('$(TmpeDir)\TrafficManager.dll') ">
       <HintPath>$(TmpeDir)\TrafficManager.dll</HintPath>
       <Private>false</Private>
     </Reference>
-  </ItemGroup>
+    <Reference Include="CSUtil.Commons" Condition=" '$(TmpeDir)'!='' AND Exists('$(TmpeDir)\CSUtil.Commons.dll') ">
+      <HintPath>$(TmpeDir)\CSUtil.Commons.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
 
-  <ItemGroup>
-    <ProjectReference Include="..\CSM.TmpeSync.LaneConnector\CSM.TmpeSync.LaneConnector.csproj" />
-    <ProjectReference Include="..\CSM.TmpeSync.LaneArrows\CSM.TmpeSync.LaneArrows.csproj" />
-    <ProjectReference Include="..\CSM.TmpeSync.PrioritySigns\CSM.TmpeSync.PrioritySigns.csproj" />
-    <ProjectReference Include="..\CSM.TmpeSync.ParkingRestrictions\CSM.TmpeSync.ParkingRestrictions.csproj" />
-    <ProjectReference Include="..\CSM.TmpeSync.JunctionRestrictions\CSM.TmpeSync.JunctionRestrictions.csproj" />
-    <ProjectReference Include="..\CSM.TmpeSync.ManualTrafficLights\CSM.TmpeSync.ManualTrafficLights.csproj" />
-    <ProjectReference Include="..\CSM.TmpeSync.SpeedLimits\CSM.TmpeSync.SpeedLimits.csproj" />
-    <ProjectReference Include="..\CSM.TmpeSync.ToggleTrafficLights\CSM.TmpeSync.ToggleTrafficLights.csproj" />
-    <ProjectReference Include="..\CSM.TmpeSync.TimedTrafficLights\CSM.TmpeSync.TimedTrafficLights.csproj" />
-    <ProjectReference Include="..\CSM.TmpeSync.ClearTraffic\CSM.TmpeSync.ClearTraffic.csproj" />
-    <ProjectReference Include="..\CSM.TmpeSync.VehicleRestrictions\CSM.TmpeSync.VehicleRestrictions.csproj" />
   </ItemGroup>
-
   <PropertyGroup>
     <Net35ReferenceAssemblyDir>$(PkgMicrosoft_NETFramework_ReferenceAssemblies_net35)ref\.NETFramework\v3.5</Net35ReferenceAssemblyDir>
     <Net35ReferenceAssemblyDir Condition="!Exists('$(Net35ReferenceAssemblyDir)\mscorlib.dll')">
@@ -138,7 +133,9 @@
   </PropertyGroup>
 
   <ItemGroup>
+  </ItemGroup>
     <!-- .NET 3.5 framework (explicit to control ProcessorArchitecture metadata) -->
+  <ItemGroup>
     <Reference Include="mscorlib">
       <HintPath>$(Net35ReferenceAssemblyDir)\mscorlib.dll</HintPath>
       <Private>false</Private>
@@ -189,10 +186,12 @@
       <Private>false</Private>
       <ProcessorArchitecture>MSIL</ProcessorArchitecture>
     </Reference>
-  </ItemGroup>
 
+  </ItemGroup>
   <ItemGroup>
+  </ItemGroup>
     <!-- .NET 3.5 framework (explicit to control ProcessorArchitecture metadata) -->
+  <ItemGroup>
     <Reference Include="mscorlib">
       <HintPath>$(PkgMicrosoft_NETFramework_ReferenceAssemblies_net35)build\.NETFramework\v3.5\mscorlib.dll</HintPath>
       <Private>false</Private>
@@ -243,13 +242,13 @@
       <Private>false</Private>
       <ProcessorArchitecture>MSIL</ProcessorArchitecture>
     </Reference>
-  </ItemGroup>
 
+  </ItemGroup>
   <ItemGroup>
     <PackageReference Include="protobuf-net" Version="2.4.6" />
     <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies.net35" Version="1.0.3" PrivateAssets="all" />
-  </ItemGroup>
 
+  </ItemGroup>
   <PropertyGroup>
     <!--
       We explicitly opt out of the SDK's implicit framework references so that we can choose the
@@ -262,20 +261,21 @@
     <DisableImplicitFrameworkReferences>true</DisableImplicitFrameworkReferences>
   </PropertyGroup>
 
-    <!-- ==== Files (EnableDefaultCompileItems=false) ==== -->
+  <!-- ==== Files (EnableDefaultCompileItems=false) ==== -->
   <ItemGroup>
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="Mod\MyUserMod.cs" />
-    <Compile Include="Mod\TmpeSyncConnection.cs" />
-    <Compile Include="Mod\MultiplayerThreadingExtension.cs" />
-    <Compile Include="Mod\FeatureBootstrapper.cs" />
-    <Compile Include="Mod\ModMetadata.cs" />
-    <Compile Include="Mod\ModSettings.cs" />
-    <Compile Include="Services\**\*.cs" />
-    <Compile Include="Handlers\**\*.cs" />
-    <Compile Include="Messages\**\*.cs" />
+    <Compile Include="ManualTrafficLightsSyncFeature.cs" />
+    <Compile Include="Messages\ManualTrafficLightsNodeState.cs" />
+    <Compile Include="Messages\ManualTrafficLightsAppliedCommand.cs" />
+    <Compile Include="Messages\ManualTrafficLightsUpdateRequest.cs" />
+    <Compile Include="Handlers\ManualTrafficLightsAppliedCommandHandler.cs" />
+    <Compile Include="Handlers\ManualTrafficLightsUpdateRequestHandler.cs" />
+    <Compile Include="Services\ManualTrafficLightsSynchronization.cs" />
+    <Compile Include="Services\ManualTrafficLightsStateCache.cs" />
+    <Compile Include="Services\ManualTrafficLightsEventListener.cs" />
+    <Compile Include="Services\ManualTrafficLightsTmpeAdapter.cs" />
+    <Compile Include="Bridge\**\*.cs" />
   </ItemGroup>
-
   <!-- ==== Post-Build: Copy the add-on into the local mod directory ==== -->
   <Target Name="AfterBuild">
     <MakeDir Directories="$(ModsOutDir)" />
@@ -286,4 +286,8 @@
   </Target>
 
 </Project>
+
+
+
+
 

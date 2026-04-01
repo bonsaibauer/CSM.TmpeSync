@@ -1,11 +1,13 @@
 using System;
 using CSM.TmpeSync.ClearTraffic;
 using CSM.TmpeSync.JunctionRestrictions;
+using CSM.TmpeSync.ManualTrafficLights;
 using CSM.TmpeSync.LaneArrows;
 using CSM.TmpeSync.LaneConnector;
 using CSM.TmpeSync.ParkingRestrictions;
 using CSM.TmpeSync.PrioritySigns;
 using CSM.TmpeSync.SpeedLimits;
+using CSM.TmpeSync.TimedTrafficLights;
 using CSM.TmpeSync.ToggleTrafficLights;
 using CSM.TmpeSync.VehicleRestrictions;
 using CSM.TmpeSync.Services;
@@ -25,10 +27,12 @@ namespace CSM.TmpeSync.Mod
             new FeatureToggle("LaneArrows", true, LaneArrowsSyncFeature.Register, LaneArrowsSyncFeature.Unregister),
             new FeatureToggle("LaneConnector", true, LaneConnectorSyncFeature.Register, LaneConnectorSyncFeature.Unregister),
             new FeatureToggle("JunctionRestrictions", true, JunctionRestrictionsSyncFeature.Register, JunctionRestrictionsSyncFeature.Unregister),
+            new FeatureToggle("ManualTrafficLights", true, ManualTrafficLightsSyncFeature.Register, ManualTrafficLightsSyncFeature.Unregister),
             new FeatureToggle("PrioritySigns", true, PrioritySignSyncFeature.Register, PrioritySignSyncFeature.Unregister),
             new FeatureToggle("ParkingRestrictions", true, ParkingRestrictionSyncFeature.Register, ParkingRestrictionSyncFeature.Unregister),
             new FeatureToggle("VehicleRestrictions", true, VehicleRestrictionSyncFeature.Register, VehicleRestrictionSyncFeature.Unregister),
             new FeatureToggle("ToggleTrafficLights", true, ToggleTrafficLightsSyncFeature.Register, ToggleTrafficLightsSyncFeature.Unregister),
+            new FeatureToggle("TimedTrafficLights", true, TimedTrafficLightsSyncFeature.Register, TimedTrafficLightsSyncFeature.Unregister),
             new FeatureToggle("ClearTraffic", true, ClearTrafficSyncFeature.Register, ClearTrafficSyncFeature.Unregister)
         };
 
