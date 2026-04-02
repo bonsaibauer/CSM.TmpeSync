@@ -7,80 +7,82 @@ This document is bilingual. German (DE) first, English (EN) follows.
 ## DE - Deutsch
 
 ### 1) Kurzbeschreibung
-- Synchronisiert TM:PE-Timed-Traffic-Lights (TTL) zwischen Host und Clients in CSM-Sitzungen.
-- Verwendet zwei Streams: Definitions-Stream (Script-Struktur) und Runtime-Stream (laufender Step/Start-Stop).
-- Host bleibt autoritativ: Clients senden Requests, der Host wendet an und broadcastet den finalen Zustand.
-- Vermeidet Live-Traffic-Spitzen: keine dauerhafte Übertragung einzelner Lane-Lichtzustände pro Frame, sondern Delta-/Event-basierte Synchronisation mit Keyframes.
+- Synchronisiert TM:PE Timed Traffic Lights (TTL) zwischen Host und Clients in CSM-Sitzungen.
+- Verwendet zwei Streams: Definition (TTL-Struktur) und Runtime (laufender Zustand je Master-Knoten).
+- Host ist autoritativ: Clients senden Requests, Host wendet in TM:PE an und broadcastet den effektiv angewandten Zustand.
+- Event-getriebener Versand: lokale TM:PE-Events werden gesammelt und pro Frame als gebuendelter Simulation-Flush verarbeitet.
+- Master-node-basierter Resync stellt Definition und Runtime bei Abweichungen gezielt wieder her.
 
 ### 2) Dateistruktur
 - `src/CSM.TmpeSync.TimedTrafficLights/`
-  - `TimedTrafficLightsSyncFeature.cs` - Feature-Bootstrap (aktiviert Listener + Runtime-Tracker).
+  - `TimedTrafficLightsSyncFeature.cs` - Feature-Bootstrap (aktiviert Listener).
   - `Handlers/` - CSM-Command-Handler (Server/Client-Verarbeitung inkl. Resync/Reject).
-  - `Messages/` - Netzwerkbefehle (ProtoBuf-Verträge) für Definition, Runtime und Resync.
-  - `Services/` - Harmony-Listener, TM:PE-Adapter, Synchronisations-Logik, Definition-/Runtime-Caches.
+  - `Messages/` - Netzwerkbefehle (ProtoBuf-Vertraege) fuer Definition, Runtime und Resync.
+  - `Services/` - Harmony-Listener, TM:PE-Adapter, Synchronisationslogik, Definition-/Runtime-Caches.
 
-### 3) Dateiübersicht
+### 3) Dateiuebersicht
 | Datei | Zweck |
 | --- | --- |
-| `TimedTrafficLightsSyncFeature.cs` | Registriert/aktiviert das Feature, startet Definition-Listener und Runtime-Tracker. |
+| `TimedTrafficLightsSyncFeature.cs` | Registriert/aktiviert das Feature und den TM:PE-Listener. |
 | `Handlers/TimedTrafficLightsDefinitionUpdateRequestHandler.cs` | Server: verarbeitet Definition-Requests von Clients. |
 | `Handlers/TimedTrafficLightsDefinitionAppliedCommandHandler.cs` | Client: verarbeitet Host-Definitionen; `OnClientConnect` triggert Host-Resync. |
-| `Handlers/TimedTrafficLightsRuntimeUpdateRequestHandler.cs` | Server: verarbeitet Runtime-Requests von Clients (Start/Stop/Step/TestMode). |
+| `Handlers/TimedTrafficLightsRuntimeUpdateRequestHandler.cs` | Server: verarbeitet Runtime-Requests von Clients. |
 | `Handlers/TimedTrafficLightsRuntimeAppliedCommandHandler.cs` | Client: verarbeitet Runtime-Broadcasts vom Host. |
 | `Handlers/TimedTrafficLightsResyncRequestHandler.cs` | Server: verarbeitet gezielte Resync-Anfragen pro Master-Knoten. |
-| `Handlers/TimedTrafficLightsRequestRejectedHandler.cs` | Client: verarbeitet hostseitige Ablehnungen (`RequestRejected`) für Timed-TTL. |
-| `Messages/TimedTrafficLightsDefinitionUpdateRequest.cs` | Client -> Server: Änderungswunsch für Definition (`MasterNodeId`, `Removed`, `Definition`). |
+| `Handlers/TimedTrafficLightsRequestRejectedHandler.cs` | Client: verarbeitet hostseitige Ablehnungen (`RequestRejected`) fuer Timed-TTL. |
+| `Messages/TimedTrafficLightsDefinitionUpdateRequest.cs` | Client -> Server: Aenderungswunsch fuer Definition (`MasterNodeId`, `Removed`, `Definition`). |
 | `Messages/TimedTrafficLightsDefinitionAppliedCommand.cs` | Server -> Alle: final angewandte Definition oder Entfernen-Markierung. |
-| `Messages/TimedTrafficLightsRuntimeUpdateRequest.cs` | Client -> Server: Änderungswunsch für Runtime (`Runtime`). |
+| `Messages/TimedTrafficLightsRuntimeUpdateRequest.cs` | Client -> Server: Aenderungswunsch fuer Runtime (`Runtime`). |
 | `Messages/TimedTrafficLightsRuntimeAppliedCommand.cs` | Server -> Alle: finaler Runtime-Status (`Runtime`). |
 | `Messages/TimedTrafficLightsResyncRequest.cs` | Client -> Server: gezielter Resync-Request pro `MasterNodeId`. |
 | `Messages/TimedTrafficLightsDefinitionState.cs` | Wire-State der TTL-Definition (NodeGroup, Nodes, Steps, Segment-/Vehicle-Lights). |
 | `Messages/TimedTrafficLightsRuntimeState.cs` | Wire-State der Runtime (`MasterNodeId`, `IsRunning`, `CurrentStep`, `Epoch`). |
-| `Services/TimedTrafficLightsEventListener.cs` | Harmony-Hooks auf TM:PE-TTL-UI/Mutationen; markiert lokale Definition-/Runtime-Änderungen als dirty. |
-| `Services/TimedTrafficLightsSynchronization.cs` | Kernlogik für beide Streams: Polling, Delta-Ermittlung, Dispatch, Host-Apply, Pending/Timeout, Resync, Reject-Handling. |
-| `Services/TimedTrafficLightsTmpeAdapter.cs` | Lesen/Anwenden von TTL-Definition/Runtime in TM:PE (inkl. Local-Apply-Scopes). |
-| `Services/TimedTrafficLightsStateCache.cs` | Host-/Client-Cache für Definitionszustände + Hashes + Node->Master-Mapping. |
-| `Services/TimedTrafficLightsRuntimeCache.cs` | Cache für Runtime-Broadcast- und Received-Stände pro Master-Knoten. |
-| `Services/TimedTrafficLightsRuntimeTracker.cs` | Periodisches Runtime-Polling (Host-Broadcast / Client-Runtime-Requests). |
+| `Services/TimedTrafficLightsEventListener.cs` | Harmony-Hooks auf relevante TM:PE-TTL-Mutationen (Definition und Runtime). |
+| `Services/TimedTrafficLightsSynchronization.cs` | Event-Queue, Flush, Dispatch, Host-Apply, Delta-Ermittlung, Resync/Reject-Flow. |
+| `Services/TimedTrafficLightsTmpeAdapter.cs` | Lesen/Anwenden von TTL-Definition/Runtime in TM:PE (inkl. Local-Apply-Scope). |
+| `Services/TimedTrafficLightsStateCache.cs` | Cache fuer Definitionen je Master-Knoten inkl. Hash und Node->Master-Mapping. |
+| `Services/TimedTrafficLightsRuntimeCache.cs` | Runtime-Cache fuer Broadcast- und Received-Zustaende je Master-Knoten. |
 
 ### 4) Workflow (Server/Host und Client)
-- **Host ändert TTL-Definition in TM:PE**
-  - Harmony/Polling erkennt Definitionsänderungen.
-  - Host erfasst aktuelle Definitionen via Adapter, vergleicht Hashes und broadcastet nur Deltas als `TimedTrafficLightsDefinitionAppliedCommand`.
-  - Clients wenden Definitionen lokal an; bei Fehlern wird ein gezielter Resync angefordert.
+- **Lokale Aenderung (Host oder Client)**
+  - Harmony-Postfix erkennt TTL-Mutationen (`AddStep`, `RemoveStep`, `MoveStep`, `ChangeLightMode`, `Start`, `Stop`, `SkipStep`, `SetTestMode`, `SetUpTimedTrafficLight`, `RemoveNodeFromSimulation`).
+  - Aenderungen werden als Definition- oder Runtime-Event je Master-Knoten gequeued.
+  - Ein Simulation-Flush verarbeitet alle ausstehenden Events gebuendelt.
 
-- **Client ändert TTL-Definition in TM:PE**
-  - Listener markiert den betroffenen Master-Knoten als dirty.
-  - Client-Polling erzeugt bei echtem Hash-Delta einen `TimedTrafficLightsDefinitionUpdateRequest`.
-  - Host validiert/anwendet unter Node-Locks, sendet danach den autoritativen `DefinitionApplied`-Broadcast an alle.
+- **Definition-Flow**
+  - Client sendet bei echtem Delta `TimedTrafficLightsDefinitionUpdateRequest` (oder `Removed=true`) an den Host.
+  - Host validiert, lockt relevante Knoten, wendet Definition/Removal an und broadcastet `TimedTrafficLightsDefinitionAppliedCommand`.
+  - Client wendet den Host-Stand lokal an; bei Apply-Problemen wird ein masterbezogener Resync angefordert.
 
-- **Host ändert TTL-Runtime in TM:PE (Start/Stop/Step)**
-  - Runtime-Tracker pollt zyklisch.
-  - Host sendet `TimedTrafficLightsRuntimeAppliedCommand` nur bei Runtime-Delta (IsRunning/CurrentStep) oder Keyframe-Intervall.
+- **Runtime-Flow**
+  - Client sendet `TimedTrafficLightsRuntimeUpdateRequest`, wenn die lokale Runtime vom letzten Host-Stand abweicht.
+  - Host wendet Runtime unter Node-Locks an und broadcastet `TimedTrafficLightsRuntimeAppliedCommand`.
+  - Client uebernimmt den Host-Stand; bei relevanter Divergenz wird Resync angefordert.
 
-- **Client ändert TTL-Runtime in TM:PE**
-  - Listener markiert Runtime als dirty (z. B. `Start`, `Stop`, `SkipStep`, `SetTestMode`).
-  - Client-Polling sendet `TimedTrafficLightsRuntimeUpdateRequest` nur bei Delta gegenüber zuletzt empfangener Host-Runtime.
-  - Host validiert/anwendet Runtime und broadcastet die effektiv angewandte Runtime als `RuntimeApplied`.
+- **Resync/Reject**
+  - Resync laeuft pro Master-Knoten ueber `TimedTrafficLightsResyncRequest`.
+  - Host antwortet gezielt mit aktueller Definition und Runtime fuer den angefragten Master.
+  - Ablehnungen laufen ueber `RequestRejected` mit `EntityType=3` und `Reason`-Prefix `timed_tl:`.
+  - Resync-Requests sind clientseitig per Frame-Cooldown begrenzt.
 
-- **Resync, Pending, Reject**
-  - Definition- und Runtime-Requests werden clientseitig mit Pending-Tracking/Timeout verwaltet.
-  - Bei Apply-Fehlern, Divergenzen oder verspäteten Zuständen sendet der Client `TimedTrafficLightsResyncRequest`.
-  - Host antwortet masterbezogen mit aktueller Definition + Runtime (oder Removed-Definition).
-  - Ablehnungen laufen über `RequestRejected` (EntityType=3/Node, Timed-Prefix im Reason).
+- **Reconnect-Resync**
+  - Beim Client-Reconnect sendet der Host alle bekannten Definitionsstaende und zusaetzlich aktuelle Runtime-Zustaende je Master-Knoten.
+
+- **Readiness-Verhalten**
+  - Queue/Flush laeuft nur bei bereiter Synchronisation (`NetworkUtil.IsSynchronizationReady()`), damit keine fruehen Ladephasen-Events dispatcht werden.
 
 ### 5) Datenaustausch (Nachrichten/Felder)
 | Nachricht | Richtung | Feld | Typ | Beschreibung |
 | --- | --- | --- | --- | --- |
 | `TimedTrafficLightsDefinitionUpdateRequest` | Client -> Server | `MasterNodeId` | `ushort` | Master-Knoten der TTL-Gruppe. |
 |  |  | `Removed` | `bool` | `true` = TTL entfernen, `false` = Definition anwenden. |
-|  |  | `Definition` | `TimedTrafficLightsDefinitionState` | Vollständige Script-Struktur (bei `Removed=false`). |
+|  |  | `Definition` | `TimedTrafficLightsDefinitionState` | Vollstaendige Script-Struktur (bei `Removed=false`). |
 | `TimedTrafficLightsDefinitionAppliedCommand` | Server -> Alle | `MasterNodeId` | `ushort` | Autoritativer Master-Knoten. |
 |  |  | `Removed` | `bool` | Entfernen-Flag. |
 |  |  | `Definition` | `TimedTrafficLightsDefinitionState` | Effektiv angewandte Definition (oder `null` bei Remove). |
-| `TimedTrafficLightsRuntimeUpdateRequest` | Client -> Server | `Runtime` | `TimedTrafficLightsRuntimeState` | Gewünschter Runtime-Status für einen Master-Knoten. |
+| `TimedTrafficLightsRuntimeUpdateRequest` | Client -> Server | `Runtime` | `TimedTrafficLightsRuntimeState` | Gewuenschter Runtime-Status fuer einen Master-Knoten. |
 | `TimedTrafficLightsRuntimeAppliedCommand` | Server -> Alle | `Runtime` | `TimedTrafficLightsRuntimeState` | Autoritativ angewandter Runtime-Status. |
-| `TimedTrafficLightsResyncRequest` | Client -> Server | `MasterNodeId` | `ushort` | Ziel-Master für gezielten Resync. |
+| `TimedTrafficLightsResyncRequest` | Client -> Server | `MasterNodeId` | `ushort` | Ziel-Master fuer gezielten Resync. |
 | `TimedTrafficLightsDefinitionState` | (payload) | `MasterNodeId` | `ushort` | Master-Knoten der TTL-Gruppe. |
 |  |  | `NodeGroup` | `List<ushort>` | Alle Knoten der Gruppe. |
 |  |  | `Nodes[]` | `List<NodeState>` | Knotenweise Step-Definitionen. |
@@ -94,34 +96,36 @@ This document is bilingual. German (DE) first, English (EN) follows.
 |  |  | `Reason` | `string` | Ablehnungsgrund (Timed-spezifisch getaggt). |
 
 Hinweise
-- Zwei getrennte Streams reduzieren NetTraffic deutlich: seltene Definitionsdeltas + Runtime-Ereignisse/Keyframes statt Live-Lane-Streaming.
-- Runtime-Keyframes dienen als Drift-Korrektur, auch wenn zwischenzeitlich keine Step-Änderung auftritt.
-- Node-Locks + Ignore-/Local-Apply-Scopes verhindern Re-Trigger-Schleifen und race-bedingte Inkonsistenzen.
+- Definition und Runtime sind getrennt und werden jeweils als Delta pro Master-Knoten dispatcht.
+- Definitionen werden im Cache gehasht; unveraenderte Zustaende werden nicht erneut gesendet.
+- Runtime nutzt Broadcast-/Received-Caches, damit nur echte Laufzeit-Abweichungen uebertragen werden.
+- Node-Locks sowie Ignore-/Local-Apply-Scopes verhindern Echo-Schleifen und race-bedingte Inkonsistenzen.
 
 ---
 
 ## EN - English
 
 ### 1) Summary
-- Synchronises TM:PE timed traffic lights (TTL) between host and clients in CSM sessions.
-- Uses two streams: definition stream (script structure) and runtime stream (running step/start-stop).
-- Host stays authoritative: clients send requests, host applies and broadcasts final state.
-- Avoids live traffic spikes: no per-lane light streaming every frame, only delta/event sync plus keyframes.
+- Synchronizes TM:PE timed traffic lights (TTL) between host and clients in CSM sessions.
+- Uses two streams: definition (TTL structure) and runtime (running state per master node).
+- Host is authoritative: clients send requests, host applies in TM:PE, and broadcasts the effective state.
+- Event-driven operation: local TM:PE events are queued and flushed once per frame.
+- Master-node-based resync restores definition/runtime state when divergence is detected.
 
 ### 2) Directory Layout
 - `src/CSM.TmpeSync.TimedTrafficLights/`
-  - `TimedTrafficLightsSyncFeature.cs` - feature bootstrap (enables listener + runtime tracker).
-  - `Handlers/` - CSM command handlers (server/client processing incl. resync/reject).
+  - `TimedTrafficLightsSyncFeature.cs` - feature bootstrap (enables listener).
+  - `Handlers/` - CSM command handlers (server/client processing including resync/reject).
   - `Messages/` - network commands (ProtoBuf contracts) for definition, runtime, resync.
   - `Services/` - Harmony listener, TM:PE adapter, synchronization logic, definition/runtime caches.
 
 ### 3) File Overview
 | File | Purpose |
 | --- | --- |
-| `TimedTrafficLightsSyncFeature.cs` | Registers/enables the feature; starts definition listener and runtime tracker. |
+| `TimedTrafficLightsSyncFeature.cs` | Registers/enables the feature and TM:PE listener. |
 | `Handlers/TimedTrafficLightsDefinitionUpdateRequestHandler.cs` | Server: processes client definition requests. |
 | `Handlers/TimedTrafficLightsDefinitionAppliedCommandHandler.cs` | Client: processes host definitions; `OnClientConnect` triggers host resync. |
-| `Handlers/TimedTrafficLightsRuntimeUpdateRequestHandler.cs` | Server: processes client runtime requests (start/stop/step/test mode). |
+| `Handlers/TimedTrafficLightsRuntimeUpdateRequestHandler.cs` | Server: processes client runtime requests. |
 | `Handlers/TimedTrafficLightsRuntimeAppliedCommandHandler.cs` | Client: processes host runtime broadcasts. |
 | `Handlers/TimedTrafficLightsResyncRequestHandler.cs` | Server: handles targeted resync requests per master node. |
 | `Handlers/TimedTrafficLightsRequestRejectedHandler.cs` | Client: handles host-side `RequestRejected` for timed TTL. |
@@ -132,38 +136,39 @@ Hinweise
 | `Messages/TimedTrafficLightsResyncRequest.cs` | Client -> Server: targeted resync request by `MasterNodeId`. |
 | `Messages/TimedTrafficLightsDefinitionState.cs` | Wire state for TTL definition (node group, nodes, steps, segment/vehicle lights). |
 | `Messages/TimedTrafficLightsRuntimeState.cs` | Wire state for runtime (`MasterNodeId`, `IsRunning`, `CurrentStep`, `Epoch`). |
-| `Services/TimedTrafficLightsEventListener.cs` | Harmony hooks on TM:PE TTL UI/mutations; marks local definition/runtime edits as dirty. |
-| `Services/TimedTrafficLightsSynchronization.cs` | Core for both streams: polling, deltas, dispatch, host apply, pending/timeout, resync, reject handling. |
-| `Services/TimedTrafficLightsTmpeAdapter.cs` | Read/apply TTL definition/runtime in TM:PE (with local-apply scopes). |
-| `Services/TimedTrafficLightsStateCache.cs` | Host/client cache for definitions + hashes + node-to-master mapping. |
-| `Services/TimedTrafficLightsRuntimeCache.cs` | Cache for runtime broadcast/received states per master node. |
-| `Services/TimedTrafficLightsRuntimeTracker.cs` | Periodic runtime polling (host broadcasts / client runtime requests). |
+| `Services/TimedTrafficLightsEventListener.cs` | Harmony hooks on relevant TM:PE TTL mutations (definition and runtime). |
+| `Services/TimedTrafficLightsSynchronization.cs` | Event queue, flush, dispatch, host apply, delta evaluation, resync/reject flow. |
+| `Services/TimedTrafficLightsTmpeAdapter.cs` | Reads/applies TTL definition/runtime in TM:PE (including local-apply scopes). |
+| `Services/TimedTrafficLightsStateCache.cs` | Per-master definition cache with hash and node-to-master mapping. |
+| `Services/TimedTrafficLightsRuntimeCache.cs` | Per-master runtime cache for broadcast and received states. |
 
 ### 4) Workflow (Server/Host and Client)
-- **Host edits TTL definition in TM:PE**
-  - Harmony/polling detects definition changes.
-  - Host captures current definitions via adapter, compares hashes, and broadcasts only deltas as `TimedTrafficLightsDefinitionAppliedCommand`.
-  - Clients apply definitions locally; on failure they trigger targeted resync.
+- **Local change (host or client)**
+  - Harmony postfix detects TTL mutations (`AddStep`, `RemoveStep`, `MoveStep`, `ChangeLightMode`, `Start`, `Stop`, `SkipStep`, `SetTestMode`, `SetUpTimedTrafficLight`, `RemoveNodeFromSimulation`).
+  - Changes are queued as definition or runtime events per master node.
+  - A single simulation flush processes all queued changes in batch.
 
-- **Client edits TTL definition in TM:PE**
-  - Listener marks the affected master node as dirty.
-  - Client polling emits `TimedTrafficLightsDefinitionUpdateRequest` only when hash differs from cached host state.
-  - Host validates/applies under node locks, then broadcasts authoritative `DefinitionApplied` to all peers.
+- **Definition flow**
+  - Client sends `TimedTrafficLightsDefinitionUpdateRequest` (or `Removed=true`) when a real definition delta exists.
+  - Host validates payload, locks relevant nodes, applies definition/removal, then broadcasts `TimedTrafficLightsDefinitionAppliedCommand`.
+  - Client applies host definition locally; failures trigger targeted master resync.
 
-- **Host edits TTL runtime in TM:PE (start/stop/step)**
-  - Runtime tracker polls periodically.
-  - Host sends `TimedTrafficLightsRuntimeAppliedCommand` only on runtime delta (`IsRunning`/`CurrentStep`) or keyframe interval.
+- **Runtime flow**
+  - Client sends `TimedTrafficLightsRuntimeUpdateRequest` when local runtime differs from last host runtime.
+  - Host applies runtime under node locks and broadcasts `TimedTrafficLightsRuntimeAppliedCommand`.
+  - Client applies the authoritative runtime; relevant divergence triggers resync.
 
-- **Client edits TTL runtime in TM:PE**
-  - Listener marks runtime dirty (for example `Start`, `Stop`, `SkipStep`, `SetTestMode`).
-  - Client polling sends `TimedTrafficLightsRuntimeUpdateRequest` only on delta vs last received host runtime.
-  - Host validates/applies runtime and broadcasts effective runtime with `RuntimeApplied`.
+- **Resync/reject**
+  - Resync is master-node scoped via `TimedTrafficLightsResyncRequest`.
+  - Host responds with current definition and runtime for the requested master.
+  - Rejections use `RequestRejected` with `EntityType=3` and reason prefix `timed_tl:`.
+  - Client-side resync requests are throttled with a frame cooldown.
 
-- **Resync, pending, reject**
-  - Definition and runtime requests are tracked with pending/timeout on the client.
-  - On apply failures, divergence, or stale states, client sends `TimedTrafficLightsResyncRequest`.
-  - Host responds per master node with current definition + runtime (or removed definition).
-  - Rejections use `RequestRejected` (EntityType=3/node, timed-tagged reason).
+- **Reconnect resync**
+  - On client reconnect, host sends all known definition states and current runtime states per master node.
+
+- **Readiness behavior**
+  - Queue/flush runs only when synchronization is ready (`NetworkUtil.IsSynchronizationReady()`), preventing dispatch during early loading.
 
 ### 5) Data Exchange (messages/fields)
 | Message | Direction | Field | Type | Description |
@@ -190,6 +195,7 @@ Hinweise
 |  |  | `Reason` | `string` | Rejection reason (timed-tagged). |
 
 Notes
-- Two separate streams keep network traffic low: infrequent definition deltas plus runtime events/keyframes instead of live per-lane streaming.
-- Runtime keyframes correct drift even when no immediate step transition occurs.
-- Node locks plus ignore/local-apply scopes prevent feedback loops and race-related inconsistencies.
+- Definition and runtime are separated and dispatched as deltas per master node.
+- Definition cache hashing suppresses redundant definition transmissions.
+- Runtime broadcast/received caches suppress redundant runtime transmissions.
+- Node locks and ignore/local-apply scopes prevent feedback loops and race-related inconsistencies.

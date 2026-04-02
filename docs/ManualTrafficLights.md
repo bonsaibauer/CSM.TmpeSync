@@ -7,67 +7,72 @@ This document is bilingual. German (DE) first, English (EN) follows.
 ## DE - Deutsch
 
 ### 1) Kurzbeschreibung
-- Synchronisiert TM:PE Manual-Traffic-Lights (manuelle Ampeln) pro Knoten zwischen Host und Clients in CSM-Sitzungen.
-- Verwendet einen Node-Snapshot-Ansatz: nach einer lokalen Aenderung wird der komplette manuelle Lichtzustand des Knotens (bis zu 8 Segmentenden inkl. Vehicle-Lights) uebertragen.
-- Host bleibt autoritativ: Clients senden Update-Requests, der Host wendet den Zustand in TM:PE an und broadcastet den effektiv angewandten Snapshot.
-- Enthält Retry/Backoff beim Anwenden (5/15/30/60/120/240 Frames) fuer temporäre TM:PE-Abhaengigkeiten.
+- Synchronisiert TM:PE Manual Traffic Lights pro Knoten zwischen Host und Clients in CSM-Sitzungen.
+- Verwendet ein Node-Snapshot-Modell: pro betroffenem Knoten wird der komplette manuelle Ampelzustand uebertragen.
+- Host ist autoritativ: Clients senden Aenderungswuensche, der Host wendet den Zustand in TM:PE an und broadcastet den effektiv angewandten Snapshot.
+- Event-getriebener Versand: lokale TM:PE-Events werden knotenweise gebuendelt und als Simulation-Flush verarbeitet.
+- Retry-/Backoff-Apply sorgt fuer robuste Anwendung bei temporaer nicht bereiten TM:PE-Komponenten.
 
 ### 2) Dateistruktur
 - `src/CSM.TmpeSync.ManualTrafficLights/`
   - `ManualTrafficLightsSyncFeature.cs` - Feature-Bootstrap (aktiviert Listener).
   - `Handlers/` - CSM-Command-Handler (Server/Client-Verarbeitung).
   - `Messages/` - Netzwerkbefehle (ProtoBuf-Vertraege) fuer Node-Snapshots.
-  - `Services/` - Harmony-Listener, Synchronisationslogik, TM:PE-Adapter und State-Cache.
+  - `Services/` - Harmony-Listener, Synchronisationslogik, TM:PE-Adapter, Apply-Koordinator, State-Cache.
 
 ### 3) Dateiuebersicht
 | Datei | Zweck |
 | --- | --- |
 | `ManualTrafficLightsSyncFeature.cs` | Registriert/aktiviert das Feature und den TM:PE-Listener. |
-| `Handlers/ManualTrafficLightsUpdateRequestHandler.cs` | Server: validiert Requests, wendet den Snapshot an und triggert Host-Broadcast. |
-| `Handlers/ManualTrafficLightsAppliedCommandHandler.cs` | Client: verarbeitet Host-Broadcasts und wendet den Snapshot lokal an; `OnClientConnect` startet Host-Resync. |
+| `Handlers/ManualTrafficLightsUpdateRequestHandler.cs` | Server: validiert Requests, fuehrt Apply unter Node-Lock aus und triggert Host-Broadcast. |
+| `Handlers/ManualTrafficLightsAppliedCommandHandler.cs` | Client: verarbeitet Host-Broadcasts und wendet den Snapshot lokal an; `OnClientConnect` triggert Host-Resync. |
 | `Messages/ManualTrafficLightsUpdateRequest.cs` | Client -> Server: Aenderungswunsch (`NodeId`, `State`). |
 | `Messages/ManualTrafficLightsAppliedCommand.cs` | Server -> Alle: final angewandter Snapshot (`NodeId`, `State`). |
-| `Messages/ManualTrafficLightsNodeState.cs` | Wire-State fuer manuelle Ampeln: Node, Segmente, Pedestrian-Zustand, Vehicle-Lights. |
-| `Services/ManualTrafficLightsEventListener.cs` | Harmony-Hooks auf relevante TM:PE-Methoden; erkennt lokale Aenderungen und broadcastet knotenweise. |
+| `Messages/ManualTrafficLightsNodeState.cs` | Wire-State fuer manuelle Ampeln: Node, Segmente, Fussgaengerzustand, Vehicle-Lights. |
+| `Services/ManualTrafficLightsEventListener.cs` | Harmony-Hooks auf relevante TM:PE-Methoden; sammelt lokale Aenderungen pro Knoten und flush't gebuendelt. |
 | `Services/ManualTrafficLightsSynchronization.cs` | Gemeinsamer Versandweg, Host/Client-Dispatch, Retry/Backoff-Apply, Reconnect-Resync. |
-| `Services/ManualTrafficLightsTmpeAdapter.cs` | Lesen/Anwenden des Snapshot-Zustands in TM:PE (Setup/Remove Manual-Simulation, Segment- und Vehicle-Lights). |
-| `Services/ManualTrafficLightsStateCache.cs` | Cache letzter Host-Snapshots inkl. Hashing, Clone, Remove/Prune fuer robusten Resync. |
+| `Services/ManualTrafficLightsTmpeAdapter.cs` | Lesen/Anwenden des Snapshot-Zustands in TM:PE (SetUp/Remove Manual-Simulation, Segment-/Vehicle-Lights). |
+| `Services/ManualTrafficLightsStateCache.cs` | Host-Cache fuer zuletzt angewandte Snapshots inkl. Hashing, Clone und Prune. |
 
 ### 4) Workflow (Server/Host und Client)
-- **Host aendert manuelle Ampel in TM:PE**
-  - Harmony-Postfix erkennt die Aenderung (z. B. `ChangeMainLight`, `set_CurrentMode`, `set_PedestrianLightState`, `SetLightMode`).
-  - Listener liest den kompletten Node-Snapshot und sendet `ManualTrafficLightsAppliedCommand` an alle.
-  - Clients wenden den Snapshot lokal an (Ignore-Scope + Local-Apply-Scope verhindern Echo-Schleifen).
+- **Host aendert manuelle Ampeln in TM:PE**
+  - Harmony-Postfix erkennt den betroffenen Knoten (z. B. `ChangeMainLight`, `SetLightMode`, `set_CurrentMode`).
+  - Listener queued den Knoten und fuehrt genau einen Flush auf der Simulation aus.
+  - Der Host liest den kompletten Node-Snapshot und broadcastet `ManualTrafficLightsAppliedCommand`.
 
-- **Client aendert manuelle Ampel in TM:PE**
-  - Harmony-Postfix liest den kompletten Node-Snapshot und sendet `ManualTrafficLightsUpdateRequest` an den Server.
-  - Server validiert den Knoten, wendet den Snapshot in TM:PE unter Node-Lock an und startet bei Bedarf Retry/Backoff.
-  - Nach erfolgreichem Apply broadcastet der Server den effektiv angewandten Snapshot als `ManualTrafficLightsAppliedCommand`.
+- **Client aendert manuelle Ampeln in TM:PE**
+  - Harmony-Postfix queued den betroffenen Knoten und erzeugt beim Flush einen Node-Snapshot.
+  - Client sendet `ManualTrafficLightsUpdateRequest` an den Host.
+  - Host validiert den Knoten, lockt ihn via `EntityLocks.AcquireNode`, wendet den Snapshot an und broadcastet danach den effektiv angewandten Zustand.
+
+- **Apply-Verhalten**
+  - Apply laeuft ueber einen Koordinator mit bis zu 6 Versuchen und Frame-Backoff `5/15/30/60/120/240`.
+  - Bei temporaeren TM:PE-Problemen (z. B. uninitialisierte Manager, `NullReference`) wird automatisch erneut versucht.
+  - Bei finalem Fehler wird server-/clientseitig geloggt.
 
 - **Reconnect-Resync**
-  - Beim Client-Reconnect sendet der Host alle gecachten Snapshot-Kommandos fuer manuelle Ampeln.
-  - Vor dem Versand werden invalide Knoten aus dem Cache entfernt (`Prune` + Node-Filter), damit nur gueltige Eintraege gesendet werden.
+  - Beim Client-Reconnect sendet der Host alle gueltigen gecachten `ManualTrafficLightsAppliedCommand`-Eintraege.
+  - Vor dem Versand wird der Cache per `Prune` auf gueltige Knoten bereinigt.
 
-- **Ablehnungen/Fehlerbehandlung**
-  - Fehlende Entitaeten oder Apply-Fehler werden derzeit serverseitig geloggt und nicht als separates `RequestRejected` fuer dieses Feature versendet.
-  - Bei temporaeren TM:PE-Fehlern (`NullReference`, nicht initialisierte Manager) nutzt der Apply-Koordinator Retry mit Frame-Backoff.
+- **Ablehnungen**
+  - Dieses Feature verwendet keinen dedizierten `RequestRejected`-Kanal; fehlerhafte Requests werden serverseitig verworfen und geloggt.
 
 ### 5) Datenaustausch (Nachrichten/Felder)
 | Nachricht | Richtung | Feld | Typ | Beschreibung |
 | --- | --- | --- | --- | --- |
 | `ManualTrafficLightsUpdateRequest` | Client -> Server | `NodeId` | `ushort` | Knoten-ID der manuellen Ampel. |
-|  |  | `State` | `ManualTrafficLightsNodeState` | Gewuenschter kompletter Manual-TL-Snapshot fuer den Knoten. |
+|  |  | `State` | `ManualTrafficLightsNodeState` | Gewuenschter kompletter Node-Snapshot. |
 | `ManualTrafficLightsAppliedCommand` | Server -> Alle | `NodeId` | `ushort` | Knoten-ID der manuellen Ampel. |
-|  |  | `State` | `ManualTrafficLightsNodeState` | Effektiv angewandter kompletter Snapshot. |
+|  |  | `State` | `ManualTrafficLightsNodeState` | Effektiv angewandter kompletter Node-Snapshot. |
 | `ManualTrafficLightsNodeState` | (payload) | `NodeId` | `ushort` | Zielknoten. |
 |  |  | `IsManualEnabled` | `bool` | Manual-Simulation aktiv/inaktiv. |
 |  |  | `Segments[]` | `List<SegmentState>` | Segmentende-Snapshots am Knoten. |
 | `SegmentState` | (payload) | `SegmentId` | `ushort` | Betroffenes Segment. |
 |  |  | `StartNode` | `bool` | `true` = Startknoten-Ende, `false` = Endknoten-Ende. |
-|  |  | `ManualPedestrianMode` | `bool` | Manueller Fussgaenger-Modus aktiv. |
-|  |  | `HasPedestrianLightState` | `bool` | Kennzeichnet, ob ein expliziter Fussgaenger-Lichtzustand vorhanden ist. |
+|  |  | `ManualPedestrianMode` | `bool` | Manueller Fussgaenger-Modus aktiv/inaktiv. |
+|  |  | `HasPedestrianLightState` | `bool` | Kennzeichnet expliziten Fussgaenger-Lichtzustand. |
 |  |  | `PedestrianLightState` | `int` | Serialisierter TM:PE-Lichtzustand fuer Fussgaenger. |
-|  |  | `VehicleLights[]` | `List<VehicleLightState>` | Fahrzeug-Lichtzustaende je VehicleType. |
+|  |  | `VehicleLights[]` | `List<VehicleLightState>` | Fahrzeug-Lichtzustaende pro VehicleType. |
 | `VehicleLightState` | (payload) | `VehicleType` | `int` | Serialisierter TM:PE-VehicleType. |
 |  |  | `LightMode` | `int` | Serialisierter TM:PE-LightMode. |
 |  |  | `MainLightState` | `int` | Hauptsignal-Zustand. |
@@ -75,9 +80,11 @@ This document is bilingual. German (DE) first, English (EN) follows.
 |  |  | `RightLightState` | `int` | Rechts-Signal-Zustand. |
 
 Hinweise
-- Enum-Werte werden als `int` uebertragen, um API-Drift bei TM:PE-Enums robuster zu handhaben.
-- Clientseitig wird ein Dispatch-Hash pro Node verwendet, um identische Snapshots nicht wiederholt zu senden.
-- Event-Abdeckung umfasst sowohl UI-nahe Methoden (`Change*`, `ToggleMode`) als auch direkte Setter-/Manager-Pfade (`set_CurrentMode`, `set_PedestrianLightState`, `SetLightMode`, `ApplyLightModes`).
+- Enum-Werte werden als `int` uebertragen, um API-Drift zwischen TM:PE-Versionen robust zu behandeln.
+- Client-Dispatch verwendet pro Knoten Hash-Dedupe, damit identische Snapshots nicht erneut gesendet werden.
+- Host-Cache verwendet Hash-Dedupe fuer Broadcast/Resync und haelt nur den letzten effektiven Snapshot je Knoten.
+- `NetworkUtil.IsSynchronizationReady()` gate't Queue/Flush waehrend der Ladephase.
+- Ignore- und Local-Apply-Scopes verhindern Echo-Schleifen zwischen lokalem Apply und Harmony-Listener.
 
 ---
 
@@ -85,64 +92,69 @@ Hinweise
 
 ### 1) Summary
 - Synchronizes TM:PE manual traffic lights per node between host and clients in CSM sessions.
-- Uses a node snapshot model: after a local change, the full manual light state for that node (up to 8 segment ends including vehicle lights) is transferred.
-- Host remains authoritative: clients send update requests, host applies in TM:PE and broadcasts the effective snapshot.
-- Includes retry/backoff for apply operations (5/15/30/60/120/240 frames) when TM:PE dependencies are temporarily unavailable.
+- Uses a node snapshot model: the full manual light state is transferred for each affected node.
+- Host is authoritative: clients send update requests, the host applies in TM:PE, then broadcasts the effective snapshot.
+- Event-driven dispatch: local TM:PE events are queued per node and processed in a single simulation flush.
+- Retry/backoff apply keeps synchronization stable when TM:PE components are temporarily unavailable.
 
 ### 2) Directory Layout
 - `src/CSM.TmpeSync.ManualTrafficLights/`
   - `ManualTrafficLightsSyncFeature.cs` - feature bootstrap (enables listener).
   - `Handlers/` - CSM command handlers (server/client processing).
   - `Messages/` - network commands (ProtoBuf contracts) for node snapshots.
-  - `Services/` - Harmony listener, synchronization logic, TM:PE adapter, and state cache.
+  - `Services/` - Harmony listener, synchronization logic, TM:PE adapter, apply coordinator, state cache.
 
 ### 3) File Overview
 | File | Purpose |
 | --- | --- |
 | `ManualTrafficLightsSyncFeature.cs` | Registers/enables the feature and TM:PE listener. |
-| `Handlers/ManualTrafficLightsUpdateRequestHandler.cs` | Server: validates requests, applies snapshot, then triggers host broadcast. |
-| `Handlers/ManualTrafficLightsAppliedCommandHandler.cs` | Client: processes host broadcasts and applies snapshot locally; `OnClientConnect` triggers host resync. |
+| `Handlers/ManualTrafficLightsUpdateRequestHandler.cs` | Server: validates requests, applies under node lock, and triggers host broadcast. |
+| `Handlers/ManualTrafficLightsAppliedCommandHandler.cs` | Client: processes host broadcasts and applies snapshots locally; `OnClientConnect` triggers host resync. |
 | `Messages/ManualTrafficLightsUpdateRequest.cs` | Client -> Server: change request (`NodeId`, `State`). |
 | `Messages/ManualTrafficLightsAppliedCommand.cs` | Server -> All: final applied snapshot (`NodeId`, `State`). |
 | `Messages/ManualTrafficLightsNodeState.cs` | Wire state for manual lights: node, segments, pedestrian state, vehicle lights. |
-| `Services/ManualTrafficLightsEventListener.cs` | Harmony hooks on relevant TM:PE methods; captures local changes and broadcasts by node. |
+| `Services/ManualTrafficLightsEventListener.cs` | Harmony hooks on relevant TM:PE methods; queues local changes per node and flushes in batch. |
 | `Services/ManualTrafficLightsSynchronization.cs` | Common dispatch path, host/client routing, retry/backoff apply, reconnect resync. |
-| `Services/ManualTrafficLightsTmpeAdapter.cs` | Reads/applies snapshot state in TM:PE (setup/remove manual simulation, segment and vehicle lights). |
-| `Services/ManualTrafficLightsStateCache.cs` | Cache of last host snapshots including hashing, cloning, remove/prune for robust resync. |
+| `Services/ManualTrafficLightsTmpeAdapter.cs` | Reads/applies snapshot state in TM:PE (set up/remove manual simulation, segment/vehicle lights). |
+| `Services/ManualTrafficLightsStateCache.cs` | Host cache for latest applied snapshots with hashing, cloning, and prune support. |
 
 ### 4) Workflow (Server/Host and Client)
 - **Host edits manual lights in TM:PE**
-  - Harmony postfix detects the change (for example `ChangeMainLight`, `set_CurrentMode`, `set_PedestrianLightState`, `SetLightMode`).
-  - Listener reads the full node snapshot and sends `ManualTrafficLightsAppliedCommand` to all.
-  - Clients apply locally (ignore scope + local apply scope prevent echo loops).
+  - Harmony postfix detects the affected node (for example `ChangeMainLight`, `SetLightMode`, `set_CurrentMode`).
+  - Listener queues the node and executes exactly one simulation flush.
+  - Host reads the full node snapshot and broadcasts `ManualTrafficLightsAppliedCommand`.
 
 - **Client edits manual lights in TM:PE**
-  - Harmony postfix reads the full node snapshot and sends `ManualTrafficLightsUpdateRequest` to the server.
-  - Server validates node existence, applies under node lock, and retries with backoff if needed.
-  - After successful apply, server broadcasts effective snapshot via `ManualTrafficLightsAppliedCommand`.
+  - Harmony postfix queues the affected node and builds a node snapshot during flush.
+  - Client sends `ManualTrafficLightsUpdateRequest` to the host.
+  - Host validates the node, acquires `EntityLocks.AcquireNode`, applies the snapshot, and then broadcasts the effective state.
+
+- **Apply behavior**
+  - Apply runs through a coordinator with up to 6 attempts and frame backoff `5/15/30/60/120/240`.
+  - Temporary TM:PE failures (for example uninitialized managers, `NullReference`) automatically trigger retries.
+  - Final failures are logged on host/client side.
 
 - **Reconnect resync**
-  - On reconnect, host sends all cached manual-traffic-light snapshots.
-  - Before sending, invalid nodes are removed from cache (`Prune` + node filter), so only valid entries are sent.
+  - On reconnect, the host sends all valid cached `ManualTrafficLightsAppliedCommand` entries to the client.
+  - The cache is pruned against current node validity before sending.
 
-- **Rejection/error handling**
-  - Missing entities or apply failures are currently logged on the server and not emitted as a dedicated `RequestRejected` flow for this feature.
-  - Temporary TM:PE failures (`NullReference`, uninitialized managers) are handled through retry/backoff.
+- **Rejections**
+  - This feature does not use a dedicated `RequestRejected` channel; invalid requests are dropped and logged on the server.
 
 ### 5) Data Exchange (messages/fields)
 | Message | Direction | Field | Type | Description |
 | --- | --- | --- | --- | --- |
 | `ManualTrafficLightsUpdateRequest` | Client -> Server | `NodeId` | `ushort` | Node ID of the manual traffic light. |
-|  |  | `State` | `ManualTrafficLightsNodeState` | Desired full manual-TL snapshot for the node. |
+|  |  | `State` | `ManualTrafficLightsNodeState` | Desired full node snapshot. |
 | `ManualTrafficLightsAppliedCommand` | Server -> All | `NodeId` | `ushort` | Node ID of the manual traffic light. |
-|  |  | `State` | `ManualTrafficLightsNodeState` | Effective full snapshot after host apply. |
+|  |  | `State` | `ManualTrafficLightsNodeState` | Effective full node snapshot after host apply. |
 | `ManualTrafficLightsNodeState` | (payload) | `NodeId` | `ushort` | Target node. |
 |  |  | `IsManualEnabled` | `bool` | Manual simulation enabled/disabled. |
 |  |  | `Segments[]` | `List<SegmentState>` | Segment-end snapshots at the node. |
 | `SegmentState` | (payload) | `SegmentId` | `ushort` | Target segment. |
 |  |  | `StartNode` | `bool` | `true` = start-node end, `false` = end-node end. |
-|  |  | `ManualPedestrianMode` | `bool` | Manual pedestrian mode enabled. |
-|  |  | `HasPedestrianLightState` | `bool` | Indicates whether an explicit pedestrian light state is present. |
+|  |  | `ManualPedestrianMode` | `bool` | Manual pedestrian mode enabled/disabled. |
+|  |  | `HasPedestrianLightState` | `bool` | Indicates explicit pedestrian light state presence. |
 |  |  | `PedestrianLightState` | `int` | Serialized TM:PE pedestrian light state. |
 |  |  | `VehicleLights[]` | `List<VehicleLightState>` | Vehicle light states per vehicle type. |
 | `VehicleLightState` | (payload) | `VehicleType` | `int` | Serialized TM:PE vehicle type. |
@@ -152,6 +164,8 @@ Hinweise
 |  |  | `RightLightState` | `int` | Right light state. |
 
 Notes
-- Enum values are transferred as `int` to reduce coupling to TM:PE enum shape changes.
-- Client dispatch uses per-node snapshot hashes to suppress duplicate sends.
-- Event coverage includes both UI-like methods (`Change*`, `ToggleMode`) and direct setter/manager paths (`set_CurrentMode`, `set_PedestrianLightState`, `SetLightMode`, `ApplyLightModes`).
+- Enum values are transferred as `int` to keep compatibility resilient across TM:PE enum drift.
+- Client dispatch uses per-node hash deduplication to suppress identical snapshots.
+- Host cache uses hash deduplication for broadcast/resync and stores only the latest effective snapshot per node.
+- `NetworkUtil.IsSynchronizationReady()` gates queue/flush during loading.
+- Ignore scopes and local-apply scopes prevent feedback loops between local apply and Harmony listeners.
