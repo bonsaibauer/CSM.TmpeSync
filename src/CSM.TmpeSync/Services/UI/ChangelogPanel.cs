@@ -82,7 +82,7 @@ namespace CSM.TmpeSync.Services.UI
             }
             catch (Exception ex)
             {
-                Log.Warn(LogCategory.Diagnostics, LogRole.General, "Failed to display changelog | error={0}", ex);
+                Log.Warn(LogCategory.Diagnostics, LogRole.General, "[Changelog] Display failed | error={0}.", ex);
             }
         }
 
@@ -102,7 +102,7 @@ namespace CSM.TmpeSync.Services.UI
             }
             catch (Exception ex)
             {
-                Log.Warn(LogCategory.Diagnostics, LogRole.General, "Failed to display changelog (manual) | error={0}", ex);
+                Log.Warn(LogCategory.Diagnostics, LogRole.General, "[Changelog] Manual display failed | error={0}.", ex);
             }
         }
 
@@ -182,6 +182,19 @@ namespace CSM.TmpeSync.Services.UI
             // Minimal inline changelog; source of truth mirrors Mod/ModMetadata.ModReleaseTag.
             var entries = new List<ChangelogEntry>
             {
+                new ChangelogEntry
+                {
+                    Version = "2.0.0.0",
+                    Date = "2026-04-03",
+                    Changes = new List<string>
+                    {
+                        "[New] Timed Traffic Lights synchronization is active and fully integrated in the host-authoritative TM:PE sync flow.",
+                        "[Updated] Timed Traffic Lights uses an event-driven pipeline (definition + runtime streams) with per-frame batching and synchronization readiness guards.",
+                        "[New] Manual Traffic Lights synchronization is active as a stable node-snapshot workflow for host and client edits.",
+                        "[Updated] Manual Traffic Lights listener uses a lean queued dispatch flow with reduced runtime overhead.",
+                        "[Updated] Synchronization logging uses consistent tags, context fields, and host/client diagnostics output."
+                    }
+                },
                 new ChangelogEntry
                 {
                     Version = "1.2.0.0",

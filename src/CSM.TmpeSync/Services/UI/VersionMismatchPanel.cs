@@ -566,7 +566,7 @@ namespace CSM.TmpeSync.Services.UI
             }
             catch (Exception ex)
             {
-                Log.Warn(LogCategory.Diagnostics, LogRole.General, "Failed to open action link | url={0} error={1}", _actionUrl ?? "<null>", ex);
+                Log.Warn(LogCategory.Diagnostics, LogRole.General, "[VersionMismatch] Open action link failed | url={0} error={1}.", _actionUrl ?? "<null>", ex);
             }
         }
     }

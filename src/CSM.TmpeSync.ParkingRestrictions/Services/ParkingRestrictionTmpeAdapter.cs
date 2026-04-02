@@ -36,7 +36,7 @@ namespace CSM.TmpeSync.ParkingRestrictions.Services
             {
                 Log.Warn(LogCategory.Bridge,
                     LogRole.Host,
-                    "ParkingRestrictions TryGet failed | segmentId={0} error={1}",
+                    "[ParkingRestrictions] TryGet failed | segmentId={0} error={1}.",
                     segmentId, ex);
                 return false;
             }
@@ -70,7 +70,7 @@ namespace CSM.TmpeSync.ParkingRestrictions.Services
             {
                 Log.Warn(LogCategory.Bridge,
                     LogRole.Host,
-                    "ParkingRestrictions Apply failed | segmentId={0} state={1} error={2}",
+                    "[ParkingRestrictions] Apply failed | segmentId={0} state={1} error={2}.",
                     segmentId, state, ex);
                 return false;
             }

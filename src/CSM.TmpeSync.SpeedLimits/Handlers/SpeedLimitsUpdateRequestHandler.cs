@@ -13,14 +13,14 @@ namespace CSM.TmpeSync.SpeedLimits.Handlers
 
             Log.Info(LogCategory.Network,
                 LogRole.Host,
-                "SpeedLimitsUpdateRequest received | segmentId={0} items={1} senderId={2}",
+                "[SpeedLimits] Update request received | segmentId={0} items={1} senderId={2}.",
                 command.SegmentId,
                 command.Items?.Count ?? 0,
                 senderId);
 
             if (!CsmBridge.IsServerInstance())
             {
-                Log.Debug(LogCategory.Network, LogRole.Client, "SpeedLimitsUpdateRequest ignored | reason=not_server_instance");
+                Log.Debug(LogCategory.Network, LogRole.Client, "[SpeedLimits] Update request ignored | reason=not_server_instance.");
                 return;
             }
 
@@ -28,7 +28,7 @@ namespace CSM.TmpeSync.SpeedLimits.Handlers
             {
                 Log.Warn(LogCategory.Network,
                     LogRole.Host,
-                    "SpeedLimitsUpdateRequest rejected | segmentId={0} reason=segment_missing",
+                    "[SpeedLimits] Update request rejected | segmentId={0} reason=segment_missing.",
                     command.SegmentId);
                 CsmBridge.SendToClient(senderId, new RequestRejected { Reason = "entity_missing", EntityId = command.SegmentId, EntityType = 2 });
                 return;
@@ -40,7 +40,7 @@ namespace CSM.TmpeSync.SpeedLimits.Handlers
                 {
                     Log.Warn(LogCategory.Synchronization,
                         LogRole.Host,
-                        "Speed limits apply aborted | segmentId={0} reason=segment_missing_before_apply",
+                        "[SpeedLimits] Apply aborted | segmentId={0} reason=segment_missing_before_apply.",
                         command.SegmentId);
                     return;
                 }
@@ -51,7 +51,7 @@ namespace CSM.TmpeSync.SpeedLimits.Handlers
                     {
                         Log.Warn(LogCategory.Synchronization,
                             LogRole.Host,
-                            "Speed limits apply skipped | segmentId={0} reason=segment_missing_while_locked",
+                            "[SpeedLimits] Apply skipped | segmentId={0} reason=segment_missing_while_locked.",
                             command.SegmentId);
                         return;
                     }
@@ -63,7 +63,7 @@ namespace CSM.TmpeSync.SpeedLimits.Handlers
                         {
                             Log.Info(LogCategory.Synchronization,
                                 LogRole.Host,
-                                "Speed limits applied | segmentId={0} action=broadcast senderId={1}",
+                                "[SpeedLimits] Apply completed | segmentId={0} action=broadcast senderId={1}.",
                                 command.SegmentId,
                                 senderId);
                             SpeedLimitSynchronization.BroadcastSegment(command.SegmentId, $"host_broadcast:sender={senderId}");
@@ -74,7 +74,7 @@ namespace CSM.TmpeSync.SpeedLimits.Handlers
                     {
                         Log.Error(LogCategory.Synchronization,
                             LogRole.Host,
-                            "Speed limits apply failed | segmentId={0} senderId={1}",
+                            "[SpeedLimits] Apply failed | segmentId={0} senderId={1}.",
                             command.SegmentId,
                             senderId);
                         CsmBridge.SendToClient(senderId, new RequestRejected { Reason = "tmpe_apply_failed", EntityId = command.SegmentId, EntityType = 2 });
@@ -85,7 +85,7 @@ namespace CSM.TmpeSync.SpeedLimits.Handlers
                     {
                         Log.Info(LogCategory.Synchronization,
                             LogRole.Host,
-                            "Speed limits apply deferred | segmentId={0} senderId={1}",
+                            "[SpeedLimits] Apply deferred | segmentId={0} senderId={1}.",
                             command.SegmentId,
                             senderId);
                         return;
@@ -93,7 +93,7 @@ namespace CSM.TmpeSync.SpeedLimits.Handlers
 
                     Log.Info(LogCategory.Synchronization,
                         LogRole.Host,
-                        "Speed limits applied | segmentId={0} action=immediate senderId={1}",
+                        "[SpeedLimits] Apply completed | segmentId={0} action=immediate senderId={1}.",
                         command.SegmentId,
                         senderId);
                 }

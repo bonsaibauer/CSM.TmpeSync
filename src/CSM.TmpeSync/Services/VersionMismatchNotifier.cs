@@ -195,13 +195,13 @@ namespace CSM.TmpeSync.Services
                         }
                         catch (Exception ex)
                         {
-                            Log.Warn(LogCategory.Diagnostics, LogRole.General, "Failed to display mismatch panel | perspective={0} key={1} error={2}", perspectiveLabel, key, ex);
+                            Log.Warn(LogCategory.Diagnostics, LogRole.General, "[VersionMismatch] Display panel failed | perspective={0} key={1} error={2}.", perspectiveLabel, key, ex);
                         }
                     });
                 }
                 catch (Exception ex)
                 {
-                    Log.Warn(LogCategory.Diagnostics, LogRole.General, "Failed to schedule mismatch panel | perspective={0} key={1} error={2}", perspectiveLabel, key, ex);
+                    Log.Warn(LogCategory.Diagnostics, LogRole.General, "[VersionMismatch] Schedule panel failed | perspective={0} key={1} error={2}.", perspectiveLabel, key, ex);
                 }
             });
         }
@@ -351,7 +351,7 @@ namespace CSM.TmpeSync.Services
 
             Log.Warn(
                 LogCategory.Diagnostics,
-                "Version mismatch detected | perspective={0} local_version={1} remote_version={2} peer={3}",
+                "[VersionMismatch] Detected | perspective={0} local_version={1} remote_version={2} peer={3}.",
                 perspective,
                 context.LocalVersion ?? "unknown",
                 context.RemoteVersion ?? "unknown",

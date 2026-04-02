@@ -10,7 +10,7 @@ namespace CSM.TmpeSync.Handlers.Locks
         {
             Log.Info(
                 LogCategory.Network,
-                "EditLockCleared received | targetKind={0} targetId={1}",
+                "[EditLocks] Cleared command received | targetKind={0} targetId={1}.",
                 cmd.TargetKind,
                 cmd.TargetId);
             LockRegistry.Clear(cmd.TargetKind, cmd.TargetId);

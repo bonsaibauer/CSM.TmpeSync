@@ -31,7 +31,7 @@ namespace CSM.TmpeSync.ParkingRestrictions.Services
             Log.Info(
                 LogCategory.Synchronization,
                 LogRole.Host,
-                "[ParkingRestrictions] Resync for reconnecting client | target={0} items={1}",
+                "[ParkingRestrictions] Resync for reconnecting client | target={0} items={1}.",
                 clientId,
                 cached.Count);
 
@@ -94,7 +94,7 @@ namespace CSM.TmpeSync.ParkingRestrictions.Services
                 Log.Warn(
                     LogCategory.Synchronization,
                     CurrentRole(),
-                    "[ParkingRestrictions] Broadcast read failed | segmentId={0} context={1}",
+                    "[ParkingRestrictions] Broadcast read failed | segmentId={0} context={1}.",
                     segmentId,
                     context ?? "unknown");
                 state = new ParkingRestrictionState();
@@ -199,7 +199,7 @@ namespace CSM.TmpeSync.ParkingRestrictions.Services
                     Log.Warn(
                         LogCategory.Synchronization,
                         Role,
-                        "[ParkingRestrictions] OnApplied handler threw | segmentId={0} origin={1} error={2}",
+                        "[ParkingRestrictions] OnApplied handler threw | segmentId={0} origin={1} error={2}.",
                         SegmentId,
                         Origin,
                         ex);
@@ -214,7 +214,7 @@ namespace CSM.TmpeSync.ParkingRestrictions.Services
                 Log.Error(
                     LogCategory.Synchronization,
                     Role,
-                    "[ParkingRestrictions] Apply failed | segmentId={0} origin={1} attempts={2} reason={3} immediate={4}",
+                    "[ParkingRestrictions] Apply failed | segmentId={0} origin={1} attempts={2} reason={3} immediate={4}.",
                     SegmentId,
                     Origin,
                     Attempt,
@@ -349,7 +349,7 @@ namespace CSM.TmpeSync.ParkingRestrictions.Services
                     Log.Warn(
                         LogCategory.Synchronization,
                         context.Role,
-                        "[ParkingRestrictions] Apply threw NullReferenceException | segmentId={0} origin={1} error={2}",
+                        "[ParkingRestrictions] Apply threw NullReferenceException | segmentId={0} origin={1} error={2}.",
                         context.SegmentId,
                         context.Origin,
                         ex);
@@ -362,7 +362,7 @@ namespace CSM.TmpeSync.ParkingRestrictions.Services
                     Log.Error(
                         LogCategory.Synchronization,
                         context.Role,
-                        "[ParkingRestrictions] Apply threw | segmentId={0} origin={1} error={2}",
+                        "[ParkingRestrictions] Apply threw | segmentId={0} origin={1} error={2}.",
                         context.SegmentId,
                         context.Origin,
                         ex);
@@ -392,7 +392,7 @@ namespace CSM.TmpeSync.ParkingRestrictions.Services
                     Log.Warn(
                         LogCategory.Synchronization,
                         role,
-                        "[ParkingRestrictions] Apply skipped | reason=tmpe_options_unavailable");
+                        "[ParkingRestrictions] Apply skipped | reason=tmpe_options_unavailable.");
                     return false;
                 }
 
@@ -403,7 +403,7 @@ namespace CSM.TmpeSync.ParkingRestrictions.Services
                 Log.Error(
                     LogCategory.Synchronization,
                     role,
-                    "[ParkingRestrictions] Apply failed | reason=tmpe_options_ensure_exception error={0}",
+                    "[ParkingRestrictions] Apply failed | reason=tmpe_options_ensure_exception error={0}.",
                     ex);
                 return false;
             }
@@ -418,7 +418,7 @@ namespace CSM.TmpeSync.ParkingRestrictions.Services
                 Log.Info(
                     LogCategory.Synchronization,
                     LogRole.Host,
-                    "[ParkingRestrictions] Host applied | segmentId={0} state={1} ctx={2}",
+                    "[ParkingRestrictions] Host applied | segmentId={0} state={1} context={2}.",
                     segmentId,
                     payload,
                     context ?? "unknown");
@@ -437,7 +437,7 @@ namespace CSM.TmpeSync.ParkingRestrictions.Services
                 Log.Info(
                     LogCategory.Network,
                     LogRole.Client,
-                    "[ParkingRestrictions] Client sent update | segmentId={0} state={1} ctx={2}",
+                    "[ParkingRestrictions] Client sent update request | segmentId={0} state={1} context={2}.",
                     segmentId,
                     payload,
                     context ?? "unknown");

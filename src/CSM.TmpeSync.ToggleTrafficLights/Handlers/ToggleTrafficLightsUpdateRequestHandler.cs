@@ -14,14 +14,14 @@ namespace CSM.TmpeSync.ToggleTrafficLights.Handlers
             Log.Info(
                 LogCategory.Network,
                 LogRole.Host,
-                "TrafficLightUpdateRequest received | nodeId={0} enabled={1} senderId={2}",
+                "[ToggleTrafficLights] Update request received | nodeId={0} enabled={1} senderId={2}.",
                 command.NodeId,
                 command.Enabled,
                 senderId);
 
             if (!CsmBridge.IsServerInstance())
             {
-                Log.Debug(LogCategory.Network, LogRole.Client, "TrafficLightUpdateRequest ignored | reason=not_server_instance");
+                Log.Debug(LogCategory.Network, LogRole.Client, "[ToggleTrafficLights] Update request ignored | reason=not_server_instance.");
                 return;
             }
 
@@ -29,7 +29,7 @@ namespace CSM.TmpeSync.ToggleTrafficLights.Handlers
             {
                 Log.Warn(
                     LogCategory.Network,
-                    "TrafficLightUpdateRequest rejected | nodeId={0} reason=node_missing",
+                    "[ToggleTrafficLights] Update request rejected | nodeId={0} reason=node_missing.",
                     command.NodeId);
                 CsmBridge.SendToClient(senderId, new RequestRejected { Reason = "entity_missing", EntityId = command.NodeId, EntityType = 3 });
                 return;
@@ -41,7 +41,7 @@ namespace CSM.TmpeSync.ToggleTrafficLights.Handlers
                 {
                     Log.Warn(
                         LogCategory.Synchronization,
-                        "Traffic light apply aborted | nodeId={0} reason=entity_missing_before_apply",
+                        "[ToggleTrafficLights] Apply aborted | nodeId={0} reason=entity_missing_before_apply.",
                         command.NodeId);
                     return;
                 }
@@ -52,7 +52,7 @@ namespace CSM.TmpeSync.ToggleTrafficLights.Handlers
                     {
                         Log.Warn(
                             LogCategory.Synchronization,
-                            "Traffic light apply skipped | nodeId={0} reason=entity_missing_while_locked",
+                            "[ToggleTrafficLights] Apply skipped | nodeId={0} reason=entity_missing_while_locked.",
                             command.NodeId);
                         return;
                     }
@@ -63,7 +63,7 @@ namespace CSM.TmpeSync.ToggleTrafficLights.Handlers
                         {
                             Log.Error(
                                 LogCategory.Synchronization,
-                                "Traffic light apply failed | nodeId={0} enabled={1} senderId={2}",
+                                "[ToggleTrafficLights] Apply failed | nodeId={0} enabled={1} senderId={2}.",
                                 command.NodeId,
                                 command.Enabled,
                                 senderId);
@@ -77,7 +77,7 @@ namespace CSM.TmpeSync.ToggleTrafficLights.Handlers
                     bool readBackSuccess = ToggleTrafficLightsSynchronization.TryRead(command.NodeId, out resultingEnabled);
                     if (!readBackSuccess)
                     {
-                        Log.Warn(LogCategory.Synchronization, LogRole.Host, "Traffic light verify failed | nodeId={0}", command.NodeId);
+                        Log.Warn(LogCategory.Synchronization, LogRole.Host, "[ToggleTrafficLights] Verify failed | nodeId={0}.", command.NodeId);
                     }
 
                     if (readBackSuccess && resultingEnabled != command.Enabled)
@@ -85,7 +85,7 @@ namespace CSM.TmpeSync.ToggleTrafficLights.Handlers
                         Log.Warn(
                             LogCategory.Synchronization,
                             LogRole.Host,
-                            "Traffic light apply mismatch | nodeId={0} requested={1} actual={2}",
+                            "[ToggleTrafficLights] Apply mismatch | nodeId={0} requested={1} actual={2}.",
                             command.NodeId,
                             command.Enabled,
                             resultingEnabled);
@@ -103,7 +103,7 @@ namespace CSM.TmpeSync.ToggleTrafficLights.Handlers
 
                     Log.Info(
                         LogCategory.Synchronization,
-                        "Traffic light applied | nodeId={0} enabled={1} action=broadcast",
+                        "[ToggleTrafficLights] Apply completed | nodeId={0} enabled={1} action=broadcast.",
                         command.NodeId,
                         resultingEnabled);
 

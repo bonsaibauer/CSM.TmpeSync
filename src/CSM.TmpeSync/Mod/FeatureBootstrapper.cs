@@ -1,11 +1,13 @@
 using System;
 using CSM.TmpeSync.ClearTraffic;
 using CSM.TmpeSync.JunctionRestrictions;
+using CSM.TmpeSync.ManualTrafficLights;
 using CSM.TmpeSync.LaneArrows;
 using CSM.TmpeSync.LaneConnector;
 using CSM.TmpeSync.ParkingRestrictions;
 using CSM.TmpeSync.PrioritySigns;
 using CSM.TmpeSync.SpeedLimits;
+using CSM.TmpeSync.TimedTrafficLights;
 using CSM.TmpeSync.ToggleTrafficLights;
 using CSM.TmpeSync.VehicleRestrictions;
 using CSM.TmpeSync.Services;
@@ -25,10 +27,12 @@ namespace CSM.TmpeSync.Mod
             new FeatureToggle("LaneArrows", true, LaneArrowsSyncFeature.Register, LaneArrowsSyncFeature.Unregister),
             new FeatureToggle("LaneConnector", true, LaneConnectorSyncFeature.Register, LaneConnectorSyncFeature.Unregister),
             new FeatureToggle("JunctionRestrictions", true, JunctionRestrictionsSyncFeature.Register, JunctionRestrictionsSyncFeature.Unregister),
+            new FeatureToggle("ManualTrafficLights", true, ManualTrafficLightsSyncFeature.Register, ManualTrafficLightsSyncFeature.Unregister),
             new FeatureToggle("PrioritySigns", true, PrioritySignSyncFeature.Register, PrioritySignSyncFeature.Unregister),
             new FeatureToggle("ParkingRestrictions", true, ParkingRestrictionSyncFeature.Register, ParkingRestrictionSyncFeature.Unregister),
             new FeatureToggle("VehicleRestrictions", true, VehicleRestrictionSyncFeature.Register, VehicleRestrictionSyncFeature.Unregister),
             new FeatureToggle("ToggleTrafficLights", true, ToggleTrafficLightsSyncFeature.Register, ToggleTrafficLightsSyncFeature.Unregister),
+            new FeatureToggle("TimedTrafficLights", true, TimedTrafficLightsSyncFeature.Register, TimedTrafficLightsSyncFeature.Unregister),
             new FeatureToggle("ClearTraffic", true, ClearTrafficSyncFeature.Register, ClearTrafficSyncFeature.Unregister)
         };
 
@@ -41,7 +45,7 @@ namespace CSM.TmpeSync.Mod
                     Log.Warn(
                         LogCategory.Synchronization,
                         GetCurrentRole(),
-                        "Synchronization remains disabled | reason={0}",
+                        "[Synchronization] Remains disabled | reason={0}.",
                         string.IsNullOrEmpty(_suspendReason) ? "unknown" : _suspendReason);
                     return;
                 }
@@ -71,7 +75,7 @@ namespace CSM.TmpeSync.Mod
                 return;
 
             DisableAllFeatures();
-            Log.Info(LogCategory.Synchronization, GetCurrentRole(), "Synchronization features disabled.");
+            Log.Info(LogCategory.Synchronization, GetCurrentRole(), "[Synchronization] Features disabled.");
         }
 
         internal static void SuspendForVersionMismatch(string remoteVersion)
@@ -121,13 +125,13 @@ namespace CSM.TmpeSync.Mod
             if (shouldDisable)
             {
                 DisableAllFeatures();
-                Log.Warn(LogCategory.Synchronization, GetCurrentRole(), "Synchronization suspended | reason={0}", effectiveReason);
+                Log.Warn(LogCategory.Synchronization, GetCurrentRole(), "[Synchronization] Suspended | reason={0}.", effectiveReason);
             }
 
             if (shouldEnable)
             {
                 EnableAllFeatures();
-                Log.Info(LogCategory.Synchronization, GetCurrentRole(), "Synchronization resumed | reason={0}", effectiveReason);
+                Log.Info(LogCategory.Synchronization, GetCurrentRole(), "[Synchronization] Resumed | reason={0}.", effectiveReason);
             }
         }
 
@@ -152,14 +156,14 @@ namespace CSM.TmpeSync.Mod
             foreach (var feature in Features)
                 EnableFeature(feature);
 
-            Log.Info(LogCategory.Synchronization, GetCurrentRole(), "Synchronization features enabled.");
+            Log.Info(LogCategory.Synchronization, GetCurrentRole(), "[Synchronization] Features enabled.");
         }
 
         private static void EnableFeature(FeatureToggle feature)
         {
             if (!feature.Enabled)
             {
-                Log.Info(LogCategory.Synchronization, GetCurrentRole(), "Feature disabled for development | feature={0}", feature.Name);
+                Log.Info(LogCategory.Synchronization, GetCurrentRole(), "[Synchronization] Feature disabled for development | feature={0}.", feature.Name);
                 return;
             }
 
@@ -173,7 +177,7 @@ namespace CSM.TmpeSync.Mod
                 Log.Warn(
                     LogCategory.Synchronization,
                     GetCurrentRole(),
-                    "Feature startup failed | feature={0} | error={1}",
+                    "[Synchronization] Feature startup failed | feature={0} error={1}.",
                     feature.Name,
                     ex);
             }
@@ -193,7 +197,7 @@ namespace CSM.TmpeSync.Mod
                 Log.Warn(
                     LogCategory.Synchronization,
                     GetCurrentRole(),
-                    "Feature shutdown failed | feature={0} | error={1}",
+                    "[Synchronization] Feature shutdown failed | feature={0} error={1}.",
                     feature.Name,
                     ex);
             }

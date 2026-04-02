@@ -25,7 +25,7 @@ namespace CSM.TmpeSync.ToggleTrafficLights.Services
             }
             catch (Exception ex)
             {
-                Log.Warn(LogCategory.Bridge, LogRole.Host, "ToggleTrafficLights TryGet failed | nodeId={0} error={1}", nodeId, ex);
+                Log.Warn(LogCategory.Bridge, LogRole.Host, "[ToggleTrafficLights] TryGet failed | nodeId={0} error={1}.", nodeId, ex);
                 return false;
             }
         }
@@ -50,7 +50,7 @@ namespace CSM.TmpeSync.ToggleTrafficLights.Services
                     Log.Warn(
                         LogCategory.Bridge,
                         LogRole.Host,
-                        "ToggleTrafficLights Apply skipped | nodeId={0} target={1} current={2} reason=cannot_toggle",
+                        "[ToggleTrafficLights] Apply skipped | nodeId={0} target={1} current={2} reason=cannot_toggle.",
                         nodeId,
                         enabled,
                         current);
@@ -64,7 +64,7 @@ namespace CSM.TmpeSync.ToggleTrafficLights.Services
                         Log.Warn(
                             LogCategory.Bridge,
                             LogRole.Host,
-                            "ToggleTrafficLights Apply failed | nodeId={0} target={1} reason=toggle_failed",
+                            "[ToggleTrafficLights] Apply failed | nodeId={0} target={1} reason=toggle_failed.",
                             nodeId,
                             enabled);
                         return false;
@@ -77,7 +77,7 @@ namespace CSM.TmpeSync.ToggleTrafficLights.Services
                     Log.Warn(
                         LogCategory.Bridge,
                         LogRole.Host,
-                        "ToggleTrafficLights Apply mismatch | nodeId={0} target={1} actual={2}",
+                        "[ToggleTrafficLights] Apply mismatch | nodeId={0} target={1} actual={2}.",
                         nodeId,
                         enabled,
                         after);
@@ -88,7 +88,7 @@ namespace CSM.TmpeSync.ToggleTrafficLights.Services
             }
             catch (Exception ex)
             {
-                Log.Warn(LogCategory.Bridge, LogRole.Host, "ToggleTrafficLights Apply failed | nodeId={0} enabled={1} error={2}", nodeId, enabled, ex);
+                Log.Warn(LogCategory.Bridge, LogRole.Host, "[ToggleTrafficLights] Apply failed | nodeId={0} enabled={1} error={2}.", nodeId, enabled, ex);
                 return false;
             }
         }

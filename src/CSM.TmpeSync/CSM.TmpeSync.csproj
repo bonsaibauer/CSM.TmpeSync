@@ -122,8 +122,10 @@
     <ProjectReference Include="..\CSM.TmpeSync.PrioritySigns\CSM.TmpeSync.PrioritySigns.csproj" />
     <ProjectReference Include="..\CSM.TmpeSync.ParkingRestrictions\CSM.TmpeSync.ParkingRestrictions.csproj" />
     <ProjectReference Include="..\CSM.TmpeSync.JunctionRestrictions\CSM.TmpeSync.JunctionRestrictions.csproj" />
+    <ProjectReference Include="..\CSM.TmpeSync.ManualTrafficLights\CSM.TmpeSync.ManualTrafficLights.csproj" />
     <ProjectReference Include="..\CSM.TmpeSync.SpeedLimits\CSM.TmpeSync.SpeedLimits.csproj" />
     <ProjectReference Include="..\CSM.TmpeSync.ToggleTrafficLights\CSM.TmpeSync.ToggleTrafficLights.csproj" />
+    <ProjectReference Include="..\CSM.TmpeSync.TimedTrafficLights\CSM.TmpeSync.TimedTrafficLights.csproj" />
     <ProjectReference Include="..\CSM.TmpeSync.ClearTraffic\CSM.TmpeSync.ClearTraffic.csproj" />
     <ProjectReference Include="..\CSM.TmpeSync.VehicleRestrictions\CSM.TmpeSync.VehicleRestrictions.csproj" />
   </ItemGroup>

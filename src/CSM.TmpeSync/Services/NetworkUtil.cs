@@ -250,6 +250,24 @@ namespace CSM.TmpeSync.Services
             }
         }
 
+        internal static bool IsSynchronizationReady()
+        {
+            if (!Singleton<LoadingManager>.exists || !Singleton<SimulationManager>.exists)
+                return false;
+
+            var loadingManager = Singleton<LoadingManager>.instance;
+            if (loadingManager == null)
+                return false;
+
+            if (loadingManager.m_currentlyLoading)
+                return false;
+
+            if (!loadingManager.m_loadingComplete)
+                return false;
+
+            return Singleton<SimulationManager>.instance != null;
+        }
+
         internal static void RunOnSimulation(Action action)
         {
             SimulationManager.instance.AddAction(action);

@@ -9,7 +9,7 @@ namespace CSM.TmpeSync.Mod
         /// <summary>
         /// Current version of the CSM TM:PE Sync mod. Update this value when publishing new builds.
         /// </summary>
-        internal const string ModReleaseTag = "v1.2.0.0";
+        internal const string ModReleaseTag = "v2.0.0.0";
 
         /// <summary>
         /// Expected Cities: Skylines runtime version (BuildConfig.APPLICATION_VERSION) used as reference.
@@ -29,13 +29,14 @@ namespace CSM.TmpeSync.Mod
         /// <summary>
         /// Latest release tag for CSM TM:PE Sync.
         /// </summary>
-        internal const string ModLatestReleaseTag = "v1.1.1.0";
+        internal const string ModLatestReleaseTag = "v1.2.0.0";
 
         /// <summary>
         /// Legacy release tags for CSM TM:PE Sync (excluding the latest).
         /// </summary>
         internal static readonly string[] ModLegacyReleaseTags = new[]
         {
+            "v1.1.1.0",
             "v1.1.0.0",
             "v1.0.1.0",
             "v1.0.0.0",
@@ -168,4 +169,5 @@ namespace CSM.TmpeSync.Mod
 
     }
 }
+
 

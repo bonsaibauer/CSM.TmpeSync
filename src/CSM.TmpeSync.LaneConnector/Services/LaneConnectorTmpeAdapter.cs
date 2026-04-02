@@ -65,7 +65,7 @@ namespace CSM.TmpeSync.LaneConnector.Services
                             Log.Warn(
                                 LogCategory.Bridge,
                                 LogRole.Host,
-                                "[LaneConnector] AreLanesConnected failed | source={0} target={1} error={2}",
+                                "[LaneConnector] AreLanesConnected failed | source={0} target={1} error={2}.",
                                 source.LaneId,
                                 candidate.LaneId,
                                 ex);
@@ -276,7 +276,7 @@ namespace CSM.TmpeSync.LaneConnector.Services
             }
             catch (Exception ex)
             {
-                Log.Warn(LogCategory.Bridge, LogRole.General, "[LaneConnector] ManagerFactory resolution failed | error={0}", ex);
+                Log.Warn(LogCategory.Bridge, LogRole.General, "[LaneConnector] ManagerFactory resolution failed | error={0}.", ex);
             }
 
             if (manager == null)

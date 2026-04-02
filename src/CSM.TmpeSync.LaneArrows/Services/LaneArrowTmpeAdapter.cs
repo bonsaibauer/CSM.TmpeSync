@@ -46,7 +46,7 @@ namespace CSM.TmpeSync.LaneArrows.Services
             }
             catch (Exception ex)
             {
-                Log.Warn(LogCategory.Bridge, LogRole.Host, "LaneArrows TryGetAtEnd failed | nodeId={0} segmentId={1} error={2}", nodeId, segmentId, ex);
+                Log.Warn(LogCategory.Bridge, LogRole.Host, "[LaneArrows] TryGetAtEnd failed | nodeId={0} segmentId={1} error={2}.", nodeId, segmentId, ex);
                 return false;
             }
         }
@@ -91,7 +91,7 @@ namespace CSM.TmpeSync.LaneArrows.Services
             }
             catch (Exception ex)
             {
-                Log.Warn(LogCategory.Bridge, LogRole.Host, "LaneArrows ApplyAtEnd failed | nodeId={0} segmentId={1} arrows={2} error={3}", nodeId, segmentId, (LaneArrowFlags)arrows, ex);
+                Log.Warn(LogCategory.Bridge, LogRole.Host, "[LaneArrows] ApplyAtEnd failed | nodeId={0} segmentId={1} arrows={2} error={3}.", nodeId, segmentId, (LaneArrowFlags)arrows, ex);
                 return false;
             }
         }

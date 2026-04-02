@@ -31,7 +31,7 @@ namespace CSM.TmpeSync.SpeedLimits.Services
 
                 if (!patchedAny)
                 {
-                    Log.Warn(LogCategory.Network, LogRole.Host, "[SpeedLimits] No TM:PE speed-limit methods could be patched. Listener disabled.");
+                    Log.Warn(LogCategory.Network, LogRole.Host, "[SpeedLimits] Harmony listener disabled | reason=no_patch_targets.");
                     _harmony = null;
                     return;
                 }
@@ -40,7 +40,7 @@ namespace CSM.TmpeSync.SpeedLimits.Services
             }
             catch (Exception ex)
             {
-                Log.Error(LogCategory.Network, LogRole.Host, "[SpeedLimits] Event listener enable failed: {0}", ex);
+                Log.Error(LogCategory.Network, LogRole.Host, "[SpeedLimits] Harmony listener enable failed | error={0}.", ex);
             }
         }
 
@@ -56,7 +56,7 @@ namespace CSM.TmpeSync.SpeedLimits.Services
             }
             catch (Exception ex)
             {
-                Log.Warn(LogCategory.Network, LogRole.Host, "[SpeedLimits] Listener disable had issues: {0}", ex);
+                Log.Warn(LogCategory.Network, LogRole.Host, "[SpeedLimits] Harmony listener disable failed | error={0}.", ex);
             }
             finally
             {
@@ -83,7 +83,13 @@ namespace CSM.TmpeSync.SpeedLimits.Services
                 .GetMethod(nameof(SetLaneSpeedLimit_WithInfo_Postfix), BindingFlags.NonPublic | BindingFlags.Static);
 
             _harmony.Patch(method, postfix: new HarmonyMethod(postfix));
-            Log.Info(LogCategory.Network, LogRole.Host, "[SpeedLimits] Harmony patched {0}.{1} (with info).", method.DeclaringType?.FullName, method.Name);
+            Log.Info(
+                LogCategory.Network,
+                LogRole.Host,
+                "[SpeedLimits] Harmony patched {0}.{1}({2}).",
+                method.DeclaringType?.FullName,
+                method.Name,
+                string.Join(", ", method.GetParameters().Select(p => p.ParameterType.Name).ToArray()));
             return true;
         }
 
@@ -105,7 +111,13 @@ namespace CSM.TmpeSync.SpeedLimits.Services
                 .GetMethod(nameof(SetLaneSpeedLimit_Simple_Postfix), BindingFlags.NonPublic | BindingFlags.Static);
 
             _harmony.Patch(method, postfix: new HarmonyMethod(postfix));
-            Log.Info(LogCategory.Network, LogRole.Host, "[SpeedLimits] Harmony patched {0}.{1} (simple).", method.DeclaringType?.FullName, method.Name);
+            Log.Info(
+                LogCategory.Network,
+                LogRole.Host,
+                "[SpeedLimits] Harmony patched {0}.{1}({2}).",
+                method.DeclaringType?.FullName,
+                method.Name,
+                string.Join(", ", method.GetParameters().Select(p => p.ParameterType.Name).ToArray()));
             return true;
         }
 
@@ -128,7 +140,13 @@ namespace CSM.TmpeSync.SpeedLimits.Services
                 .GetMethod(nameof(SetCustomNetinfoSpeedLimit_Postfix), BindingFlags.NonPublic | BindingFlags.Static);
 
             _harmony.Patch(method, postfix: new HarmonyMethod(postfix));
-            Log.Info(LogCategory.Network, LogRole.Host, "[SpeedLimits] Harmony patched {0}.{1} (netinfo set).", method.DeclaringType?.FullName, method.Name);
+            Log.Info(
+                LogCategory.Network,
+                LogRole.Host,
+                "[SpeedLimits] Harmony patched {0}.{1}({2}).",
+                method.DeclaringType?.FullName,
+                method.Name,
+                string.Join(", ", method.GetParameters().Select(p => p.ParameterType.Name).ToArray()));
             return true;
         }
 
@@ -150,7 +168,13 @@ namespace CSM.TmpeSync.SpeedLimits.Services
                 .GetMethod(nameof(ResetCustomNetinfoSpeedLimit_Postfix), BindingFlags.NonPublic | BindingFlags.Static);
 
             _harmony.Patch(method, postfix: new HarmonyMethod(postfix));
-            Log.Info(LogCategory.Network, LogRole.Host, "[SpeedLimits] Harmony patched {0}.{1} (netinfo reset).", method.DeclaringType?.FullName, method.Name);
+            Log.Info(
+                LogCategory.Network,
+                LogRole.Host,
+                "[SpeedLimits] Harmony patched {0}.{1}({2}).",
+                method.DeclaringType?.FullName,
+                method.Name,
+                string.Join(", ", method.GetParameters().Select(p => p.ParameterType.Name).ToArray()));
             return true;
         }
 
@@ -234,7 +258,7 @@ namespace CSM.TmpeSync.SpeedLimits.Services
 
                 if (!SpeedLimitSynchronization.TryRead(segmentId, out var state))
                 {
-                    Log.Warn(LogCategory.Synchronization, LogRole.Host, "[SpeedLimits] TryRead failed | segment={0}", segmentId);
+                    Log.Warn(LogCategory.Synchronization, LogRole.Host, "[SpeedLimits] TryRead failed | segmentId={0}.", segmentId);
                     return;
                 }
 
@@ -242,7 +266,7 @@ namespace CSM.TmpeSync.SpeedLimits.Services
             }
             catch (Exception ex)
             {
-                Log.Warn(LogCategory.Network, LogRole.Host, "[SpeedLimits] Event postfix error: {0}", ex);
+                Log.Warn(LogCategory.Network, LogRole.Host, "[SpeedLimits] Event postfix error: {0}.", ex);
             }
         }
 
@@ -267,7 +291,7 @@ namespace CSM.TmpeSync.SpeedLimits.Services
             }
             catch (Exception ex)
             {
-                Log.Warn(LogCategory.Network, LogRole.Host, "[SpeedLimits] Default event postfix error: {0}", ex);
+                Log.Warn(LogCategory.Network, LogRole.Host, "[SpeedLimits] Default event postfix error: {0}.", ex);
             }
         }
     }

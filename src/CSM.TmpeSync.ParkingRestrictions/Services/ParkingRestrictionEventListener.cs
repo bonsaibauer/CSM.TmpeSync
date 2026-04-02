@@ -24,7 +24,7 @@ namespace CSM.TmpeSync.ParkingRestrictions.Services
                 bool patched = TryPatchSetParkingAllowed();
                 if (!patched)
                 {
-                    Log.Warn(LogCategory.Network, LogRole.Host, "[ParkingRestrictions] No TM:PE methods could be patched. Listener disabled.");
+                    Log.Warn(LogCategory.Network, LogRole.Host, "[ParkingRestrictions] Harmony listener disabled | reason=no_patch_targets.");
                     _harmony = null;
                     return;
                 }
@@ -32,7 +32,7 @@ namespace CSM.TmpeSync.ParkingRestrictions.Services
             }
             catch (Exception ex)
             {
-                Log.Error(LogCategory.Network, LogRole.Host, "[ParkingRestrictions] Gateway enable failed: {0}", ex);
+                Log.Error(LogCategory.Network, LogRole.Host, "[ParkingRestrictions] Harmony listener enable failed | error={0}.", ex);
             }
         }
 
@@ -44,11 +44,11 @@ namespace CSM.TmpeSync.ParkingRestrictions.Services
             try
             {
                 _harmony?.UnpatchAll(HarmonyId);
-                Log.Info(LogCategory.Network, LogRole.Host, "[ParkingRestrictions] Harmony gateway disabled.");
+                Log.Info(LogCategory.Network, LogRole.Host, "[ParkingRestrictions] Harmony listener disabled.");
             }
             catch (Exception ex)
             {
-                Log.Warn(LogCategory.Network, LogRole.Host, "[ParkingRestrictions] Gateway disable had issues: {0}", ex);
+                Log.Warn(LogCategory.Network, LogRole.Host, "[ParkingRestrictions] Harmony listener disable failed | error={0}.", ex);
             }
             finally
             {
@@ -86,7 +86,13 @@ namespace CSM.TmpeSync.ParkingRestrictions.Services
             if (method != null)
             {
                 _harmony.Patch(method, postfix: new HarmonyMethod(postfix));
-                Log.Info(LogCategory.Network, LogRole.Host, "[ParkingRestrictions] Harmony gateway patched {0}.{1} (dir overload).", method.DeclaringType?.FullName, method.Name);
+                Log.Info(
+                    LogCategory.Network,
+                    LogRole.Host,
+                    "[ParkingRestrictions] Harmony patched {0}.{1}({2}).",
+                    method.DeclaringType?.FullName,
+                    method.Name,
+                    string.Join(", ", method.GetParameters().Select(p => p.ParameterType.Name).ToArray()));
             }
 
             var postfixAllDirs = typeof(ParkingRestrictionEventListener)
@@ -95,7 +101,13 @@ namespace CSM.TmpeSync.ParkingRestrictions.Services
             if (methodAllDirs != null)
             {
                 _harmony.Patch(methodAllDirs, postfix: new HarmonyMethod(postfixAllDirs));
-                Log.Info(LogCategory.Network, LogRole.Host, "[ParkingRestrictions] Harmony gateway patched {0}.{1} (all-dirs overload).", methodAllDirs.DeclaringType?.FullName, methodAllDirs.Name);
+                Log.Info(
+                    LogCategory.Network,
+                    LogRole.Host,
+                    "[ParkingRestrictions] Harmony patched {0}.{1}({2}).",
+                    methodAllDirs.DeclaringType?.FullName,
+                    methodAllDirs.Name,
+                    string.Join(", ", methodAllDirs.GetParameters().Select(p => p.ParameterType.Name).ToArray()));
             }
 
             return method != null || methodAllDirs != null;
@@ -159,7 +171,7 @@ namespace CSM.TmpeSync.ParkingRestrictions.Services
             }
             catch (Exception ex)
             {
-                Log.Warn(LogCategory.Network, LogRole.Host, "[ParkingRestrictions] SetParkingAllowed postfix error: {0}", ex);
+                Log.Warn(LogCategory.Network, LogRole.Host, "[ParkingRestrictions] SetParkingAllowed postfix error: {0}.", ex);
             }
         }
 
@@ -177,7 +189,7 @@ namespace CSM.TmpeSync.ParkingRestrictions.Services
             }
             catch (Exception ex)
             {
-                Log.Warn(LogCategory.Network, LogRole.Host, "[ParkingRestrictions] SetParkingAllowed(all) postfix error: {0}", ex);
+                Log.Warn(LogCategory.Network, LogRole.Host, "[ParkingRestrictions] SetParkingAllowed(all) postfix error: {0}.", ex);
             }
         }
     }

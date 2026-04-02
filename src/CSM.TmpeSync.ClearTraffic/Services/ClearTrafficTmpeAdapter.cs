@@ -25,7 +25,7 @@ namespace CSM.TmpeSync.ClearTraffic.Services
             }
             catch (Exception ex)
             {
-                Log.Warn(LogCategory.Bridge, LogRole.Host, "[ClearTraffic] Apply failed | error={0}", ex);
+                Log.Warn(LogCategory.Bridge, LogRole.Host, "[ClearTraffic] Apply failed | error={0}.", ex);
                 return false;
             }
         }

@@ -17,7 +17,7 @@ namespace CSM.TmpeSync.ToggleTrafficLights
                 return;
 
             ToggleTrafficLightsEventListener.Enable();
-            Log.Info(LogCategory.Network, LogRole.Host, "ToggleTrafficLightsSyncFeature ready: TM:PE listener enabled.");
+            Log.Info(LogCategory.Network, LogRole.Host, "[ToggleTrafficLights] Sync feature enabled | tmpe_listener=enabled.");
             _enabled = true;
         }
 
@@ -27,7 +27,7 @@ namespace CSM.TmpeSync.ToggleTrafficLights
                 return;
 
             ToggleTrafficLightsEventListener.Disable();
-            Log.Info(LogCategory.Network, LogRole.Host, "ToggleTrafficLightsSyncFeature stopped: TM:PE listener disabled.");
+            Log.Info(LogCategory.Network, LogRole.Host, "[ToggleTrafficLights] Sync feature disabled | tmpe_listener=disabled.");
             _enabled = false;
         }
     }

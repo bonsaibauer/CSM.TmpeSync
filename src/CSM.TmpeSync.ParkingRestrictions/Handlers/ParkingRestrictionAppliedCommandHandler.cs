@@ -22,7 +22,7 @@ namespace CSM.TmpeSync.ParkingRestrictions.Handlers
         {
             Log.Info(LogCategory.Network,
                 LogRole.Client,
-                "ParkingRestrictionApplied received | segmentId={0} origin={1} state={2}",
+                "[ParkingRestrictions] Applied command received | segmentId={0} origin={1} state={2}.",
                 segmentId,
                 origin ?? "unknown",
                 state);
@@ -31,7 +31,7 @@ namespace CSM.TmpeSync.ParkingRestrictions.Handlers
             {
                 Log.Warn(LogCategory.Synchronization,
                     LogRole.Client,
-                    "ParkingRestrictionApplied skipped | segmentId={0} origin={1} reason=segment_missing",
+                    "[ParkingRestrictions] Applied command skipped | segmentId={0} origin={1} reason=segment_missing.",
                     segmentId,
                     origin ?? "unknown");
                 return;
@@ -43,7 +43,7 @@ namespace CSM.TmpeSync.ParkingRestrictions.Handlers
                 {
                     Log.Warn(LogCategory.Synchronization,
                         LogRole.Client,
-                        "ParkingRestrictionApplied skipped during simulation | segmentId={0} origin={1} reason=entity_missing",
+                        "[ParkingRestrictions] Applied command skipped during simulation | segmentId={0} origin={1} reason=entity_missing.",
                         segmentId,
                         origin ?? "unknown");
                     return;
@@ -62,7 +62,7 @@ namespace CSM.TmpeSync.ParkingRestrictions.Handlers
                         Log.Error(
                             LogCategory.Synchronization,
                             LogRole.Client,
-                            "ParkingRestrictionApplied failed | segmentId={0}",
+                            "[ParkingRestrictions] Apply failed | segmentId={0}.",
                             segmentId);
                     }
                     else if (result.Deferred)
@@ -70,7 +70,7 @@ namespace CSM.TmpeSync.ParkingRestrictions.Handlers
                         Log.Info(
                             LogCategory.Synchronization,
                             LogRole.Client,
-                            "ParkingRestrictionApplied deferred | segmentId={0}",
+                            "[ParkingRestrictions] Apply deferred | segmentId={0}.",
                             segmentId);
                     }
                     else
@@ -78,7 +78,7 @@ namespace CSM.TmpeSync.ParkingRestrictions.Handlers
                         Log.Info(
                             LogCategory.Synchronization,
                             LogRole.Client,
-                            "ParkingRestrictionApplied applied | segmentId={0}",
+                            "[ParkingRestrictions] Apply completed | segmentId={0}.",
                             segmentId);
                     }
                 }

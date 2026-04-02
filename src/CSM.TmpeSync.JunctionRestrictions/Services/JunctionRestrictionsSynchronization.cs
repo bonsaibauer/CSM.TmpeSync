@@ -33,7 +33,7 @@ namespace CSM.TmpeSync.JunctionRestrictions.Services
             Log.Info(
                 LogCategory.Synchronization,
                 LogRole.Host,
-                "[JunctionRestrictions] Resync for reconnecting client | target={0} items={1}",
+                "[JunctionRestrictions] Resync for reconnecting client | target={0} items={1}.",
                 clientId,
                 cached.Count);
 
@@ -120,7 +120,7 @@ namespace CSM.TmpeSync.JunctionRestrictions.Services
                     Log.Warn(
                         LogCategory.Synchronization,
                         CurrentRole(),
-                        "[JunctionRestrictions] Broadcast read failed | nodeId={0} segmentId={1} context={2}",
+                        "[JunctionRestrictions] Broadcast read failed | nodeId={0} segmentId={1} context={2}.",
                         nodeId,
                         segmentId,
                         context ?? "unknown");
@@ -146,7 +146,7 @@ namespace CSM.TmpeSync.JunctionRestrictions.Services
                 Log.Info(
                     LogCategory.Synchronization,
                     LogRole.Host,
-                    "[JunctionRestrictions] Host applied | node={0} seg={1} ctx={2} state={3}",
+                    "[JunctionRestrictions] Host applied | nodeId={0} segmentId={1} context={2} state={3}.",
                     nodeId,
                     segmentId,
                     context ?? "unknown",
@@ -167,7 +167,7 @@ namespace CSM.TmpeSync.JunctionRestrictions.Services
                 Log.Info(
                     LogCategory.Network,
                     LogRole.Client,
-                    "[JunctionRestrictions] Client sent update | node={0} seg={1} ctx={2} state={3}",
+                    "[JunctionRestrictions] Client sent update request | nodeId={0} segmentId={1} context={2} state={3}.",
                     nodeId,
                     segmentId,
                     context ?? "unknown",
@@ -301,7 +301,7 @@ namespace CSM.TmpeSync.JunctionRestrictions.Services
                     Log.Warn(
                         LogCategory.Synchronization,
                         Role,
-                        "[JunctionRestrictions] OnApplied handler threw | nodeId={0} segmentId={1} origin={2} error={3}",
+                        "[JunctionRestrictions] OnApplied handler threw | nodeId={0} segmentId={1} origin={2} error={3}.",
                         NodeId,
                         SegmentId,
                         Origin,
@@ -317,7 +317,7 @@ namespace CSM.TmpeSync.JunctionRestrictions.Services
                 Log.Error(
                     LogCategory.Synchronization,
                     Role,
-                    "[JunctionRestrictions] Apply failed | nodeId={0} segmentId={1} origin={2} attempts={3} reason={4} immediate={5}",
+                    "[JunctionRestrictions] Apply failed | nodeId={0} segmentId={1} origin={2} attempts={3} reason={4} immediate={5}.",
                     NodeId,
                     SegmentId,
                     Origin,
@@ -581,7 +581,7 @@ namespace CSM.TmpeSync.JunctionRestrictions.Services
                     Log.Warn(
                         LogCategory.Synchronization,
                         context.Role,
-                        "[JunctionRestrictions] Setter returned false | nodeId={0} segmentId={1} action={2} origin={3}",
+                        "[JunctionRestrictions] Setter returned false | nodeId={0} segmentId={1} action={2} origin={3}.",
                         context.NodeId,
                         context.SegmentId,
                         action,
@@ -598,7 +598,7 @@ namespace CSM.TmpeSync.JunctionRestrictions.Services
                     Log.Warn(
                         LogCategory.Synchronization,
                         context.Role,
-                        "[JunctionRestrictions] Setter retry scheduled | nodeId={0} segmentId={1} action={2} origin={3} reason=lane_connection_uninitialized error={4}",
+                        "[JunctionRestrictions] Setter retry scheduled | nodeId={0} segmentId={1} action={2} origin={3} reason=lane_connection_uninitialized error={4}.",
                         context.NodeId,
                         context.SegmentId,
                         action,
@@ -610,7 +610,7 @@ namespace CSM.TmpeSync.JunctionRestrictions.Services
                 Log.Error(
                     LogCategory.Synchronization,
                     context.Role,
-                    "[JunctionRestrictions] Setter threw | nodeId={0} segmentId={1} action={2} origin={3} error={4}",
+                    "[JunctionRestrictions] Setter threw | nodeId={0} segmentId={1} action={2} origin={3} error={4}.",
                     context.NodeId,
                     context.SegmentId,
                     action,
@@ -623,7 +623,7 @@ namespace CSM.TmpeSync.JunctionRestrictions.Services
                 Log.Error(
                     LogCategory.Synchronization,
                     context.Role,
-                    "[JunctionRestrictions] Setter threw | nodeId={0} segmentId={1} action={2} origin={3} error={4}",
+                    "[JunctionRestrictions] Setter threw | nodeId={0} segmentId={1} action={2} origin={3} error={4}.",
                     context.NodeId,
                     context.SegmentId,
                     action,
@@ -643,7 +643,7 @@ namespace CSM.TmpeSync.JunctionRestrictions.Services
                     Log.Warn(
                         LogCategory.Synchronization,
                         role,
-                        "[JunctionRestrictions] Apply skipped | reason=tmpe_options_unavailable");
+                        "[JunctionRestrictions] Apply skipped | reason=tmpe_options_unavailable.");
                     return false;
                 }
 
@@ -654,7 +654,7 @@ namespace CSM.TmpeSync.JunctionRestrictions.Services
                 Log.Error(
                     LogCategory.Synchronization,
                     role,
-                    "[JunctionRestrictions] Apply failed | reason=tmpe_options_ensure_exception error={0}",
+                    "[JunctionRestrictions] Apply failed | reason=tmpe_options_ensure_exception error={0}.",
                     ex);
                 return false;
             }

@@ -21,7 +21,7 @@ namespace CSM.TmpeSync.VehicleRestrictions.Services
             Log.Info(
                 LogCategory.Synchronization,
                 LogRole.Host,
-                "[VehicleRestrictions] Resync for reconnecting client | target={0} items={1}",
+                "[VehicleRestrictions] Resync for reconnecting client | target={0} items={1}.",
                 clientId,
                 cached.Count);
 

@@ -2,6 +2,19 @@
 
 In-game changelog source: `src/CSM.TmpeSync/Services/UI/ChangelogPanel.cs` (`ChangelogService.LoadEntries()`).
 
+## [2.0.0.0] - 2026-04-03
+
+### Current State
+- **Timed Traffic Lights synchronization**: Active and fully integrated as a host-authoritative sync feature.
+- **Manual Traffic Lights synchronization**: Active as a stable node-snapshot sync feature for multiplayer sessions.
+
+### Runtime & Data Flow
+- **Timed Traffic Lights**: Uses an event-driven definition/runtime pipeline with per-frame batching and synchronization-readiness guards.
+- **Manual Traffic Lights**: Uses a lean queued listener-dispatch flow with low runtime overhead.
+
+### Logging
+- **Synchronization logs**: Use consistent tags, contextual fields, and host/client diagnostic output.
+
 ## [1.2.0.0] - 2026-03-31
 
 ### Compatibility & Health Check

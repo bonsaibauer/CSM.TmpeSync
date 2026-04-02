@@ -36,7 +36,7 @@ namespace CSM.TmpeSync.SpeedLimits.Services
                 Log.Warn(
                     LogCategory.Synchronization,
                     CurrentRole(),
-                    "[SpeedLimits] Default apply skipped | netInfo=<null> origin={0}",
+                    "[SpeedLimits] Default apply skipped | netInfo=<null> origin={0}.",
                     origin ?? "unknown");
                 error = DefaultApplyError.NetInfoMissing;
                 return false;
@@ -48,7 +48,7 @@ namespace CSM.TmpeSync.SpeedLimits.Services
                 Log.Warn(
                     LogCategory.Synchronization,
                     CurrentRole(),
-                    "[SpeedLimits] Default apply skipped | netInfo={0} origin={1} reason=netinfo_missing",
+                    "[SpeedLimits] Default apply skipped | netInfo={0} origin={1} reason=netinfo_missing.",
                     netInfoName,
                     origin ?? "unknown");
                 error = DefaultApplyError.NetInfoMissing;
@@ -68,7 +68,7 @@ namespace CSM.TmpeSync.SpeedLimits.Services
                         Log.Warn(
                             LogCategory.Synchronization,
                             CurrentRole(),
-                            "[SpeedLimits] Default apply failed | netInfo={0} origin={1} reason=adapter_unavailable",
+                            "[SpeedLimits] Default apply failed | netInfo={0} origin={1} reason=adapter_unavailable.",
                             netInfoName,
                             origin ?? "unknown");
                         error = DefaultApplyError.AdapterUnavailable;
@@ -79,7 +79,7 @@ namespace CSM.TmpeSync.SpeedLimits.Services
                 Log.Info(
                     LogCategory.Synchronization,
                     CurrentRole(),
-                    "[SpeedLimits] Default applied | netInfo={0} custom={1} value={2:F3} origin={3}",
+                    "[SpeedLimits] Default applied | netInfo={0} custom={1} value={2:F3} origin={3}.",
                     netInfoName,
                     hasCustomSpeed,
                     customGameSpeed,
@@ -91,7 +91,7 @@ namespace CSM.TmpeSync.SpeedLimits.Services
                 Log.Warn(
                     LogCategory.Synchronization,
                     CurrentRole(),
-                    "[SpeedLimits] Default apply exception | netInfo={0} origin={1} error={2}",
+                    "[SpeedLimits] Default apply exception | netInfo={0} origin={1} error={2}.",
                     netInfoName,
                     origin ?? "unknown",
                     ex);
@@ -191,7 +191,7 @@ namespace CSM.TmpeSync.SpeedLimits.Services
                 Log.Warn(
                     LogCategory.Synchronization,
                     CurrentRole(),
-                    "[SpeedLimits] Broadcast read failed | segmentId={0} context={1}",
+                    "[SpeedLimits] Broadcast read failed | segmentId={0} context={1}.",
                     segmentId,
                     context ?? "unknown");
                 state = new SpeedLimitsAppliedCommand { SegmentId = segmentId };
@@ -333,7 +333,7 @@ namespace CSM.TmpeSync.SpeedLimits.Services
                     Log.Warn(
                         LogCategory.Synchronization,
                         Role,
-                        "[SpeedLimits] OnApplied handler threw | segmentId={0} origin={1} error={2}",
+                        "[SpeedLimits] OnApplied handler threw | segmentId={0} origin={1} error={2}.",
                         SegmentId,
                         Origin,
                         ex);
@@ -348,7 +348,7 @@ namespace CSM.TmpeSync.SpeedLimits.Services
                 Log.Error(
                     LogCategory.Synchronization,
                     Role,
-                    "[SpeedLimits] Apply failed | segmentId={0} origin={1} attempts={2} reason={3} immediate={4}",
+                    "[SpeedLimits] Apply failed | segmentId={0} origin={1} attempts={2} reason={3} immediate={4}.",
                     SegmentId,
                     Origin,
                     Attempt,
@@ -477,7 +477,7 @@ namespace CSM.TmpeSync.SpeedLimits.Services
                     Log.Warn(
                         LogCategory.Synchronization,
                         context.Role,
-                        "[SpeedLimits] Apply threw NullReferenceException | segmentId={0} origin={1} error={2}",
+                        "[SpeedLimits] Apply threw NullReferenceException | segmentId={0} origin={1} error={2}.",
                         context.SegmentId,
                         context.Origin,
                         ex);
@@ -490,7 +490,7 @@ namespace CSM.TmpeSync.SpeedLimits.Services
                     Log.Error(
                         LogCategory.Synchronization,
                         context.Role,
-                        "[SpeedLimits] Apply threw | segmentId={0} origin={1} error={2}",
+                        "[SpeedLimits] Apply threw | segmentId={0} origin={1} error={2}.",
                         context.SegmentId,
                         context.Origin,
                         ex);
@@ -623,7 +623,7 @@ namespace CSM.TmpeSync.SpeedLimits.Services
                 Log.Info(
                     LogCategory.Synchronization,
                     LogRole.Host,
-                    "[SpeedLimits] Host applied default | netInfo={0} custom={1} value={2:F3} ctx={3}",
+                    "[SpeedLimits] Host applied default | netInfo={0} custom={1} value={2:F3} context={3}.",
                     payload.NetInfoName,
                     payload.HasCustomSpeed,
                     payload.CustomGameSpeed,
@@ -637,7 +637,7 @@ namespace CSM.TmpeSync.SpeedLimits.Services
                 Log.Info(
                     LogCategory.Network,
                     LogRole.Client,
-                    "[SpeedLimits] Client sent default update | netInfo={0} custom={1} value={2:F3} ctx={3}",
+                    "[SpeedLimits] Client sent default update request | netInfo={0} custom={1} value={2:F3} context={3}.",
                     payload.NetInfoName,
                     payload.HasCustomSpeed,
                     payload.CustomGameSpeed,
@@ -663,7 +663,7 @@ namespace CSM.TmpeSync.SpeedLimits.Services
                 Log.Info(
                     LogCategory.Synchronization,
                     LogRole.Host,
-                    "[SpeedLimits] Host applied | segmentId={0} count={1} ctx={2}",
+                    "[SpeedLimits] Host applied | segmentId={0} count={1} context={2}.",
                     payload.SegmentId,
                     payload.Items?.Count ?? 0,
                     context ?? "unknown");
@@ -676,7 +676,7 @@ namespace CSM.TmpeSync.SpeedLimits.Services
                 Log.Info(
                     LogCategory.Network,
                     LogRole.Client,
-                    "[SpeedLimits] Client sent update | segmentId={0} count={1} ctx={2}",
+                    "[SpeedLimits] Client sent update request | segmentId={0} count={1} context={2}.",
                     payload.SegmentId,
                     payload.Items?.Count ?? 0,
                     context ?? "unknown");
@@ -687,7 +687,7 @@ namespace CSM.TmpeSync.SpeedLimits.Services
                     Log.Debug(
                         LogCategory.Network,
                         LogRole.Client,
-                        "[SpeedLimits] Skipped send, segment missing locally | segmentId={0} ctx={1}",
+                        "[SpeedLimits] Skipped send, segment missing locally | segmentId={0} context={1}.",
                         request.SegmentId,
                         context ?? "unknown");
                     return;

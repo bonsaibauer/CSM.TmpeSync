@@ -16,7 +16,7 @@ namespace CSM.TmpeSync.PrioritySigns.Handlers
             Log.Info(
                 LogCategory.Network,
                 LogRole.Host,
-                "PrioritySignUpdateRequest received | nodeId={0} segmentId={1} sign={2} senderId={3}",
+                "[PrioritySigns] Update request received | nodeId={0} segmentId={1} sign={2} senderId={3}.",
                 command.NodeId,
                 command.SegmentId,
                 command.SignType,
@@ -24,7 +24,7 @@ namespace CSM.TmpeSync.PrioritySigns.Handlers
 
             if (!CsmBridge.IsServerInstance())
             {
-                Log.Debug(LogCategory.Network, LogRole.Client, "PrioritySignUpdateRequest ignored | reason=not_server_instance");
+                Log.Debug(LogCategory.Network, LogRole.Client, "[PrioritySigns] Update request ignored | reason=not_server_instance.");
                 return;
             }
 
@@ -33,7 +33,7 @@ namespace CSM.TmpeSync.PrioritySigns.Handlers
                 Log.Warn(
                     LogCategory.Network,
                     LogRole.Host,
-                    "PrioritySignUpdateRequest rejected | nodeId={0} reason=node_missing",
+                    "[PrioritySigns] Update request rejected | nodeId={0} reason=node_missing.",
                     command.NodeId);
                 CsmBridge.SendToClient(senderId, new RequestRejected { Reason = "entity_missing", EntityId = command.NodeId, EntityType = 3 });
                 return;
@@ -44,7 +44,7 @@ namespace CSM.TmpeSync.PrioritySigns.Handlers
                 Log.Warn(
                     LogCategory.Network,
                     LogRole.Host,
-                    "PrioritySignUpdateRequest rejected | nodeId={0} segmentId={1} reason=segment_missing",
+                    "[PrioritySigns] Update request rejected | nodeId={0} segmentId={1} reason=segment_missing.",
                     command.NodeId,
                     command.SegmentId);
                 CsmBridge.SendToClient(senderId, new RequestRejected { Reason = "entity_missing", EntityId = command.SegmentId, EntityType = 2 });
@@ -58,7 +58,7 @@ namespace CSM.TmpeSync.PrioritySigns.Handlers
                     Log.Warn(
                         LogCategory.Synchronization,
                         LogRole.Host,
-                        "Priority sign apply aborted | nodeId={0} segmentId={1} reason=entity_missing_before_apply",
+                        "[PrioritySigns] Apply aborted | nodeId={0} segmentId={1} reason=entity_missing_before_apply.",
                         command.NodeId,
                         command.SegmentId);
                     return;
@@ -72,7 +72,7 @@ namespace CSM.TmpeSync.PrioritySigns.Handlers
                         Log.Warn(
                             LogCategory.Synchronization,
                             LogRole.Host,
-                            "Priority sign apply skipped | nodeId={0} segmentId={1} reason=entity_missing_while_locked",
+                            "[PrioritySigns] Apply skipped | nodeId={0} segmentId={1} reason=entity_missing_while_locked.",
                             command.NodeId,
                             command.SegmentId);
                         return;
@@ -85,7 +85,7 @@ namespace CSM.TmpeSync.PrioritySigns.Handlers
                             Log.Error(
                                 LogCategory.Synchronization,
                                 LogRole.Host,
-                                "Priority sign apply failed | nodeId={0} segmentId={1} senderId={2}",
+                                "[PrioritySigns] Apply failed | nodeId={0} segmentId={1} senderId={2}.",
                                 command.NodeId,
                                 command.SegmentId,
                                 senderId);
@@ -112,7 +112,7 @@ namespace CSM.TmpeSync.PrioritySigns.Handlers
                             Log.Warn(
                                 LogCategory.Synchronization,
                                 LogRole.Host,
-                                "Priority sign verify failed during node broadcast | nodeId={0} segmentId={1}",
+                                "[PrioritySigns] Verify failed during node broadcast | nodeId={0} segmentId={1}.",
                                 command.NodeId,
                                 segId);
                         }
@@ -120,7 +120,7 @@ namespace CSM.TmpeSync.PrioritySigns.Handlers
                         Log.Info(
                         LogCategory.Synchronization,
                         LogRole.Host,
-                        "Priority sign applied | nodeId={0} segmentId={1} sign={2} action=broadcast_node",
+                        "[PrioritySigns] Apply completed | nodeId={0} segmentId={1} sign={2} action=broadcast_node.",
                         command.NodeId,
                         segId,
                         signAtEnd);

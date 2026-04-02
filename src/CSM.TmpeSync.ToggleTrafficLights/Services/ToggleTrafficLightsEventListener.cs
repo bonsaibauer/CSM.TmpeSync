@@ -34,7 +34,7 @@ namespace CSM.TmpeSync.ToggleTrafficLights.Services
 
                 if (!patchedAny)
                 {
-                    Log.Warn(LogCategory.Network, LogRole.Host, "[ToggleTrafficLights] No TM:PE methods could be patched. Listener disabled.");
+                    Log.Warn(LogCategory.Network, LogRole.Host, "[ToggleTrafficLights] Harmony listener disabled | reason=no_patch_targets.");
                     _harmony = null;
                     return;
                 }
@@ -43,7 +43,7 @@ namespace CSM.TmpeSync.ToggleTrafficLights.Services
             }
             catch (Exception ex)
             {
-                Log.Error(LogCategory.Network, LogRole.Host, "[ToggleTrafficLights] Gateway enable failed: {0}", ex);
+                Log.Error(LogCategory.Network, LogRole.Host, "[ToggleTrafficLights] Harmony listener enable failed | error={0}.", ex);
             }
         }
 
@@ -55,11 +55,11 @@ namespace CSM.TmpeSync.ToggleTrafficLights.Services
             try
             {
                 _harmony?.UnpatchAll(HarmonyId);
-                Log.Info(LogCategory.Network, LogRole.Host, "[ToggleTrafficLights] Harmony gateway disabled.");
+                Log.Info(LogCategory.Network, LogRole.Host, "[ToggleTrafficLights] Harmony listener disabled.");
             }
             catch (Exception ex)
             {
-                Log.Warn(LogCategory.Network, LogRole.Host, "[ToggleTrafficLights] Gateway disable had issues: {0}", ex);
+                Log.Warn(LogCategory.Network, LogRole.Host, "[ToggleTrafficLights] Harmony listener disable failed | error={0}.", ex);
             }
             finally
             {
@@ -88,7 +88,7 @@ namespace CSM.TmpeSync.ToggleTrafficLights.Services
                     if (ps.Length >= 1 && ps[0].ParameterType == typeof(ushort))
                     {
                         _harmony.Patch(mi, postfix: new HarmonyMethod(postfix));
-                        Log.Info(LogCategory.Network, LogRole.Host, "[ToggleTrafficLights] Patched {0}.{1}({2}).", tlmType.FullName, mi.Name, string.Join(", ", ps.Select(p => p.ParameterType.Name).ToArray()));
+                        Log.Info(LogCategory.Network, LogRole.Host, "[ToggleTrafficLights] Harmony patched {0}.{1}({2}).", tlmType.FullName, mi.Name, string.Join(", ", ps.Select(p => p.ParameterType.Name).ToArray()));
                         patched++;
                     }
                 }
@@ -101,7 +101,7 @@ namespace CSM.TmpeSync.ToggleTrafficLights.Services
                     if (ps.Length >= 3 && ps[0].ParameterType == typeof(ushort))
                     {
                         _harmony.Patch(mi, postfix: new HarmonyMethod(postfix));
-                        Log.Info(LogCategory.Network, LogRole.Host, "[ToggleTrafficLights] Patched {0}.{1}({2}).", tlmType.FullName, mi.Name, string.Join(", ", ps.Select(p => p.ParameterType.Name).ToArray()));
+                        Log.Info(LogCategory.Network, LogRole.Host, "[ToggleTrafficLights] Harmony patched {0}.{1}({2}).", tlmType.FullName, mi.Name, string.Join(", ", ps.Select(p => p.ParameterType.Name).ToArray()));
                         patched++;
                     }
                 }
@@ -113,7 +113,13 @@ namespace CSM.TmpeSync.ToggleTrafficLights.Services
             if (uiMi != null)
             {
                 _harmony.Patch(uiMi, postfix: new HarmonyMethod(postfix));
-                Log.Info(LogCategory.Network, LogRole.Host, "[ToggleTrafficLights] Patched {0}.ToggleTrafficLight(ushort).", uiType.FullName);
+                Log.Info(
+                    LogCategory.Network,
+                    LogRole.Host,
+                    "[ToggleTrafficLights] Harmony patched {0}.{1}({2}).",
+                    uiType.FullName,
+                    uiMi.Name,
+                    string.Join(", ", uiMi.GetParameters().Select(p => p.ParameterType.Name).ToArray()));
                 patched++;
             }
 
@@ -204,7 +210,7 @@ namespace CSM.TmpeSync.ToggleTrafficLights.Services
             }
             catch (Exception ex)
             {
-                Log.Warn(LogCategory.Network, LogRole.Host, "[ToggleTrafficLights] ToggleTrafficLight postfix error: {0}", ex);
+                Log.Warn(LogCategory.Network, LogRole.Host, "[ToggleTrafficLights] ToggleTrafficLight postfix error: {0}.", ex);
             }
         }
 
@@ -216,7 +222,7 @@ namespace CSM.TmpeSync.ToggleTrafficLights.Services
             bool enabled = false;
             if (!ToggleTrafficLightsSynchronization.TryRead(nodeId, out enabled))
             {
-                Log.Warn(LogCategory.Synchronization, LogRole.Host, "[ToggleTrafficLights] TryRead failed | node={0}", nodeId);
+                Log.Warn(LogCategory.Synchronization, LogRole.Host, "[ToggleTrafficLights] TryRead failed | nodeId={0}.", nodeId);
                 return;
             }
 
@@ -230,7 +236,7 @@ namespace CSM.TmpeSync.ToggleTrafficLights.Services
                     Log.Info(
                         LogCategory.Synchronization,
                         LogRole.Host,
-                        "[ToggleTrafficLights] Host applied toggle | node={0} enabled={1} context={2}",
+                        "[ToggleTrafficLights] Host applied | nodeId={0} enabled={1} context={2}.",
                         nodeId,
                         enabled,
                         context);
@@ -246,7 +252,7 @@ namespace CSM.TmpeSync.ToggleTrafficLights.Services
                 Log.Info(
                     LogCategory.Network,
                     LogRole.Client,
-                    "[ToggleTrafficLights] Client sent ToggleTrafficLightsUpdateRequest | node={0} enabled={1} context={2}",
+                    "[ToggleTrafficLights] Client sent update request | nodeId={0} enabled={1} context={2}.",
                     nodeId,
                     enabled,
                     context);

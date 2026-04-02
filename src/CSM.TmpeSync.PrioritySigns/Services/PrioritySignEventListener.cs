@@ -33,7 +33,7 @@ namespace CSM.TmpeSync.PrioritySigns.Services
 
                 if (!patchedAny)
                 {
-                    Log.Warn(LogCategory.Network, LogRole.Host, "[PrioritySigns] No TM:PE priority sign methods could be patched. Listener disabled.");
+                    Log.Warn(LogCategory.Network, LogRole.Host, "[PrioritySigns] Harmony listener disabled | reason=no_patch_targets.");
                     _harmony = null;
                     return;
                 }
@@ -42,7 +42,7 @@ namespace CSM.TmpeSync.PrioritySigns.Services
             }
             catch (Exception ex)
             {
-                Log.Error(LogCategory.Network, LogRole.Host, "[PrioritySigns] Gateway enable failed: {0}", ex);
+                Log.Error(LogCategory.Network, LogRole.Host, "[PrioritySigns] Harmony listener enable failed | error={0}.", ex);
             }
         }
 
@@ -54,11 +54,11 @@ namespace CSM.TmpeSync.PrioritySigns.Services
             try
             {
                 _harmony?.UnpatchAll(HarmonyId);
-                Log.Info(LogCategory.Network, LogRole.Host, "[PrioritySigns] Harmony gateway disabled.");
+                Log.Info(LogCategory.Network, LogRole.Host, "[PrioritySigns] Harmony listener disabled.");
             }
             catch (Exception ex)
             {
-                Log.Warn(LogCategory.Network, LogRole.Host, "[PrioritySigns] Gateway disable had issues: {0}", ex);
+                Log.Warn(LogCategory.Network, LogRole.Host, "[PrioritySigns] Harmony listener disable failed | error={0}.", ex);
             }
             finally
             {
@@ -82,7 +82,13 @@ namespace CSM.TmpeSync.PrioritySigns.Services
                 .GetMethod(nameof(SetPrioritySign_Postfix), BindingFlags.NonPublic | BindingFlags.Static);
 
             _harmony.Patch(method, postfix: new HarmonyMethod(postfix));
-            Log.Info(LogCategory.Network, LogRole.Host, "[PrioritySigns] Harmony gateway patched {0}.{1}.", method.DeclaringType?.FullName, method.Name);
+            Log.Info(
+                LogCategory.Network,
+                LogRole.Host,
+                "[PrioritySigns] Harmony patched {0}.{1}({2}).",
+                method.DeclaringType?.FullName,
+                method.Name,
+                string.Join(", ", method.GetParameters().Select(p => p.ParameterType.Name).ToArray()));
             return true;
         }
 
@@ -100,7 +106,13 @@ namespace CSM.TmpeSync.PrioritySigns.Services
                 .GetMethod(nameof(RemovePrioritySignFromSegmentEnd_Postfix), BindingFlags.NonPublic | BindingFlags.Static);
 
             _harmony.Patch(method, postfix: new HarmonyMethod(postfix));
-            Log.Info(LogCategory.Network, LogRole.Host, "[PrioritySigns] Harmony gateway patched {0}.{1}.", method.DeclaringType?.FullName, method.Name);
+            Log.Info(
+                LogCategory.Network,
+                LogRole.Host,
+                "[PrioritySigns] Harmony patched {0}.{1}({2}).",
+                method.DeclaringType?.FullName,
+                method.Name,
+                string.Join(", ", method.GetParameters().Select(p => p.ParameterType.Name).ToArray()));
             return true;
         }
 
@@ -195,7 +207,7 @@ namespace CSM.TmpeSync.PrioritySigns.Services
             }
             catch (Exception ex)
             {
-                Log.Warn(LogCategory.Network, LogRole.Host, "[PrioritySigns] SetPrioritySign postfix error: {0}", ex);
+                Log.Warn(LogCategory.Network, LogRole.Host, "[PrioritySigns] SetPrioritySign postfix error: {0}.", ex);
             }
         }
 
@@ -218,7 +230,7 @@ namespace CSM.TmpeSync.PrioritySigns.Services
             }
             catch (Exception ex)
             {
-                Log.Warn(LogCategory.Network, LogRole.Host, "[PrioritySigns] RemovePrioritySign postfix error: {0}", ex);
+                Log.Warn(LogCategory.Network, LogRole.Host, "[PrioritySigns] RemovePrioritySign postfix error: {0}.", ex);
             }
         }
 
@@ -244,7 +256,7 @@ namespace CSM.TmpeSync.PrioritySigns.Services
                     Log.Warn(
                         LogCategory.Synchronization,
                         LogRole.Host,
-                        "[PrioritySigns] TryRead failed during node broadcast | node={0} segment={1}",
+                        "[PrioritySigns] TryRead failed during node broadcast | nodeId={0} segmentId={1}.",
                         nodeId,
                         segId);
                 }
@@ -260,7 +272,7 @@ namespace CSM.TmpeSync.PrioritySigns.Services
                 Log.Info(
                     LogCategory.Synchronization,
                     LogRole.Host,
-                    "[PrioritySigns] Host applied sign | node={0} seg={1} sign={2} context={3}",
+                    "[PrioritySigns] Host applied | nodeId={0} segmentId={1} sign={2} context={3}.",
                     nodeId,
                     segmentId,
                     signType,
@@ -281,7 +293,7 @@ namespace CSM.TmpeSync.PrioritySigns.Services
             Log.Info(
                 LogCategory.Network,
                 LogRole.Client,
-                "[PrioritySigns] Client sent PrioritySignUpdateRequest | node={0} seg={1} sign={2} context={3}",
+                "[PrioritySigns] Client sent update request | nodeId={0} segmentId={1} sign={2} context={3}.",
                 nodeId,
                 segmentId,
                 signType,

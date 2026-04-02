@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using System.Reflection;
 using HarmonyLib;
 using CSM.TmpeSync.ClearTraffic.Messages;
@@ -27,7 +28,7 @@ namespace CSM.TmpeSync.ClearTraffic.Services
                 var method = ClearTrafficReflection.FindClearTrafficMethod();
                 if (method == null)
                 {
-                    Log.Warn(LogCategory.Network, LogRole.Host, "[ClearTraffic] No TM:PE ClearTraffic method found. Listener disabled.");
+                    Log.Warn(LogCategory.Network, LogRole.Host, "[ClearTraffic] Harmony listener disabled | reason=no_patch_targets.");
                     _harmony = null;
                     return;
                 }
@@ -35,13 +36,19 @@ namespace CSM.TmpeSync.ClearTraffic.Services
                 var postfix = typeof(ClearTrafficEventListener)
                     .GetMethod(nameof(PostClearTraffic), BindingFlags.NonPublic | BindingFlags.Static);
                 _harmony.Patch(method, postfix: new HarmonyMethod(postfix));
-                Log.Info(LogCategory.Network, LogRole.Host, "[ClearTraffic] Harmony gateway patched {0}.{1}.", method.DeclaringType?.FullName, method.Name);
+                Log.Info(
+                    LogCategory.Network,
+                    LogRole.Host,
+                    "[ClearTraffic] Harmony patched {0}.{1}({2}).",
+                    method.DeclaringType?.FullName,
+                    method.Name,
+                    string.Join(", ", method.GetParameters().Select(p => p.ParameterType.Name).ToArray()));
 
                 _enabled = true;
             }
             catch (Exception ex)
             {
-                Log.Error(LogCategory.Network, LogRole.Host, "[ClearTraffic] Listener enable failed: {0}", ex);
+                Log.Error(LogCategory.Network, LogRole.Host, "[ClearTraffic] Harmony listener enable failed | error={0}.", ex);
             }
         }
 
@@ -53,11 +60,11 @@ namespace CSM.TmpeSync.ClearTraffic.Services
             try
             {
                 _harmony?.UnpatchAll(HarmonyId);
-                Log.Info(LogCategory.Network, LogRole.Host, "[ClearTraffic] Harmony gateway disabled.");
+                Log.Info(LogCategory.Network, LogRole.Host, "[ClearTraffic] Harmony listener disabled.");
             }
             catch (Exception ex)
             {
-                Log.Warn(LogCategory.Network, LogRole.Host, "[ClearTraffic] Listener disable had issues: {0}", ex);
+                Log.Warn(LogCategory.Network, LogRole.Host, "[ClearTraffic] Harmony listener disable failed | error={0}.", ex);
             }
             finally
             {
@@ -75,18 +82,18 @@ namespace CSM.TmpeSync.ClearTraffic.Services
 
                 if (CsmBridge.IsServerInstance())
                 {
-                    Log.Info(LogCategory.Synchronization, LogRole.Host, "[ClearTraffic] Host applied clear; broadcasting.");
+                    Log.Info(LogCategory.Synchronization, LogRole.Host, "[ClearTraffic] Host applied | action=clear_traffic context=listener.");
                     ClearTrafficSynchronization.Dispatch(new ClearTrafficAppliedCommand());
                 }
                 else
                 {
-                    Log.Info(LogCategory.Network, LogRole.Client, "[ClearTraffic] Client requested clear; sending request.");
+                    Log.Info(LogCategory.Network, LogRole.Client, "[ClearTraffic] Client sent update request | action=clear_traffic context=listener.");
                     ClearTrafficSynchronization.Dispatch(new ClearTrafficUpdateRequest());
                 }
             }
             catch (Exception ex)
             {
-                Log.Warn(LogCategory.Network, LogRole.Host, "[ClearTraffic] PostClearTraffic error: {0}", ex);
+                Log.Warn(LogCategory.Network, LogRole.Host, "[ClearTraffic] PostClearTraffic error: {0}.", ex);
             }
         }
     }

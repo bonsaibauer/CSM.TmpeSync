@@ -16,7 +16,7 @@ namespace CSM.TmpeSync.JunctionRestrictions.Handlers
             Log.Info(
                 LogCategory.Network,
                 LogRole.Host,
-                "JunctionRestrictionsUpdateRequest received | nodeId={0} segmentId={1} state={2} senderId={3}",
+                "[JunctionRestrictions] Update request received | nodeId={0} segmentId={1} state={2} senderId={3}.",
                 command.NodeId,
                 command.SegmentId,
                 command.State,
@@ -24,19 +24,19 @@ namespace CSM.TmpeSync.JunctionRestrictions.Handlers
 
             if (!CsmBridge.IsServerInstance())
             {
-                Log.Debug(LogCategory.Network, LogRole.Client, "JunctionRestrictionsUpdateRequest ignored | reason=not_server_instance");
+                Log.Debug(LogCategory.Network, LogRole.Client, "[JunctionRestrictions] Update request ignored | reason=not_server_instance.");
                 return;
             }
 
             if (!NetworkUtil.NodeExists(command.NodeId))
             {
-                Log.Warn(LogCategory.Network, LogRole.Host, "JunctionRestrictionsUpdateRequest rejected | nodeId={0} reason=node_missing", command.NodeId);
+                Log.Warn(LogCategory.Network, LogRole.Host, "[JunctionRestrictions] Update request rejected | nodeId={0} reason=node_missing.", command.NodeId);
                 return;
             }
 
             if (!NetworkUtil.SegmentExists(command.SegmentId))
             {
-                Log.Warn(LogCategory.Network, LogRole.Host, "JunctionRestrictionsUpdateRequest rejected | segmentId={0} reason=segment_missing", command.SegmentId);
+                Log.Warn(LogCategory.Network, LogRole.Host, "[JunctionRestrictions] Update request rejected | segmentId={0} reason=segment_missing.", command.SegmentId);
                 return;
             }
 
@@ -44,7 +44,7 @@ namespace CSM.TmpeSync.JunctionRestrictions.Handlers
             {
                 if (!NetworkUtil.NodeExists(command.NodeId) || !NetworkUtil.SegmentExists(command.SegmentId))
                 {
-                    Log.Warn(LogCategory.Synchronization, LogRole.Host, "JunctionRestrictions apply aborted | nodeId={0} segmentId={1} reason=missing_before_apply", command.NodeId, command.SegmentId);
+                    Log.Warn(LogCategory.Synchronization, LogRole.Host, "[JunctionRestrictions] Apply aborted | nodeId={0} segmentId={1} reason=missing_before_apply.", command.NodeId, command.SegmentId);
                     return;
                 }
 
@@ -53,7 +53,7 @@ namespace CSM.TmpeSync.JunctionRestrictions.Handlers
                 {
                     if (!NetworkUtil.NodeExists(command.NodeId) || !NetworkUtil.SegmentExists(command.SegmentId))
                     {
-                        Log.Warn(LogCategory.Synchronization, LogRole.Host, "JunctionRestrictions apply skipped | nodeId={0} segmentId={1} reason=missing_while_locked", command.NodeId, command.SegmentId);
+                        Log.Warn(LogCategory.Synchronization, LogRole.Host, "[JunctionRestrictions] Apply skipped | nodeId={0} segmentId={1} reason=missing_while_locked.", command.NodeId, command.SegmentId);
                         return;
                     }
 
@@ -66,7 +66,7 @@ namespace CSM.TmpeSync.JunctionRestrictions.Handlers
                             Log.Info(
                                 LogCategory.Synchronization,
                                 LogRole.Host,
-                                "JunctionRestrictions applied | nodeId={0} action=broadcast_node senderId={1}",
+                                "[JunctionRestrictions] Apply completed | nodeId={0} action=broadcast_node senderId={1}.",
                                 command.NodeId,
                                 senderId);
                             JunctionRestrictionsSynchronization.BroadcastNode(command.NodeId, $"host_broadcast:sender={senderId}");
@@ -75,13 +75,13 @@ namespace CSM.TmpeSync.JunctionRestrictions.Handlers
 
                     if (!applyResult.Succeeded)
                     {
-                        Log.Error(LogCategory.Synchronization, LogRole.Host, "JunctionRestrictions apply failed | nodeId={0} segmentId={1} senderId={2}", command.NodeId, command.SegmentId, senderId);
+                        Log.Error(LogCategory.Synchronization, LogRole.Host, "[JunctionRestrictions] Apply failed | nodeId={0} segmentId={1} senderId={2}.", command.NodeId, command.SegmentId, senderId);
                         return;
                     }
 
                     if (applyResult.IsDeferred)
                     {
-                        Log.Info(LogCategory.Synchronization, LogRole.Host, "JunctionRestrictions apply deferred | nodeId={0} segmentId={1} senderId={2}", command.NodeId, command.SegmentId, senderId);
+                        Log.Info(LogCategory.Synchronization, LogRole.Host, "[JunctionRestrictions] Apply deferred | nodeId={0} segmentId={1} senderId={2}.", command.NodeId, command.SegmentId, senderId);
                     }
                 }
             });

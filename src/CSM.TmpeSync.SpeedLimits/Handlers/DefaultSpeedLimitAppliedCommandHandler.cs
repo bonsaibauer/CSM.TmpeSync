@@ -20,7 +20,7 @@ namespace CSM.TmpeSync.SpeedLimits.Handlers
             Log.Info(
                 LogCategory.Network,
                 LogRole.Client,
-                "DefaultSpeedLimitApplied received | netInfo={0} custom={1} value={2:F3} origin={3}",
+                "[SpeedLimits] Default applied command received | netInfo={0} custom={1} value={2:F3} origin={3}.",
                 command.NetInfoName ?? "<null>",
                 command.HasCustomSpeed,
                 command.CustomGameSpeed,
@@ -40,7 +40,7 @@ namespace CSM.TmpeSync.SpeedLimits.Handlers
                         Log.Warn(
                             LogCategory.Synchronization,
                             LogRole.Client,
-                            "DefaultSpeedLimitApplied apply failed | netInfo={0} reason={1}",
+                            "[SpeedLimits] Default apply failed | netInfo={0} reason={1}.",
                             command.NetInfoName ?? "<null>",
                             error);
                     }

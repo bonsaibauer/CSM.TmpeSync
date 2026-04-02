@@ -455,8 +455,8 @@ namespace CSM.TmpeSync.Mod
 
         public void OnEnabled()
         {
-            Log.Info(LogCategory.Lifecycle, LogRole.General, "Mod enabled | action=validate_dependencies");
-            Log.Info(LogCategory.Configuration, LogRole.General, "Logging initialized | debug={0} path={1}", Log.IsDebugEnabled ? "ENABLED" : "disabled", Log.LogFilePath);
+            Log.Info(LogCategory.Lifecycle, LogRole.General, "[Lifecycle] Mod enabled | action=validate_dependencies.");
+            Log.Info(LogCategory.Configuration, LogRole.General, "[Configuration] Logging initialized | debug={0} path={1}.", Log.IsDebugEnabled ? "ENABLED" : "disabled", Log.LogFilePath);
 
             CompatibilityChecker.LogMetadataSummary();
             CompatibilityChecker.LogInstalledVersions();
@@ -471,7 +471,7 @@ namespace CSM.TmpeSync.Mod
                 Log.Error(
                     LogCategory.Dependency,
                     LogRole.General,
-                    "Unsupported Cities: Skylines version detected | actual={0} expected={1} status={2}",
+                    "[Dependency] Unsupported Cities: Skylines version detected | actual={0} expected={1} status={2}.",
                     csActualVersion,
                     csExpectedLine,
                     csStatus);
@@ -479,12 +479,12 @@ namespace CSM.TmpeSync.Mod
 
             if (missing.Count > 0)
             {
-                Log.Error(LogCategory.Dependency, LogRole.General, "Missing dependencies detected | items={0}", string.Join(", ", missing.ToArray()));
+                Log.Error(LogCategory.Dependency, LogRole.General, "[Dependency] Missing dependencies detected | items={0}.", string.Join(", ", missing.ToArray()));
                 Deps.DisableSelf(this);
                 return;
             }
 
-            Log.Info(LogCategory.Network, LogRole.General, "Awaiting CSM to activate TM:PE synchronization support.");
+            Log.Info(LogCategory.Network, LogRole.General, "[Network] Awaiting CSM to activate TM:PE synchronization support.");
 
             FeatureBootstrapper.Register();
             // Snapshot orchestration and shared readiness notifier removed; features operate independently
@@ -493,9 +493,9 @@ namespace CSM.TmpeSync.Mod
 
         public void OnDisabled()
         {
-            Log.Info(LogCategory.Lifecycle, LogRole.General, "Mod disabled | begin_cleanup");
+            Log.Info(LogCategory.Lifecycle, LogRole.General, "[Lifecycle] Mod disabled | action=begin_cleanup.");
             // No shared shutdown required
-            Log.Debug(LogCategory.Lifecycle, LogRole.General, "Mod disabled | awaiting_next_enable_cycle");
+            Log.Debug(LogCategory.Lifecycle, LogRole.General, "[Lifecycle] Mod disabled | state=awaiting_next_enable_cycle.");
         }
 
         private static void BuildChangelogUi(UIPanel container)

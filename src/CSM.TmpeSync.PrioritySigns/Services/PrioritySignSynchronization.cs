@@ -23,7 +23,7 @@ namespace CSM.TmpeSync.PrioritySigns.Services
             Log.Info(
                 LogCategory.Synchronization,
                 LogRole.Host,
-                "[PrioritySigns] Resync for reconnecting client | target={0} items={1}",
+                "[PrioritySigns] Resync for reconnecting client | target={0} items={1}.",
                 clientId,
                 cached.Count);
 
