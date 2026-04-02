@@ -41,6 +41,21 @@ namespace CSM.TmpeSync.Services
         private static readonly string LogDirectory;
         private static readonly TimeSpan LogOffset;
         private static readonly bool DebugEnabled;
+        private static readonly string[] BannerLines =
+        {
+            ".-----------------------------------------------------------------.",
+            "|                                                                 |",
+            "|                                                                 |",
+            "| ____                        _ _                                 |",
+            "|| __ )  ___  _ __  ___  __ _(_) |__   __ _ _   _  ___ _ __       |",
+            "||  _ \\ / _ \\| '_ \\/ __|/ _` | | '_ \\ / _` | | | |/ _ \\ '__|      |",
+            "|| |_) | (_) | | | \\__ \\ (_| | | |_) | (_| | |_| |  __/ |         |",
+            "||____/ \\___/|_| |_|___/\\__,_|_|_.__/ \\__,_|\\__,_|\\___|_|         |",
+            "|                                                                 |",
+            "|                                                                 |",
+            "'-----------------------------------------------------------------'"
+        };
+        private const string BannerTriggerMessage = "[Lifecycle] Mod enabled | action=validate_dependencies.";
         private const string LogFilePrefix = "log";
         private static bool _initialised;
         private static string _dailyLogDateStamp = string.Empty;
@@ -156,6 +171,9 @@ namespace CSM.TmpeSync.Services
                         category,
                         formattedMessage);
                     File.AppendAllText(_currentLogFilePath, line + Environment.NewLine);
+
+                    if (ShouldWriteBannerAfterMessage(level, category, role, formattedMessage))
+                        WriteBanner(localTime);
                 }
                 catch
                 {
@@ -180,6 +198,30 @@ namespace CSM.TmpeSync.Services
                 _initialised = true;
             }
 
+        }
+
+        private static bool ShouldWriteBannerAfterMessage(Level level, LogCategory category, LogRole role, string formattedMessage)
+        {
+            return level == Level.Info &&
+                   category == LogCategory.Lifecycle &&
+                   role == LogRole.General &&
+                   string.Equals(formattedMessage, BannerTriggerMessage, StringComparison.Ordinal);
+        }
+
+        private static void WriteBanner(DateTime localTime)
+        {
+            for (var i = 0; i < BannerLines.Length; i++)
+            {
+                var bannerLine = string.Format(
+                    CultureInfo.InvariantCulture,
+                    "{0:yyyy-MM-dd HH:mm:ss.fff} [{1}] [{2}] [{3}] {4}",
+                    localTime,
+                    Level.Info,
+                    FormatRole(LogRole.General),
+                    LogCategory.Lifecycle,
+                    BannerLines[i]);
+                File.AppendAllText(_currentLogFilePath, bannerLine + Environment.NewLine);
+            }
         }
 
         private static DateTime GetLocalTime() => DateTime.UtcNow + LogOffset;

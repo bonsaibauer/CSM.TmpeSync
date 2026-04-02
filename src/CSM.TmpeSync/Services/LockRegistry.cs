@@ -72,7 +72,7 @@ namespace CSM.TmpeSync.Services
 
             Log.Debug(
                 LogCategory.Diagnostics,
-                "Edit lock applied | kind={0} id={1} owner={2} ttl={3}",
+                "[EditLocks] Applied | kind={0} id={1} owner={2} ttl={3}.",
                 kind,
                 id,
                 owner,
@@ -93,7 +93,7 @@ namespace CSM.TmpeSync.Services
             {
                 Log.Debug(
                     LogCategory.Diagnostics,
-                    "Edit lock cleared | kind={0} id={1}",
+                    "[EditLocks] Cleared | kind={0} id={1}.",
                     kind,
                     id);
             }
@@ -101,7 +101,7 @@ namespace CSM.TmpeSync.Services
             {
                 Log.Debug(
                     LogCategory.Diagnostics,
-                    "Edit lock clear skipped | kind={0} id={1} reason=missing",
+                    "[EditLocks] Clear skipped | kind={0} id={1} reason=missing.",
                     kind,
                     id);
             }

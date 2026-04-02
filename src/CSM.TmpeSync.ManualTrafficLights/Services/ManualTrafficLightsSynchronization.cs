@@ -31,7 +31,7 @@ namespace CSM.TmpeSync.ManualTrafficLights.Services
                 Log.Info(
                     LogCategory.Synchronization,
                     LogRole.Host,
-                    "[ManualTrafficLights] Resync cache pruned | removed={0}",
+                    "[ManualTrafficLights] Resync cache pruned | removed={0}.",
                     pruned);
             }
 
@@ -60,7 +60,7 @@ namespace CSM.TmpeSync.ManualTrafficLights.Services
             Log.Info(
                 LogCategory.Synchronization,
                 LogRole.Host,
-                "[ManualTrafficLights] Resync for reconnecting client | target={0} items={1}",
+                "[ManualTrafficLights] Resync for reconnecting client | target={0} items={1}.",
                 clientId,
                 sendBuffer.Count);
 
@@ -116,7 +116,7 @@ namespace CSM.TmpeSync.ManualTrafficLights.Services
                 Log.Warn(
                     LogCategory.Synchronization,
                     CurrentRole(),
-                    "[ManualTrafficLights] Broadcast read failed | nodeId={0} context={1}",
+                    "[ManualTrafficLights] Broadcast read failed | nodeId={0} context={1}.",
                     nodeId,
                     context ?? "unknown");
                 return;
@@ -149,7 +149,7 @@ namespace CSM.TmpeSync.ManualTrafficLights.Services
                 Log.Info(
                     LogCategory.Synchronization,
                     LogRole.Host,
-                    "[ManualTrafficLights] Host applied | node={0} manual={1} segments={2} ctx={3}",
+                    "[ManualTrafficLights] Host applied | nodeId={0} manual={1} segments={2} context={3}.",
                     applied.NodeId,
                     applied.State != null && applied.State.IsManualEnabled,
                     applied.State != null && applied.State.Segments != null ? applied.State.Segments.Count : 0,
@@ -166,7 +166,7 @@ namespace CSM.TmpeSync.ManualTrafficLights.Services
             Log.Info(
                 LogCategory.Network,
                 LogRole.Client,
-                "[ManualTrafficLights] Client sent update | node={0} manual={1} segments={2} ctx={3}",
+                "[ManualTrafficLights] Client sent update request | nodeId={0} manual={1} segments={2} context={3}.",
                 state.NodeId,
                 state.IsManualEnabled,
                 state.Segments != null ? state.Segments.Count : 0,
@@ -302,7 +302,7 @@ namespace CSM.TmpeSync.ManualTrafficLights.Services
                     Log.Warn(
                         LogCategory.Synchronization,
                         Role,
-                        "[ManualTrafficLights] OnApplied handler threw | nodeId={0} origin={1} error={2}",
+                        "[ManualTrafficLights] OnApplied handler threw | nodeId={0} origin={1} error={2}.",
                         NodeId,
                         Origin,
                         ex);
@@ -317,7 +317,7 @@ namespace CSM.TmpeSync.ManualTrafficLights.Services
                 Log.Error(
                     LogCategory.Synchronization,
                     Role,
-                    "[ManualTrafficLights] Apply failed | nodeId={0} origin={1} attempts={2} reason={3} immediate={4}",
+                    "[ManualTrafficLights] Apply failed | nodeId={0} origin={1} attempts={2} reason={3} immediate={4}.",
                     NodeId,
                     Origin,
                     Attempt,
@@ -465,7 +465,7 @@ namespace CSM.TmpeSync.ManualTrafficLights.Services
                     Log.Warn(
                         LogCategory.Synchronization,
                         role,
-                        "[ManualTrafficLights] Apply skipped | reason=tmpe_options_unavailable");
+                        "[ManualTrafficLights] Apply skipped | reason=tmpe_options_unavailable.");
                     return false;
                 }
 
@@ -476,7 +476,7 @@ namespace CSM.TmpeSync.ManualTrafficLights.Services
                 Log.Error(
                     LogCategory.Synchronization,
                     role,
-                    "[ManualTrafficLights] Apply failed | reason=tmpe_options_ensure_exception error={0}",
+                    "[ManualTrafficLights] Apply failed | reason=tmpe_options_ensure_exception error={0}.",
                     ex);
                 return false;
             }

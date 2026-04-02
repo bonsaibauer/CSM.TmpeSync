@@ -23,7 +23,7 @@ namespace CSM.TmpeSync.LaneConnector.Services
                 _harmony = new Harmony(HarmonyId);
                 if (!LaneConnectorHarmonyPatches.TryInstall(_harmony))
                 {
-                    Log.Warn(LogCategory.Network, LogRole.Host, "[LaneConnector] Unable to install TM:PE patches. Listener disabled.");
+                    Log.Warn(LogCategory.Network, LogRole.Host, "[LaneConnector] Harmony listener disabled | reason=no_patch_targets.");
                     _harmony = null;
                     return;
                 }
@@ -32,7 +32,7 @@ namespace CSM.TmpeSync.LaneConnector.Services
             }
             catch (Exception ex)
             {
-                Log.Error(LogCategory.Network, LogRole.Host, "[LaneConnector] Harmony initialization failed: {0}", ex);
+                Log.Error(LogCategory.Network, LogRole.Host, "[LaneConnector] Harmony listener enable failed | error={0}.", ex);
             }
         }
 
@@ -48,7 +48,7 @@ namespace CSM.TmpeSync.LaneConnector.Services
             }
             catch (Exception ex)
             {
-                Log.Warn(LogCategory.Network, LogRole.Host, "[LaneConnector] Harmony disable encountered issues: {0}", ex);
+                Log.Warn(LogCategory.Network, LogRole.Host, "[LaneConnector] Harmony listener disable failed | error={0}.", ex);
             }
             finally
             {
@@ -119,6 +119,13 @@ namespace CSM.TmpeSync.LaneConnector.Services
                 harmony.Patch(
                     method,
                     postfix: new HarmonyMethod(AccessTools.Method(typeof(LaneConnectorHarmonyPatches), nameof(PostSubManagerRemoveConnections))));
+                Log.Info(
+                    LogCategory.Network,
+                    LogRole.Host,
+                    "[LaneConnector] Harmony patched {0}.{1}({2}).",
+                    type.FullName,
+                    method.Name,
+                    string.Join(", ", method.GetParameters().Select(p => p.ParameterType.Name).ToArray()));
 
                 return true;
             }
@@ -136,7 +143,7 @@ namespace CSM.TmpeSync.LaneConnector.Services
 
                     if (candidates.Length == 0)
                     {
-                        Log.Warn(LogCategory.Network, LogRole.Host, "[LaneConnector] No candidates found for method {0}.{1}", type.FullName, methodName);
+                        Log.Warn(LogCategory.Network, LogRole.Host, "[LaneConnector] No candidates found for method {0}.{1}.", type.FullName, methodName);
                         return 0;
                     }
 
@@ -144,6 +151,13 @@ namespace CSM.TmpeSync.LaneConnector.Services
                     foreach (var method in candidates)
                     {
                         harmony.Patch(method, postfix: new HarmonyMethod(postfix));
+                        Log.Info(
+                            LogCategory.Network,
+                            LogRole.Host,
+                            "[LaneConnector] Harmony patched {0}.{1}({2}).",
+                            type.FullName,
+                            method.Name,
+                            string.Join(", ", method.GetParameters().Select(p => p.ParameterType.Name).ToArray()));
                         count++;
                     }
 
@@ -151,7 +165,7 @@ namespace CSM.TmpeSync.LaneConnector.Services
                 }
                 catch (Exception ex)
                 {
-                    Log.Error(LogCategory.Network, LogRole.Host, "[LaneConnector] Failed to patch method {0}.{1}: {2}", type.FullName, methodName, ex);
+                    Log.Error(LogCategory.Network, LogRole.Host, "[LaneConnector] Failed to patch method {0}.{1}: {2}.", type.FullName, methodName, ex);
                     return 0;
                 }
             }

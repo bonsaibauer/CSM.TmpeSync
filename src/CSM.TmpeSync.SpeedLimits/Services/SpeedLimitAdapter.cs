@@ -162,7 +162,7 @@ namespace CSM.TmpeSync.SpeedLimits.Services
                 }
                 catch (Exception ex)
                 {
-                    Log.Warn(LogCategory.Bridge, LogRole.Host, "SpeedLimits init failed | error={0}", ex);
+                    Log.Warn(LogCategory.Bridge, LogRole.Host, "[SpeedLimits] Adapter init failed | error={0}.", ex);
                 }
 
                 return _manager != null;
@@ -200,7 +200,7 @@ namespace CSM.TmpeSync.SpeedLimits.Services
             }
             catch (Exception ex)
             {
-                Log.Warn(LogCategory.Synchronization, LogRole.Host, "ApplySpeedLimit failed | error={0}", ex);
+                Log.Warn(LogCategory.Synchronization, LogRole.Host, "[SpeedLimits] ApplySpeedLimit failed | error={0}.", ex);
                 return false;
             }
         }
@@ -225,7 +225,7 @@ namespace CSM.TmpeSync.SpeedLimits.Services
                             hasOverride = true; kmh = ov;
                             Log.Info(LogCategory.Diagnostics,
                                 LogRole.Host,
-                                "[SpeedLimits][Probe] laneId={0} source=custom_override kmh={1:F1}",
+                                "[SpeedLimits][Probe] laneId={0} source=custom_override kmh={1:F1}.",
                                 laneId, kmh);
                         }
                         if (_resultDefaultField != null && TryExtractSpeed(_resultDefaultField.GetValue(result), out var def))
@@ -233,7 +233,7 @@ namespace CSM.TmpeSync.SpeedLimits.Services
                             defaultKmh = def; if (!hasOverride) kmh = def;
                             Log.Info(LogCategory.Diagnostics,
                                 LogRole.Host,
-                                "[SpeedLimits][Probe] laneId={0} source=custom_default kmh={1:F1}",
+                                "[SpeedLimits][Probe] laneId={0} source=custom_default kmh={1:F1}.",
                                 laneId, kmh);
                         }
                         if (hasOverride || defaultKmh.HasValue)
@@ -258,7 +258,7 @@ namespace CSM.TmpeSync.SpeedLimits.Services
                         defaultKmh = ConvertGameToKmh(gameUnits);
                         kmh = defaultKmh.Value;
                         Log.Info(LogCategory.Diagnostics,
-                            "[SpeedLimits][Probe] laneId={0} source=get_default gameUnits={1:F3} kmh={2:F1}",
+                            "[SpeedLimits][Probe] laneId={0} source=get_default gameUnits={1:F3} kmh={2:F1}.",
                             laneId, gameUnits, kmh);
                         return true;
                     }
@@ -270,7 +270,7 @@ namespace CSM.TmpeSync.SpeedLimits.Services
                     defaultKmh = ConvertGameToKmh(li.m_speedLimit);
                     kmh = defaultKmh.Value;
                     Log.Info(LogCategory.Diagnostics,
-                        "[SpeedLimits][Probe] laneId={0} source=lane_info kmh={1:F1}",
+                        "[SpeedLimits][Probe] laneId={0} source=lane_info kmh={1:F1}.",
                         laneId, kmh);
                     return true;
                 }
@@ -279,7 +279,7 @@ namespace CSM.TmpeSync.SpeedLimits.Services
             }
             catch (Exception ex)
             {
-                Log.Warn(LogCategory.Synchronization, LogRole.Host, "TryGetSpeedLimit failed | error={0}", ex);
+                Log.Warn(LogCategory.Synchronization, LogRole.Host, "[SpeedLimits] TryGetSpeedLimit failed | error={0}.", ex);
                 return false;
             }
         }
@@ -302,7 +302,7 @@ namespace CSM.TmpeSync.SpeedLimits.Services
                 Log.Warn(
                     LogCategory.Synchronization,
                     LogRole.Host,
-                    "SetCustomNetinfoSpeedLimit failed | netInfo={0} error={1}",
+                    "[SpeedLimits] SetCustomNetinfoSpeedLimit failed | netInfo={0} error={1}.",
                     netInfo?.name ?? "<null>",
                     ex);
                 return false;
@@ -327,7 +327,7 @@ namespace CSM.TmpeSync.SpeedLimits.Services
                 Log.Warn(
                     LogCategory.Synchronization,
                     LogRole.Host,
-                    "ResetCustomNetinfoSpeedLimit failed | netInfo={0} error={1}",
+                    "[SpeedLimits] ResetCustomNetinfoSpeedLimit failed | netInfo={0} error={1}.",
                     netInfo?.name ?? "<null>",
                     ex);
                 return false;
@@ -368,7 +368,7 @@ namespace CSM.TmpeSync.SpeedLimits.Services
             }
             catch (Exception ex)
             {
-                Log.Debug(LogCategory.Bridge, LogRole.Host, "SpeedLimit override construction failed | error={0}", ex);
+                Log.Debug(LogCategory.Bridge, LogRole.Host, "[SpeedLimits] SpeedLimit override construction failed | error={0}.", ex);
             }
 
             return null;

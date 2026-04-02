@@ -40,17 +40,17 @@ namespace CSM.TmpeSync.JunctionRestrictions.Services
 
                 if (!patched)
                 {
-                    Log.Warn(LogCategory.Network, LogRole.Host, "[JunctionRestrictions] No TM:PE methods patched. Listener disabled.");
+                    Log.Warn(LogCategory.Network, LogRole.Host, "[JunctionRestrictions] Harmony listener disabled | reason=no_patch_targets.");
                     _harmony = null;
                     return;
                 }
 
                 _enabled = true;
-                Log.Info(LogCategory.Network, LogRole.Host, "[JunctionRestrictions] Harmony gateway enabled.");
+                Log.Info(LogCategory.Network, LogRole.Host, "[JunctionRestrictions] Harmony listener enabled.");
             }
             catch (Exception ex)
             {
-                Log.Error(LogCategory.Network, LogRole.Host, "[JunctionRestrictions] Gateway enable failed: {0}", ex);
+                Log.Error(LogCategory.Network, LogRole.Host, "[JunctionRestrictions] Harmony listener enable failed | error={0}.", ex);
             }
         }
 
@@ -61,11 +61,11 @@ namespace CSM.TmpeSync.JunctionRestrictions.Services
             try
             {
                 _harmony?.UnpatchAll(HarmonyId);
-                Log.Info(LogCategory.Network, LogRole.Host, "[JunctionRestrictions] Harmony gateway disabled.");
+                Log.Info(LogCategory.Network, LogRole.Host, "[JunctionRestrictions] Harmony listener disabled.");
             }
             catch (Exception ex)
             {
-                Log.Warn(LogCategory.Network, LogRole.Host, "[JunctionRestrictions] Gateway disable issues: {0}", ex);
+                Log.Warn(LogCategory.Network, LogRole.Host, "[JunctionRestrictions] Harmony listener disable failed | error={0}.", ex);
             }
             finally
             {
@@ -88,7 +88,7 @@ namespace CSM.TmpeSync.JunctionRestrictions.Services
                 if (!string.Equals(mi.Name, methodName, StringComparison.Ordinal))
                     continue;
                 _harmony.Patch(mi, postfix: new HarmonyMethod(postfix));
-                Log.Info(LogCategory.Network, LogRole.Host, "[JunctionRestrictions] Patched {0}.{1}({2})", type.FullName, mi.Name, string.Join(", ", mi.GetParameters().Select(p => p.ParameterType.Name).ToArray()));
+                Log.Info(LogCategory.Network, LogRole.Host, "[JunctionRestrictions] Harmony patched {0}.{1}({2}).", type.FullName, mi.Name, string.Join(", ", mi.GetParameters().Select(p => p.ParameterType.Name).ToArray()));
                 count++;
             }
             return count > 0;
@@ -133,7 +133,7 @@ namespace CSM.TmpeSync.JunctionRestrictions.Services
             }
             catch (Exception ex)
             {
-                Log.Warn(LogCategory.Network, LogRole.Host, "[JunctionRestrictions] Setter postfix error: {0}", ex);
+                Log.Warn(LogCategory.Network, LogRole.Host, "[JunctionRestrictions] Setter postfix error: {0}.", ex);
             }
         }
     }

@@ -28,7 +28,7 @@ namespace CSM.TmpeSync.VehicleRestrictions.Services
 
                 if (!patchedAny)
                 {
-                    Log.Warn(LogCategory.Network, LogRole.Host, "[VehicleRestrictions] No TM:PE vehicle-restriction methods could be patched. Listener disabled.");
+                    Log.Warn(LogCategory.Network, LogRole.Host, "[VehicleRestrictions] Harmony listener disabled | reason=no_patch_targets.");
                     _harmony = null;
                     return;
                 }
@@ -37,7 +37,7 @@ namespace CSM.TmpeSync.VehicleRestrictions.Services
             }
             catch (Exception ex)
             {
-                Log.Error(LogCategory.Network, LogRole.Host, "[VehicleRestrictions] Gateway enable failed: {0}", ex);
+                Log.Error(LogCategory.Network, LogRole.Host, "[VehicleRestrictions] Harmony listener enable failed | error={0}.", ex);
             }
         }
 
@@ -49,11 +49,11 @@ namespace CSM.TmpeSync.VehicleRestrictions.Services
             try
             {
                 _harmony?.UnpatchAll(HarmonyId);
-                Log.Info(LogCategory.Network, LogRole.Host, "[VehicleRestrictions] Harmony gateway disabled.");
+                Log.Info(LogCategory.Network, LogRole.Host, "[VehicleRestrictions] Harmony listener disabled.");
             }
             catch (Exception ex)
             {
-                Log.Warn(LogCategory.Network, LogRole.Host, "[VehicleRestrictions] Gateway disable had issues: {0}", ex);
+                Log.Warn(LogCategory.Network, LogRole.Host, "[VehicleRestrictions] Harmony listener disable failed | error={0}.", ex);
             }
             finally
             {
@@ -83,7 +83,7 @@ namespace CSM.TmpeSync.VehicleRestrictions.Services
             {
                 Log.Warn(LogCategory.Network,
                     LogRole.Host,
-                    "[VehicleRestrictions] Harmony gateway could not find VehicleRestrictionsManager.SetAllowedVehicleTypes to patch (signature unsupported).");
+                    "[VehicleRestrictions] Harmony patch target missing | method=VehicleRestrictionsManager.SetAllowedVehicleTypes reason=signature_unsupported.");
                 return false;
             }
 
@@ -91,7 +91,13 @@ namespace CSM.TmpeSync.VehicleRestrictions.Services
                 .GetMethod(nameof(SetAllowedVehicleTypes_Postfix), BindingFlags.NonPublic | BindingFlags.Static);
 
             _harmony.Patch(method, postfix: new HarmonyMethod(postfix));
-            Log.Info(LogCategory.Network, LogRole.Host, "[VehicleRestrictions] Harmony gateway patched {0}.{1}.", method.DeclaringType?.FullName, method.Name);
+            Log.Info(
+                LogCategory.Network,
+                LogRole.Host,
+                "[VehicleRestrictions] Harmony patched {0}.{1}({2}).",
+                method.DeclaringType?.FullName,
+                method.Name,
+                string.Join(", ", method.GetParameters().Select(p => p.ParameterType.Name).ToArray()));
             return true;
         }
 
@@ -113,7 +119,13 @@ namespace CSM.TmpeSync.VehicleRestrictions.Services
                 .GetMethod(nameof(ToggleAllowedType_Postfix), BindingFlags.NonPublic | BindingFlags.Static);
 
             _harmony.Patch(method, postfix: new HarmonyMethod(postfix));
-            Log.Info(LogCategory.Network, LogRole.Host, "[VehicleRestrictions] Harmony gateway patched {0}.{1}.", method.DeclaringType?.FullName, method.Name);
+            Log.Info(
+                LogCategory.Network,
+                LogRole.Host,
+                "[VehicleRestrictions] Harmony patched {0}.{1}({2}).",
+                method.DeclaringType?.FullName,
+                method.Name,
+                string.Join(", ", method.GetParameters().Select(p => p.ParameterType.Name).ToArray()));
             return true;
         }
 
@@ -183,7 +195,7 @@ namespace CSM.TmpeSync.VehicleRestrictions.Services
 
                 if (!VehicleRestrictionSynchronization.TryRead(segmentId, out var state))
                 {
-                    Log.Warn(LogCategory.Synchronization, LogRole.Host, "[VehicleRestrictions] TryRead failed | segment={0}", segmentId);
+                    Log.Warn(LogCategory.Synchronization, LogRole.Host, "[VehicleRestrictions] TryRead failed | segmentId={0}.", segmentId);
                     return;
                 }
 
@@ -191,7 +203,7 @@ namespace CSM.TmpeSync.VehicleRestrictions.Services
             }
             catch (Exception ex)
             {
-                Log.Warn(LogCategory.Network, LogRole.Host, "[VehicleRestrictions] Event postfix error: {0}", ex);
+                Log.Warn(LogCategory.Network, LogRole.Host, "[VehicleRestrictions] Event postfix error: {0}.", ex);
             }
         }
 
@@ -204,7 +216,7 @@ namespace CSM.TmpeSync.VehicleRestrictions.Services
             {
                 Log.Info(LogCategory.Synchronization,
                     LogRole.Host,
-                    "[VehicleRestrictions] Host applied | seg={0} count={1} context={2}",
+                    "[VehicleRestrictions] Host applied | segmentId={0} count={1} context={2}.",
                     state.SegmentId, state.Items?.Count ?? 0, context);
 
                 VehicleRestrictionSynchronization.Dispatch(new VehicleRestrictionsAppliedCommand
@@ -217,7 +229,7 @@ namespace CSM.TmpeSync.VehicleRestrictions.Services
 
             Log.Info(LogCategory.Network,
                 LogRole.Client,
-                "[VehicleRestrictions] Client sent VehicleRestrictionsUpdateRequest | seg={0} count={1} context={2}",
+                "[VehicleRestrictions] Client sent update request | segmentId={0} count={1} context={2}.",
                 state.SegmentId, state.Items?.Count ?? 0, context);
 
             var req = new VehicleRestrictionsUpdateRequest

@@ -21,7 +21,7 @@ namespace CSM.TmpeSync.LaneArrows.Services
                 _harmony = new Harmony(HarmonyId);
                 if (!TryPatchSetLaneArrows())
                 {
-                    Log.Warn(LogCategory.Network, LogRole.Host, "[LaneArrows] No TM:PE lane arrow methods could be patched. Listener disabled.");
+                    Log.Warn(LogCategory.Network, LogRole.Host, "[LaneArrows] Harmony listener disabled | reason=no_patch_targets.");
                     _harmony = null;
                     return;
                 }
@@ -30,7 +30,7 @@ namespace CSM.TmpeSync.LaneArrows.Services
             }
             catch (Exception ex)
             {
-                Log.Error(LogCategory.Network, LogRole.Host, "[LaneArrows] Gateway enable failed: {0}", ex);
+                Log.Error(LogCategory.Network, LogRole.Host, "[LaneArrows] Harmony listener enable failed | error={0}.", ex);
             }
         }
 
@@ -40,11 +40,11 @@ namespace CSM.TmpeSync.LaneArrows.Services
             try
             {
                 _harmony?.UnpatchAll(HarmonyId);
-                Log.Info(LogCategory.Network, LogRole.Host, "[LaneArrows] Harmony gateway disabled.");
+                Log.Info(LogCategory.Network, LogRole.Host, "[LaneArrows] Harmony listener disabled.");
             }
             catch (Exception ex)
             {
-                Log.Warn(LogCategory.Network, LogRole.Host, "[LaneArrows] Gateway disable had issues: {0}", ex);
+                Log.Warn(LogCategory.Network, LogRole.Host, "[LaneArrows] Harmony listener disable failed | error={0}.", ex);
             }
             finally
             {
@@ -83,7 +83,7 @@ namespace CSM.TmpeSync.LaneArrows.Services
                 if (ps.Length >= 2 && ps[0].ParameterType == typeof(uint))
                 {
                     _harmony.Patch(mi, postfix: new HarmonyMethod(postSet));
-                    Log.Info(LogCategory.Network, LogRole.Host, "[LaneArrows] Patched {0}.{1}({2}).", type.FullName, mi.Name, string.Join(", ", ps.Select(p => p.ParameterType.Name).ToArray()));
+                    Log.Info(LogCategory.Network, LogRole.Host, "[LaneArrows] Harmony patched {0}.{1}({2}).", type.FullName, mi.Name, string.Join(", ", ps.Select(p => p.ParameterType.Name).ToArray()));
                     patched++;
                 }
             }
@@ -97,7 +97,7 @@ namespace CSM.TmpeSync.LaneArrows.Services
                 if (ps.Length >= 3 && ps[0].ParameterType == typeof(uint) && ps[1].ParameterType == typeof(bool))
                 {
                     _harmony.Patch(mi, postfix: new HarmonyMethod(postToggle));
-                    Log.Info(LogCategory.Network, LogRole.Host, "[LaneArrows] Patched {0}.{1}({2}).", type.FullName, mi.Name, string.Join(", ", ps.Select(p => p.ParameterType.Name).ToArray()));
+                    Log.Info(LogCategory.Network, LogRole.Host, "[LaneArrows] Harmony patched {0}.{1}({2}).", type.FullName, mi.Name, string.Join(", ", ps.Select(p => p.ParameterType.Name).ToArray()));
                     patched++;
                 }
             }
@@ -107,7 +107,13 @@ namespace CSM.TmpeSync.LaneArrows.Services
             if (miLane != null)
             {
                 _harmony.Patch(miLane, postfix: new HarmonyMethod(postResetLane));
-                Log.Info(LogCategory.Network, LogRole.Host, "[LaneArrows] Patched {0}.ResetLaneArrows(uint).", type.FullName);
+                Log.Info(
+                    LogCategory.Network,
+                    LogRole.Host,
+                    "[LaneArrows] Harmony patched {0}.{1}({2}).",
+                    type.FullName,
+                    miLane.Name,
+                    string.Join(", ", miLane.GetParameters().Select(p => p.ParameterType.Name).ToArray()));
                 patched++;
             }
 
@@ -117,7 +123,13 @@ namespace CSM.TmpeSync.LaneArrows.Services
             if (miSeg != null)
             {
                 _harmony.Patch(miSeg, postfix: new HarmonyMethod(postResetSeg));
-                Log.Info(LogCategory.Network, LogRole.Host, "[LaneArrows] Patched {0}.ResetLaneArrows(ushort, bool?).", type.FullName);
+                Log.Info(
+                    LogCategory.Network,
+                    LogRole.Host,
+                    "[LaneArrows] Harmony patched {0}.{1}({2}).",
+                    type.FullName,
+                    miSeg.Name,
+                    string.Join(", ", miSeg.GetParameters().Select(p => p.ParameterType.Name).ToArray()));
                 patched++;
             }
 
@@ -149,7 +161,7 @@ namespace CSM.TmpeSync.LaneArrows.Services
             }
             catch (Exception ex)
             {
-                Log.Warn(LogCategory.Network, LogRole.Host, "[LaneArrows] PostSetLaneArrows error: {0}", ex);
+                Log.Warn(LogCategory.Network, LogRole.Host, "[LaneArrows] PostSetLaneArrows error: {0}.", ex);
             }
         }
 
@@ -174,7 +186,7 @@ namespace CSM.TmpeSync.LaneArrows.Services
             }
             catch (Exception ex)
             {
-                Log.Warn(LogCategory.Network, LogRole.Host, "[LaneArrows] PostToggleLaneArrows error: {0}", ex);
+                Log.Warn(LogCategory.Network, LogRole.Host, "[LaneArrows] PostToggleLaneArrows error: {0}.", ex);
             }
         }
 
@@ -196,7 +208,7 @@ namespace CSM.TmpeSync.LaneArrows.Services
             }
             catch (Exception ex)
             {
-                Log.Warn(LogCategory.Network, LogRole.Host, "[LaneArrows] PostResetLaneArrows_Lane error: {0}", ex);
+                Log.Warn(LogCategory.Network, LogRole.Host, "[LaneArrows] PostResetLaneArrows_Lane error: {0}.", ex);
             }
         }
 
@@ -224,7 +236,7 @@ namespace CSM.TmpeSync.LaneArrows.Services
             }
             catch (Exception ex)
             {
-                Log.Warn(LogCategory.Network, LogRole.Host, "[LaneArrows] PostResetLaneArrows_Segment error: {0}", ex);
+                Log.Warn(LogCategory.Network, LogRole.Host, "[LaneArrows] PostResetLaneArrows_Segment error: {0}.", ex);
             }
         }
 
@@ -250,7 +262,7 @@ namespace CSM.TmpeSync.LaneArrows.Services
             }
             catch (Exception ex)
             {
-                Log.Warn(LogCategory.Network, LogRole.Host, "[LaneArrows] BroadcastNode error: {0}", ex);
+                Log.Warn(LogCategory.Network, LogRole.Host, "[LaneArrows] BroadcastNode error: {0}.", ex);
             }
         }
     }

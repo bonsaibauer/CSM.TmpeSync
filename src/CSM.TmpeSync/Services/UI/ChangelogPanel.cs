@@ -82,7 +82,7 @@ namespace CSM.TmpeSync.Services.UI
             }
             catch (Exception ex)
             {
-                Log.Warn(LogCategory.Diagnostics, LogRole.General, "Failed to display changelog | error={0}", ex);
+                Log.Warn(LogCategory.Diagnostics, LogRole.General, "[Changelog] Display failed | error={0}.", ex);
             }
         }
 
@@ -102,7 +102,7 @@ namespace CSM.TmpeSync.Services.UI
             }
             catch (Exception ex)
             {
-                Log.Warn(LogCategory.Diagnostics, LogRole.General, "Failed to display changelog (manual) | error={0}", ex);
+                Log.Warn(LogCategory.Diagnostics, LogRole.General, "[Changelog] Manual display failed | error={0}.", ex);
             }
         }
 

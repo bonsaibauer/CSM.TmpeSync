@@ -23,7 +23,7 @@ namespace CSM.TmpeSync.ManualTrafficLights.Handlers
             Log.Info(
                 LogCategory.Network,
                 LogRole.Client,
-                "ManualTrafficLightsApplied received | nodeId={0} origin={1} manual={2}",
+                "[ManualTrafficLights] Applied command received | nodeId={0} origin={1} manual={2}.",
                 nodeId,
                 origin ?? "unknown",
                 state != null && state.IsManualEnabled);
@@ -33,7 +33,7 @@ namespace CSM.TmpeSync.ManualTrafficLights.Handlers
                 Log.Warn(
                     LogCategory.Synchronization,
                     LogRole.Client,
-                    "ManualTrafficLightsApplied skipped | nodeId={0} origin={1} reason=node_missing",
+                    "[ManualTrafficLights] Applied command skipped | nodeId={0} origin={1} reason=node_missing.",
                     nodeId,
                     origin ?? "unknown");
                 return;
@@ -46,7 +46,7 @@ namespace CSM.TmpeSync.ManualTrafficLights.Handlers
                     Log.Warn(
                         LogCategory.Synchronization,
                         LogRole.Client,
-                        "ManualTrafficLightsApplied skipped during simulation | nodeId={0} origin={1} reason=node_missing",
+                        "[ManualTrafficLights] Applied command skipped during simulation | nodeId={0} origin={1} reason=node_missing.",
                         nodeId,
                         origin ?? "unknown");
                     return;
@@ -69,15 +69,15 @@ namespace CSM.TmpeSync.ManualTrafficLights.Handlers
 
                     if (!result.Succeeded)
                     {
-                        Log.Error(LogCategory.Synchronization, LogRole.Client, "ManualTrafficLightsApplied failed | nodeId={0}", nodeId);
+                        Log.Error(LogCategory.Synchronization, LogRole.Client, "[ManualTrafficLights] Apply failed | nodeId={0}.", nodeId);
                     }
                     else if (result.IsDeferred)
                     {
-                        Log.Info(LogCategory.Synchronization, LogRole.Client, "ManualTrafficLightsApplied deferred | nodeId={0}", nodeId);
+                        Log.Info(LogCategory.Synchronization, LogRole.Client, "[ManualTrafficLights] Apply deferred | nodeId={0}.", nodeId);
                     }
                     else
                     {
-                        Log.Info(LogCategory.Synchronization, LogRole.Client, "ManualTrafficLightsApplied applied | nodeId={0}", nodeId);
+                        Log.Info(LogCategory.Synchronization, LogRole.Client, "[ManualTrafficLights] Apply completed | nodeId={0}.", nodeId);
                     }
                 }
             });

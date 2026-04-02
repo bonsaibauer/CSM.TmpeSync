@@ -14,20 +14,20 @@ namespace CSM.TmpeSync.ManualTrafficLights.Handlers
             Log.Info(
                 LogCategory.Network,
                 LogRole.Host,
-                "ManualTrafficLightsUpdateRequest received | nodeId={0} senderId={1} manual={2}",
+                "[ManualTrafficLights] Update request received | nodeId={0} senderId={1} manual={2}.",
                 command.NodeId,
                 senderId,
                 command.State != null && command.State.IsManualEnabled);
 
             if (!CsmBridge.IsServerInstance())
             {
-                Log.Debug(LogCategory.Network, LogRole.Client, "ManualTrafficLightsUpdateRequest ignored | reason=not_server_instance");
+                Log.Debug(LogCategory.Network, LogRole.Client, "[ManualTrafficLights] Update request ignored | reason=not_server_instance.");
                 return;
             }
 
             if (!NetworkUtil.NodeExists(command.NodeId))
             {
-                Log.Warn(LogCategory.Network, LogRole.Host, "ManualTrafficLightsUpdateRequest rejected | nodeId={0} reason=node_missing", command.NodeId);
+                Log.Warn(LogCategory.Network, LogRole.Host, "[ManualTrafficLights] Update request rejected | nodeId={0} reason=node_missing.", command.NodeId);
                 return;
             }
 
@@ -35,7 +35,7 @@ namespace CSM.TmpeSync.ManualTrafficLights.Handlers
             {
                 if (!NetworkUtil.NodeExists(command.NodeId))
                 {
-                    Log.Warn(LogCategory.Synchronization, LogRole.Host, "ManualTrafficLights apply aborted | nodeId={0} reason=missing_before_apply", command.NodeId);
+                    Log.Warn(LogCategory.Synchronization, LogRole.Host, "[ManualTrafficLights] Apply aborted | nodeId={0} reason=missing_before_apply.", command.NodeId);
                     return;
                 }
 
@@ -50,7 +50,7 @@ namespace CSM.TmpeSync.ManualTrafficLights.Handlers
                 {
                     if (!NetworkUtil.NodeExists(command.NodeId))
                     {
-                        Log.Warn(LogCategory.Synchronization, LogRole.Host, "ManualTrafficLights apply skipped | nodeId={0} reason=missing_while_locked", command.NodeId);
+                        Log.Warn(LogCategory.Synchronization, LogRole.Host, "[ManualTrafficLights] Apply skipped | nodeId={0} reason=missing_while_locked.", command.NodeId);
                         return;
                     }
 
@@ -62,7 +62,7 @@ namespace CSM.TmpeSync.ManualTrafficLights.Handlers
                             Log.Info(
                                 LogCategory.Synchronization,
                                 LogRole.Host,
-                                "ManualTrafficLights applied | nodeId={0} action=broadcast_node senderId={1}",
+                                "[ManualTrafficLights] Apply completed | nodeId={0} action=broadcast_node senderId={1}.",
                                 command.NodeId,
                                 senderId);
                             ManualTrafficLightsSynchronization.BroadcastNode(command.NodeId, "host_broadcast:sender=" + senderId);
@@ -71,13 +71,13 @@ namespace CSM.TmpeSync.ManualTrafficLights.Handlers
 
                     if (!applyResult.Succeeded)
                     {
-                        Log.Error(LogCategory.Synchronization, LogRole.Host, "ManualTrafficLights apply failed | nodeId={0} senderId={1}", command.NodeId, senderId);
+                        Log.Error(LogCategory.Synchronization, LogRole.Host, "[ManualTrafficLights] Apply failed | nodeId={0} senderId={1}.", command.NodeId, senderId);
                         return;
                     }
 
                     if (applyResult.IsDeferred)
                     {
-                        Log.Info(LogCategory.Synchronization, LogRole.Host, "ManualTrafficLights apply deferred | nodeId={0} senderId={1}", command.NodeId, senderId);
+                        Log.Info(LogCategory.Synchronization, LogRole.Host, "[ManualTrafficLights] Apply deferred | nodeId={0} senderId={1}.", command.NodeId, senderId);
                     }
                 }
             });

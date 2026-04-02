@@ -22,7 +22,7 @@ namespace CSM.TmpeSync.ToggleTrafficLights.Services
             Log.Info(
                 LogCategory.Synchronization,
                 LogRole.Host,
-                "[TrafficLights] Resync for reconnecting client | target={0} items={1}",
+                "[TrafficLights] Resync for reconnecting client | target={0} items={1}.",
                 clientId,
                 cached.Count);
 

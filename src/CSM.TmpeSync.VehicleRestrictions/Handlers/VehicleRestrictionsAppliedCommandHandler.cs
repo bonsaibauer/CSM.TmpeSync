@@ -21,7 +21,7 @@ namespace CSM.TmpeSync.VehicleRestrictions.Handlers
         {
             Log.Info(LogCategory.Network,
                 LogRole.Client,
-                "VehicleRestrictionsApplied received | segmentId={0} items={1} origin={2}",
+                "[VehicleRestrictions] Applied command received | segmentId={0} items={1} origin={2}.",
                 command.SegmentId,
                 command.Items?.Count ?? 0,
                 origin ?? "unknown");
@@ -30,7 +30,7 @@ namespace CSM.TmpeSync.VehicleRestrictions.Handlers
             {
                 Log.Warn(LogCategory.Synchronization,
                     LogRole.Client,
-                    "VehicleRestrictionsApplied skipped | segmentId={0} origin={1} reason=segment_missing",
+                    "[VehicleRestrictions] Applied command skipped | segmentId={0} origin={1} reason=segment_missing.",
                     command.SegmentId,
                     origin ?? "unknown");
                 return;
@@ -42,7 +42,7 @@ namespace CSM.TmpeSync.VehicleRestrictions.Handlers
                 {
                     Log.Warn(LogCategory.Synchronization,
                         LogRole.Client,
-                        "VehicleRestrictionsApplied skipped during simulation | segmentId={0} origin={1} reason=entity_missing",
+                        "[VehicleRestrictions] Applied command skipped during simulation | segmentId={0} origin={1} reason=entity_missing.",
                         command.SegmentId,
                         origin ?? "unknown");
                     return;
@@ -68,7 +68,7 @@ namespace CSM.TmpeSync.VehicleRestrictions.Handlers
                     {
                         Log.Info(LogCategory.Synchronization,
                             LogRole.Client,
-                            "VehicleRestrictionsApplied applied | segmentId={0} count={1}",
+                            "[VehicleRestrictions] Apply completed | segmentId={0} count={1}.",
                             command.SegmentId,
                             req.Items?.Count ?? 0);
                     }
@@ -76,7 +76,7 @@ namespace CSM.TmpeSync.VehicleRestrictions.Handlers
                     {
                         Log.Error(LogCategory.Synchronization,
                             LogRole.Client,
-                            "VehicleRestrictionsApplied failed | segmentId={0}",
+                            "[VehicleRestrictions] Apply failed | segmentId={0}.",
                             command.SegmentId);
                     }
                 }

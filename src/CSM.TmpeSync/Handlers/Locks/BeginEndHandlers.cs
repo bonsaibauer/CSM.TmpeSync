@@ -20,7 +20,7 @@ namespace CSM.TmpeSync.Handlers.Locks
             var sender = CsmBridge.GetSenderId(cmd);
             Log.Info(
                 LogCategory.Network,
-                "BeginEditRequest received | targetKind={0} targetId={1} senderId={2}",
+                "[EditLocks] Begin request received | targetKind={0} targetId={1} senderId={2}.",
                 cmd.TargetKind,
                 cmd.TargetId,
                 sender);
@@ -29,7 +29,7 @@ namespace CSM.TmpeSync.Handlers.Locks
             {
                 Log.Debug(
                     LogCategory.Network,
-                    "BeginEditRequest ignored | targetKind={0} targetId={1} reason=not_server_instance",
+                    "[EditLocks] Begin request ignored | targetKind={0} targetId={1} reason=not_server_instance.",
                     cmd.TargetKind,
                     cmd.TargetId);
                 return;
@@ -41,7 +41,7 @@ namespace CSM.TmpeSync.Handlers.Locks
                 HostLocks.Owner[key] = sender;
                 Log.Debug(
                     LogCategory.Network,
-                    "Edit lock owner assigned | key={0} owner={1}",
+                    "[EditLocks] Owner assigned | key={0} owner={1}.",
                     key,
                     sender);
             }
@@ -49,7 +49,7 @@ namespace CSM.TmpeSync.Handlers.Locks
             {
                 Log.Debug(
                     LogCategory.Network,
-                    "Edit lock refreshed | key={0} owner={1}",
+                    "[EditLocks] Owner refreshed | key={0} owner={1}.",
                     key,
                     HostLocks.Owner[key]);
             }
@@ -72,7 +72,7 @@ namespace CSM.TmpeSync.Handlers.Locks
             var sender = CsmBridge.GetSenderId(cmd);
             Log.Info(
                 LogCategory.Network,
-                "EndEditRequest received | targetKind={0} targetId={1} senderId={2}",
+                "[EditLocks] End request received | targetKind={0} targetId={1} senderId={2}.",
                 cmd.TargetKind,
                 cmd.TargetId,
                 sender);
@@ -81,7 +81,7 @@ namespace CSM.TmpeSync.Handlers.Locks
             {
                 Log.Debug(
                     LogCategory.Network,
-                    "EndEditRequest ignored | targetKind={0} targetId={1} reason=not_server_instance",
+                    "[EditLocks] End request ignored | targetKind={0} targetId={1} reason=not_server_instance.",
                     cmd.TargetKind,
                     cmd.TargetId);
                 return;
@@ -92,7 +92,7 @@ namespace CSM.TmpeSync.Handlers.Locks
             {
                 Log.Debug(
                     LogCategory.Network,
-                    "Edit lock cleared | key={0} previousOwner={1}",
+                    "[EditLocks] Cleared | key={0} previousOwner={1}.",
                     key,
                     sender);
             }
@@ -100,7 +100,7 @@ namespace CSM.TmpeSync.Handlers.Locks
             {
                 Log.Warn(
                     LogCategory.Network,
-                    "EndEditRequest missing lock | key={0}",
+                    "[EditLocks] End request ignored | reason=missing_lock key={0}.",
                     key);
             }
 

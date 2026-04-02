@@ -186,7 +186,6 @@
     <Compile Include="Services\TimedTrafficLightsTmpeAdapter.cs" />
     <Compile Include="Services\TimedTrafficLightsStateCache.cs" />
     <Compile Include="Services\TimedTrafficLightsRuntimeCache.cs" />
-    <Compile Include="Services\TimedTrafficLightsRuntimeTracker.cs" />
   </ItemGroup>
 
   <Target Name="AfterBuild">

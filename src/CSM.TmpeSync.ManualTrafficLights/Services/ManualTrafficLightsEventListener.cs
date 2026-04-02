@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using ColossalFramework;
@@ -13,11 +14,33 @@ namespace CSM.TmpeSync.ManualTrafficLights.Services
 
         private static Harmony _harmony;
         private static bool _enabled;
+        private static readonly object BroadcastGate = new object();
+        private static readonly Dictionary<ushort, PendingNodeBroadcast> PendingNodeBroadcasts =
+            new Dictionary<ushort, PendingNodeBroadcast>();
+        private static bool _flushScheduled;
+
+        private sealed class PendingNodeBroadcast
+        {
+            internal PendingNodeBroadcast(string context, bool requireManualState)
+            {
+                Context = context ?? "unknown";
+                RequireManualState = requireManualState;
+            }
+
+            internal string Context { get; set; }
+            internal bool RequireManualState { get; set; }
+        }
 
         internal static void Enable()
         {
             if (_enabled)
                 return;
+
+            lock (BroadcastGate)
+            {
+                PendingNodeBroadcasts.Clear();
+                _flushScheduled = false;
+            }
 
             try
             {
@@ -42,7 +65,6 @@ namespace CSM.TmpeSync.ManualTrafficLights.Services
                 patched += PatchAllOverloads("TrafficManager.TrafficLight.Impl.CustomSegmentLight", "ChangeLeftLight", segmentLightPostfix);
                 patched += PatchAllOverloads("TrafficManager.TrafficLight.Impl.CustomSegmentLight", "ChangeRightLight", segmentLightPostfix);
                 patched += PatchAllOverloads("TrafficManager.TrafficLight.Impl.CustomSegmentLight", "SetStates", segmentLightPostfix);
-                patched += PatchAllOverloads("TrafficManager.TrafficLight.Impl.CustomSegmentLight", "set_CurrentMode", segmentLightPostfix);
 
                 var segmentLightsPostfix = AccessTools.Method(typeof(ManualTrafficLightsEventListener), nameof(PostSegmentLightsChanged));
                 patched += PatchAllOverloads("TrafficManager.TrafficLight.Impl.CustomSegmentLights", "ChangeLightPedestrian", segmentLightsPostfix);
@@ -71,17 +93,17 @@ namespace CSM.TmpeSync.ManualTrafficLights.Services
 
                 if (patched == 0)
                 {
-                    Log.Warn(LogCategory.Network, LogRole.Host, "[ManualTrafficLights] No TM:PE methods patched. Listener disabled.");
+                    Log.Warn(LogCategory.Network, LogRole.Host, "[ManualTrafficLights] Harmony listener disabled | reason=no_patch_targets.");
                     _harmony = null;
                     return;
                 }
 
                 _enabled = true;
-                Log.Info(LogCategory.Network, LogRole.Host, "[ManualTrafficLights] Harmony gateway enabled. Patched methods={0}", patched);
+                Log.Info(LogCategory.Network, LogRole.Host, "[ManualTrafficLights] Harmony listener enabled | patched_methods={0}.", patched);
             }
             catch (Exception ex)
             {
-                Log.Error(LogCategory.Network, LogRole.Host, "[ManualTrafficLights] Gateway enable failed: {0}", ex);
+                Log.Error(LogCategory.Network, LogRole.Host, "[ManualTrafficLights] Harmony listener enable failed | error={0}.", ex);
                 _harmony = null;
                 _enabled = false;
             }
@@ -95,16 +117,21 @@ namespace CSM.TmpeSync.ManualTrafficLights.Services
             try
             {
                 _harmony?.UnpatchAll(HarmonyId);
-                Log.Info(LogCategory.Network, LogRole.Host, "[ManualTrafficLights] Harmony gateway disabled.");
+                Log.Info(LogCategory.Network, LogRole.Host, "[ManualTrafficLights] Harmony listener disabled.");
             }
             catch (Exception ex)
             {
-                Log.Warn(LogCategory.Network, LogRole.Host, "[ManualTrafficLights] Gateway disable issues: {0}", ex);
+                Log.Warn(LogCategory.Network, LogRole.Host, "[ManualTrafficLights] Harmony listener disable failed | error={0}.", ex);
             }
             finally
             {
                 _harmony = null;
                 _enabled = false;
+                lock (BroadcastGate)
+                {
+                    PendingNodeBroadcasts.Clear();
+                    _flushScheduled = false;
+                }
             }
         }
 
@@ -135,6 +162,13 @@ namespace CSM.TmpeSync.ManualTrafficLights.Services
                     continue;
 
                 _harmony.Patch(method, postfix: new HarmonyMethod(postfix));
+                Log.Info(
+                    LogCategory.Network,
+                    LogRole.Host,
+                    "[ManualTrafficLights] Harmony patched {0}.{1}({2}).",
+                    type.FullName,
+                    method.Name,
+                    string.Join(", ", parameters.Select(p => p.ParameterType.Name).ToArray()));
                 count++;
             }
 
@@ -189,30 +223,90 @@ namespace CSM.TmpeSync.ManualTrafficLights.Services
                 if (nodeId == 0)
                     return;
 
-                SimulationManager.instance.AddAction(() =>
+                if (!_enabled)
+                    return;
+
+                if (!NetworkUtil.IsSynchronizationReady())
+                    return;
+
+                var shouldScheduleFlush = false;
+                lock (BroadcastGate)
                 {
-                    try
+                    PendingNodeBroadcast pending;
+                    if (PendingNodeBroadcasts.TryGetValue(nodeId, out pending) && pending != null)
                     {
-                        if (ManualTrafficLightsSynchronization.IsLocalApplyActive)
-                            return;
-
-                        if (!NetworkUtil.NodeExists(nodeId))
-                            return;
-
-                        if (requireManualState && !ManualTrafficLightsTmpeAdapter.IsManualSimulation(nodeId))
-                            return;
-
-                        ManualTrafficLightsSynchronization.BroadcastNode(nodeId, context);
+                        pending.RequireManualState = pending.RequireManualState && requireManualState;
+                        if (!string.IsNullOrEmpty(context))
+                            pending.Context = context;
                     }
-                    catch (Exception ex)
+                    else
                     {
-                        Log.Warn(LogCategory.Network, LogRole.Host, "[ManualTrafficLights] Broadcast action failed | nodeId={0} context={1} error={2}", nodeId, context, ex);
+                        PendingNodeBroadcasts[nodeId] = new PendingNodeBroadcast(context, requireManualState);
                     }
-                });
+
+                    if (!_flushScheduled)
+                    {
+                        _flushScheduled = true;
+                        shouldScheduleFlush = true;
+                    }
+                }
+
+                if (shouldScheduleFlush)
+                    SimulationManager.instance.AddAction(FlushPendingNodeBroadcasts);
             }
             catch (Exception ex)
             {
-                Log.Warn(LogCategory.Network, LogRole.Host, "[ManualTrafficLights] Queue broadcast failed | nodeId={0} context={1} error={2}", nodeId, context, ex);
+                Log.Warn(LogCategory.Network, LogRole.Host, "[ManualTrafficLights] Queue broadcast failed | nodeId={0} context={1} error={2}.", nodeId, context, ex);
+            }
+        }
+
+        private static void FlushPendingNodeBroadcasts()
+        {
+            KeyValuePair<ushort, PendingNodeBroadcast>[] workItems;
+
+            lock (BroadcastGate)
+            {
+                workItems = PendingNodeBroadcasts.ToArray();
+                PendingNodeBroadcasts.Clear();
+                _flushScheduled = false;
+            }
+
+            for (var i = 0; i < workItems.Length; i++)
+            {
+                var nodeId = workItems[i].Key;
+                var pending = workItems[i].Value;
+                if (pending == null)
+                    continue;
+
+                try
+                {
+                    if (ManualTrafficLightsSynchronization.IsLocalApplyActive)
+                        continue;
+
+                    if (!_enabled)
+                        continue;
+
+                    if (!NetworkUtil.IsSynchronizationReady())
+                        continue;
+
+                    if (!NetworkUtil.NodeExists(nodeId))
+                        continue;
+
+                    if (pending.RequireManualState && !ManualTrafficLightsTmpeAdapter.IsManualSimulation(nodeId))
+                        continue;
+
+                    ManualTrafficLightsSynchronization.BroadcastNode(nodeId, pending.Context);
+                }
+                catch (Exception ex)
+                {
+                    Log.Warn(
+                        LogCategory.Network,
+                        LogRole.Host,
+                        "[ManualTrafficLights] Broadcast action failed | nodeId={0} context={1} error={2}.",
+                        nodeId,
+                        pending.Context,
+                        ex);
+                }
             }
         }
 

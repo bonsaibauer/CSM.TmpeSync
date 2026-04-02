@@ -33,7 +33,7 @@ namespace CSM.TmpeSync.LaneArrows.Services
             Log.Info(
                 LogCategory.Synchronization,
                 LogRole.Host,
-                "[LaneArrows] Resync for reconnecting client | target={0} items={1}",
+                "[LaneArrows] Resync for reconnecting client | target={0} items={1}.",
                 clientId,
                 cached.Count);
 
@@ -94,7 +94,7 @@ namespace CSM.TmpeSync.LaneArrows.Services
                         Log.Warn(
                             LogCategory.Synchronization,
                             CurrentRole(),
-                            "[LaneArrows] OnApplied handler threw | origin={0} error={1}",
+                            "[LaneArrows] OnApplied handler threw | origin={0} error={1}.",
                             origin ?? "unspecified",
                             ex);
                     }
@@ -264,7 +264,7 @@ namespace CSM.TmpeSync.LaneArrows.Services
                     Log.Warn(
                         LogCategory.Synchronization,
                         Role,
-                        "[LaneArrows] OnApplied handler threw | nodeId={0} segmentId={1} origin={2} error={3}",
+                        "[LaneArrows] OnApplied handler threw | nodeId={0} segmentId={1} origin={2} error={3}.",
                         Request.NodeId,
                         Request.SegmentId,
                         Origin,
@@ -280,7 +280,7 @@ namespace CSM.TmpeSync.LaneArrows.Services
                 Log.Error(
                     LogCategory.Synchronization,
                     Role,
-                    "[LaneArrows] Apply failed | nodeId={0} segmentId={1} origin={2} attempts={3} reason={4} immediate={5}",
+                    "[LaneArrows] Apply failed | nodeId={0} segmentId={1} origin={2} attempts={3} reason={4} immediate={5}.",
                     Request.NodeId,
                     Request.SegmentId,
                     Origin,
@@ -474,7 +474,7 @@ namespace CSM.TmpeSync.LaneArrows.Services
                     Log.Warn(
                         LogCategory.Synchronization,
                         context.Role,
-                        "[LaneArrows] Apply threw NullReferenceException | nodeId={0} segmentId={1} origin={2} error={3}",
+                        "[LaneArrows] Apply threw NullReferenceException | nodeId={0} segmentId={1} origin={2} error={3}.",
                         context.Request.NodeId,
                         context.Request.SegmentId,
                         context.Origin,
@@ -488,7 +488,7 @@ namespace CSM.TmpeSync.LaneArrows.Services
                     Log.Error(
                         LogCategory.Synchronization,
                         context.Role,
-                        "[LaneArrows] Apply threw | nodeId={0} segmentId={1} origin={2} error={3}",
+                        "[LaneArrows] Apply threw | nodeId={0} segmentId={1} origin={2} error={3}.",
                         context.Request.NodeId,
                         context.Request.SegmentId,
                         context.Origin,
@@ -538,7 +538,7 @@ namespace CSM.TmpeSync.LaneArrows.Services
                     Log.Warn(
                         LogCategory.Synchronization,
                         role,
-                        "[LaneArrows] TM:PE options unavailable");
+                        "[LaneArrows] TM:PE options unavailable.");
                     return false;
                 }
 
@@ -549,7 +549,7 @@ namespace CSM.TmpeSync.LaneArrows.Services
                 Log.Error(
                     LogCategory.Synchronization,
                     role,
-                    "[LaneArrows] TM:PE options ensure failed | error={0}",
+                    "[LaneArrows] TM:PE options ensure failed | error={0}.",
                     ex);
                 return false;
             }
@@ -612,7 +612,7 @@ namespace CSM.TmpeSync.LaneArrows.Services
                 Log.Info(
                     LogCategory.Synchronization,
                     LogRole.Host,
-                    "[LaneArrows] Host applied | node={0} segment={1} lanes={2} ctx={3}",
+                    "[LaneArrows] Host applied | nodeId={0} segmentId={1} lanes={2} context={3}.",
                     payload.NodeId,
                     payload.SegmentId,
                     count,
@@ -626,7 +626,7 @@ namespace CSM.TmpeSync.LaneArrows.Services
                 Log.Info(
                     LogCategory.Network,
                     LogRole.Client,
-                    "[LaneArrows] Client sent update | node={0} segment={1} lanes={2} ctx={3}",
+                    "[LaneArrows] Client sent update request | nodeId={0} segmentId={1} lanes={2} context={3}.",
                     payload.NodeId,
                     payload.SegmentId,
                     count,

@@ -10,7 +10,7 @@ namespace CSM.TmpeSync.Handlers.Locks
         {
             Log.Info(
                 LogCategory.Network,
-                "EditLockApplied received | targetKind={0} targetId={1} ownerId={2} ttl={3}",
+                "[EditLocks] Applied command received | targetKind={0} targetId={1} ownerId={2} ttl={3}.",
                 cmd.TargetKind,
                 cmd.TargetId,
                 cmd.OwnerClientId,

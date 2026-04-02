@@ -13,7 +13,7 @@ namespace CSM.TmpeSync.SpeedLimits
                 return;
 
             SpeedLimitEventListener.Enable();
-            Log.Info(LogCategory.Network, LogRole.Host, "SpeedLimitSyncFeature ready: TM:PE listener enabled.");
+            Log.Info(LogCategory.Network, LogRole.Host, "[SpeedLimits] Sync feature enabled | tmpe_listener=enabled.");
             _enabled = true;
         }
 
@@ -23,7 +23,7 @@ namespace CSM.TmpeSync.SpeedLimits
                 return;
 
             SpeedLimitEventListener.Disable();
-            Log.Info(LogCategory.Network, LogRole.Host, "SpeedLimitSyncFeature stopped: TM:PE listener disabled.");
+            Log.Info(LogCategory.Network, LogRole.Host, "[SpeedLimits] Sync feature disabled | tmpe_listener=disabled.");
             _enabled = false;
         }
     }

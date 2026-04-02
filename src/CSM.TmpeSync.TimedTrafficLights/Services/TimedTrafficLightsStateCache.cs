@@ -101,6 +101,14 @@ namespace CSM.TmpeSync.TimedTrafficLights.Services
             }
         }
 
+        internal static int GetKnownMasterCount()
+        {
+            lock (Gate)
+            {
+                return ByMaster.Count;
+            }
+        }
+
         internal static List<TimedTrafficLightsDefinitionAppliedCommand> GetAll()
         {
             lock (Gate)

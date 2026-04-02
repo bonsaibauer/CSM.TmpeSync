@@ -16,7 +16,7 @@ namespace CSM.TmpeSync.Handlers.System
             {
                 Log.Debug(
                     LogCategory.Network,
-                    "Version mismatch broadcast ignored | reason=server_instance senderId={0}",
+                    "[VersionMismatch] Broadcast ignored | reason=server_instance senderId={0}.",
                     senderId);
                 return;
             }
@@ -29,7 +29,7 @@ namespace CSM.TmpeSync.Handlers.System
 
             Log.Info(
                 LogCategory.Network,
-                "Version mismatch broadcast received | senderId={0} serverVersion={1} reportedClientVersion={2} localVersion={3} matchesServer={4} targetClientId={5}",
+                "[VersionMismatch] Broadcast received | senderId={0} serverVersion={1} reportedClientVersion={2} localVersion={3} matchesServer={4} targetClientId={5}.",
                 senderId,
                 serverVersion ?? "<null>",
                 reportedClientVersion ?? "<null>",

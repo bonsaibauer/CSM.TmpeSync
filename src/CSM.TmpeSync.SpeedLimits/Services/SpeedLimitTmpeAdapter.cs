@@ -15,7 +15,7 @@ namespace CSM.TmpeSync.SpeedLimits.Services
 
             try
             {
-                Log.Info(LogCategory.Diagnostics, LogRole.Host, "[SpeedLimits][Readback] Begin TryGet | segmentId={0}", segmentId);
+                Log.Info(LogCategory.Diagnostics, LogRole.Host, "[SpeedLimits][Readback] Begin TryGet | segmentId={0}.", segmentId);
                 if (!NetworkUtil.SegmentExists(segmentId))
                     return false;
 
@@ -44,7 +44,7 @@ namespace CSM.TmpeSync.SpeedLimits.Services
                     var encoded = SpeedLimitCodec.Encode(kmh, defaultKmh, hasOverride);
                     Log.Info(LogCategory.Diagnostics,
                         LogRole.Host,
-                        "[SpeedLimits][Readback] laneOrdinal={0} laneId={1} kmh={2:F1} defaultKmh={3} hasOverride={4} encoded={5}",
+                        "[SpeedLimits][Readback] laneOrdinal={0} laneId={1} kmh={2:F1} defaultKmh={3} hasOverride={4} encoded={5}.",
                         i, laneId, kmh, defaultKmh.HasValue ? defaultKmh.Value.ToString("F1") : "null", hasOverride, encoded);
 
                     var sig = new SpeedLimitsAppliedCommand.LaneSignature
@@ -69,13 +69,13 @@ namespace CSM.TmpeSync.SpeedLimits.Services
                 };
                 Log.Info(LogCategory.Diagnostics,
                     LogRole.Host,
-                    "[SpeedLimits][Readback] End TryGet | segmentId={0} items={1}",
+                    "[SpeedLimits][Readback] End TryGet | segmentId={0} items={1}.",
                     segmentId, items.Count);
                 return true;
             }
             catch (Exception ex)
             {
-                Log.Warn(LogCategory.Bridge, LogRole.Host, "SpeedLimits TryGet failed | segmentId={0} error={1}", segmentId, ex);
+                Log.Warn(LogCategory.Bridge, LogRole.Host, "[SpeedLimits] TryGet failed | segmentId={0} error={1}.", segmentId, ex);
                 return false;
             }
         }
@@ -104,32 +104,32 @@ namespace CSM.TmpeSync.SpeedLimits.Services
                         var idx = item.LaneOrdinal;
                         if (idx < 0 || idx >= info.m_lanes.Length)
                         {
-                            Log.Warn(LogCategory.Synchronization, LogRole.Host, "[SpeedLimits] Apply skipped: invalid ordinal | seg={0} ord={1}", segmentId, idx);
+                            Log.Warn(LogCategory.Synchronization, LogRole.Host, "[SpeedLimits] Apply skipped | segmentId={0} ordinal={1} reason=invalid_ordinal.", segmentId, idx);
                             okAll = false; continue;
                         }
 
                         var laneInfo = info.m_lanes[idx];
                         if (!IsLaneConfigurable(laneInfo))
                         {
-                            Log.Warn(LogCategory.Synchronization, LogRole.Host, "[SpeedLimits] Not a vehicle lane, skip | seg={0} ord={1}", segmentId, idx);
+                            Log.Warn(LogCategory.Synchronization, LogRole.Host, "[SpeedLimits] Apply skipped | segmentId={0} ordinal={1} reason=not_vehicle_lane.", segmentId, idx);
                             okAll = false; continue;
                         }
                         if (!SignatureMatches(laneInfo, item.Signature))
                         {
-                            Log.Warn(LogCategory.Synchronization, LogRole.Host, "[SpeedLimits] Signature mismatch, skip | seg={0} ord={1}", segmentId, idx);
+                            Log.Warn(LogCategory.Synchronization, LogRole.Host, "[SpeedLimits] Apply skipped | segmentId={0} ordinal={1} reason=signature_mismatch.", segmentId, idx);
                             okAll = false; continue;
                         }
 
                         if (!NetworkUtil.TryGetLaneId(segmentId, idx, out var laneId))
                         {
-                            Log.Warn(LogCategory.Synchronization, LogRole.Host, "[SpeedLimits] LaneId resolve failed | seg={0} ord={1}", segmentId, idx);
+                            Log.Warn(LogCategory.Synchronization, LogRole.Host, "[SpeedLimits] Apply skipped | segmentId={0} ordinal={1} reason=laneid_resolve_failed.", segmentId, idx);
                             okAll = false; continue;
                         }
 
                         var speedKmh = SpeedLimitCodec.DecodeToKmh(item.Speed);
                         if (!SpeedLimitAdapter.ApplySpeedLimit(laneId, speedKmh))
                         {
-                            Log.Warn(LogCategory.Synchronization, LogRole.Host, "[SpeedLimits] TM:PE apply failed | seg={0} ord={1}", segmentId, idx);
+                            Log.Warn(LogCategory.Synchronization, LogRole.Host, "[SpeedLimits] Apply failed | segmentId={0} ordinal={1} reason=tmpe_apply_failed.", segmentId, idx);
                             okAll = false; continue;
                         }
                     }
@@ -139,7 +139,7 @@ namespace CSM.TmpeSync.SpeedLimits.Services
             }
             catch (Exception ex)
             {
-                Log.Warn(LogCategory.Bridge, LogRole.Host, "SpeedLimits Apply failed | segmentId={0} error={1}", segmentId, ex);
+                Log.Warn(LogCategory.Bridge, LogRole.Host, "[SpeedLimits] Apply failed | segmentId={0} error={1}.", segmentId, ex);
                 return false;
             }
         }

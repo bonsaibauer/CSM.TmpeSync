@@ -95,7 +95,7 @@ namespace CSM.TmpeSync.ManualTrafficLights.Services
             }
             catch (Exception ex)
             {
-                Log.Warn(LogCategory.Bridge, LogRole.Host, "[ManualTrafficLights] TryReadNodeState failed | nodeId={0} error={1}", nodeId, ex);
+                Log.Warn(LogCategory.Bridge, LogRole.Host, "[ManualTrafficLights] TryReadNodeState failed | nodeId={0} error={1}.", nodeId, ex);
                 state = null;
                 return false;
             }
@@ -246,14 +246,14 @@ namespace CSM.TmpeSync.ManualTrafficLights.Services
             {
                 reason = "tmpe_null_reference";
                 shouldRetry = true;
-                Log.Warn(LogCategory.Bridge, LogRole.Host, "[ManualTrafficLights] TryApplyNodeState transient failure | nodeId={0} error={1}", nodeId, ex);
+                Log.Warn(LogCategory.Bridge, LogRole.Host, "[ManualTrafficLights] TryApplyNodeState transient failure | nodeId={0} error={1}.", nodeId, ex);
                 return false;
             }
             catch (Exception ex)
             {
                 reason = "tmpe_apply_exception";
                 shouldRetry = false;
-                Log.Error(LogCategory.Bridge, LogRole.Host, "[ManualTrafficLights] TryApplyNodeState failed | nodeId={0} error={1}", nodeId, ex);
+                Log.Error(LogCategory.Bridge, LogRole.Host, "[ManualTrafficLights] TryApplyNodeState failed | nodeId={0} error={1}.", nodeId, ex);
                 return false;
             }
         }

@@ -45,7 +45,7 @@ namespace CSM.TmpeSync.Services
             }
             catch (Exception ex)
             {
-                Log.Warn(LogCategory.Dependency, LogRole.General, "Harmony dependency check failed | error={0}", ex);
+                Log.Warn(LogCategory.Dependency, LogRole.General, "[Dependency] Harmony check failed | error={0}.", ex);
             }
 
             return false;
@@ -74,7 +74,7 @@ namespace CSM.TmpeSync.Services
 
             Log.Debug(
                 LogCategory.Dependency,
-                "Dependency status | csmEnabled={0} harmonyAvailable={1} tmpeDetected={2}",
+                "[Dependency] Status | csmEnabled={0} harmonyAvailable={1} tmpeDetected={2}.",
                 csmEnabled,
                 harmonyAvailable,
                 tmpeDetected);
@@ -103,7 +103,7 @@ namespace CSM.TmpeSync.Services
                     if (plugin == null || plugin.userModInstance != modInstance)
                         continue;
 
-                    Log.Warn(LogCategory.Dependency, LogRole.General, "Disabling plugin due to missing dependencies | plugin={0}", SafeName(plugin));
+                    Log.Warn(LogCategory.Dependency, LogRole.General, "[Dependency] Disabling plugin due to missing dependencies | plugin={0}.", SafeName(plugin));
                     var pluginName = plugin.name;
                     if (!string.IsNullOrEmpty(pluginName))
                     {
@@ -140,7 +140,7 @@ namespace CSM.TmpeSync.Services
             }
             catch (Exception ex)
             {
-                Log.Warn(LogCategory.Dependency, LogRole.General, "Failed to disable plugin | error={0}", ex);
+                Log.Warn(LogCategory.Dependency, LogRole.General, "[Dependency] Disable plugin failed | error={0}.", ex);
             }
         }
 
@@ -176,7 +176,7 @@ namespace CSM.TmpeSync.Services
             }
             catch (Exception ex)
             {
-                Log.Warn(LogCategory.Dependency, LogRole.General, "CSM dependency check failed | error={0}", ex);
+                Log.Warn(LogCategory.Dependency, LogRole.General, "[Dependency] CSM check failed | error={0}.", ex);
             }
 
             return null;
@@ -214,7 +214,7 @@ namespace CSM.TmpeSync.Services
             }
             catch (Exception ex)
             {
-                Log.Warn(LogCategory.Dependency, LogRole.General, "TM:PE dependency check failed | error={0}", ex);
+                Log.Warn(LogCategory.Dependency, LogRole.General, "[Dependency] TM:PE check failed | error={0}.", ex);
             }
 
             return null;

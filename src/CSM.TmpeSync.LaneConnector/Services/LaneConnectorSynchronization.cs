@@ -26,7 +26,7 @@ namespace CSM.TmpeSync.LaneConnector.Services
             Log.Info(
                 LogCategory.Synchronization,
                 LogRole.Host,
-                "[LaneConnector] Resync for reconnecting client | target={0} items={1}",
+                "[LaneConnector] Resync for reconnecting client | target={0} items={1}.",
                 clientId,
                 cachedStates.Count);
 
@@ -42,7 +42,7 @@ namespace CSM.TmpeSync.LaneConnector.Services
             Log.Info(
                 LogCategory.Network,
                 LogRole.Client,
-                "[LaneConnector] Applied command received | node={0} segment={1} items={2}",
+                "[LaneConnector] Applied command received | nodeId={0} segmentId={1} items={2}.",
                 command.NodeId,
                 command.SegmentId,
                 command.Items?.Count ?? 0);
@@ -52,7 +52,7 @@ namespace CSM.TmpeSync.LaneConnector.Services
                 Log.Warn(
                     LogCategory.Synchronization,
                     LogRole.Client,
-                    "[LaneConnector] Applied command skipped, entity missing | node={0} segment={1}",
+                    "[LaneConnector] Applied command skipped, entity missing | nodeId={0} segmentId={1}.",
                     command.NodeId,
                     command.SegmentId);
                 return;
@@ -74,7 +74,7 @@ namespace CSM.TmpeSync.LaneConnector.Services
                         Log.Error(
                             LogCategory.Synchronization,
                             LogRole.Client,
-                            "[LaneConnector] Apply from host broadcast failed | node={0} segment={1} reason={2}",
+                            "[LaneConnector] Apply from host broadcast failed | nodeId={0} segmentId={1} reason={2}.",
                             command.NodeId,
                             command.SegmentId,
                             reason ?? "unknown");
@@ -84,7 +84,7 @@ namespace CSM.TmpeSync.LaneConnector.Services
                     Log.Info(
                         LogCategory.Synchronization,
                         LogRole.Client,
-                        "[LaneConnector] Applied host snapshot | node={0} segment={1}",
+                        "[LaneConnector] Applied host snapshot | nodeId={0} segmentId={1}.",
                         command.NodeId,
                         command.SegmentId);
                 }
@@ -101,7 +101,7 @@ namespace CSM.TmpeSync.LaneConnector.Services
             Log.Info(
                 LogCategory.Network,
                 LogRole.Host,
-                "[LaneConnector] Update request received | node={0} segment={1} sender={2}",
+                "[LaneConnector] Update request received | nodeId={0} segmentId={1} senderId={2}.",
                 request.NodeId,
                 request.SegmentId,
                 senderId);
@@ -111,7 +111,7 @@ namespace CSM.TmpeSync.LaneConnector.Services
                 Log.Debug(
                     LogCategory.Network,
                     LogRole.Client,
-                    "[LaneConnector] Ignoring update request on client.");
+                    "[LaneConnector] Update request ignored | reason=not_server_instance.");
                 return;
             }
 
@@ -142,7 +142,7 @@ namespace CSM.TmpeSync.LaneConnector.Services
                         Log.Warn(
                             LogCategory.Synchronization,
                             LogRole.Host,
-                            "[LaneConnector] Apply failed | node={0} segment={1} sender={2} reason={3}",
+                            "[LaneConnector] Apply failed | nodeId={0} segmentId={1} senderId={2} reason={3}.",
                             request.NodeId,
                             request.SegmentId,
                             senderId,
@@ -155,7 +155,7 @@ namespace CSM.TmpeSync.LaneConnector.Services
                     Log.Info(
                         LogCategory.Synchronization,
                         LogRole.Host,
-                        "[LaneConnector] Apply succeeded | node={0} segment={1} sender={2}",
+                        "[LaneConnector] Apply succeeded | nodeId={0} segmentId={1} senderId={2}.",
                         request.NodeId,
                         request.SegmentId,
                         senderId);
@@ -172,7 +172,7 @@ namespace CSM.TmpeSync.LaneConnector.Services
                     Log.Warn(
                         LogCategory.Synchronization,
                         LogRole.Host,
-                        "[LaneConnector] Snapshot unavailable after apply | node={0} segment={1}",
+                        "[LaneConnector] Snapshot unavailable after apply | nodeId={0} segmentId={1}.",
                         request.NodeId,
                         request.SegmentId);
                 }
@@ -199,7 +199,7 @@ namespace CSM.TmpeSync.LaneConnector.Services
                 Log.Info(
                     LogCategory.Synchronization,
                     LogRole.Host,
-                    "[LaneConnector] Broadcasting snapshot | node={0} segment={1} origin={2}",
+                    "[LaneConnector] Broadcasting snapshot | nodeId={0} segmentId={1} origin={2}.",
                     nodeId,
                     segmentId,
                     origin ?? "unspecified");
@@ -223,7 +223,7 @@ namespace CSM.TmpeSync.LaneConnector.Services
                     Log.Debug(
                         LogCategory.Network,
                         LogRole.Client,
-                        "[LaneConnector] Skipping client update, snapshot missing | node={0} segment={1} origin={2}",
+                        "[LaneConnector] Skipping client update, snapshot missing | nodeId={0} segmentId={1} origin={2}.",
                         nodeId,
                         segmentId,
                         origin ?? "unspecified");
@@ -234,7 +234,7 @@ namespace CSM.TmpeSync.LaneConnector.Services
                 Log.Debug(
                     LogCategory.Network,
                     LogRole.Client,
-                    "[LaneConnector] Client sending update | node={0} segment={1} origin={2}",
+                    "[LaneConnector] Client sent update request | nodeId={0} segmentId={1} origin={2}.",
                     nodeId,
                     segmentId,
                     origin ?? "unspecified");
@@ -344,7 +344,7 @@ namespace CSM.TmpeSync.LaneConnector.Services
                 Log.Warn(
                     LogCategory.Network,
                     LogRole.Host,
-                    "[LaneConnector] Broadcast failed | origin={0} error={1}",
+                    "[LaneConnector] Broadcast failed | origin={0} error={1}.",
                     origin ?? "unspecified",
                     ex);
             }

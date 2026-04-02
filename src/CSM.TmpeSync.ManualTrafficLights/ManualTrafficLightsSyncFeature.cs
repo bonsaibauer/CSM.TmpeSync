@@ -13,7 +13,7 @@ namespace CSM.TmpeSync.ManualTrafficLights
                 return;
 
             ManualTrafficLightsEventListener.Enable();
-            Log.Info(LogCategory.Network, LogRole.Host, "ManualTrafficLightsSyncFeature ready: TM:PE listener enabled.");
+            Log.Info(LogCategory.Network, LogRole.Host, "[ManualTrafficLights] Sync feature enabled | tmpe_listener=enabled.");
             _enabled = true;
         }
 
@@ -23,7 +23,7 @@ namespace CSM.TmpeSync.ManualTrafficLights
                 return;
 
             ManualTrafficLightsEventListener.Disable();
-            Log.Info(LogCategory.Network, LogRole.Host, "ManualTrafficLightsSyncFeature stopped: TM:PE listener disabled.");
+            Log.Info(LogCategory.Network, LogRole.Host, "[ManualTrafficLights] Sync feature disabled | tmpe_listener=disabled.");
             _enabled = false;
         }
     }

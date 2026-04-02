@@ -30,7 +30,7 @@ namespace CSM.TmpeSync.LaneConnector.Services
             }
             catch (Exception ex)
             {
-                Log.Warn(LogCategory.Bridge, LogRole.General, "[LaneConnector] Failed to resolve LaneConnectionManager | error={0}", ex);
+                Log.Warn(LogCategory.Bridge, LogRole.General, "[LaneConnector] Failed to resolve LaneConnectionManager | error={0}.", ex);
             }
         }
 
@@ -54,7 +54,7 @@ namespace CSM.TmpeSync.LaneConnector.Services
                 Log.Warn(
                     LogCategory.Bridge,
                     LogRole.Host,
-                    "[LaneConnector] AddLaneConnection failed | source={0} target={1} startNode={2} error={3}",
+                    "[LaneConnector] AddLaneConnection failed | source={0} target={1} startNode={2} error={3}.",
                     sourceLaneId,
                     targetLaneId,
                     sourceStartNode,
@@ -81,7 +81,7 @@ namespace CSM.TmpeSync.LaneConnector.Services
                 Log.Warn(
                     LogCategory.Bridge,
                     LogRole.Host,
-                    "[LaneConnector] RemoveLaneConnection failed | source={0} target={1} startNode={2} error={3}",
+                    "[LaneConnector] RemoveLaneConnection failed | source={0} target={1} startNode={2} error={3}.",
                     sourceLaneId,
                     targetLaneId,
                     sourceStartNode,

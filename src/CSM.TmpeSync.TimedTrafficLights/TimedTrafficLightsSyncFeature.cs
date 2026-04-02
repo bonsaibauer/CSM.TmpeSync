@@ -13,8 +13,16 @@ namespace CSM.TmpeSync.TimedTrafficLights
                 return;
 
             TimedTrafficLightsEventListener.Enable();
-            TimedTrafficLightsRuntimeTracker.Enable();
-            Log.Info(LogCategory.Network, LogRole.Host, "TimedTrafficLightsSyncFeature ready: TM:PE listener enabled.");
+            if (!TimedTrafficLightsEventListener.IsEnabled)
+            {
+                Log.Warn(
+                    LogCategory.Network,
+                    LogRole.Host,
+                    "[TimedTrafficLights] Sync feature disabled | reason=tmpe_patching_unavailable.");
+                return;
+            }
+
+            Log.Info(LogCategory.Network, LogRole.Host, "[TimedTrafficLights] Sync feature enabled | tmpe_listener=enabled.");
             _enabled = true;
         }
 
@@ -23,9 +31,8 @@ namespace CSM.TmpeSync.TimedTrafficLights
             if (!_enabled)
                 return;
 
-            TimedTrafficLightsRuntimeTracker.Disable();
             TimedTrafficLightsEventListener.Disable();
-            Log.Info(LogCategory.Network, LogRole.Host, "TimedTrafficLightsSyncFeature stopped: TM:PE listener disabled.");
+            Log.Info(LogCategory.Network, LogRole.Host, "[TimedTrafficLights] Sync feature disabled | tmpe_listener=disabled.");
             _enabled = false;
         }
     }

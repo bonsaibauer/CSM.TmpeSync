@@ -28,7 +28,7 @@ namespace CSM.TmpeSync.LaneArrows.Handlers
             Log.Info(
                 LogCategory.Network,
                 LogRole.Client,
-                "LaneArrowsApplied received | nodeId={0} segmentId={1} items={2} origin={3}",
+                "[LaneArrows] Applied command received | nodeId={0} segmentId={1} items={2} origin={3}.",
                 cmd.NodeId,
                 cmd.SegmentId,
                 cmd.Items?.Count ?? 0,
@@ -39,7 +39,7 @@ namespace CSM.TmpeSync.LaneArrows.Handlers
                 Log.Warn(
                     LogCategory.Synchronization,
                     LogRole.Client,
-                    "LaneArrowsApplied skipped | nodeId={0} segmentId={1} origin={2} reason=entity_missing",
+                    "[LaneArrows] Applied command skipped | nodeId={0} segmentId={1} origin={2} reason=entity_missing.",
                     cmd.NodeId,
                     cmd.SegmentId,
                     originLabel);
@@ -53,7 +53,7 @@ namespace CSM.TmpeSync.LaneArrows.Handlers
                     Log.Warn(
                         LogCategory.Synchronization,
                         LogRole.Client,
-                        "LaneArrowsApplied skipped during simulation | nodeId={0} segmentId={1} origin={2} reason=entity_missing",
+                        "[LaneArrows] Applied command skipped during simulation | nodeId={0} segmentId={1} origin={2} reason=entity_missing.",
                         cmd.NodeId,
                         cmd.SegmentId,
                         originLabel);
@@ -73,7 +73,7 @@ namespace CSM.TmpeSync.LaneArrows.Handlers
                         Log.Error(
                             LogCategory.Synchronization,
                             LogRole.Client,
-                            "LaneArrowsApplied failed | nodeId={0} segmentId={1}",
+                            "[LaneArrows] Apply failed | nodeId={0} segmentId={1}.",
                             cmd.NodeId,
                             cmd.SegmentId);
                     }
@@ -82,7 +82,7 @@ namespace CSM.TmpeSync.LaneArrows.Handlers
                         Log.Info(
                             LogCategory.Synchronization,
                             LogRole.Client,
-                            "LaneArrowsApplied deferred | nodeId={0} segmentId={1}",
+                            "[LaneArrows] Apply deferred | nodeId={0} segmentId={1}.",
                             cmd.NodeId,
                             cmd.SegmentId);
                     }
@@ -91,7 +91,7 @@ namespace CSM.TmpeSync.LaneArrows.Handlers
                         Log.Info(
                             LogCategory.Synchronization,
                             LogRole.Client,
-                            "LaneArrowsApplied applied | nodeId={0} segmentId={1} items={2}",
+                            "[LaneArrows] Apply completed | nodeId={0} segmentId={1} items={2}.",
                             cmd.NodeId,
                             cmd.SegmentId,
                             request?.Items?.Count ?? 0);

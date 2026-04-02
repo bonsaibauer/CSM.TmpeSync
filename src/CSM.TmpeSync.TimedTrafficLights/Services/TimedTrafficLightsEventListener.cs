@@ -1,6 +1,6 @@
 using System;
-using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using System.Reflection;
 using CSM.TmpeSync.Services;
 using HarmonyLib;
@@ -10,10 +10,10 @@ namespace CSM.TmpeSync.TimedTrafficLights.Services
     internal static class TimedTrafficLightsEventListener
     {
         private const string HarmonyId = "CSM.TmpeSync.TimedTrafficLights.EventGateway";
-        private const int DefinitionPollIntervalFrames = 20;
 
         private static Harmony _harmony;
         private static bool _enabled;
+        internal static bool IsEnabled => _enabled;
 
         internal static void Enable()
         {
@@ -25,7 +25,6 @@ namespace CSM.TmpeSync.TimedTrafficLights.Services
                 _harmony = new Harmony(HarmonyId);
 
                 var patched = 0;
-                patched += TryPatchClientInteraction(_harmony);
                 patched += TryPatchTimedLightMutations(_harmony);
                 patched += TryPatchSimulationManagerMutations(_harmony);
 
@@ -34,23 +33,25 @@ namespace CSM.TmpeSync.TimedTrafficLights.Services
                     Log.Warn(
                         LogCategory.Network,
                         LogRole.Host,
-                        "[TimedTrafficLights] No TM:PE methods could be patched for edit detection; falling back to polling-only sync.");
+                        "[TimedTrafficLights] Harmony listener disabled | reason=no_patch_targets.");
+                    _harmony = null;
+                    _enabled = false;
+                    return;
                 }
                 else
                 {
                     Log.Info(
                         LogCategory.Network,
                         LogRole.Host,
-                        "[TimedTrafficLights] Patched {0} methods for local edit detection.",
+                        "[TimedTrafficLights] Harmony patched methods={0} for local edit detection.",
                         patched);
                 }
 
                 _enabled = true;
-                NetworkUtil.StartSimulationCoroutine(DefinitionPollingRoutine());
             }
             catch (Exception ex)
             {
-                Log.Error(LogCategory.Network, LogRole.Host, "[TimedTrafficLights] Listener enable failed: {0}", ex);
+                Log.Error(LogCategory.Network, LogRole.Host, "[TimedTrafficLights] Harmony listener enable failed | error={0}.", ex);
                 _harmony = null;
                 _enabled = false;
             }
@@ -64,67 +65,17 @@ namespace CSM.TmpeSync.TimedTrafficLights.Services
             try
             {
                 _harmony?.UnpatchAll(HarmonyId);
-                Log.Info(LogCategory.Network, LogRole.Host, "[TimedTrafficLights] Listener disabled.");
+                Log.Info(LogCategory.Network, LogRole.Host, "[TimedTrafficLights] Harmony listener disabled.");
             }
             catch (Exception ex)
             {
-                Log.Warn(LogCategory.Network, LogRole.Host, "[TimedTrafficLights] Listener disable issues: {0}", ex);
+                Log.Warn(LogCategory.Network, LogRole.Host, "[TimedTrafficLights] Harmony listener disable failed | error={0}.", ex);
             }
             finally
             {
                 _harmony = null;
                 _enabled = false;
             }
-        }
-
-        private static IEnumerator DefinitionPollingRoutine()
-        {
-            while (_enabled)
-            {
-                try
-                {
-                    TimedTrafficLightsSynchronization.ProcessDefinitionTick();
-                }
-                catch (Exception ex)
-                {
-                    Log.Warn(LogCategory.Network, LogRole.Host, "[TimedTrafficLights] Definition polling failed: {0}", ex);
-                }
-
-                for (var i = 0; i < DefinitionPollIntervalFrames; i++)
-                {
-                    if (!_enabled)
-                        yield break;
-
-                    yield return null;
-                }
-            }
-        }
-
-        private static int TryPatchClientInteraction(Harmony harmony)
-        {
-            if (harmony == null)
-                return 0;
-
-            var timedToolType = AccessTools.TypeByName("TrafficManager.UI.SubTools.TTL.TimedTrafficLightsTool");
-            if (timedToolType == null)
-            {
-                Log.Warn(LogCategory.Network, LogRole.Host, "[TimedTrafficLights] TimedTrafficLightsTool type not found for interaction patching.");
-                return 0;
-            }
-
-            var interactionPostfix = AccessTools.Method(typeof(TimedTrafficLightsEventListener), nameof(ClientInteractionPostfix));
-            if (interactionPostfix == null)
-                return 0;
-
-            var patched = 0;
-            patched += PatchIfFound(
-                harmony,
-                timedToolType,
-                "OnPrimaryClickOverlay",
-                Type.EmptyTypes,
-                interactionPostfix);
-
-            return patched;
         }
 
         private static int TryPatchTimedLightMutations(Harmony harmony)
@@ -226,17 +177,17 @@ namespace CSM.TmpeSync.TimedTrafficLights.Services
                     Log.Info(
                         LogCategory.Network,
                         LogRole.Host,
-                        "[TimedTrafficLights] Patched {0}.{1}({2} params).",
+                        "[TimedTrafficLights] Harmony patched {0}.{1}({2}).",
                         type.FullName,
                         method.Name,
-                        parameterCount);
+                        string.Join(", ", method.GetParameters().Select(p => p.ParameterType.Name).ToArray()));
                 }
                 catch (Exception ex)
                 {
                     Log.Warn(
                         LogCategory.Network,
                         LogRole.Host,
-                        "[TimedTrafficLights] Failed to patch {0}.{1}({2} params) | error={3}",
+                        "[TimedTrafficLights] Failed to patch {0}.{1}({2} params) | error={3}.",
                         type.FullName,
                         method.Name,
                         parameterCount,
@@ -259,23 +210,14 @@ namespace CSM.TmpeSync.TimedTrafficLights.Services
                 return 0;
 
             harmony.Patch(method, postfix: new HarmonyMethod(postfix));
-            Log.Info(LogCategory.Network, LogRole.Host, "[TimedTrafficLights] Patched {0}.{1}.", type.FullName, method.Name);
+            Log.Info(
+                LogCategory.Network,
+                LogRole.Host,
+                "[TimedTrafficLights] Harmony patched {0}.{1}({2}).",
+                type.FullName,
+                method.Name,
+                string.Join(", ", method.GetParameters().Select(p => p.ParameterType.Name).ToArray()));
             return 1;
-        }
-
-        private static void ClientInteractionPostfix()
-        {
-            try
-            {
-                if (TimedTrafficLightsTmpeAdapter.IsLocalApplyActive)
-                    return;
-
-                TimedTrafficLightsSynchronization.NotifyLocalInteraction("tmpe_ttl_tool");
-            }
-            catch
-            {
-                // ignored
-            }
         }
 
         private static void TimedLightMutationPostfix(object __instance, MethodBase __originalMethod)

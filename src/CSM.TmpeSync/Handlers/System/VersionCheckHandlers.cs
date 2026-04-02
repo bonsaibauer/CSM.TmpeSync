@@ -14,7 +14,7 @@ namespace CSM.TmpeSync.Handlers.System
             var senderId = CsmBridge.GetSenderId(command);
             Log.Info(
                 LogCategory.Network,
-                "Version check request received | senderId={0} reportedVersion={1} manual={2} requestId={3}",
+                "[VersionCheck] Request received | senderId={0} reportedVersion={1} manual={2} requestId={3}.",
                 senderId,
                 command?.Version ?? "<null>",
                 command != null && command.IsManualCheck ? "Yes" : "No",
@@ -24,14 +24,14 @@ namespace CSM.TmpeSync.Handlers.System
             {
                 Log.Debug(
                     LogCategory.Network,
-                    "Version check request ignored | reason=not_server_instance senderId={0}",
+                    "[VersionCheck] Request ignored | reason=not_server_instance senderId={0}.",
                     senderId);
                 return;
             }
 
             if (senderId < 0)
             {
-                Log.Warn(LogCategory.Network, LogRole.General, "Version check request missing sender | reportedVersion={0}", command?.Version ?? "<null>");
+                Log.Warn(LogCategory.Network, LogRole.General, "[VersionCheck] Request ignored | reason=missing_sender reportedVersion={0}.", command?.Version ?? "<null>");
                 return;
             }
 
@@ -47,7 +47,7 @@ namespace CSM.TmpeSync.Handlers.System
 
             Log.Info(
                 LogCategory.Network,
-                "Client version comparison | senderId={0} clientVersion={1} serverVersion={2} status={3} severity={4}",
+                "[VersionCheck] Client comparison | senderId={0} clientVersion={1} serverVersion={2} status={3} severity={4}.",
                 senderId,
                 clientVersion ?? "<null>",
                 serverVersion ?? "<null>",
@@ -78,7 +78,7 @@ namespace CSM.TmpeSync.Handlers.System
                     {
                         Log.Warn(
                             LogCategory.Network,
-                            "Failed to broadcast version mismatch notification | targetId={0} clientVersion={1} serverVersion={2} error={3}",
+                            "[VersionCheck] Broadcast version mismatch notification failed | targetId={0} clientVersion={1} serverVersion={2} error={3}.",
                             senderId,
                             clientVersion ?? "<null>",
                             serverVersion ?? "<null>",
@@ -97,7 +97,7 @@ namespace CSM.TmpeSync.Handlers.System
                 });
                 Log.Info(
                     LogCategory.Network,
-                    "Version check response broadcast sent | targetId={0} version={1} manual={2} requestId={3}",
+                    "[VersionCheck] Response broadcast sent | targetId={0} version={1} manual={2} requestId={3}.",
                     senderId,
                     serverVersion ?? "<null>",
                     command != null && command.IsManualCheck ? "Yes" : "No",
@@ -105,7 +105,7 @@ namespace CSM.TmpeSync.Handlers.System
             }
             catch (Exception ex)
             {
-                Log.Warn(LogCategory.Network, LogRole.General, "Failed to broadcast version check response | targetId={0} error={1}", senderId, ex);
+                Log.Warn(LogCategory.Network, LogRole.General, "[VersionCheck] Broadcast response failed | targetId={0} error={1}.", senderId, ex);
             }
         }
     }
@@ -117,7 +117,7 @@ namespace CSM.TmpeSync.Handlers.System
             var senderId = CsmBridge.GetSenderId(command);
             Log.Info(
                 LogCategory.Network,
-                "Version check response received | senderId={0} serverVersion={1} manual={2} requestId={3}",
+                "[VersionCheck] Response received | senderId={0} serverVersion={1} manual={2} requestId={3}.",
                 senderId,
                 command?.Version ?? "<null>",
                 command != null && command.IsManualCheck ? "Yes" : "No",
@@ -125,7 +125,7 @@ namespace CSM.TmpeSync.Handlers.System
 
             if (CsmBridge.IsServerInstance())
             {
-                Log.Debug(LogCategory.Network, LogRole.General, "Version check response ignored | reason=server_instance senderId={0}", senderId);
+                Log.Debug(LogCategory.Network, LogRole.General, "[VersionCheck] Response ignored | reason=server_instance senderId={0}.", senderId);
                 return;
             }
 
@@ -141,7 +141,7 @@ namespace CSM.TmpeSync.Handlers.System
 
             Log.Info(
                 LogCategory.Network,
-                "Server version comparison | serverVersion={0} localVersion={1} status={2} severity={3}",
+                "[VersionCheck] Server comparison | serverVersion={0} localVersion={1} status={2} severity={3}.",
                 serverVersion ?? "<null>",
                 localVersion ?? "<null>",
                 comparisonStatus,
@@ -183,13 +183,13 @@ namespace CSM.TmpeSync.Handlers.System
             var senderId = CsmBridge.GetSenderId(command);
             Log.Info(
                 LogCategory.Network,
-                "Version probe request received | senderId={0} requestId={1} hostVersion={2}",
+                "[VersionCheck] Probe request received | senderId={0} requestId={1} hostVersion={2}.",
                 senderId,
                 command?.RequestId ?? "<null>",
                 command?.HostVersion ?? "<null>");
             if (CsmBridge.IsServerInstance())
             {
-                Log.Debug(LogCategory.Network, LogRole.General, "Version probe request ignored | reason=server_instance senderId={0}", senderId);
+                Log.Debug(LogCategory.Network, LogRole.General, "[VersionCheck] Probe request ignored | reason=server_instance senderId={0}.", senderId);
                 return;
             }
 
@@ -208,7 +208,7 @@ namespace CSM.TmpeSync.Handlers.System
                 Log.Info(
                     LogCategory.Network,
                     LogRole.Client,
-                    "Version probe response sent | requestId={0} clientVersion={1} hostVersion={2} matchesHost={3}",
+                    "[VersionCheck] Probe response sent | requestId={0} clientVersion={1} hostVersion={2} matchesHost={3}.",
                     command?.RequestId ?? "<null>",
                     localVersion ?? "<null>",
                     hostVersion ?? "<null>",
@@ -219,7 +219,7 @@ namespace CSM.TmpeSync.Handlers.System
                 Log.Warn(
                     LogCategory.Network,
                     LogRole.Client,
-                    "Failed to send version probe response | requestId={0} localVersion={1} hostVersion={2} error={3}",
+                    "[VersionCheck] Probe response send failed | requestId={0} localVersion={1} hostVersion={2} error={3}.",
                     command?.RequestId ?? "<null>",
                     localVersion ?? "<null>",
                     hostVersion ?? "<null>",
@@ -241,7 +241,7 @@ namespace CSM.TmpeSync.Handlers.System
             Log.Info(
                 LogCategory.Network,
                 LogRole.Host,
-                "Version probe response received | senderId={0} requestId={1} clientVersion={2} matchesHost={3}",
+                "[VersionCheck] Probe response received | senderId={0} requestId={1} clientVersion={2} matchesHost={3}.",
                 senderId,
                 command?.RequestId ?? "<null>",
                 command?.ClientVersion ?? "<null>",

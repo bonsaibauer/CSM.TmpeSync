@@ -216,7 +216,7 @@ namespace CSM.TmpeSync.Services
             {
                 Log.Info(
                     LogCategory.Dependency,
-                    "Compatibility | mod={0} installed={1} status={2} severity={3} actualVersion={4} normalizedActual={5} latestTag={6} reason={7}",
+                    "[Compatibility] Dependency compatibility | mod={0} installed={1} status={2} severity={3} actualVersion={4} normalizedActual={5} latestTag={6} reason={7}.",
                     status.DisplayName,
                     status.Installed ? "Yes" : "No",
                     status.Status,
@@ -271,7 +271,7 @@ namespace CSM.TmpeSync.Services
             }
             catch (Exception ex)
             {
-                Log.Warn(LogCategory.Diagnostics, LogRole.General, "Manual dependency check failed | error={0}", ex);
+                Log.Warn(LogCategory.Diagnostics, LogRole.General, "[Compatibility] Manual dependency check failed | error={0}.", ex);
                 var errorRows = new[]
                 {
                     new CompatibilityStatus(
@@ -355,7 +355,7 @@ namespace CSM.TmpeSync.Services
                         "Host/Client compatibility check could not start.",
                         "ensure a session is active, then retry."),
                     null);
-                Log.Warn(LogCategory.Network, LogRole.General, "Manual version compatibility check failed | error={0}", ex);
+                Log.Warn(LogCategory.Network, LogRole.General, "[Compatibility] Manual version compatibility check failed | error={0}.", ex);
                 var errorRows = new[]
                 {
                     new CompatibilityStatus(
@@ -402,7 +402,7 @@ namespace CSM.TmpeSync.Services
                 Log.Debug(
                     LogCategory.Network,
                     LogRole.Client,
-                    "Manual client compatibility response ignored | requestId={0} pendingRequestId={1}",
+                    "[Compatibility] Manual client response ignored | requestId={0} pendingRequestId={1}.",
                     requestId,
                     pendingRequestId ?? "<null>");
                 return;
@@ -411,7 +411,7 @@ namespace CSM.TmpeSync.Services
             Log.Info(
                 LogCategory.Network,
                 LogRole.Client,
-                "Manual client compatibility response accepted | requestId={0} localVersion={1} serverVersion={2}",
+                "[Compatibility] Manual client response accepted | requestId={0} localVersion={1} serverVersion={2}.",
                 requestId,
                 localVersion ?? "<null>",
                 serverVersion ?? "<null>");
@@ -491,7 +491,7 @@ namespace CSM.TmpeSync.Services
             Log.Info(
                 LogCategory.Network,
                 LogRole.Client,
-                "Manual client compatibility check completed via automatic handshake | requestId={0} localVersion={1} serverVersion={2}",
+                "[Compatibility] Manual client check completed via automatic handshake | requestId={0} localVersion={1} serverVersion={2}.",
                 pendingRequestId,
                 localVersion ?? "<null>",
                 serverVersion ?? "<null>");
@@ -527,7 +527,7 @@ namespace CSM.TmpeSync.Services
             Log.Info(
                 LogCategory.Network,
                 LogRole.Host,
-                "Manual host compatibility probe consumed automatic handshake observation | requestId={0} clientId={1} clientVersion={2}",
+                "[Compatibility] Manual host probe consumed automatic handshake observation | requestId={0} clientId={1} clientVersion={2}.",
                 requestId ?? "<null>",
                 senderId,
                 clientVersion ?? "<null>");
@@ -553,7 +553,7 @@ namespace CSM.TmpeSync.Services
                     Log.Debug(
                         LogCategory.Network,
                         LogRole.Host,
-                        "Manual compatibility probe response ignored | requestId={0} senderId={1} reason=no_active_session",
+                        "[Compatibility] Manual probe response ignored | requestId={0} senderId={1} reason=no_active_session.",
                         requestId,
                         senderId);
                     return;
@@ -564,7 +564,7 @@ namespace CSM.TmpeSync.Services
                     Log.Debug(
                         LogCategory.Network,
                         LogRole.Host,
-                        "Manual compatibility probe response ignored | requestId={0} senderId={1} reason=request_id_mismatch activeRequestId={2}",
+                        "[Compatibility] Manual probe response ignored | requestId={0} senderId={1} reason=request_id_mismatch activeRequestId={2}.",
                         requestId,
                         senderId,
                         session.RequestId ?? "<null>");
@@ -576,7 +576,7 @@ namespace CSM.TmpeSync.Services
                     Log.Debug(
                         LogCategory.Network,
                         LogRole.Host,
-                        "Manual compatibility probe response ignored | requestId={0} senderId={1} reason=unexpected_sender",
+                        "[Compatibility] Manual probe response ignored | requestId={0} senderId={1} reason=unexpected_sender.",
                         requestId,
                         senderId);
                     return;
@@ -589,7 +589,7 @@ namespace CSM.TmpeSync.Services
                     Log.Info(
                         LogCategory.Network,
                         LogRole.Host,
-                        "Manual compatibility probe response received | requestId={0} clientId={1} clientVersion={2} matchesHost={3}",
+                        "[Compatibility] Manual probe response received | requestId={0} clientId={1} clientVersion={2} matchesHost={3}.",
                         requestId,
                         senderId,
                         clientVersion ?? "<null>",
@@ -636,11 +636,11 @@ namespace CSM.TmpeSync.Services
         {
             if (CsmBridge.IsServerInstance())
             {
-                Log.Info(LogCategory.Network, LogRole.Host, "Version compatibility handshake ready | version={0}", LocalVersion);
+                Log.Info(LogCategory.Network, LogRole.Host, "[Compatibility] Automatic handshake ready | version={0}.", LocalVersion);
             }
             else
             {
-                Log.Info(LogCategory.Network, LogRole.Client, "Dispatching version compatibility request | localVersion={0}", LocalVersion);
+                Log.Info(LogCategory.Network, LogRole.Client, "[Compatibility] Automatic request dispatch | localVersion={0}.", LocalVersion);
                 SetLiveCompatibilityPending(
                     "Client",
                     ComposeReason(
@@ -1126,7 +1126,7 @@ namespace CSM.TmpeSync.Services
             }
             catch (Exception ex)
             {
-                Log.Warn(LogCategory.Diagnostics, LogRole.General, "Version lookup failed | mod={0} error={1}", displayName, ex);
+                Log.Warn(LogCategory.Diagnostics, LogRole.General, "[Compatibility] Version lookup failed | mod={0} error={1}.", displayName, ex);
             }
 
             return BuildResult(displayName, installed, version, latestTag, legacyTags, normalizedComponentLimit);
@@ -1153,7 +1153,7 @@ namespace CSM.TmpeSync.Services
             }
             catch (Exception ex)
             {
-                Log.Warn(LogCategory.Diagnostics, LogRole.General, "Cities: Skylines version lookup failed | error={0}", ex);
+                Log.Warn(LogCategory.Diagnostics, LogRole.General, "[Compatibility] Cities: Skylines version lookup failed | error={0}.", ex);
             }
 
             return BuildResult(
@@ -1767,7 +1767,7 @@ namespace CSM.TmpeSync.Services
             }
             catch (Exception ex)
             {
-                Log.Debug(LogCategory.Diagnostics, LogRole.General, "Failed to read plugin version | plugin={0} error={1}", Deps.SafeName(plugin), ex);
+                Log.Debug(LogCategory.Diagnostics, LogRole.General, "[Compatibility] Plugin version read failed | plugin={0} error={1}.", Deps.SafeName(plugin), ex);
             }
 
             return null;
@@ -1807,7 +1807,7 @@ namespace CSM.TmpeSync.Services
             }
             catch (Exception ex)
             {
-                Log.Warn(LogCategory.Diagnostics, LogRole.General, "Harmony version lookup failed | error={0}", ex);
+                Log.Warn(LogCategory.Diagnostics, LogRole.General, "[Compatibility] Harmony version lookup failed | error={0}.", ex);
                 return null;
             }
         }
@@ -1896,7 +1896,7 @@ namespace CSM.TmpeSync.Services
             {
                 Log.Info(
                     LogCategory.Configuration,
-                    "Metadata ({0}) | current={1} latest={2} legacy=[{3}]",
+                    "[Compatibility] Metadata ({0}) | current={1} latest={2} legacy=[{3}].",
                     name,
                     current,
                     latestValue,
@@ -1906,7 +1906,7 @@ namespace CSM.TmpeSync.Services
             {
                 Log.Info(
                     LogCategory.Configuration,
-                    "Metadata ({0}) | latest={1} legacy=[{2}]",
+                    "[Compatibility] Metadata ({0}) | latest={1} legacy=[{2}].",
                     name,
                     latestValue,
                     legacyList);
@@ -1925,7 +1925,7 @@ namespace CSM.TmpeSync.Services
             Log.Info(
                 LogCategory.Network,
                 LogRole.Client,
-                "Manual client compatibility check started | requestId={0} timeoutMs={1} maxAttempts={2}",
+                "[Compatibility] Manual client check started | requestId={0} timeoutMs={1} maxAttempts={2}.",
                 requestId,
                 ManualClientCheckTimeoutMilliseconds,
                 ManualClientCheckMaxAttempts);
@@ -1939,7 +1939,7 @@ namespace CSM.TmpeSync.Services
             Log.Info(
                 LogCategory.Network,
                 LogRole.Client,
-                "Manual client compatibility request dispatch | requestId={0} attempt={1}/{2} retry={3}",
+                "[Compatibility] Manual client request dispatch | requestId={0} attempt={1}/{2} retry={3}.",
                 requestId,
                 attempt,
                 ManualClientCheckMaxAttempts,
@@ -1990,7 +1990,7 @@ namespace CSM.TmpeSync.Services
                     Log.Warn(
                         LogCategory.Network,
                         LogRole.Client,
-                        "Manual client compatibility request timed out | requestId={0} attempt={1}/{2} action=retry",
+                        "[Compatibility] Manual client request timed out | requestId={0} attempt={1}/{2} action=retry.",
                         requestId,
                         attempt,
                         ManualClientCheckMaxAttempts);
@@ -2011,7 +2011,7 @@ namespace CSM.TmpeSync.Services
                 Log.Warn(
                     LogCategory.Network,
                     LogRole.Client,
-                    "Manual client compatibility request timed out | requestId={0} attempts={1}/{1} action=fail",
+                    "[Compatibility] Manual client request timed out | requestId={0} attempts={1}/{1} action=fail.",
                     requestId,
                     ManualClientCheckMaxAttempts);
                 var timeoutRows = new List<CompatibilityStatus>
@@ -2092,7 +2092,7 @@ namespace CSM.TmpeSync.Services
             Log.Info(
                 LogCategory.Network,
                 LogRole.Host,
-                "Manual host compatibility check started | requestId={0} clients={1} timeoutMs={2} maxAttempts={3}",
+                "[Compatibility] Manual host check started | requestId={0} clients={1} timeoutMs={2} maxAttempts={3}.",
                 session.RequestId,
                 connectedClients.Count,
                 ManualHostProbeTimeoutMilliseconds,
@@ -2128,7 +2128,7 @@ namespace CSM.TmpeSync.Services
                 Log.Info(
                     LogCategory.Network,
                     LogRole.Host,
-                    "Manual host compatibility probe broadcast dispatched | requestId={0} attempt={1}/{2} expectedClients=[{3}]",
+                    "[Compatibility] Manual host probe broadcast dispatched | requestId={0} attempt={1}/{2} expectedClients=[{3}].",
                     session.RequestId,
                     session.Attempt,
                     ManualHostProbeMaxAttempts,
@@ -2139,7 +2139,7 @@ namespace CSM.TmpeSync.Services
                 Log.Warn(
                     LogCategory.Network,
                     LogRole.Host,
-                    "Failed to dispatch manual host compatibility probe broadcast | requestId={0} attempt={1}/{2} expectedClients=[{3}] error={4}",
+                    "[Compatibility] Manual host probe broadcast dispatch failed | requestId={0} attempt={1}/{2} expectedClients=[{3}] error={4}.",
                     session.RequestId,
                     session.Attempt,
                     ManualHostProbeMaxAttempts,
@@ -2203,7 +2203,7 @@ namespace CSM.TmpeSync.Services
                     Log.Warn(
                         LogCategory.Network,
                         LogRole.Host,
-                        "Manual host compatibility probe timed out | requestId={0} attempt={1}/{2} missingClients=[{3}] action=retry",
+                        "[Compatibility] Manual host probe timed out | requestId={0} attempt={1}/{2} missingClients=[{3}] action=retry.",
                         requestId,
                         attempt,
                         ManualHostProbeMaxAttempts,
@@ -2228,7 +2228,7 @@ namespace CSM.TmpeSync.Services
                         Log.Warn(
                             LogCategory.Network,
                             LogRole.Host,
-                            "Manual host compatibility probe timed out | requestId={0} attempts={1}/{1} missingClients=[{2}] action=fail",
+                            "[Compatibility] Manual host probe timed out | requestId={0} attempts={1}/{1} missingClients=[{2}] action=fail.",
                             requestId,
                             ManualHostProbeMaxAttempts,
                             string.Join(", ", GetMissingHostProbeClientIds(timedOutSession).Select(id => id.ToString()).ToArray()));
@@ -2289,7 +2289,7 @@ namespace CSM.TmpeSync.Services
                         Log.Debug(
                             LogCategory.Network,
                             LogRole.Host,
-                            "Skipping local host entry while enumerating clients for manual compatibility probe | clientId={0}",
+                            "[Compatibility] Manual host probe skipped local host entry | clientId={0}.",
                             clientId);
                         continue;
                     }
@@ -2304,7 +2304,7 @@ namespace CSM.TmpeSync.Services
                 Log.Warn(
                     LogCategory.Network,
                     LogRole.Host,
-                    "Failed to enumerate connected clients for manual compatibility probe | error={0}",
+                    "[Compatibility] Manual host probe client enumeration failed | error={0}.",
                     ex);
                 return new List<int>();
             }
@@ -2352,7 +2352,7 @@ namespace CSM.TmpeSync.Services
             Log.Info(
                 LogCategory.Network,
                 LogRole.Host,
-                "Manual host compatibility check completed | requestId={0} timedOut={1} responded={2}/{3}",
+                "[Compatibility] Manual host check completed | requestId={0} timedOut={1} responded={2}/{3}.",
                 session.RequestId ?? "<null>",
                 timedOut ? "Yes" : "No",
                 respondedCount,
@@ -2496,14 +2496,14 @@ namespace CSM.TmpeSync.Services
                 Log.Info(
                     LogCategory.Network,
                     LogRole.General,
-                    "Version compatibility request dispatched | localVersion={0} manual={1} requestId={2}",
+                    "[Compatibility] Version compatibility request dispatched | localVersion={0} manual={1} requestId={2}.",
                     LocalVersion,
                     isManualCheck ? "Yes" : "No",
                     requestId ?? "<null>");
             }
             catch (Exception ex)
             {
-                Log.Warn(LogCategory.Network, LogRole.General, "Failed to send version compatibility request | error={0}", ex);
+                Log.Warn(LogCategory.Network, LogRole.General, "[Compatibility] Version compatibility request send failed | error={0}.", ex);
             }
         }
 
@@ -2531,7 +2531,7 @@ namespace CSM.TmpeSync.Services
                 }
                 catch (Exception ex)
                 {
-                    Log.Warn(LogCategory.Diagnostics, LogRole.General, "Failed to evaluate dependency warnings | error={0}", ex);
+                    Log.Warn(LogCategory.Diagnostics, LogRole.General, "[Compatibility] Dependency warning evaluation failed | error={0}.", ex);
                 }
             });
         }
@@ -2722,7 +2722,7 @@ namespace CSM.TmpeSync.Services
                 Log.Debug(
                     LogCategory.Diagnostics,
                     LogRole.General,
-                    "Failed to apply compatibility gate via reflection | enabled={0} reason={1} error={2}",
+                    "[Compatibility] Compatibility gate apply via reflection failed | enabled={0} reason={1} error={2}.",
                     enabled ? "Yes" : "No",
                     reason ?? string.Empty,
                     ex);

@@ -22,7 +22,7 @@ namespace CSM.TmpeSync.ToggleTrafficLights.Handlers
         {
             Log.Info(
                 LogCategory.Network,
-                "TrafficLightApplied received | nodeId={0} enabled={1} origin={2}",
+                "[ToggleTrafficLights] Applied command received | nodeId={0} enabled={1} origin={2}.",
                 nodeId,
                 enabled,
                 origin ?? "unknown");
@@ -31,7 +31,7 @@ namespace CSM.TmpeSync.ToggleTrafficLights.Handlers
             {
                 Log.Warn(
                     LogCategory.Synchronization,
-                    "TrafficLightApplied skipped | nodeId={0} origin={1} reason=entity_missing",
+                    "[ToggleTrafficLights] Applied command skipped | nodeId={0} origin={1} reason=entity_missing.",
                     nodeId,
                     origin ?? "unknown");
                 return;
@@ -43,7 +43,7 @@ namespace CSM.TmpeSync.ToggleTrafficLights.Handlers
                 {
                     Log.Warn(
                         LogCategory.Synchronization,
-                        "TrafficLightApplied skipped during simulation | nodeId={0} origin={1} reason=entity_missing",
+                        "[ToggleTrafficLights] Applied command skipped during simulation | nodeId={0} origin={1} reason=entity_missing.",
                         nodeId,
                         origin ?? "unknown");
                     return;
@@ -55,7 +55,7 @@ namespace CSM.TmpeSync.ToggleTrafficLights.Handlers
                     {
                         Log.Info(
                             LogCategory.Synchronization,
-                            "TrafficLightApplied applied | nodeId={0} enabled={1}",
+                            "[ToggleTrafficLights] Apply completed | nodeId={0} enabled={1}.",
                             nodeId,
                             enabled);
                     }
@@ -63,7 +63,7 @@ namespace CSM.TmpeSync.ToggleTrafficLights.Handlers
                     {
                         Log.Error(
                             LogCategory.Synchronization,
-                            "TrafficLightApplied failed | nodeId={0} enabled={1}",
+                            "[ToggleTrafficLights] Apply failed | nodeId={0} enabled={1}.",
                             nodeId,
                             enabled);
                     }

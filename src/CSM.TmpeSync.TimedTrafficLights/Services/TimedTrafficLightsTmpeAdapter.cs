@@ -25,6 +25,7 @@ namespace CSM.TmpeSync.TimedTrafficLights.Services
                 if (manager == null)
                     return true;
 
+                var masters = new HashSet<ushort>();
                 var maxNodeCount = NetManager.MAX_NODE_COUNT;
                 for (var node = 1; node < maxNodeCount; node++)
                 {
@@ -36,8 +37,42 @@ namespace CSM.TmpeSync.TimedTrafficLights.Services
                     if (timed == null || !timed.IsMasterNode())
                         continue;
 
+                    var master = timed.MasterNodeId != 0 ? timed.MasterNodeId : timed.NodeId;
+                    if (master == 0)
+                        master = nodeId;
+
+                    masters.Add(master);
+                }
+
+                return TryCaptureDefinitions(masters, out definitions);
+            }
+            catch (Exception ex)
+            {
+                Log.Warn(LogCategory.Bridge, LogRole.Host, "[TimedTrafficLights] CaptureAllDefinitions failed | error={0}.", ex);
+                definitions = new Dictionary<ushort, TimedTrafficLightsDefinitionState>();
+                return false;
+            }
+        }
+
+        internal static bool TryCaptureDefinitions(
+            ICollection<ushort> masterNodeIds,
+            out Dictionary<ushort, TimedTrafficLightsDefinitionState> definitions)
+        {
+            definitions = new Dictionary<ushort, TimedTrafficLightsDefinitionState>();
+
+            if (masterNodeIds == null || masterNodeIds.Count == 0)
+                return true;
+
+            try
+            {
+                var uniqueMasters = new HashSet<ushort>();
+                foreach (var candidate in masterNodeIds)
+                {
+                    if (candidate == 0 || !uniqueMasters.Add(candidate))
+                        continue;
+
                     TimedTrafficLightsDefinitionState definition;
-                    if (!TryCaptureDefinition(timed, manager, out definition) || definition == null)
+                    if (!TryCaptureDefinitionForMaster(candidate, out definition) || definition == null)
                         continue;
 
                     definitions[definition.MasterNodeId] = definition;
@@ -47,8 +82,48 @@ namespace CSM.TmpeSync.TimedTrafficLights.Services
             }
             catch (Exception ex)
             {
-                Log.Warn(LogCategory.Bridge, LogRole.Host, "[TimedTrafficLights] CaptureAllDefinitions failed | error={0}", ex);
+                Log.Warn(LogCategory.Bridge, LogRole.Host, "[TimedTrafficLights] CaptureDefinitions failed | error={0}.", ex);
                 definitions = new Dictionary<ushort, TimedTrafficLightsDefinitionState>();
+                return false;
+            }
+        }
+
+        internal static bool TryCaptureDefinitionForMaster(
+            ushort masterNodeId,
+            out TimedTrafficLightsDefinitionState definition)
+        {
+            definition = null;
+            if (masterNodeId == 0)
+                return false;
+
+            try
+            {
+                var manager = TrafficLightSimulationManager.Instance;
+                if (manager == null)
+                    return false;
+
+                TmpeTimedTrafficLights masterTimed;
+                ushort resolvedMaster;
+                if (!TryGetMasterTimedLights(masterNodeId, out masterTimed, out resolvedMaster) || masterTimed == null)
+                    return false;
+
+                if (!TryCaptureDefinition(masterTimed, manager, out definition) || definition == null)
+                    return false;
+
+                if (definition.MasterNodeId == 0)
+                    definition.MasterNodeId = resolvedMaster;
+
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Log.Warn(
+                    LogCategory.Bridge,
+                    LogRole.Host,
+                    "[TimedTrafficLights] CaptureDefinitionForMaster failed | master={0} error={1}.",
+                    masterNodeId,
+                    ex);
+                definition = null;
                 return false;
             }
         }
@@ -76,7 +151,7 @@ namespace CSM.TmpeSync.TimedTrafficLights.Services
             }
             catch (Exception ex)
             {
-                Log.Warn(LogCategory.Bridge, LogRole.Host, "[TimedTrafficLights] TryReadRuntime failed | master={0} error={1}", masterNodeId, ex);
+                Log.Warn(LogCategory.Bridge, LogRole.Host, "[TimedTrafficLights] TryReadRuntime failed | master={0} error={1}.", masterNodeId, ex);
                 runtime = null;
                 return false;
             }
@@ -283,7 +358,7 @@ namespace CSM.TmpeSync.TimedTrafficLights.Services
             catch (Exception ex)
             {
                 reason = "tmpe_apply_exception";
-                Log.Warn(LogCategory.Bridge, LogRole.Host, "[TimedTrafficLights] ApplyDefinition failed | master={0} error={1}", masterNodeId, ex);
+                Log.Warn(LogCategory.Bridge, LogRole.Host, "[TimedTrafficLights] ApplyDefinition failed | master={0} error={1}.", masterNodeId, ex);
                 return false;
             }
         }
@@ -333,7 +408,7 @@ namespace CSM.TmpeSync.TimedTrafficLights.Services
             catch (Exception ex)
             {
                 reason = "tmpe_remove_exception";
-                Log.Warn(LogCategory.Bridge, LogRole.Host, "[TimedTrafficLights] ApplyRemoval failed | master={0} error={1}", masterNodeId, ex);
+                Log.Warn(LogCategory.Bridge, LogRole.Host, "[TimedTrafficLights] ApplyRemoval failed | master={0} error={1}.", masterNodeId, ex);
                 return false;
             }
         }
@@ -452,7 +527,7 @@ namespace CSM.TmpeSync.TimedTrafficLights.Services
             catch (Exception ex)
             {
                 reason = "runtime_apply_exception";
-                Log.Warn(LogCategory.Bridge, LogRole.Client, "[TimedTrafficLights] ApplyRuntime failed | master={0} error={1}", runtime.MasterNodeId, ex);
+                Log.Warn(LogCategory.Bridge, LogRole.Client, "[TimedTrafficLights] ApplyRuntime failed | master={0} error={1}.", runtime.MasterNodeId, ex);
                 return false;
             }
         }

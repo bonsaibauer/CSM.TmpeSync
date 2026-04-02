@@ -31,7 +31,7 @@ namespace CSM.TmpeSync.SpeedLimits.Handlers
             Log.Info(
                 LogCategory.Synchronization,
                 LogRole.Host,
-                "[SpeedLimits] Resync for reconnecting client | target={0} defaults={1} segments={2}",
+                "[SpeedLimits] Resync for reconnecting client | target={0} defaults={1} segments={2}.",
                 clientId,
                 defaultStates?.Count ?? 0,
                 segmentStates?.Count ?? 0);
@@ -53,7 +53,7 @@ namespace CSM.TmpeSync.SpeedLimits.Handlers
         {
             Log.Info(LogCategory.Network,
                 LogRole.Client,
-                "SpeedLimitsApplied received | segmentId={0} items={1} origin={2}",
+                "[SpeedLimits] Applied command received | segmentId={0} items={1} origin={2}.",
                 command.SegmentId,
                 command.Items?.Count ?? 0,
                 origin ?? "unknown");
@@ -62,7 +62,7 @@ namespace CSM.TmpeSync.SpeedLimits.Handlers
             {
                 Log.Warn(LogCategory.Synchronization,
                     LogRole.Client,
-                    "SpeedLimitsApplied skipped | segmentId={0} origin={1} reason=segment_missing",
+                    "[SpeedLimits] Applied command skipped | segmentId={0} origin={1} reason=segment_missing.",
                     command.SegmentId,
                     origin ?? "unknown");
                 return;
@@ -74,7 +74,7 @@ namespace CSM.TmpeSync.SpeedLimits.Handlers
                 {
                     Log.Warn(LogCategory.Synchronization,
                         LogRole.Client,
-                        "SpeedLimitsApplied skipped during simulation | segmentId={0} origin={1} reason=entity_missing",
+                        "[SpeedLimits] Applied command skipped during simulation | segmentId={0} origin={1} reason=entity_missing.",
                         command.SegmentId,
                         origin ?? "unknown");
                     return;
@@ -94,7 +94,7 @@ namespace CSM.TmpeSync.SpeedLimits.Handlers
                         Log.Error(
                             LogCategory.Synchronization,
                             LogRole.Client,
-                            "SpeedLimitsApplied failed | segmentId={0}",
+                            "[SpeedLimits] Apply failed | segmentId={0}.",
                             command.SegmentId);
                     }
                     else if (result.Deferred)
@@ -102,7 +102,7 @@ namespace CSM.TmpeSync.SpeedLimits.Handlers
                         Log.Info(
                             LogCategory.Synchronization,
                             LogRole.Client,
-                            "SpeedLimitsApplied deferred | segmentId={0}",
+                            "[SpeedLimits] Apply deferred | segmentId={0}.",
                             command.SegmentId);
                     }
                     else
@@ -110,7 +110,7 @@ namespace CSM.TmpeSync.SpeedLimits.Handlers
                         Log.Info(
                             LogCategory.Synchronization,
                             LogRole.Client,
-                            "SpeedLimitsApplied applied | segmentId={0} count={1}",
+                            "[SpeedLimits] Apply completed | segmentId={0} count={1}.",
                             command.SegmentId,
                             request.Items?.Count ?? 0);
                     }

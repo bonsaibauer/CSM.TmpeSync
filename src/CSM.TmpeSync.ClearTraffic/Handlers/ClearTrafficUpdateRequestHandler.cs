@@ -11,11 +11,11 @@ namespace CSM.TmpeSync.ClearTraffic.Handlers
         protected override void Handle(ClearTrafficUpdateRequest command)
         {
             var senderId = CsmBridge.GetSenderId(command);
-            Log.Info(LogCategory.Network, LogRole.Host, "ClearTrafficUpdateRequest received | senderId={0}", senderId);
+            Log.Info(LogCategory.Network, LogRole.Host, "[ClearTraffic] Update request received | senderId={0}.", senderId);
 
             if (!CsmBridge.IsServerInstance())
             {
-                Log.Debug(LogCategory.Network, LogRole.Client, "ClearTrafficUpdateRequest ignored | reason=not_server_instance");
+                Log.Debug(LogCategory.Network, LogRole.Client, "[ClearTraffic] Update request ignored | reason=not_server_instance.");
                 return;
             }
 
@@ -25,12 +25,12 @@ namespace CSM.TmpeSync.ClearTraffic.Handlers
                 {
                     if (ClearTrafficSynchronization.Apply())
                     {
-                        Log.Info(LogCategory.Synchronization, LogRole.Host, "Traffic cleared | senderId={0} action=broadcast", senderId);
+                        Log.Info(LogCategory.Synchronization, LogRole.Host, "[ClearTraffic] Apply completed | senderId={0} action=broadcast.", senderId);
                         ClearTrafficSynchronization.Dispatch(new ClearTrafficAppliedCommand());
                     }
                     else
                     {
-                        Log.Error(LogCategory.Synchronization, LogRole.Host, "Traffic clear failed | senderId={0} action=notify_requester", senderId);
+                        Log.Error(LogCategory.Synchronization, LogRole.Host, "[ClearTraffic] Apply failed | senderId={0} action=notify_requester.", senderId);
                         if (senderId >= 0)
                             CsmBridge.SendToClient(senderId, new RequestRejected { Reason = "tmpe_clear_failed" });
                     }
